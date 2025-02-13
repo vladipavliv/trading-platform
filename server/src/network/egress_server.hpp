@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "config/config.hpp"
-#include "egress_connection.hpp"
 #include "server_types.hpp"
 #include "types/market_types.hpp"
 #include "types/network_types.hpp"
@@ -23,8 +22,6 @@ namespace hft::server::network {
 
 class EgressServer {
 public:
-  using Connection = EgressConnection;
-
   EgressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.ioSink.ctx()}, mPort{Config::config().server.portTcpOut} {}
 
@@ -64,7 +61,7 @@ private:
           spdlog::error("Trader {} is already connected", traderId);
         } else {
           spdlog::debug("Accepted new egress connection from {}", traderId);
-          auto conn = std::make_unique<EgressConnection>(mSink, std::move(socket));
+          auto conn = std::make_unique<RingSocket>(mSink.dataSink, std::move(socket));
           mConnections.emplace(traderId, std::move(conn));
         }
       } else {
@@ -79,7 +76,7 @@ private:
   TcpAcceptor mAcceptor;
   Port mPort;
 
-  std::unordered_map<TraderId, Connection::UPtr> mConnections;
+  std::unordered_map<TraderId, RingSocket::UPtr> mConnections;
 };
 } // namespace hft::server::network
 

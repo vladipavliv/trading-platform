@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "config/config.hpp"
-#include "ingress_connection.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
 #include "server_types.hpp"
@@ -23,8 +22,6 @@ namespace hft::server::network {
 
 class IngressServer {
 public:
-  using Connection = IngressConnection;
-
   IngressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.ioSink.ctx()}, mPort{Config::config().server.portTcpIn} {}
 
@@ -59,8 +56,8 @@ private:
         } else {
           spdlog::debug("Accepted new ingress connection from {}", traderId);
 
-          auto conn = std::make_unique<IngressConnection>(mSink, std::move(socket));
-          conn->open();
+          auto conn = std::make_unique<RingSocket>(mSink.dataSink, std::move(socket));
+          conn->asyncRead();
           mConnections.emplace(traderId, std::move(conn));
         }
       } else {
@@ -73,10 +70,9 @@ private:
 private:
   ServerSink &mSink;
   TcpAcceptor mAcceptor;
-
   Port mPort;
 
-  std::unordered_map<TraderId, Connection::UPtr> mConnections;
+  std::unordered_map<TraderId, RingSocket::UPtr> mConnections;
 };
 } // namespace hft::server::network
 

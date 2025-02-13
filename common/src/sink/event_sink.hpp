@@ -60,12 +60,24 @@ public:
   }
 
   template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
-    static_assert(contains<EventType>(), "Type is not defined in the Sink");
     auto &queue = getQueue<EventType>();
     while (!queue.push(event)) {
       spdlog::debug("Failed to post: {}", utils::getTypeName<EventType>());
       std::this_thread::yield();
+    }
+  }
+
+  template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
+  void post(const std::vector<EventType> &events) {
+    auto &queue = getQueue<EventType>();
+    for (auto &event : events) {
+      while (!queue.push(event)) {
+        spdlog::debug("Failed to post: {}", utils::getTypeName<EventType>());
+        std::this_thread::yield();
+      }
     }
   }
 

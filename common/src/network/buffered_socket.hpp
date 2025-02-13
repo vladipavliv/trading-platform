@@ -9,6 +9,7 @@
 #ifndef HFT_COMMON_RINGSOCKET_HPP
 #define HFT_COMMON_RINGSOCKET_HPP
 
+#include <memory>
 #include <spdlog/spdlog.h>
 #include <vector>
 
@@ -17,25 +18,29 @@
 
 namespace hft {
 
-template <typename SinkType, typename MessageType, typename SerializerType>
+template <typename SinkType, typename SerializerType, typename MessageIn, typename... MessagesOut>
 class BufferedSocket {
 public:
   using Sink = SinkType;
   using Serializer = SerializerType;
-  using Message = MessageType;
+  using Message = MessageIn;
+  using UPtr = std::unique_ptr<BufferedSocket<SinkType, SerializerType, MessageIn, MessagesOut...>>;
 
-  BufferedSocket(Sink &sink, TcpSocket socket) : mSocket{std::move(socket)} {}
+  BufferedSocket(Sink &sink, TcpSocket socket) : mSink{sink}, mSocket{std::move(socket)} {}
 
   void asyncRead() {
     size_t writable = BUFFER_SIZE - mTail;
-    uint8_t *writePtr = headPtr();
+    uint8_t *writePtr = mBuffer.data() + mHead;
 
     mSocket.async_read_some(
         boost::asio::buffer(writePtr, writable),
         [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
   }
 
-  void write(Message &&msg) {
+  template <
+      typename MessageType,
+      typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
+  void write(MessageType &&msg) {
     auto buffer = Serializer::template serialize<MessageType>(std::forward<MessageType>(msg));
     MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
     auto dataPtr = std::make_shared<ByteBuffer>(sizeof(bodySize) + buffer.size());
@@ -48,7 +53,10 @@ public:
         [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
   }
 
-  void write(const std::vector<Message> &msgVec) {
+  template <
+      typename MessageType,
+      typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
+  void write(const std::vector<MessageType> &msgVec) {
     // Allocate approximately, to know exact size we need to serialize each message first
     size_t messageSize = msgVec.size() * MAX_MESSAGE_SIZE;
     auto dataPtr = std::make_shared<ByteBuffer>(messageSize);
@@ -75,6 +83,7 @@ private:
       mHead = mTail = 0;
       return;
     }
+    std::vector<MessageIn> messages;
     while (mHead + sizeof(MessageSize) < mTail) {
       MessageSize bodySize{0};
       std::memcpy(&bodySize, mBuffer.data(), sizeof(MessageSize));
@@ -82,22 +91,32 @@ private:
       if (mHead + bodySize > mTail) {
         break;
       }
-      auto message = Serializer::deserialize<MessageType>(mBuffer, bodySize + sizeof(MessageSize));
+      auto result = Serializer::template deserialize<MessageIn>(mBuffer.data(),
+                                                                bodySize + sizeof(MessageSize));
+      if (!result.ok()) {
+        // TODO(do) Clear all?
+        mHead = mTail = 0;
+        return;
+      }
+      messages.push_back(std::forward<MessageIn>(result.extract()));
       mHead += bodySize + sizeof(MessageSize);
     }
     // If we getting close to the edge of the buffer lets just wrap around
     if (BUFFER_SIZE - mTail < 256) {
-      std::memcpy(&mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
+      std::memcpy(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
       mHead = 0;
+    }
+    if (!messages.empty()) {
+      mSink.post(messages);
     }
     asyncRead();
   }
 
-  void writeHandler(BoostErrorRef ec, size_t size) {
+  void writeHandler(BoostErrorRef ec, size_t) {
     if (ec) {
       spdlog::error("Failed to send message: {}", ec.message());
-      reconnect();
+      // reconnect();
     }
   }
 
@@ -107,7 +126,7 @@ private:
 
   size_t mHead{0};
   size_t mTail{0};
-  ByteBuffer mBuffer(BUFFER_SIZE);
+  ByteBuffer mBuffer;
 };
 
 } // namespace hft
