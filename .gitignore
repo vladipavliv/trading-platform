@@ -1,0 +1,8 @@
+**/build/
+**/cmake-build-*/
+**/CMakeFiles/
+**/.vscode/
+Makefile
+Makefile.*
+*.mk
+cmake_install.cmake

@@ -1,0 +1,33 @@
+namespace hft.serialization.gen.fbs;
+
+enum OrderAction: byte {
+    BUY = 0,
+    SELL = 1,
+    LIMIT = 2,
+    MARKET = 3
+}
+
+enum FulfillmentState: byte {
+    PARTIAL = 0,
+    FULL = 1
+}
+
+table Order {
+    id: uint;
+    ticker: string;
+    action: OrderAction;
+    quantity: uint;
+    price: float;
+}
+
+table OrderStatus {
+    id: uint;
+    state: FulfillmentState;
+    quantity: uint;
+    fill_price: float;
+}
+
+table PriceUpdate {
+    ticker: string;
+    price: float;
+}

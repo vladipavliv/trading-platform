@@ -1,0 +1,36 @@
+/**
+ * @file
+ * @brief
+ *
+ * @author Vladimir Pavliv
+ * @date 2025-02-13
+ */
+
+#ifndef HFT_SERVER_NETWORK_SERVER_HPP
+#define HFT_SERVER_NETWORK_SERVER_HPP
+
+#include "egress_server.hpp"
+#include "ingress_server.hpp"
+#include "network_types.hpp"
+#include "server_types.hpp"
+#include "types.hpp"
+
+namespace hft::server::network {
+
+class NetworkServer {
+public:
+  NetworkServer(ServerSink &sink) : mSink{sink}, mIngressServer{mSink}, mEgressServer{mSink} {}
+
+  void start() {}
+  void stop() {}
+
+private:
+  ServerSink &mSink;
+
+  IngressServer mIngressServer;
+  EgressServer mEgressServer;
+};
+
+} // namespace hft::server::network
+
+#endif // HFT_SERVER_NETWORK_SERVER_HPP
