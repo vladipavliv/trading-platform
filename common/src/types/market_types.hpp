@@ -9,6 +9,7 @@
 #ifndef HFT_COMMON_MARKET_TYPES_HPP
 #define HFT_COMMON_MARKET_TYPES_HPP
 
+#include <algorithm>
 #include <cstring>
 
 #include "types.hpp"
@@ -44,6 +45,9 @@ struct PriceUpdate {
   Ticker ticker{};
   Price price;
 };
+
+constexpr size_t MAX_MESSAGE_SIZE =
+    std::max({sizeof(Order), sizeof(OrderStatus), sizeof(PriceUpdate)}) + sizeof(uint16_t);
 
 } // namespace hft
 

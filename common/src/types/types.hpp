@@ -22,10 +22,9 @@ using String = std::string;
 using StringView = std::string_view;
 using ObjectId = uintptr_t;
 
-constexpr size_t BUFFER_SIZE = 1024;
-using Buffer = std::array<uint8_t, BUFFER_SIZE>;
+constexpr size_t BUFFER_SIZE = 1024 * 4;
 
-using CpuId = uint8_t;
+using ByteBuffer = std::vector<uint8_t>;
 
 } // namespace hft
 

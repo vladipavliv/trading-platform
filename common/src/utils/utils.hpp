@@ -52,17 +52,6 @@ inline size_t generateOrderId() {
 
 bool socketOk(const TcpSocket &sock);
 
-template <typename BufferType>
-std::shared_ptr<std::vector<uint8_t>> packMessage(const BufferType &buffer) {
-  MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
-  auto dataPtr = std::make_shared<std::vector<uint8_t>>(sizeof(bodySize) + buffer.size());
-
-  std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
-  std::memcpy(dataPtr->data() + sizeof(bodySize), buffer.data(), buffer.size());
-
-  return dataPtr;
-}
-
 } // namespace hft::utils
 
 #endif // HFT_COMMON_UTILITIES_HPP

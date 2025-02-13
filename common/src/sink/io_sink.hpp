@@ -31,6 +31,7 @@ public:
     if (mThreadCount == 0) {
       mCtx.run();
     }
+    mThreads.reserve(mThreadCount);
     for (size_t i = 0; i < mThreadCount; ++i) {
       mThreads.emplace_back([this, i]() {
         spdlog::debug("Io thread {} started", i);

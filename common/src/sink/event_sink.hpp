@@ -107,9 +107,9 @@ private:
     return std::get<std::function<void(EventType &&)>>(mEventHandlers);
   }
 
-  template <typename T>
+  template <typename Type>
   static constexpr bool contains() {
-    return (std::is_same<T, EventTypes>::value || ...);
+    return (std::is_same<Type, EventTypes>::value || ...);
   }
 
 private:

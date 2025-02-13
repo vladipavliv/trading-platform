@@ -27,13 +27,7 @@ public:
   ~EgressConnection() { close(); }
 
   template <typename MessageType>
-  void send(MessageType &&message) {
-    auto buffer = Serializer::serialize(std::forward<MessageType>(message));
-    auto dataPtr = utils::packMessage(std::move(buffer));
-    boost::asio::async_write(
-        mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
-        [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
-  }
+  void send(MessageType &&message) {}
 
   inline ObjectId objectId() const { return utils::getId(this); }
   void close() { mSocket.close(); }

@@ -25,39 +25,39 @@ public:
 
   template <typename MessageType>
   static std::enable_if_t<std::is_same<MessageType, Order>::value, Result<Order>>
-  deserialize(const Buffer &buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer.data(), size);
+  deserialize(const uint8_t *buffer, size_t size) {
+    flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::Order>()) {
       spdlog::error("Order verification failed.");
       return ErrorCode::Error;
     }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::Order>(buffer.data());
+    auto orderMsg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
     return Order{orderMsg->id(), toString(orderMsg->ticker()), convert(orderMsg->action()),
                  orderMsg->quantity(), orderMsg->price()};
   }
 
   template <typename MessageType>
   static std::enable_if_t<std::is_same<MessageType, OrderStatus>::value, Result<OrderStatus>>
-  deserialize(const Buffer &buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer.data(), size);
+  deserialize(const uint8_t *buffer, size_t size) {
+    flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::OrderStatus>()) {
       spdlog::error("OrderStatus verification failed.");
       return ErrorCode::Error;
     }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer.data());
+    auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);
     return OrderStatus{orderMsg->id(), convert(orderMsg->state()), orderMsg->quantity(),
                        orderMsg->fill_price()};
   }
 
   template <typename MessageType>
   static std::enable_if_t<std::is_same<MessageType, PriceUpdate>::value, Result<PriceUpdate>>
-  deserialize(const Buffer &buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer.data(), size);
+  deserialize(const uint8_t *buffer, size_t size) {
+    flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::PriceUpdate>()) {
       spdlog::error("PriceUpdate verification failed.");
       return ErrorCode::Error;
     }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::PriceUpdate>(buffer.data());
+    auto orderMsg = flatbuffers::GetRoot<gen::fbs::PriceUpdate>(buffer);
     return PriceUpdate{toString(orderMsg->ticker()), orderMsg->price()};
   }
 

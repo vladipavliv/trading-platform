@@ -27,8 +27,8 @@ using Serializer = hft::serialization::FlatBuffersSerializer;
 using CmdSink = CommandSink<ServerCommand>;
 
 struct ServerSink { // SinkSink
-  IoSink ioSink;
   DataSink dataSink;
+  IoSink ioSink;
   CmdSink cmdSink;
 };
 
