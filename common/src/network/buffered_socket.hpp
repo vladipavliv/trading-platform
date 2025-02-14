@@ -26,7 +26,9 @@ public:
   using Message = MessageIn;
   using UPtr = std::unique_ptr<BufferedSocket<SinkType, SerializerType, MessageIn, MessagesOut...>>;
 
-  BufferedSocket(Sink &sink, TcpSocket socket) : mSink{sink}, mSocket{std::move(socket)} {}
+  BufferedSocket(Sink &sink, TcpSocket socket) : mSink{sink}, mSocket{std::move(socket)} {
+    mBuffer.reserve(BUFFER_SIZE);
+  }
 
   void asyncRead() {
     size_t writable = BUFFER_SIZE - mTail;

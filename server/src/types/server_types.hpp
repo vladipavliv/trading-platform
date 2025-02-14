@@ -28,6 +28,7 @@ using Serializer = hft::serialization::FlatBuffersSerializer;
 using CmdSink = CommandSink<ServerCommand>;
 
 using RingSocket = BufferedSocket<DataSink, Serializer, Order, OrderStatus, PriceUpdate>;
+using ServerControlCenter = ControlCenter<ServerCommand>;
 
 struct ServerSink { // SinkSink
   DataSink dataSink;

@@ -9,6 +9,7 @@
 #ifndef HFT_SERVER_HPP
 #define HFT_SERVER_HPP
 
+#include "control_center/control_center.hpp"
 #include "market/market.hpp"
 #include "network/network_server.hpp"
 #include "server_types.hpp"
@@ -30,6 +31,7 @@ private:
   ServerSink mSink;
   network::NetworkServer mNetworkServer;
   market::Market mMarket;
+  ServerControlCenter mScc;
 };
 
 } // namespace hft::server
