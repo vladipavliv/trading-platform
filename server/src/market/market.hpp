@@ -15,10 +15,22 @@ namespace hft::server::market {
 
 class Market {
 public:
-  Market(DataSink &sink) : mSink{sink} {}
+  Market(ServerSink &sink) : mSink{sink} {}
+
+  void start() {
+    mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
+  }
+  void stop() {}
 
 private:
-  DataSink &mSink;
+  void processOrder(const Order &order) {
+    OrderStatus status{order.traderId, order.id, FulfillmentState::Full, order.quantity,
+                       order.price};
+    mSink.networkSink.post(status);
+  }
+
+private:
+  ServerSink &mSink;
 };
 
 } // namespace hft::server::market

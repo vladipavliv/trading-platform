@@ -23,8 +23,8 @@ public:
   void start() {}
   void stop() {}
 
-  void addHandler(Command command, Handler &&handler) {
-    mHandlers[command].push_back(std::forward<Handler>(handler));
+  void setHandler(Command command, Handler &&handler) {
+    mHandlers[command].push_back(std::move(handler));
   }
 
   void post(Command command) {

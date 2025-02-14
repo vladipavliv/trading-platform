@@ -22,19 +22,20 @@ namespace hft::server::network {
 
 class EgressServer {
 public:
+  using Socket = ServerSocket<TcpSocket, Order>;
+
   EgressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpOut} {
   }
 
   void start() {
     spdlog::info("Start accepting egress connections on the port: {}", mPort);
+    mSink.networkSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
 
     TcpEndpoint endpoint(Tcp::v4(), mPort);
-
     mAcceptor.open(endpoint.protocol());
     mAcceptor.bind(endpoint);
     mAcceptor.listen();
-
     acceptConnection();
   }
 
@@ -46,29 +47,29 @@ public:
   }
 
   template <typename MessageType>
-  void send(MessageType &&message) {
+  void send(const MessageType &message) {
     auto conn = mConnections.find(message.traderId);
     if (conn == mConnections.end()) {
       spdlog::error("Failed to notify trader {}: not connected", message.traderId);
       return;
     }
-    conn->second->send(std::forward<MessageType>(message));
+    conn->second->asyncWrite(message);
   }
 
 private:
   void acceptConnection() {
-    mAcceptor.async_accept([this](const boost::system::error_code &ec, TcpSocket socket) {
-      auto traderId = utils::getTraderId(socket);
+    mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
       if (!ec) {
+        auto traderId = utils::getTraderId(socket);
         if (mConnections.find(traderId) != mConnections.end()) {
           spdlog::error("Trader {} is already connected", traderId);
         } else {
           spdlog::debug("Accepted new egress connection from {}", traderId);
-          auto conn = std::make_unique<RingSocket>(mSink.dataSink, std::move(socket));
+          auto conn = std::make_unique<Socket>(mSink, std::move(socket));
           mConnections.emplace(traderId, std::move(conn));
         }
       } else {
-        spdlog::error("Failed to accept connection {}, error: ", traderId, ec.message());
+        spdlog::error("Failed to accept connection, error: {}", ec.message());
       }
       acceptConnection();
     });
@@ -79,7 +80,8 @@ private:
   TcpAcceptor mAcceptor;
   Port mPort;
 
-  std::unordered_map<TraderId, RingSocket::UPtr> mConnections;
+  // TODO(self) Investigate for cache locality.
+  std::unordered_map<TraderId, Socket::UPtr> mConnections;
 };
 } // namespace hft::server::network
 

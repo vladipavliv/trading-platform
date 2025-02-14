@@ -24,24 +24,19 @@ namespace hft::server::network {
 
 class BroadcastServer {
 public:
+  using Socket = ServerSocket<UdpSocket, PriceUpdate>;
+
   BroadcastServer(ServerSink &sink)
-      : mSink{sink},
-        mSocket(mSink.networkSink.ctx(), UdpEndpoint(Udp::v4(), Config::config().server.portUdp)),
-        mEndpoint{boost::asio::ip::address::from_string(Config::config().server.url),
-                  Config::config().server.portUdp} {}
-  // TODO(do) io::address? Not v4?
+      : mSink{sink}, mEndpoint{Ip::address::from_string(Config::config().server.url),
+                               Config::config().server.portUdp},
+        mSocket{mSink.dataSink, mEndpoint} {}
 
-  void start() { mSocket.set_option(boost::asio::socket_base::broadcast(true)); }
-  void stop() {}
-
-  template <typename Data>
-  void send(Data &&data) {
-    auto dataBuffer = Serializer::serialize<Data>(std::forward<Data>(data));
-    auto msgPtr = utils::packMessage(std::move(dataBuffer));
-    mSocket.async_send_to(
-        boost::asio::buffer(msgPtr->data(), msgPtr->size()), mEndpoint,
-        [this, msgPtr](BoostErrorRef ec, std::size_t size) { sendHandler(ec, size); });
+  void start() {
+    mSink.networkSink.setHandler<PriceUpdate>([this](const PriceUpdate &status) { /*send*/ });
+    // mSocket.set_option(boost::asio::socket_base::broadcast(true));
   }
+
+  void stop() {}
 
 private:
   void sendHandler(BoostErrorRef ec, std::size_t size) {
@@ -50,9 +45,10 @@ private:
     }
   }
 
+private:
   ServerSink &mSink;
-  UdpSocket mSocket;
   UdpEndpoint mEndpoint;
+  Socket mSocket;
 };
 } // namespace hft::server::network
 

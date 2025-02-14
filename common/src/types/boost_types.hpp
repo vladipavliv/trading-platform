@@ -14,6 +14,7 @@
 
 namespace hft {
 
+namespace Ip = boost::asio::ip;
 using IoContext = boost::asio::io_context;
 using ContextGuard = boost::asio::io_context::work;
 

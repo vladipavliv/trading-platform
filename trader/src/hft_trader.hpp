@@ -6,30 +6,28 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_HPP
-#define HFT_SERVER_HPP
+#ifndef HFT_TRADER_HPP
+#define HFT_TRADER_HPP
 
 #include "control_center/control_center.hpp"
-#include "market/market.hpp"
 #include "network/network_server.hpp"
-#include "server_types.hpp"
+#include "trader_types.hpp"
 
-namespace hft::server {
+namespace hft::trader {
 
-class HftServer {
+class HftTrader {
 public:
-  HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink} {}
+  HftTrader() : mCc{mSink.controlSink} {}
 
   void start() {
-    mSink.controlSink.setHandler(ServerCommand::Shutdown, [this](ServerCommand cmd) {
-      if (cmd == ServerCommand::Shutdown) {
+    mSink.controlSink.setHandler(TraderCommand::Shutdown, [this](TraderCommand cmd) {
+      if (cmd == TraderCommand::Shutdown) {
         stop();
       }
     });
     mSink.networkSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
-    mNetwork.start();
     mCc.start();
   }
 
@@ -37,17 +35,14 @@ public:
     mSink.networkSink.stop();
     mSink.dataSink.stop();
     mSink.controlSink.stop();
-    mNetwork.stop();
     mCc.stop();
   }
 
 private:
-  ServerSink mSink;
-  network::NetworkServer mNetwork;
-  market::Market mMarket;
+  TraderSink mSink;
   ControlCenter mCc;
 };
 
-} // namespace hft::server
+} // namespace hft::trader
 
 #endif // HFT_SERVER_HPP

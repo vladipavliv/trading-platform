@@ -22,13 +22,14 @@ namespace hft::server::network {
 
 class IngressServer {
 public:
+  using Socket = ServerSocket<TcpSocket, Order>;
+
   IngressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpIn} {}
 
   ~IngressServer() { stop(); }
 
   void start() {
-    // TODO(do) Register for command sink for disconnect
     spdlog::info("Start accepting ingress connections on the port: {}", mPort);
 
     TcpEndpoint endpoint(Tcp::v4(), mPort);
@@ -57,7 +58,7 @@ private:
         } else {
           spdlog::debug("Accepted new ingress connection from id: {}", traderId);
 
-          auto conn = std::make_unique<RingSocket>(mSink.dataSink, std::move(socket));
+          auto conn = std::make_unique<Socket>(mSink, std::move(socket));
           conn->asyncRead();
           mConnections.emplace(traderId, std::move(conn));
         }
@@ -73,7 +74,7 @@ private:
   TcpAcceptor mAcceptor;
   Port mPort;
 
-  std::unordered_map<TraderId, RingSocket::UPtr> mConnections;
+  std::unordered_map<TraderId, Socket::UPtr> mConnections;
 };
 } // namespace hft::server::network
 

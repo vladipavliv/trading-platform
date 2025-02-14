@@ -6,8 +6,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_RINGSOCKET_HPP
-#define HFT_COMMON_RINGSOCKET_HPP
+#ifndef HFT_COMMON_BUFFEREDSOCKET_HPP
+#define HFT_COMMON_BUFFEREDSOCKET_HPP
 
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -19,16 +19,40 @@
 namespace hft {
 
 // TODO(do): Enable raw sockets timestamping
-template <typename SinkType, typename SerializerType, typename MessageIn, typename... MessagesOut>
+/**
+ */
+template <typename SinkType, typename SerializerType, typename SocketType, typename MessageTypeIn>
 class BufferedSocket {
 public:
+  using Type = BufferedSocket<SinkType, SerializerType, SocketType, MessageTypeIn>;
   using Sink = SinkType;
   using Serializer = SerializerType;
-  using Message = MessageIn;
-  using UPtr = std::unique_ptr<BufferedSocket<SinkType, SerializerType, MessageIn, MessagesOut...>>;
+  using Socket = SocketType;
+  using Endpoint = SocketType::endpoint_type;
+  using MessageIn = MessageTypeIn;
+  using UPtr = std::unique_ptr<Type>;
 
-  BufferedSocket(Sink &sink, TcpSocket socket) : mSink{sink}, mSocket{std::move(socket)} {
+  BufferedSocket(Sink &sink) : mSink{sink} { mBuffer.reserve(BUFFER_SIZE); } // TODO(do)
+
+  BufferedSocket(Sink &sink, Socket &&socket) : mSink{sink}, mSocket{std::move(socket)} {
     mBuffer.reserve(BUFFER_SIZE);
+  }
+
+  BufferedSocket(Sink &sink, Endpoint &&endpoint)
+      : mSink{sink}, mSocket{mSink.networkSink.ctx()}, mEndpoint{std::move(endpoint)} {
+    mBuffer.reserve(BUFFER_SIZE);
+  }
+
+  void asyncConnect() {
+    if (mSocket.is_open()) {
+      spdlog::error("Socket is already connected");
+      return;
+    }
+    if (mEndpoint.has_value()) {
+      spdlog::error("Single shot socket");
+      return;
+    }
+    mSocket.async_connect(mEndpoint, [this](BoostErrorRef ec) { connectHandler(ec); });
   }
 
   void asyncRead() {
@@ -40,15 +64,13 @@ public:
         [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
   }
 
-  template <
-      typename MessageType,
-      typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
-  void asyncWrite(MessageType &&msg) {
+  template <typename MessageTypeOut>
+  void asyncWrite(const MessageTypeOut &msg) {
     if (!mSocket.is_open()) {
       spdlog::error("Failed to write to the socket: not opened");
       return;
     }
-    auto buffer = Serializer::template serialize<MessageType>(std::forward<MessageType>(msg));
+    auto buffer = Serializer::serialize(msg);
     MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
     auto dataPtr = std::make_shared<ByteBuffer>(sizeof(bodySize) + buffer.size());
 
@@ -60,10 +82,8 @@ public:
         [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
   }
 
-  template <
-      typename MessageType,
-      typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
-  void asyncWrite(const std::vector<MessageType> &msgVec) {
+  template <typename MessageTypeOut>
+  void asyncWrite(const std::vector<MessageTypeOut> &msgVec) {
     if (!mSocket.is_open()) {
       spdlog::error("Failed to write to the socket: not opened");
       return;
@@ -118,7 +138,9 @@ private:
         mHead = mTail = 0;
         return;
       }
-      messages.push_back(std::forward<MessageIn>(result.extract()));
+      auto message = result.extract();
+      message.traderId = utils::getTraderId(mSocket);
+      messages.emplace_back(std::move(message));
       mHead += bodySize + sizeof(MessageSize);
     }
     // If we getting close to the edge of the buffer lets just wrap around
@@ -129,7 +151,7 @@ private:
       mHead = 0;
     }
     if (!messages.empty()) {
-      mSink.post(messages);
+      mSink.dataSink.post(messages);
     }
     asyncRead();
   }
@@ -137,8 +159,12 @@ private:
   void writeHandler(BoostErrorRef ec, size_t) {
     if (ec) {
       spdlog::error("Failed to send message: {}", ec.message());
-      // reconnect();
+      // TODO(this) reconnect(); ? post(Disconnected) ?
     }
+  }
+
+  void connectHandler(BoostErrorRef ec) {
+    // TODO(self) post into some sink and then reconnect
   }
 
 private:
@@ -156,14 +182,17 @@ private:
     spdlog::debug("Tail: {} Head: {}", mTail, mHead);
   }
 
+private:
   Sink &mSink;
-  TcpSocket mSocket;
+  Socket mSocket;
 
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mBuffer;
+
+  std::optional<Endpoint> mEndpoint;
 };
 
 } // namespace hft
 
-#endif // HFT_COMMON_RINGSOCKET_HPP
+#endif // HFT_COMMON_BUFFEREDSOCKET_HPP

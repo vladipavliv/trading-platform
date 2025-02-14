@@ -16,6 +16,7 @@
 
 namespace hft {
 
+template <uint8_t ThreadCount, typename... EventTypes>
 class IoSink {
 public:
   IoSink() : mCtxGuard{mCtx}, mThreadCount{Config::config().networkThreads} {}
@@ -45,17 +46,52 @@ public:
     }
   }
 
-  template <typename Callable>
-  void post(Callable &&clb) {
-    boost::asio::post(mCtx, [clb = std::forward<Callable>(clb)]() mutable { clb(); });
+  template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
+  void setHandler(std::function<void(const EventType &)> &&handler) {
+    auto constexpr index = getEventIndex<EventType, EventTypes...>();
+    std::get<index>(mHandlers) = std::move(handler);
+  }
+
+  template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
+  void post(const EventType &event) {
+    constexpr size_t index = getEventIndex<EventType, EventTypes...>();
+    std::get<index>(mHandlers)(event);
   }
 
   void stop() { mCtx.stop(); }
   IoContext &ctx() { return mCtx; }
 
 private:
+  template <typename EventType>
+  std::function<void(const EventType &)> &getHandler() {
+    auto index = getEventIndex<EventType, EventTypes...>();
+    return std::get<index>(mHandlers);
+  }
+
+private:
+  template <typename EventType, typename... Types>
+  static constexpr size_t getEventIndex() {
+    return indexOf<EventType, Types...>();
+  }
+
+  template <typename EventType, typename First, typename... Rest>
+  static constexpr size_t indexOf() {
+    if constexpr (std::is_same_v<EventType, First>) {
+      return 0;
+    } else if constexpr (sizeof...(Rest) > 0) {
+      return 1 + indexOf<EventType, Rest...>();
+    } else {
+      static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
+      return -1;
+    }
+  }
+
   IoContext mCtx;
   ContextGuard mCtxGuard;
+
+  std::tuple<std::function<void(const EventTypes)>...> mHandlers;
 
   const uint8_t mThreadCount;
   std::vector<std::thread> mThreads;

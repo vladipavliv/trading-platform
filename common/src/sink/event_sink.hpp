@@ -55,8 +55,8 @@ public:
   }
 
   template <typename EventType>
-  void registerHandler(std::function<void(EventType &&)> &&handler) {
-    getHandler<EventType>() = std::forward<std::function<void(EventType &&)>>(handler);
+  void setHandler(std::function<void(const EventType &)> &&handler) {
+    getHandler<EventType>() = std::move(handler);
   }
 
   template <typename EventType>
@@ -84,7 +84,7 @@ public:
 private:
   void processEvents() {
     while (!mStop.load()) {
-      processQueue<EventTypes...>();
+      (processQueue<EventTypes>(), ...);
       std::this_thread::yield();
     }
   }
@@ -99,10 +99,10 @@ private:
   }
 
   template <typename EventType>
-  void handleEvent(EventType &&event) {
+  void handleEvent(const EventType &event) {
     auto &handler = getHandler<EventType>();
     if (handler) {
-      handler(std::forward<EventType>(event));
+      handler(event);
       mCounters[mThreadIndex].value.fetch_add(1, std::memory_order_relaxed);
     } else {
       spdlog::error("Handler not set for the type: {}", utils::getTypeName<EventType>());
@@ -115,8 +115,8 @@ private:
   }
 
   template <typename EventType>
-  std::function<void(EventType &&)> &getHandler() {
-    return std::get<std::function<void(EventType &&)>>(mEventHandlers);
+  std::function<void(const EventType &)> &getHandler() {
+    return std::get<std::function<void(const EventType &)>>(mEventHandlers);
   }
 
   template <typename Type>
@@ -125,8 +125,8 @@ private:
   }
 
 private:
-  std::tuple<boost::lockfree::queue<EventTypes>...> mEventQueues{QueueSize};
-  std::tuple<std::function<void(EventTypes &&)>...> mEventHandlers;
+  std::tuple<boost::lockfree::queue<EventTypes>...> mEventQueues;
+  std::tuple<std::function<void(const EventTypes &)>...> mEventHandlers;
 
   std::array<std::thread, ThreadCount> mThreads;
   std::array<PaddedCounter, ThreadCount> mCounters;
