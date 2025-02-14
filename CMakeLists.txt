@@ -59,3 +59,8 @@ target_include_directories(hft_trader PRIVATE
 
 add_dependencies(hft_server code_generator)
 add_dependencies(hft_trader code_generator)
+
+add_custom_command(
+    TARGET hft_trader POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/config.ini ${CMAKE_BINARY_DIR}
+)

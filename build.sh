@@ -17,3 +17,11 @@ echo "🚀 Compiling project..."
 make -j$(nproc)
 
 echo "✅ Build completed!"
+
+if [ "$1" == "s" ]; then
+    clear
+    ./hft_server
+elif [ "$1" == "t" ]; then
+    clear
+    ./hft_trader
+fi

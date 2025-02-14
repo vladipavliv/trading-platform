@@ -54,8 +54,7 @@ size_t getTraderId(const TcpSocket &sock) {
   try {
     auto endpoint = sock.remote_endpoint();
     std::string idString = endpoint.address().to_string();
-    // + ":" + std::to_string(endpoint.port());
-    return std::hash<std::string>{}(idString);
+    return std::hash<std::string>{}(idString) % sizeof(uint16_t);
   } catch (const std::exception &e) {
     spdlog::error("Failed to retrieve socket id: {}", e.what());
     throw;

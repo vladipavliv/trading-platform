@@ -12,7 +12,6 @@
 #include <format>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <spdlog/spdlog.h>
 #include <string>
 
@@ -29,36 +28,30 @@ public:
   using Command = CommandType;
 
   ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
+    std::cin.sync_with_stdio(false);
     printCommands();
   }
 
   Result<Command> getCommand() {
-    grabInput();
-    auto idx = mInput.find('\n');
-    if (idx == std::string::npos) {
-      return ErrorCode::Empty;
+    // Get a character from the user without blocking
+    char ch;
+    while (std::cin.get(ch)) {
+      if (ch != '\n') {
+        mInput += ch;
+        continue;
+      }
+      auto cmdIt = mCommandMap.find(mInput);
+      mInput.clear();
+      if (cmdIt == mCommandMap.end()) {
+        return ErrorCode::Empty;
+      } else {
+        return cmdIt->second;
+      }
     }
-    std::string commandStr = mInput.substr(0, idx);
-    mInput.erase(0, idx);
-
-    auto commandIter = mCommandMap.find(commandStr);
-    if (commandIter == mCommandMap.end()) {
-      // Invalid input, try next line
-      return getCommand();
-    }
-    return commandIter->second;
+    return ErrorCode::Empty;
   }
 
 private:
-  void grabInput() {
-    if (std::cin.rdbuf()->in_avail() == 0) {
-      return;
-    }
-    char buffer[256];
-    std::cin.readsome(buffer, sizeof(buffer));
-    mInput.append(buffer, std::cin.gcount());
-  }
-
   void printCommands() {
     static std::map<Command, std::vector<std::string>> cmdToInput;
     if (cmdToInput.empty()) {
@@ -74,8 +67,10 @@ private:
       for (auto &cmd : inpVec.second) {
         ss << "\'" << cmd << "\' ";
       }
-      spdlog::info(std::format("{:<{}}{}", ss.str(), 40, // TODO(do) Fix later
-                               utils::toString(static_cast<uint8_t>(inpVec.first))));
+      auto cmdStr = ss.str();
+      auto descrStr = utils::toString(inpVec.first);
+      spdlog::info(
+          std::format("{} {} {}", cmdStr, std::string(60 - cmdStr.length(), '.'), descrStr));
     }
   }
 

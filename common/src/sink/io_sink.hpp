@@ -34,13 +34,13 @@ public:
     mThreads.reserve(mThreadCount);
     for (size_t i = 0; i < mThreadCount; ++i) {
       mThreads.emplace_back([this, i]() {
-        spdlog::debug("Io thread {} started", i);
+        // spdlog::debug("Io thread {} started", i);
         try {
           mCtx.run();
         } catch (const std::exception &e) {
           spdlog::error("Exception in Io thread {}: {}", i, e.what());
         }
-        spdlog::debug("Io thread {} stopped", i);
+        // spdlog::debug("Io thread {} stopped", i);
       });
     }
   }

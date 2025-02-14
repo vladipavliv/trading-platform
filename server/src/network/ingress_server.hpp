@@ -27,8 +27,9 @@ public:
 
   ~IngressServer() { stop(); }
 
-  void run() {
+  void start() {
     // TODO(do) Register for command sink for disconnect
+    spdlog::info("Start accepting ingress connections on the port: {}", mPort);
 
     TcpEndpoint endpoint(Tcp::v4(), mPort);
 
@@ -50,11 +51,11 @@ private:
   void acceptConnection() {
     mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
       TraderId traderId = utils::getTraderId(socket);
-      if (!ec) {
+      if (!ec && utils::socketOk(socket)) {
         if (mConnections.find(traderId) != mConnections.end()) {
           spdlog::error("Trader {} connected already", traderId);
         } else {
-          spdlog::debug("Accepted new ingress connection from {}", traderId);
+          spdlog::debug("Accepted new ingress connection from id: {}", traderId);
 
           auto conn = std::make_unique<RingSocket>(mSink.dataSink, std::move(socket));
           conn->asyncRead();

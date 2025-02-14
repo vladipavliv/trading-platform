@@ -18,7 +18,7 @@ template <typename CommandType>
 class CommandSink {
 public:
   using Command = CommandType;
-  using Handler = std::function<void()>;
+  using Handler = std::function<void(Command)>;
 
   void start() {}
   void stop() {}
@@ -33,7 +33,7 @@ public:
       return;
     }
     for (const auto &handler : commands->second) {
-      handler();
+      handler(command);
     }
   }
 

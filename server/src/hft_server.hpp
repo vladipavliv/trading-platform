@@ -21,12 +21,24 @@ public:
   HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink.dataSink} {}
 
   void start() {
-    // TODO(self): Register for commands in control sink
+    mSink.controlSink.addHandler(ServerCommand::Shutdown, [this](ServerCommand cmd) {
+      if (cmd == ServerCommand::Shutdown) {
+        stop();
+      }
+    });
     mSink.networkSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
     mNetwork.start();
     mCc.start();
+  }
+
+  void stop() {
+    mSink.networkSink.stop();
+    mSink.dataSink.stop();
+    mSink.controlSink.stop();
+    mNetwork.stop();
+    mCc.stop();
   }
 
 private:

@@ -19,6 +19,7 @@ namespace hft {
 template <typename ValueType>
 class Result {
 public:
+  Result() : mValue{ErrorCode::Empty} {}
   Result(ValueType value) : mValue(std::move(value)) {}
   Result(ErrorCode error) : mValue(error) {}
 

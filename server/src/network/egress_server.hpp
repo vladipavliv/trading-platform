@@ -26,7 +26,9 @@ public:
       : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpOut} {
   }
 
-  void run() {
+  void start() {
+    spdlog::info("Start accepting egress connections on the port: {}", mPort);
+
     TcpEndpoint endpoint(Tcp::v4(), mPort);
 
     mAcceptor.open(endpoint.protocol());
@@ -34,6 +36,13 @@ public:
     mAcceptor.listen();
 
     acceptConnection();
+  }
+
+  void stop() {
+    mAcceptor.close();
+    for (auto &conn : mConnections) {
+      conn.second->close();
+    }
   }
 
   template <typename MessageType>
@@ -44,13 +53,6 @@ public:
       return;
     }
     conn->second->send(std::forward<MessageType>(message));
-  }
-
-  void stop() {
-    mAcceptor.close();
-    for (auto &conn : mConnections) {
-      conn.second->close();
-    }
   }
 
 private:

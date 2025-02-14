@@ -33,7 +33,7 @@ public:
     for (size_t i = 0; i < ThreadCount; ++i) {
       mThreads[i] = std::thread([this, i] {
         mThreadIndex = i;
-        spdlog::info("Thread {} started", i);
+        // spdlog::info("Thread {} started", i);
         processEvents();
       });
     }
@@ -50,7 +50,7 @@ public:
       }
     }
     for (size_t i = 0; i < mCounters.size(); ++i) {
-      spdlog::debug("Thread {} processed {} events", i, mCounters[i].value.load());
+      // spdlog::debug("Thread {} processed {} events", i, mCounters[i].value.load());
     }
   }
 

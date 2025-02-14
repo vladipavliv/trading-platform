@@ -21,8 +21,15 @@ class NetworkServer {
 public:
   NetworkServer(ServerSink &sink) : mSink{sink}, mIngressServer{mSink}, mEgressServer{mSink} {}
 
-  void start() {}
-  void stop() {}
+  void start() {
+    mIngressServer.start();
+    mEgressServer.start();
+  }
+
+  void stop() {
+    mIngressServer.stop();
+    mEgressServer.stop();
+  }
 
 private:
   ServerSink &mSink;

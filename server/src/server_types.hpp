@@ -19,8 +19,8 @@
 
 namespace hft::server {
 
-constexpr uint8_t EVENT_THREAD_COUNT = 4;
-constexpr uint8_t IO_THREAD_COUNT = 4;
+constexpr uint8_t EVENT_THREAD_COUNT = 1;
+constexpr uint8_t IO_THREAD_COUNT = 1;
 constexpr uint16_t EVENT_QUEUE_SIZE = 1024;
 
 using DataSink = EventSink<EVENT_THREAD_COUNT, EVENT_QUEUE_SIZE, Order>;

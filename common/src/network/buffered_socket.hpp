@@ -43,7 +43,11 @@ public:
   template <
       typename MessageType,
       typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
-  void write(MessageType &&msg) {
+  void asyncWrite(MessageType &&msg) {
+    if (!mSocket.is_open()) {
+      spdlog::error("Failed to write to the socket: not opened");
+      return;
+    }
     auto buffer = Serializer::template serialize<MessageType>(std::forward<MessageType>(msg));
     MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
     auto dataPtr = std::make_shared<ByteBuffer>(sizeof(bodySize) + buffer.size());
@@ -59,7 +63,11 @@ public:
   template <
       typename MessageType,
       typename = std::enable_if_t<(std::disjunction_v<std::is_same<MessageType, MessagesOut>...>)>>
-  void write(const std::vector<MessageType> &msgVec) {
+  void asyncWrite(const std::vector<MessageType> &msgVec) {
+    if (!mSocket.is_open()) {
+      spdlog::error("Failed to write to the socket: not opened");
+      return;
+    }
     // Allocate approximately, to know exact size we need to serialize each message first
     size_t messageSize = msgVec.size() * MAX_MESSAGE_SIZE;
     auto dataPtr = std::make_shared<ByteBuffer>(messageSize);
@@ -86,16 +94,25 @@ private:
       mHead = mTail = 0;
       return;
     }
+    spdlog::debug("Read {} bytes from ther socket", bytesRead);
+    mTail += bytesRead;
+    printBuffer();
     std::vector<MessageIn> messages;
     while (mHead + sizeof(MessageSize) < mTail) {
       MessageSize bodySize{0};
-      std::memcpy(&bodySize, mBuffer.data(), sizeof(MessageSize));
+      std::memcpy(&bodySize, mBuffer.data() + mHead, sizeof(MessageSize));
       bodySize = ntohs(bodySize);
-      if (mHead + bodySize > mTail) {
+      if (bodySize > BUFFER_SIZE) {
+        spdlog::error("Invalid body size {}", bodySize);
+        mHead = mTail = 0;
         break;
       }
-      auto result = Serializer::template deserialize<MessageIn>(mBuffer.data(),
-                                                                bodySize + sizeof(MessageSize));
+      if (mHead + bodySize > mTail) {
+        // Unable to parse message, wait for more data
+        break;
+      }
+      size_t msgSize = bodySize + sizeof(MessageSize);
+      auto result = Serializer::template deserialize<MessageIn>(mBuffer.data(), msgSize);
       if (!result.ok()) {
         // TODO(do) Clear all?
         mHead = mTail = 0;
@@ -106,6 +123,7 @@ private:
     }
     // If we getting close to the edge of the buffer lets just wrap around
     if (BUFFER_SIZE - mTail < 256) {
+      // TODO(self): Would work for now but need improvement for overlap
       std::memcpy(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
       mHead = 0;
@@ -124,6 +142,20 @@ private:
   }
 
 private:
+  void printBuffer() {
+    std::string str;
+    uint8_t *cursor = mBuffer.data() + mHead;
+    size_t pos = 0;
+    while (pos < mTail - mHead) {
+      str += *(cursor + pos);
+      cursor;
+      pos++;
+    }
+
+    spdlog::debug("Buffer: {}", str);
+    spdlog::debug("Tail: {} Head: {}", mTail, mHead);
+  }
+
   Sink &mSink;
   TcpSocket mSocket;
 

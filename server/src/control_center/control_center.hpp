@@ -31,8 +31,9 @@ public:
       : mSink{sink}, mConsoleParser{{{"feed start", Command::MarketFeedStart},
                                      {"market start", Command::MarketFeedStart},
                                      {"feed stop", Command::MarketFeedStop},
-                                     {"market start", Command::MarketFeedStop},
+                                     {"market stop", Command::MarketFeedStop},
                                      {"stat", Command::ShowStats},
+                                     {"statistics", Command::ShowStats},
                                      {"shutdown", Command::Shutdown},
                                      {"q", Command::Shutdown},
                                      {"exit", Command::Shutdown},
@@ -46,12 +47,22 @@ public:
     monitorFiber.join();
   }
 
+  void stop() { mStop.store(true); }
+
 private:
   void consoleMonitor() {
-    auto command = mConsoleParser.getCommand();
-    while (command.ok()) {
-      mSink.post(command.value());
-      command = mConsoleParser.getCommand();
+    while (!mStop.load()) {
+      auto cmdRes = mConsoleParser.getCommand();
+      while (cmdRes.ok()) {
+        auto cmd = cmdRes.value();
+        spdlog::debug(utils::toString(cmd));
+        mSink.post(cmd);
+        if (cmd == ServerCommand::Shutdown) {
+          return;
+        }
+        cmdRes = mConsoleParser.getCommand();
+      }
+      boost::this_fiber::yield();
     }
   }
 
@@ -60,6 +71,8 @@ private:
 private:
   ControlSink &mSink;
   ConsoleParser mConsoleParser;
+
+  std::atomic_bool mStop{false};
 };
 
 } // namespace hft::server
