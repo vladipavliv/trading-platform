@@ -13,7 +13,7 @@
 
 namespace hft {
 
-enum class ErrorCode : uint8_t { Ok = 0U, Error = 1U };
+enum class ErrorCode : uint8_t { Ok = 0U, Error = 1U, Empty = 2U };
 
 } // namespace hft
 

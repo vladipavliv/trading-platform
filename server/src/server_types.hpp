@@ -9,10 +9,10 @@
 #ifndef HFT_SERVER_SERVERTYPES_HPP
 #define HFT_SERVER_SERVERTYPES_HPP
 
+#include "control_center/server_commands.hpp"
 #include "market_types.hpp"
 #include "network/buffered_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
-#include "server_commands.hpp"
 #include "sink/command_sink.hpp"
 #include "sink/event_sink.hpp"
 #include "sink/io_sink.hpp"
@@ -24,16 +24,16 @@ constexpr uint8_t IO_THREAD_COUNT = 4;
 constexpr uint16_t EVENT_QUEUE_SIZE = 1024;
 
 using DataSink = EventSink<EVENT_THREAD_COUNT, EVENT_QUEUE_SIZE, Order>;
-using Serializer = hft::serialization::FlatBuffersSerializer;
-using CmdSink = CommandSink<ServerCommand>;
+using NetworkSink = IoSink;
+using ControlSink = CommandSink<ServerCommand>;
 
+using Serializer = hft::serialization::FlatBuffersSerializer;
 using RingSocket = BufferedSocket<DataSink, Serializer, Order, OrderStatus, PriceUpdate>;
-using ServerControlCenter = ControlCenter<ServerCommand>;
 
 struct ServerSink { // SinkSink
   DataSink dataSink;
-  IoSink ioSink;
-  CmdSink cmdSink;
+  NetworkSink networkSink;
+  ControlSink controlSink;
 };
 
 } // namespace hft::server

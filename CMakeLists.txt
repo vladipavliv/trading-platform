@@ -4,7 +4,7 @@ project(hft_platform)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-find_package(Boost 1.83 REQUIRED COMPONENTS thread)
+find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
 find_package(spdlog REQUIRED)
 
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)

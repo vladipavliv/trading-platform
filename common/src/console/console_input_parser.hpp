@@ -16,6 +16,8 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
+#include "error_code.hpp"
+#include "result.hpp"
 #include "sink/command_sink.hpp"
 #include "utils/string_utils.hpp"
 
@@ -25,30 +27,38 @@ template <typename CommandType>
 class ConsoleInputParser {
 public:
   using Command = CommandType;
-  using Sink = CommandSink<Command>;
 
-  ConsoleInputParser(Sink &sink) : mSink{sink} { printCommands(); }
-
-  void run() {
-    std::string input;
-    while (input != "q") {
-      std::getline(std::cin, input);
-      auto cmdString = utils::toLower(input);
-      auto command = mCommandMap.find(cmdString);
-      if (command != mCommandMap.end()) {
-        mSink.post(command->second);
-      } else {
-        spdlog::error("Unknown command");
-        printCommands();
-      }
-    }
+  ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
+    printCommands();
   }
 
-  void addCommand(String &&str, Command cmd) {
-    mCommandMap.emplace({std::forward<String>(str), cmd});
+  Result<Command> getCommand() {
+    grabInput();
+    auto idx = mInput.find('\n');
+    if (idx == std::string::npos) {
+      return ErrorCode::Empty;
+    }
+    std::string commandStr = mInput.substr(0, idx);
+    mInput.erase(0, idx);
+
+    auto commandIter = mCommandMap.find(commandStr);
+    if (commandIter == mCommandMap.end()) {
+      // Invalid input, try next line
+      return getCommand();
+    }
+    return commandIter->second;
   }
 
 private:
+  void grabInput() {
+    if (std::cin.rdbuf()->in_avail() == 0) {
+      return;
+    }
+    char buffer[256];
+    std::cin.readsome(buffer, sizeof(buffer));
+    mInput.append(buffer, std::cin.gcount());
+  }
+
   void printCommands() {
     static std::map<Command, std::vector<std::string>> cmdToInput;
     if (cmdToInput.empty()) {
@@ -70,7 +80,7 @@ private:
   }
 
 private:
-  Sink &mSink;
+  std::string mInput;
   std::map<std::string, Command> mCommandMap;
 };
 

@@ -9,11 +9,16 @@
 #ifndef HFT_SERVER_MARKET_HPP
 #define HFT_SERVER_MARKET_HPP
 
+#include "server_types.hpp"
+
 namespace hft::server::market {
 
 class Market {
 public:
+  Market(DataSink &sink) : mSink{sink} {}
+
 private:
+  DataSink &mSink;
 };
 
 } // namespace hft::server::market

@@ -23,7 +23,8 @@ namespace hft::server::network {
 class EgressServer {
 public:
   EgressServer(ServerSink &sink)
-      : mSink{sink}, mAcceptor{mSink.ioSink.ctx()}, mPort{Config::config().server.portTcpOut} {}
+      : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpOut} {
+  }
 
   void run() {
     TcpEndpoint endpoint(Tcp::v4(), mPort);

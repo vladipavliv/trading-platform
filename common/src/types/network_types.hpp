@@ -25,16 +25,7 @@ using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
 
-using IoContext = boost::asio::io_context;
-using ContextGuard = boost::asio::io_context::work;
-
-using BoostError = boost::system::error_code;
-using BoostErrorRef = const BoostError &;
-
-using MessageSize = uint16_t; // smol
-
-using Seconds = boost::asio::chrono::seconds;
-using MilliSeconds = boost::asio::chrono::milliseconds;
+using MessageSize = uint16_t; // TODO(do) try even more smol for extra blazing fastnmess
 
 } // namespace hft
 

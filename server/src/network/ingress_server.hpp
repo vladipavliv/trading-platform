@@ -23,7 +23,7 @@ namespace hft::server::network {
 class IngressServer {
 public:
   IngressServer(ServerSink &sink)
-      : mSink{sink}, mAcceptor{mSink.ioSink.ctx()}, mPort{Config::config().server.portTcpIn} {}
+      : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpIn} {}
 
   ~IngressServer() { stop(); }
 

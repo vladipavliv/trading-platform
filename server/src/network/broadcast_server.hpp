@@ -9,8 +9,10 @@
 #ifndef HFT_SERVER_NETWORK_BROADCASTSERVER_HPP
 #define HFT_SERVER_NETWORK_BROADCASTSERVER_HPP
 
+#include <spdlog/spdlog.h>
 #include <unordered_map>
 
+#include "boost_types.hpp"
 #include "config/config.hpp"
 #include "server_types.hpp"
 #include "types/market_types.hpp"
@@ -24,7 +26,7 @@ class BroadcastServer {
 public:
   BroadcastServer(ServerSink &sink)
       : mSink{sink},
-        mSocket(mSink.ioSink.ctx(), UdpEndpoint(Udp::v4(), Config::config().server.portUdp)),
+        mSocket(mSink.networkSink.ctx(), UdpEndpoint(Udp::v4(), Config::config().server.portUdp)),
         mEndpoint{boost::asio::ip::address::from_string(Config::config().server.url),
                   Config::config().server.portUdp} {}
   // TODO(do) io::address? Not v4?

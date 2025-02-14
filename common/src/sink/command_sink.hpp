@@ -28,7 +28,11 @@ public:
   }
 
   void post(Command command) {
-    for (auto &handler : mHandlers) {
+    auto commands = mHandlers.find(command);
+    if (commands == mHandlers.end()) {
+      return;
+    }
+    for (const auto &handler : commands->second) {
       handler();
     }
   }

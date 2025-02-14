@@ -18,20 +18,22 @@ namespace hft::server {
 
 class HftServer {
 public:
-  HftServer() : mNetworkServer{mSink} {}
+  HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink.dataSink} {}
 
   void start() {
-    mSink.ioSink.start();
+    // TODO(self): Register for commands in control sink
+    mSink.networkSink.start();
     mSink.dataSink.start();
-    mSink.cmdSink.start();
-    mNetworkServer.start();
+    mSink.controlSink.start();
+    mNetwork.start();
+    mCc.start();
   }
 
 private:
   ServerSink mSink;
-  network::NetworkServer mNetworkServer;
+  network::NetworkServer mNetwork;
   market::Market mMarket;
-  ServerControlCenter mScc;
+  ControlCenter mCc;
 };
 
 } // namespace hft::server

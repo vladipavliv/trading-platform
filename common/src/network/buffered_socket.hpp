@@ -18,6 +18,7 @@
 
 namespace hft {
 
+// TODO(do): Enable raw sockets timestamping
 template <typename SinkType, typename SerializerType, typename MessageIn, typename... MessagesOut>
 class BufferedSocket {
 public:
