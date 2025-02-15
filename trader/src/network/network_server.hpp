@@ -24,9 +24,12 @@ public:
 
   NetworkServer(TraderSink &sink)
       : mSink{sink},
-        mOrderSocket{sink, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
-        mStatusSocket{sink, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
-        mPriceSocket{sink, UdpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portUdp}} {}
+        mOrderSocket{sink, TcpSocket{sink.ctx()},
+                     TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
+        mStatusSocket{sink, TcpSocket{sink.ctx()},
+                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
+        mPriceSocket{sink, createUdpSocket(sink.ctx()),
+                     UdpEndpoint(Udp::v4(), Config::cfg.portUdp)} {}
 
   void start() {
     mOrderSocket.asyncConnect();
@@ -48,6 +51,12 @@ public:
   }
 
 private:
+  UdpSocket createUdpSocket(IoContext &ctx) {
+    UdpSocket socket(ctx, Udp::v4());
+    socket.bind(UdpEndpoint(Udp::v4(), Config::cfg.portUdp));
+    return socket;
+  }
+
   TraderSink &mSink;
 
   OrderSocket mOrderSocket;

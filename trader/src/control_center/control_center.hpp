@@ -30,16 +30,12 @@ public:
   ControlCenter(TraderSink &sink)
       : mSink{sink}, mConsoleParser{{{"order", Command::PlaceOrder},
                                      {"o", Command::PlaceOrder},
-                                     {"feed start", Command::PriceFeedStart},
-                                     {"market start", Command::PriceFeedStart},
-                                     {"feed stop", Command::PriceFeedStop},
-                                     {"market stop", Command::PriceFeedStop},
-                                     {"stat", Command::ShowStats},
-                                     {"statistics", Command::ShowStats},
-                                     {"shutdown", Command::Shutdown},
-                                     {"q", Command::Shutdown},
-                                     {"exit", Command::Shutdown},
-                                     {"stop", Command::Shutdown}}} {}
+                                     {"feed+", Command::PriceFeedStart},
+                                     {"f+", Command::PriceFeedStart},
+                                     {"feed-", Command::PriceFeedStop},
+                                     {"f-", Command::PriceFeedStop},
+                                     {"quit", Command::Shutdown},
+                                     {"q", Command::Shutdown}}} {}
 
   void start() {
     Fiber consoleFiber([this]() { consoleMonitor(); });

@@ -32,18 +32,17 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
 
-  BufferedSocket(Sink &sink, Endpoint endpoint)
-      : mSink{sink}, mSocket{mSink.ctx()}, mEndpoint{std::move(endpoint)}, mBuffer(BUFFER_SIZE) {}
-
   BufferedSocket(Sink &sink, Socket &&socket)
       : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE) {}
+
+  BufferedSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
+      : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
+        mBuffer(BUFFER_SIZE) {}
 
   void asyncConnect() {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       mSocket.async_connect(mEndpoint, [this](BoostErrorRef ec) { connectHandler(ec); });
-    } else if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      mSocket.open(Udp::v4());
-      mSocket.set_option(boost::asio::socket_base::broadcast(true));
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       asyncRead();
     }
   }
@@ -123,18 +122,18 @@ public:
 
 private:
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
-    if (ec || bytesRead > mBuffer.size() - mTail) {
+    if (ec) {
       spdlog::error("Failed to read from the socket: {}", ec.message());
       mHead = mTail = 0;
       return;
     }
     mTail += bytesRead;
 
-    uint8_t *cursor = mBuffer.data();
+    uint8_t *cursor = mBuffer.data() + mHead;
     std::vector<MessageIn> messages;
     while (mHead + sizeof(MessageSize) < mTail) {
       MessageSize bodySize{0};
-      std::memcpy(&bodySize, cursor + mHead, sizeof(MessageSize));
+      std::memcpy(&bodySize, cursor, sizeof(MessageSize));
       bodySize = ntohs(bodySize);
       if (bodySize > mBuffer.size()) {
         spdlog::error("Invalid body size {}", bodySize);
@@ -154,7 +153,9 @@ private:
         return;
       }
       auto message = result.value();
-      message.traderId = utils::getTraderId(mSocket);
+      if constexpr (!std::is_same_v<MessageTypeIn, PriceUpdate>) {
+        message.traderId = utils::getTraderId(mSocket);
+      }
       messages.emplace_back(std::move(message));
       mHead += bodySize + sizeof(MessageSize);
     }
@@ -173,16 +174,16 @@ private:
 
   void connectHandler(BoostErrorRef ec) {
     if (ec) {
-      spdlog::error("Socket connect failed: {}", ec.message());
+      spdlog::error("Connect failed: {}", ec.message());
       return;
     }
-    spdlog::debug("Socket connected successfully");
+    spdlog::debug("Connected to {}", mSocket.remote_endpoint().address().to_string());
     asyncRead();
   }
 
   void writeHandler(BoostErrorRef ec, size_t written) {
     if (ec) {
-      spdlog::error("Socket write failed: {}", ec.message());
+      spdlog::error("Write failed: {}", ec.message());
     }
   }
 

@@ -27,19 +27,27 @@ public:
   using Socket = ServerSocket<UdpSocket, PriceUpdate>;
 
   BroadcastServer(ServerSink &sink)
-      : mSink{sink}, mSocket{mSink, UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
-  }
+      : mSink{sink}, mSocket{mSink, createSocket(sink.ctx()),
+                             UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {}
   ~BroadcastServer() { stop(); }
 
   void start() {
-    mSocket.asyncConnect();
-    mSink.networkSink.setHandler<PriceUpdate>(
-        [this](const PriceUpdate &status) { mSocket.asyncWrite(status); });
+    spdlog::debug("Start broadcasting market data at {}", Config::cfg.portUdp);
+    mSink.networkSink.setHandler<PriceUpdate>([this](const PriceUpdate &price) {
+      spdlog::debug(utils::toString(price));
+      mSocket.asyncWrite(price);
+    });
   }
 
   void stop() { mSocket.close(); }
 
 private:
+  UdpSocket createSocket(IoContext &ctx) {
+    UdpSocket socket(ctx, Udp::v4());
+    socket.set_option(boost::asio::socket_base::broadcast(true));
+    return socket;
+  }
+
   ServerSink &mSink;
   Socket mSocket;
 };

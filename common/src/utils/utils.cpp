@@ -58,7 +58,7 @@ size_t getTraderId(const TcpSocket &sock) {
 uint8_t generateNumber() {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<> dis(0, sizeof(uint8_t));
+  static std::uniform_int_distribution<> dis(0, 255);
   return dis(gen);
 }
 

@@ -28,16 +28,13 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(ControlSink &sink)
-      : mSink{sink}, mConsoleParser{{{"feed start", Command::PriceFeedStart},
-                                     {"market start", Command::PriceFeedStart},
-                                     {"feed stop", Command::PriceFeedStop},
-                                     {"market stop", Command::PriceFeedStop},
-                                     {"stat", Command::ShowStats},
-                                     {"statistics", Command::ShowStats},
-                                     {"shutdown", Command::Shutdown},
-                                     {"q", Command::Shutdown},
+      : mSink{sink}, mConsoleParser{{{"feed+", Command::PriceFeedStart},
+                                     {"f+", Command::PriceFeedStart},
+                                     {"feed-", Command::PriceFeedStop},
+                                     {"f-", Command::PriceFeedStop},
                                      {"exit", Command::Shutdown},
-                                     {"stop", Command::Shutdown}}} {}
+                                     {"q", Command::Shutdown},
+                                     {"e", Command::Shutdown}}} {}
 
   void start() {
     Fiber consoleFiber([this]() { consoleMonitor(); });

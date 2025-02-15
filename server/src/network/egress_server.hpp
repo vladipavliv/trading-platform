@@ -28,7 +28,7 @@ public:
       : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpOut} {}
 
   void start() {
-    spdlog::info("Start accepting egress connections on the port: {}", mPort);
+    spdlog::info("Start accepting connections on: {}", mPort);
     mSink.networkSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
 
     TcpEndpoint endpoint(Tcp::v4(), mPort);
@@ -49,7 +49,7 @@ public:
   void send(const MessageType &message) {
     auto conn = mConnections.find(message.traderId);
     if (conn == mConnections.end()) {
-      spdlog::error("Failed to notify trader {}: not connected", message.traderId);
+      spdlog::error("{} not connected", message.traderId);
       return;
     }
     conn->second->asyncWrite(message);
@@ -61,14 +61,14 @@ private:
       if (!ec) {
         auto traderId = utils::getTraderId(socket);
         if (mConnections.find(traderId) != mConnections.end()) {
-          spdlog::error("Trader {} is already connected", traderId);
+          spdlog::error("{} already connected", traderId);
         } else {
-          spdlog::debug("Accepted new egress connection from {}", traderId);
+          spdlog::debug("{} connected", traderId);
           auto conn = std::make_unique<Socket>(mSink, std::move(socket));
           mConnections.emplace(traderId, std::move(conn));
         }
       } else {
-        spdlog::error("Failed to accept connection, error: {}", ec.message());
+        spdlog::error("Failed to accept connection: {}", ec.message());
       }
       acceptConnection();
     });

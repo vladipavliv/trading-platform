@@ -9,6 +9,7 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
+#include <atomic>
 #include <spdlog/spdlog.h>
 
 #include "boost_types.hpp"
@@ -23,20 +24,27 @@ public:
   PriceFeed(ServerSink &sink) : mSink{sink}, mTimer{mSink.ctx()} {}
 
   void start(MilliSeconds rate) {
+    mGenerating = true;
     mRate = rate;
-    expire();
+    generate();
   }
-  void stop() { mTimer.cancel(); }
+
+  void stop() {
+    mGenerating = false;
+    mTimer.cancel();
+  }
 
 private:
-  void expire() {
+  void generate() {
+    if (!mGenerating) {
+      return;
+    }
     mTimer.expires_after(mRate);
     mTimer.async_wait([this](BoostErrorRef ec) {
-      if (ec) {
-        spdlog::error("Failed generating price feed {}", ec.message());
+      if (!ec) {
+        updatePrices();
+        generate();
       }
-      updatePrices();
-      expire();
     });
   }
 
@@ -48,6 +56,8 @@ private:
 private:
   ServerSink &mSink;
   MilliSeconds mRate;
+
+  std::atomic_bool mGenerating;
   SteadyTimer mTimer;
 };
 

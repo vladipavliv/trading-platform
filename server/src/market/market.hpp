@@ -25,9 +25,8 @@ public:
 
   void start() {
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
-    mSink.controlSink.setHandler(ServerCommand::PriceFeedStart, [this](ServerCommand command) {
-      mFeed.start(MilliSeconds(3000));
-    });
+    mSink.controlSink.setHandler(ServerCommand::PriceFeedStart,
+                                 [this](ServerCommand command) { mFeed.start(MilliSeconds(100)); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
                                  [this](ServerCommand command) { mFeed.stop(); });
   }

@@ -30,7 +30,7 @@ public:
   ~IngressServer() { stop(); }
 
   void start() {
-    spdlog::info("Start accepting ingress connections on the port: {}", mPort);
+    spdlog::info("Start accepting connections on: {}", mPort);
 
     TcpEndpoint endpoint(Tcp::v4(), mPort);
 

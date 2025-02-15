@@ -72,7 +72,7 @@ std::string toString<OrderStatus>(const OrderStatus &order) {
 template <>
 std::string toString<PriceUpdate>(const PriceUpdate &price) {
   std::stringstream ss;
-  ss << "Price update for " << price.ticker.data() << ":$" << price.price;
+  ss << price.ticker.data() << ": $" << price.price;
   return ss.str();
 }
 
