@@ -1,8 +1,26 @@
 cmake_minimum_required(VERSION 3.10)
 project(hft_platform)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -fno-exceptions -fno-rtti -DNDEBUG")
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_OUTPUT)
+if(IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
+# Definitions
+set(NETWORK_CORES 4)
+set(APP_CORES 4)
+set(CMAKE_AR "/usr/bin/ar")
+set(CMAKE_RANLIB "/usr/bin/ranlib")
+add_definitions(-DBOOST_NO_EXCEPTIONS)
+
 
 find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
 find_package(spdlog REQUIRED)
@@ -36,11 +54,16 @@ target_include_directories(hft_common PUBLIC
     common/src/gen 
     common/src/types
 )
-
 target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog)
+
+add_custom_command(TARGET hft_common POST_BUILD
+    COMMAND ranlib ${CMAKE_CURRENT_BINARY_DIR}/libhft_common.a
+    COMMENT "Running ranlib on libhft_common.a"
+)
 
 # Server Target
 add_executable(hft_server ${SERVER_SOURCES})
+target_compile_definitions(hft_server PRIVATE NETWORK_CORES=${NETWORK_CORES} APP_CORES=${APP_CORES})
 target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog)
 target_include_directories(hft_server PRIVATE 
     common/src
@@ -50,6 +73,7 @@ target_include_directories(hft_server PRIVATE
 
 # Client Target
 add_executable(hft_trader ${TRADER_SOURCES})
+target_compile_definitions(hft_trader PRIVATE NETWORK_CORES=${NETWORK_CORES} APP_CORES=${APP_CORES})
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog)
 target_include_directories(hft_trader PRIVATE 
     common/src 

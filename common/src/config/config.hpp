@@ -13,10 +13,6 @@
 #include <sstream>
 #include <vector>
 
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-
-#include "config.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
 
@@ -32,37 +28,9 @@ struct NetworkConfig {
 struct Config {
   NetworkConfig server;
   NetworkConfig trader;
-  uint8_t networkThreads;
 
-  static const Config &config() {
-    static std::optional<Config> staticConfig;
-    if (staticConfig.has_value()) {
-      return staticConfig.value();
-    }
-    boost::property_tree::ptree pt;
-    std::string filename{"config.ini"};
+  static Config cfg;
 
-    boost::property_tree::read_ini(filename, pt);
-
-    Config cfg;
-    // Server config
-    cfg.server.url = pt.get<std::string>("server.url");
-    cfg.server.portTcpIn = pt.get<int>("server.port_tcp_in");
-    cfg.server.portTcpOut = pt.get<int>("server.port_tcp_out");
-    cfg.server.portUdp = pt.get<int>("server.port_udp");
-
-    // Trader config
-    cfg.trader.url = pt.get<std::string>("trader.url");
-    cfg.trader.portTcpIn = pt.get<int>("trader.port_tcp_in");
-    cfg.trader.portTcpOut = pt.get<int>("trader.port_tcp_out");
-    cfg.trader.portUdp = pt.get<int>("trader.port_udp");
-
-    // cpu
-    cfg.networkThreads = pt.get<int>("cpu.network_threads");
-
-    staticConfig.emplace(cfg);
-    return *staticConfig;
-  }
   static void logConfig(const Config &config) {
     logServerConfig(config.server);
     logTraderConfig(config.trader);
@@ -79,6 +47,8 @@ struct Config {
         config.url, config.portTcpIn, config.portTcpOut, config.portUdp);
   }
 };
+
+Config Config::cfg;
 
 } // namespace hft
 

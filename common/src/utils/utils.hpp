@@ -36,14 +36,6 @@ void pinThreadToCore(int core_id);
 
 void setTheadRealTime();
 
-template <typename Type>
-String getTypeName() {
-  int status = 0;
-  std::unique_ptr<char, decltype(&free)> demangled(
-      abi::__cxa_demangle(typeid(Type).name(), nullptr, nullptr, &status), free);
-  return (status == 0 && demangled) ? demangled.get() : typeid(Type).name();
-}
-
 size_t getTraderId(const TcpSocket &sock);
 
 inline size_t generateOrderId() {

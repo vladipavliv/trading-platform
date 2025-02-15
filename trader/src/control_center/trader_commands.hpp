@@ -40,8 +40,7 @@ std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
   case trader::TraderCommand::Shutdown:
     return "shutdown";
   default:
-    spdlog::error("Unknown order action");
-    throw std::runtime_error("Unknown order action");
+    assert(0);
   }
 }
 } // namespace hft::utils

@@ -24,14 +24,9 @@ public:
   Result(ErrorCode error) : mValue(error) {}
 
   bool ok() const { return std::holds_alternative<ValueType>(mValue); }
+  operator bool() const { return ok(); }
   const ValueType &value() const { return std::get<ValueType>(mValue); }
   ErrorCode error() const { return std::get<ErrorCode>(mValue); }
-  ValueType extract() {
-    if (ok()) {
-      return std::get<ValueType>(std::move(mValue));
-    }
-    throw std::bad_variant_access{};
-  }
 
 private:
   std::variant<ValueType, ErrorCode> mValue;

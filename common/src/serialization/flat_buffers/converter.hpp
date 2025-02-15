@@ -35,8 +35,7 @@ OrderAction convert(gen::fbs::OrderAction action) {
   case gen::fbs::OrderAction::OrderAction_MARKET:
     return OrderAction::Market;
   default:
-    spdlog::error("Unknown order action");
-    throw std::runtime_error("Unknown order action");
+    assert(0);
   }
 }
 
@@ -51,8 +50,7 @@ gen::fbs::OrderAction convert(OrderAction action) {
   case OrderAction::Market:
     return gen::fbs::OrderAction::OrderAction_MARKET;
   default:
-    spdlog::error("Unknown order action");
-    throw std::runtime_error("Unknown order action");
+    assert(0);
   }
 }
 
@@ -63,8 +61,7 @@ FulfillmentState convert(gen::fbs::FulfillmentState state) {
   case gen::fbs::FulfillmentState::FulfillmentState_PARTIAL:
     return FulfillmentState::Partial;
   default:
-    spdlog::error("Unknown fulfillment state");
-    throw std::runtime_error("Unknown fulfillment state");
+    assert(0);
   }
 }
 
@@ -75,8 +72,7 @@ gen::fbs::FulfillmentState convert(FulfillmentState state) {
   case FulfillmentState::Partial:
     return gen::fbs::FulfillmentState::FulfillmentState_PARTIAL;
   default:
-    spdlog::error("Unknown fulfillment state");
-    throw std::runtime_error("Unknown fulfillment state");
+    assert(0);
   }
 }
 

@@ -22,7 +22,7 @@ public:
   using PriceSocket = TraderSocket<UdpSocket, PriceUpdate>;
 
   NetworkServer(TraderSink &sink)
-      : mSink{sink}, mCfg{Config::config()}, mOrderSocket{sink},
+      : mSink{sink}, mCfg{Config::cfg}, mOrderSocket{sink},
         mStatusSocket{sink} // mPriceSocket{sink}
   {}
 

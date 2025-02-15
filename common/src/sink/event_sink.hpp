@@ -65,7 +65,6 @@ public:
   void post(const EventType &event) {
     auto &queue = getQueue<EventType>();
     while (!queue.push(event)) {
-      spdlog::debug("Failed to post: {}", utils::getTypeName<EventType>());
       std::this_thread::yield();
     }
   }
@@ -76,7 +75,6 @@ public:
     auto &queue = getQueue<EventType>();
     for (auto &event : events) {
       while (!queue.push(event)) {
-        spdlog::debug("Failed to post: {}", utils::getTypeName<EventType>());
         std::this_thread::yield();
       }
     }
@@ -106,7 +104,7 @@ private:
       handler(event);
       mCounters[mThreadIndex].value.fetch_add(1, std::memory_order_relaxed);
     } else {
-      spdlog::error("Handler not set for the type: {}", utils::getTypeName<EventType>());
+      spdlog::error("Handler not set: {}", utils::toString<EventType>(event));
     }
   }
 

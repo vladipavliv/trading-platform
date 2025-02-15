@@ -6,6 +6,11 @@ set -e
 
 BUILD_DIR="build"
 
+if [ "$1" == "c" ]; then
+    rm -rf CMakeCache.txt CMakeFiles
+    rm -rf build/
+fi
+
 echo "🔨 Creating build directory..."
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"

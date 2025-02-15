@@ -14,13 +14,12 @@
 
 namespace hft {
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winterference-size"
 struct PaddedCounter {
-  alignas(std::hardware_destructive_interference_size) std::atomic_size_t value{0};
-  char pad[std::hardware_destructive_interference_size - sizeof(std::atomic_size_t)];
+  std::atomic_size_t value{0};
+  char pad[64 - sizeof(std::atomic_size_t)];
+  // alignas(std::hardware_destructive_interference_size) std::atomic_size_t value{0};
+  // char pad[std::hardware_destructive_interference_size - sizeof(std::atomic_size_t)];
 };
-#pragma GCC diagnostic pop
 
 } // namespace hft
 

@@ -33,6 +33,7 @@ struct ServerSink { // SinkSink
   DataSink dataSink;
   NetworkSink networkSink;
   ControlSink controlSink;
+  inline IoContext &ctx() { return networkSink.ctx(); }
 };
 
 template <typename SocketType, typename MessageType>

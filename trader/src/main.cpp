@@ -1,17 +1,16 @@
 #include "config/config.hpp"
+#include "config/config_reader.hpp"
 #include "hft_trader.hpp"
 #include "init_logger.hpp"
 
 int main() {
   using namespace hft;
-  try {
-    initLogger();
-    Config::logTraderConfig(Config::config().trader);
+  initLogger();
 
-    trader::HftTrader trader;
-    trader.start();
-  } catch (const std::exception &ex) {
-    spdlog::error("Exception in HftServer: {}", ex.what());
-  }
+  ConfigReader::readConfig();
+  Config::logTraderConfig(Config::cfg.trader);
+
+  trader::HftTrader trader;
+  trader.start();
   return 0;
 }

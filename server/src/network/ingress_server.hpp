@@ -25,7 +25,7 @@ public:
   using Socket = ServerSocket<TcpSocket, Order>;
 
   IngressServer(ServerSink &sink)
-      : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpIn} {}
+      : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.server.portTcpIn} {}
 
   ~IngressServer() { stop(); }
 

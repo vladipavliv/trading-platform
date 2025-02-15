@@ -25,8 +25,7 @@ public:
   using Socket = ServerSocket<TcpSocket, Order>;
 
   EgressServer(ServerSink &sink)
-      : mSink{sink}, mAcceptor{mSink.networkSink.ctx()}, mPort{Config::config().server.portTcpOut} {
-  }
+      : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.server.portTcpOut} {}
 
   void start() {
     spdlog::info("Start accepting egress connections on the port: {}", mPort);

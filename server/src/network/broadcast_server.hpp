@@ -27,8 +27,8 @@ public:
   using Socket = ServerSocket<UdpSocket, PriceUpdate>;
 
   BroadcastServer(ServerSink &sink)
-      : mSink{sink}, mEndpoint{Ip::address::from_string(Config::config().server.url),
-                               Config::config().server.portUdp},
+      : mSink{sink},
+        mEndpoint{Ip::address::from_string(Config::cfg.server.url), Config::cfg.server.portUdp},
         mSocket{mSink.dataSink, mEndpoint} {}
 
   void start() {

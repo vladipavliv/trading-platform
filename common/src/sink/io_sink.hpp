@@ -19,7 +19,7 @@ namespace hft {
 template <uint8_t ThreadCount, typename... EventTypes>
 class IoSink {
 public:
-  IoSink() : mCtxGuard{mCtx}, mThreadCount{Config::config().networkThreads} {}
+  IoSink() : mCtxGuard{mCtx}, mThreadCount{NETWORK_CORES} {}
   ~IoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
@@ -37,14 +37,7 @@ public:
       mThreads.emplace_back([this, i]() {
         // utils::pinThreadToCore(2);
         utils::setTheadRealTime();
-
-        // spdlog::debug("Io thread {} started", i);
-        try {
-          mCtx.run();
-        } catch (const std::exception &e) {
-          spdlog::error("Exception in Io thread {}: {}", i, e.what());
-        }
-        // spdlog::debug("Io thread {} stopped", i);
+        mCtx.run();
       });
     }
   }

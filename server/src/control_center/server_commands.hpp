@@ -37,8 +37,7 @@ std::string toString<server::ServerCommand>(const server::ServerCommand &cmd) {
   case server::ServerCommand::Shutdown:
     return "shutdown";
   default:
-    spdlog::error("Unknown order action");
-    throw std::runtime_error("Unknown order action");
+    assert(0);
   }
 }
 } // namespace hft::utils

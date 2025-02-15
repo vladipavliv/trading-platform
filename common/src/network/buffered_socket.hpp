@@ -33,14 +33,10 @@ public:
   using UPtr = std::unique_ptr<Type>;
 
   BufferedSocket(Sink &sink)
-      : mSink{sink}, mSocket{mSink.networkSink.ctx()}, mTimer{mSink.networkSink.ctx()} {
-    mBuffer.reserve(BUFFER_SIZE);
-  } // TODO(do)
+      : mSink{sink}, mSocket{mSink.ctx()}, mTimer{mSink.ctx()}, mBuffer(BUFFER_SIZE) {}
 
   BufferedSocket(Sink &sink, Socket &&socket)
-      : mSink{sink}, mSocket{std::move(socket)}, mTimer{mSink.networkSink.ctx()} {
-    mBuffer.reserve(BUFFER_SIZE);
-  }
+      : mSink{sink}, mSocket{std::move(socket)}, mTimer{mSink.ctx()}, mBuffer(BUFFER_SIZE) {}
 
   void asyncConnect(Endpoint &&endpoint) {
     mEndpoint = std::move(endpoint);
@@ -134,7 +130,7 @@ private:
         mHead = mTail = 0;
         return;
       }
-      auto message = result.extract();
+      auto message = result.value();
       message.traderId = utils::getTraderId(mSocket);
       messages.emplace_back(std::move(message));
       mHead += bodySize + sizeof(MessageSize);
