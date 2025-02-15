@@ -29,6 +29,8 @@ namespace hft::utils {
 template <>
 std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
   switch (cmd) {
+  case trader::TraderCommand::PlaceOrder:
+    return "place order";
   case trader::TraderCommand::MarketFeedStart:
     return "start market feed";
   case trader::TraderCommand::MarketFeedStop:

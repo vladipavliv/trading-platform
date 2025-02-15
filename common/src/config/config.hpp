@@ -54,25 +54,29 @@ struct Config {
     // Trader config
     cfg.trader.url = pt.get<std::string>("trader.url");
     cfg.trader.portTcpIn = pt.get<int>("trader.port_tcp_in");
-    cfg.trader.portTcpIn = pt.get<int>("trader.port_tcp_out");
+    cfg.trader.portTcpOut = pt.get<int>("trader.port_tcp_out");
     cfg.trader.portUdp = pt.get<int>("trader.port_udp");
 
     // cpu
     cfg.networkThreads = pt.get<int>("cpu.network_threads");
 
-    logConfig(cfg);
     staticConfig.emplace(cfg);
     return *staticConfig;
   }
   static void logConfig(const Config &config) {
+    logServerConfig(config.server);
+    logTraderConfig(config.trader);
+  }
+  static void logServerConfig(const NetworkConfig &config) {
     spdlog::debug(
         "Server configuration: url: {}, ingress tcp port: {}, egress tcp port: {}, udp port: {}",
-        config.server.url, config.server.portTcpIn, config.server.portTcpOut,
-        config.server.portUdp);
+        config.url, config.portTcpIn, config.portTcpOut, config.portUdp);
+  }
+
+  static void logTraderConfig(const NetworkConfig &config) {
     spdlog::debug(
         "Trader configuration: url: {}, ingress tcp port: {}, egress tcp port: {}, udp port: {}",
-        config.trader.url, config.trader.portTcpIn, config.trader.portTcpOut,
-        config.trader.portUdp);
+        config.url, config.portTcpIn, config.portTcpOut, config.portUdp);
   }
 };
 

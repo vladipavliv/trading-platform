@@ -11,6 +11,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/fiber/all.hpp>
+#include <boost/lockfree/queue.hpp>
 
 namespace hft {
 
@@ -25,6 +26,12 @@ using Fiber = boost::fibers::fiber;
 
 using Seconds = boost::asio::chrono::seconds;
 using MilliSeconds = boost::asio::chrono::milliseconds;
+
+template <typename EventType>
+using LFQueue = boost::lockfree::queue<EventType>;
+
+template <typename EventType>
+using UPtrLFQueue = std::unique_ptr<LFQueue<EventType>>;
 
 } // namespace hft
 

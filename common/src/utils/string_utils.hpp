@@ -40,6 +40,13 @@ std::string toString<OrderStatus>(const OrderStatus &order) {
   return ss.str();
 }
 
+template <>
+std::string toString<PriceUpdate>(const PriceUpdate &price) {
+  std::stringstream ss;
+  ss << "PriceUpdate Ticker: " << price.ticker.data() << ", Price: " << price.price;
+  return ss.str();
+}
+
 String toLower(String str) {
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });

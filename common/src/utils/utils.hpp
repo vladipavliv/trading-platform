@@ -10,6 +10,7 @@
 #define HFT_COMMON_UTILITIES_HPP
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cxxabi.h>
 #include <pthread.h>
@@ -50,7 +51,9 @@ inline size_t generateOrderId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 };
 
-bool socketOk(const TcpSocket &sock);
+Order generateOrder();
+
+uint64_t timeStampWeak();
 
 } // namespace hft::utils
 

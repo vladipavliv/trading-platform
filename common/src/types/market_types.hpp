@@ -30,7 +30,7 @@ struct Order {
   TraderId traderId; // Server side id TODO(me) initialize
   OrderId id;
   Ticker ticker{};
-  OrderAction action;
+  OrderAction action{OrderAction::Buy};
   Quantity quantity;
   Price price;
 };

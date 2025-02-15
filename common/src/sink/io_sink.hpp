@@ -35,6 +35,9 @@ public:
     mThreads.reserve(mThreadCount);
     for (size_t i = 0; i < mThreadCount; ++i) {
       mThreads.emplace_back([this, i]() {
+        // utils::pinThreadToCore(2);
+        utils::setTheadRealTime();
+
         // spdlog::debug("Io thread {} started", i);
         try {
           mCtx.run();
@@ -49,14 +52,14 @@ public:
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void setHandler(std::function<void(const EventType &)> &&handler) {
-    auto constexpr index = getEventIndex<EventType, EventTypes...>();
+    constexpr auto index = getEventIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers) = std::move(handler);
   }
 
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
-    constexpr size_t index = getEventIndex<EventType, EventTypes...>();
+    constexpr auto index = getEventIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers)(event);
   }
 
@@ -66,7 +69,7 @@ public:
 private:
   template <typename EventType>
   std::function<void(const EventType &)> &getHandler() {
-    auto index = getEventIndex<EventType, EventTypes...>();
+    constexpr auto index = getEventIndex<EventType, EventTypes...>();
     return std::get<index>(mHandlers);
   }
 

@@ -51,30 +51,27 @@ void setTheadRealTime() {
 }
 
 size_t getTraderId(const TcpSocket &sock) {
-  try {
-    auto endpoint = sock.remote_endpoint();
-    std::string idString = endpoint.address().to_string();
-    return std::hash<std::string>{}(idString) % sizeof(uint16_t);
-  } catch (const std::exception &e) {
-    spdlog::error("Failed to retrieve socket id: {}", e.what());
-    throw;
-  }
+  auto endpoint = sock.remote_endpoint();
+  std::string idString = endpoint.address().to_string();
+  return std::hash<std::string>{}(idString);
 }
 
-bool socketOk(const TcpSocket &sock) {
-  if (!sock.is_open()) {
-    spdlog::error("Socket is not opened");
-    return false;
+Order generateOrder() {
+  Order o;
+  for (int i = 0; i < 4; ++i) {
+    // Generate a random character (A-Z or a-z)
+    char random_char = (std::rand() % 2) ? ('A' + std::rand() % 26) : ('a' + std::rand() % 26);
+    o.ticker[i] = random_char;
   }
-  boost::system::error_code ec;
-  sock.remote_endpoint(ec);
-  if (ec) {
-    spdlog::error("Socket is not connected: {}", ec.message());
-    return false;
-  } else {
-    spdlog::info("Socket is ok");
-  }
-  return true;
+  o.price = std::rand() % 512;
+  o.quantity = std::rand() % 64;
+  return o;
+}
+
+uint64_t timeStampWeak() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::high_resolution_clock::now().time_since_epoch())
+      .count();
 }
 
 } // namespace hft::utils

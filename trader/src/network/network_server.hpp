@@ -22,14 +22,24 @@ public:
   using PriceSocket = TraderSocket<UdpSocket, PriceUpdate>;
 
   NetworkServer(TraderSink &sink)
-      : mSink{sink}, mCfg{Config::config()},
-        mOrderSocket{sink, TcpEndpoint{Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpIn}},
-        mStatusSocket{sink, TcpEndpoint{Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpOut}},
-        mPriceSocket{sink, UdpEndpoint{Ip::address_v4::any(), mCfg.trader.portUdp}} {}
+      : mSink{sink}, mCfg{Config::config()}, mOrderSocket{sink},
+        mStatusSocket{sink} // mPriceSocket{sink}
+  {}
 
-  void start() {}
+  void start() {
+    mOrderSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpOut});
+    mStatusSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpIn});
+    // mPriceSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portUdp});
 
-  void stop() {}
+    mSink.networkSink.setHandler<Order>(
+        [this](const Order &order) { mOrderSocket.asyncWrite(order); });
+  }
+
+  void stop() {
+    mOrderSocket.close();
+    mStatusSocket.close();
+    // mPriceSocket.close();
+  }
 
 private:
   TraderSink &mSink;
@@ -37,7 +47,7 @@ private:
 
   OrderSocket mOrderSocket;
   OrderSocket mStatusSocket;
-  PriceSocket mPriceSocket;
+  // PriceSocket mPriceSocket;
 };
 
 } // namespace hft::trader

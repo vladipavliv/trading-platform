@@ -32,27 +32,19 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
 
-  BufferedSocket(Sink &sink) : mSink{sink} { mBuffer.reserve(BUFFER_SIZE); } // TODO(do)
+  BufferedSocket(Sink &sink)
+      : mSink{sink}, mSocket{mSink.networkSink.ctx()}, mTimer{mSink.networkSink.ctx()} {
+    mBuffer.reserve(BUFFER_SIZE);
+  } // TODO(do)
 
-  BufferedSocket(Sink &sink, Socket &&socket) : mSink{sink}, mSocket{std::move(socket)} {
+  BufferedSocket(Sink &sink, Socket &&socket)
+      : mSink{sink}, mSocket{std::move(socket)}, mTimer{mSink.networkSink.ctx()} {
     mBuffer.reserve(BUFFER_SIZE);
   }
 
-  BufferedSocket(Sink &sink, Endpoint &&endpoint)
-      : mSink{sink}, mSocket{mSink.networkSink.ctx()}, mEndpoint{std::move(endpoint)} {
-    mBuffer.reserve(BUFFER_SIZE);
-  }
-
-  void asyncConnect() {
-    if (mSocket.is_open()) {
-      spdlog::error("Socket is already connected");
-      return;
-    }
-    if (mEndpoint.has_value()) {
-      spdlog::error("Single shot socket");
-      return;
-    }
-    mSocket.async_connect(mEndpoint, [this](BoostErrorRef ec) { connectHandler(ec); });
+  void asyncConnect(Endpoint &&endpoint) {
+    mEndpoint = std::move(endpoint);
+    asyncConnect();
   }
 
   void asyncRead() {
@@ -72,7 +64,7 @@ public:
     }
     auto buffer = Serializer::serialize(msg);
     MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
-    auto dataPtr = std::make_shared<ByteBuffer>(sizeof(bodySize) + buffer.size());
+    auto dataPtr = std::make_shared<ByteBuffer>(sizeof(MessageSize) + buffer.size());
 
     std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
     std::memcpy(dataPtr->data() + sizeof(bodySize), buffer.data(), buffer.size());
@@ -88,20 +80,23 @@ public:
       spdlog::error("Failed to write to the socket: not opened");
       return;
     }
-    // Allocate approximately, to know exact size we need to serialize each message first
-    size_t messageSize = msgVec.size() * MAX_MESSAGE_SIZE;
-    auto dataPtr = std::make_shared<ByteBuffer>(messageSize);
+    size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
+    auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
+    size_t realSize{0};
+    uint8_t *cursor = dataPtr->data();
     for (auto &msg : msgVec) {
       auto buffer = Serializer::serialize(msg);
       MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
 
-      std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
-      std::memcpy(dataPtr->data() + sizeof(bodySize), buffer.data(), buffer.size());
+      std::memcpy(cursor, &bodySize, sizeof(bodySize));
+      std::memcpy(cursor + sizeof(bodySize), buffer.data(), buffer.size());
+      cursor += bodySize + sizeof(bodySize);
+      realSize += bodySize + sizeof(bodySize);
     }
 
     boost::asio::async_write(
-        mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
+        mSocket, boost::asio::buffer(dataPtr->data(), realSize),
         [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
   }
 
@@ -114,25 +109,26 @@ private:
       mHead = mTail = 0;
       return;
     }
-    spdlog::debug("Read {} bytes from ther socket", bytesRead);
     mTail += bytesRead;
-    printBuffer();
+
+    uint8_t *cursor = mBuffer.data();
     std::vector<MessageIn> messages;
     while (mHead + sizeof(MessageSize) < mTail) {
       MessageSize bodySize{0};
-      std::memcpy(&bodySize, mBuffer.data() + mHead, sizeof(MessageSize));
+      std::memcpy(&bodySize, cursor + mHead, sizeof(MessageSize));
       bodySize = ntohs(bodySize);
       if (bodySize > BUFFER_SIZE) {
         spdlog::error("Invalid body size {}", bodySize);
         mHead = mTail = 0;
         break;
       }
-      if (mHead + bodySize > mTail) {
+      cursor += sizeof(MessageSize);
+      if (mHead + bodySize + sizeof(MessageSize) > mTail) {
         // Unable to parse message, wait for more data
         break;
       }
-      size_t msgSize = bodySize + sizeof(MessageSize);
-      auto result = Serializer::template deserialize<MessageIn>(mBuffer.data(), msgSize);
+
+      auto result = Serializer::template deserialize<MessageIn>(cursor, bodySize);
       if (!result.ok()) {
         // TODO(do) Clear all?
         mHead = mTail = 0;
@@ -156,30 +152,41 @@ private:
     asyncRead();
   }
 
-  void writeHandler(BoostErrorRef ec, size_t) {
-    if (ec) {
-      spdlog::error("Failed to send message: {}", ec.message());
-      // TODO(this) reconnect(); ? post(Disconnected) ?
+  void asyncConnect() {
+    if (!mEndpoint.has_value()) {
+      spdlog::error("Socket ain't reconnectable");
+      return;
     }
+    mSocket.async_connect(mEndpoint.value(), [this](BoostErrorRef ec) { connectHandler(ec); });
   }
 
   void connectHandler(BoostErrorRef ec) {
-    // TODO(self) post into some sink and then reconnect
+    if (ec) {
+      spdlog::error("Failed to connect: {}", ec.message());
+      scheduleConnect();
+    } else {
+      spdlog::debug("Socket connected successfully");
+      asyncRead();
+    }
   }
 
-private:
-  void printBuffer() {
-    std::string str;
-    uint8_t *cursor = mBuffer.data() + mHead;
-    size_t pos = 0;
-    while (pos < mTail - mHead) {
-      str += *(cursor + pos);
-      cursor;
-      pos++;
-    }
+  void scheduleConnect() {
+    mTimer.expires_after(Seconds(3));
+    mTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        spdlog::error("Failed to reconnect");
+        scheduleConnect();
+      } else {
+        asyncConnect();
+      }
+    });
+  }
 
-    spdlog::debug("Buffer: {}", str);
-    spdlog::debug("Tail: {} Head: {}", mTail, mHead);
+  void writeHandler(BoostErrorRef ec, size_t written) {
+    if (ec) {
+      spdlog::error("Failed to send message: {}", ec.message());
+      scheduleConnect();
+    }
   }
 
 private:
@@ -190,6 +197,7 @@ private:
   size_t mTail{0};
   ByteBuffer mBuffer;
 
+  SteadyTimer mTimer;
   std::optional<Endpoint> mEndpoint;
 };
 

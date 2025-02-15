@@ -12,6 +12,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -25,6 +26,9 @@ using ObjectId = uintptr_t;
 constexpr size_t BUFFER_SIZE = 1024 * 4;
 
 using ByteBuffer = std::vector<uint8_t>;
+
+template <typename Arg>
+using CRefHandler = std::function<void(const Arg &)>;
 
 } // namespace hft
 

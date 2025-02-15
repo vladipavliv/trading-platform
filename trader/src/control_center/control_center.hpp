@@ -27,8 +27,10 @@ public:
   using Command = ControlSink::Command;
   using ConsoleParser = ConsoleInputParser<Command>;
 
-  ControlCenter(ControlSink &sink)
-      : mSink{sink}, mConsoleParser{{{"feed start", Command::MarketFeedStart},
+  ControlCenter(TraderSink &sink)
+      : mSink{sink}, mConsoleParser{{{"order", Command::PlaceOrder},
+                                     {"o", Command::PlaceOrder},
+                                     {"feed start", Command::MarketFeedStart},
                                      {"market start", Command::MarketFeedStart},
                                      {"feed stop", Command::MarketFeedStop},
                                      {"market stop", Command::MarketFeedStop},
@@ -56,9 +58,12 @@ private:
       while (cmdRes.ok()) {
         auto cmd = cmdRes.value();
         spdlog::debug(utils::toString(cmd));
-        mSink.post(cmd);
+        mSink.controlSink.post(cmd);
         if (cmd == TraderCommand::Shutdown) {
           return;
+        }
+        if (cmd == TraderCommand::PlaceOrder) {
+          mSink.networkSink.post(utils::generateOrder());
         }
         cmdRes = mConsoleParser.getCommand();
       }
@@ -69,7 +74,7 @@ private:
   void systemMonitor() { /* TODO(self): Make trace sink for monitoring all events? */ }
 
 private:
-  ControlSink &mSink;
+  TraderSink &mSink;
   ConsoleParser mConsoleParser;
 
   std::atomic_bool mStop{false};

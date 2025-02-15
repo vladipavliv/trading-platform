@@ -9,11 +9,11 @@
 #ifndef HFT_EVENTSINK_HPP
 #define HFT_EVENTSINK_HPP
 
-#include <boost/lockfree/queue.hpp>
 #include <functional>
 #include <spdlog/spdlog.h>
 #include <thread>
 
+#include "boost_types.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
 #include "padded_counter.hpp"
@@ -23,15 +23,16 @@
 
 namespace hft {
 
-template <uint8_t ThreadCount, uint16_t QueueSize, typename... EventTypes>
+template <uint8_t ThreadCount, size_t QueueSize, typename... EventTypes>
 class EventSink {
 public:
-  EventSink() = default;
+  EventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(QueueSize)) {}
   ~EventSink() { stop(); }
 
   void start() {
     for (size_t i = 0; i < ThreadCount; ++i) {
       mThreads[i] = std::thread([this, i] {
+        utils::setTheadRealTime();
         mThreadIndex = i;
         // spdlog::info("Thread {} started", i);
         processEvents();
@@ -55,7 +56,7 @@ public:
   }
 
   template <typename EventType>
-  void setHandler(std::function<void(const EventType &)> &&handler) {
+  void setHandler(CRefHandler<EventType> &&handler) {
     getHandler<EventType>() = std::move(handler);
   }
 
@@ -110,13 +111,13 @@ private:
   }
 
   template <typename EventType>
-  boost::lockfree::queue<EventType> &getQueue() {
-    return std::get<boost::lockfree::queue<EventType>>(mEventQueues);
+  LFQueue<EventType> &getQueue() {
+    return *std::get<UPtrLFQueue<EventType>>(mEventQueues);
   }
 
   template <typename EventType>
   std::function<void(const EventType &)> &getHandler() {
-    return std::get<std::function<void(const EventType &)>>(mEventHandlers);
+    return std::get<CRefHandler<EventType>>(mEventHandlers);
   }
 
   template <typename Type>
@@ -125,8 +126,18 @@ private:
   }
 
 private:
-  std::tuple<boost::lockfree::queue<EventTypes>...> mEventQueues;
-  std::tuple<std::function<void(const EventTypes &)>...> mEventHandlers;
+  template <typename EventType>
+  static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
+    return std::make_unique<LFQueue<EventType>>(size);
+  }
+
+  template <typename... TupleTypes>
+  static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
+    return std::make_tuple(createLFQueue<TupleTypes>(size)...);
+  }
+
+  std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
+  std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
 
   std::array<std::thread, ThreadCount> mThreads;
   std::array<PaddedCounter, ThreadCount> mCounters;
@@ -135,7 +146,7 @@ private:
   static thread_local uint8_t mThreadIndex;
 };
 
-template <uint8_t ThreadCount, uint16_t QueueSize, typename... EventTypes>
+template <uint8_t ThreadCount, size_t QueueSize, typename... EventTypes>
 thread_local uint8_t EventSink<ThreadCount, QueueSize, EventTypes...>::mThreadIndex = 0;
 
 } // namespace hft

@@ -30,6 +30,7 @@ public:
     mSink.dataSink.start();
     mSink.controlSink.start();
     mNetwork.start();
+    mMarket.start();
     mCc.start();
   }
 
@@ -38,6 +39,7 @@ public:
     mSink.dataSink.stop();
     mSink.controlSink.stop();
     mNetwork.stop();
+    mMarket.stop();
     mCc.stop();
   }
 

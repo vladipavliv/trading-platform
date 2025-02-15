@@ -52,7 +52,7 @@ private:
   void acceptConnection() {
     mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
       TraderId traderId = utils::getTraderId(socket);
-      if (!ec && utils::socketOk(socket)) {
+      if (!ec) {
         if (mConnections.find(traderId) != mConnections.end()) {
           spdlog::error("Trader {} connected already", traderId);
         } else {
