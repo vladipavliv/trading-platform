@@ -19,12 +19,8 @@
 
 namespace hft::trader {
 
-constexpr uint8_t EVENT_THREAD_COUNT = 1;
-constexpr uint8_t NETWORK_THREAD_COUNT = 1;
-constexpr uint16_t EVENT_QUEUE_SIZE = 1024;
-
-using DataSink = EventSink<EVENT_THREAD_COUNT, EVENT_QUEUE_SIZE, OrderStatus, PriceUpdate>;
-using NetworkSink = IoSink<NETWORK_THREAD_COUNT, Order>;
+using DataSink = EventSink<OrderStatus, PriceUpdate>;
+using NetworkSink = IoSink<Order>;
 using ControlSink = CommandSink<TraderCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;

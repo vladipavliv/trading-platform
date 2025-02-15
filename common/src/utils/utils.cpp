@@ -6,14 +6,13 @@
  * @date 2025-02-13
  */
 
-#include "utils.hpp"
-
+#include <ctime>
 #include <functional>
 #include <iostream>
-
+#include <random>
 #include <spdlog/spdlog.h>
 
-#include <ctime>
+#include "utils.hpp"
 
 namespace hft::utils {
 
@@ -56,16 +55,34 @@ size_t getTraderId(const TcpSocket &sock) {
   return std::hash<std::string>{}(idString);
 }
 
-Order generateOrder() {
-  Order o;
+uint8_t generateNumber() {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<> dis(0, sizeof(uint8_t));
+  return dis(gen);
+}
+
+Ticker generateTicker() {
+  Ticker ticker;
   for (int i = 0; i < 4; ++i) {
-    // Generate a random character (A-Z or a-z)
-    char random_char = (std::rand() % 2) ? ('A' + std::rand() % 26) : ('a' + std::rand() % 26);
-    o.ticker[i] = random_char;
+    ticker[i] = 'A' + generateNumber() % 26;
   }
-  o.price = std::rand() % 512;
-  o.quantity = std::rand() % 64;
-  return o;
+  return ticker;
+}
+
+Order generateOrder() {
+  Order order;
+  order.ticker = generateTicker();
+  order.price = generateNumber();
+  order.quantity = generateNumber();
+  return order;
+}
+
+PriceUpdate generatePriceUpdate() {
+  PriceUpdate price;
+  price.ticker = generateTicker();
+  price.price = generateNumber();
+  return price;
 }
 
 uint64_t timeStampWeak() {

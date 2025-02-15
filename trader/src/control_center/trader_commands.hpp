@@ -17,8 +17,8 @@ namespace hft::trader {
 
 enum class TraderCommand : uint8_t {
   PlaceOrder = 0U,
-  MarketFeedStart = 1U,
-  MarketFeedStop = 2U,
+  PriceFeedStart = 1U,
+  PriceFeedStop = 2U,
   ShowStats = 3U,
   Shutdown = 4U
 };
@@ -31,10 +31,10 @@ std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
   switch (cmd) {
   case trader::TraderCommand::PlaceOrder:
     return "place order";
-  case trader::TraderCommand::MarketFeedStart:
-    return "start market feed";
-  case trader::TraderCommand::MarketFeedStop:
-    return "stop market feed";
+  case trader::TraderCommand::PriceFeedStart:
+    return "start price feed";
+  case trader::TraderCommand::PriceFeedStop:
+    return "stop price feed";
   case trader::TraderCommand::ShowStats:
     return "show stats";
   case trader::TraderCommand::Shutdown:

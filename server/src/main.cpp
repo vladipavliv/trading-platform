@@ -8,7 +8,7 @@ int main() {
   initLogger();
 
   ConfigReader::readConfig();
-  Config::logServerConfig(Config::cfg.server);
+  // Config::logConfig(Config::cfg);
   server::HftServer server;
   server.start();
   return 0;

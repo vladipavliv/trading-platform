@@ -28,10 +28,10 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(ControlSink &sink)
-      : mSink{sink}, mConsoleParser{{{"feed start", Command::MarketFeedStart},
-                                     {"market start", Command::MarketFeedStart},
-                                     {"feed stop", Command::MarketFeedStop},
-                                     {"market stop", Command::MarketFeedStop},
+      : mSink{sink}, mConsoleParser{{{"feed start", Command::PriceFeedStart},
+                                     {"market start", Command::PriceFeedStart},
+                                     {"feed stop", Command::PriceFeedStop},
+                                     {"market stop", Command::PriceFeedStop},
                                      {"stat", Command::ShowStats},
                                      {"statistics", Command::ShowStats},
                                      {"shutdown", Command::Shutdown},

@@ -18,33 +18,22 @@
 
 namespace hft {
 
-struct NetworkConfig {
+struct Config {
   String url;
   Port portTcpIn;
   Port portTcpOut;
   Port portUdp;
-};
-
-struct Config {
-  NetworkConfig server;
-  NetworkConfig trader;
+  uint8_t threadsIo;
+  uint8_t threadsApp;
+  bool threadsPin;
 
   static Config cfg;
 
   static void logConfig(const Config &config) {
-    logServerConfig(config.server);
-    logTraderConfig(config.trader);
-  }
-  static void logServerConfig(const NetworkConfig &config) {
-    spdlog::debug(
-        "Server configuration: url: {}, ingress tcp port: {}, egress tcp port: {}, udp port: {}",
-        config.url, config.portTcpIn, config.portTcpOut, config.portUdp);
-  }
-
-  static void logTraderConfig(const NetworkConfig &config) {
-    spdlog::debug(
-        "Trader configuration: url: {}, ingress tcp port: {}, egress tcp port: {}, udp port: {}",
-        config.url, config.portTcpIn, config.portTcpOut, config.portUdp);
+    spdlog::debug("url: {} tcp port in: {} tcp port out: {} udp port: {} threads io: {} threads "
+                  "app: {} threads pin: ",
+                  config.url, config.portTcpIn, config.portTcpOut, config.portUdp, config.threadsIo,
+                  config.threadsApp, config.threadsPin);
   }
 };
 

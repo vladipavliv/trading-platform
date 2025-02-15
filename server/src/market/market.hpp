@@ -11,7 +11,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include "boost_types.hpp"
 #include "market_types.hpp"
+#include "price_feed.hpp"
 #include "server_types.hpp"
 #include "utils/utils.hpp"
 
@@ -19,23 +21,29 @@ namespace hft::server::market {
 
 class Market {
 public:
-  Market(ServerSink &sink) : mSink{sink} {}
+  Market(ServerSink &sink) : mSink{sink}, mFeed{mSink} {}
 
   void start() {
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
+    mSink.controlSink.setHandler(ServerCommand::PriceFeedStart, [this](ServerCommand command) {
+      mFeed.start(MilliSeconds(3000));
+    });
+    mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
+                                 [this](ServerCommand command) { mFeed.stop(); });
   }
   void stop() {}
 
 private:
   void processOrder(const Order &order) {
-    spdlog::debug("Order processed {}", utils::toString(order));
-    OrderStatus status{order.traderId, order.id, FulfillmentState::Full, order.quantity,
-                       order.price};
+    spdlog::debug(utils::toString(order));
+    OrderStatus status{order.traderId,         order.id,       order.ticker,
+                       FulfillmentState::Full, order.quantity, order.price};
     mSink.networkSink.post(status);
   }
 
 private:
   ServerSink &mSink;
+  PriceFeed mFeed;
 };
 
 } // namespace hft::server::market

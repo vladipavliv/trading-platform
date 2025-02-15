@@ -33,25 +33,26 @@ struct ConfigReader {
 
     boost::property_tree::read_ini(filename, pt);
 
-    Config config;
-    // Server config
-    config.server.url = pt.get<std::string>("server.url");
-    config.server.portTcpIn = pt.get<int>("server.port_tcp_in");
-    config.server.portTcpOut = pt.get<int>("server.port_tcp_out");
-    config.server.portUdp = pt.get<int>("server.port_udp");
+    // Network config
+    Config::cfg.url = pt.get<std::string>("network.url");
+    Config::cfg.portTcpIn = pt.get<int>("network.port_tcp_in");
+    Config::cfg.portTcpOut = pt.get<int>("network.port_tcp_out");
+    Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
-    // Trader config
-    config.trader.url = pt.get<std::string>("trader.url");
-    config.trader.portTcpIn = pt.get<int>("trader.port_tcp_in");
-    config.trader.portTcpOut = pt.get<int>("trader.port_tcp_out");
-    config.trader.portUdp = pt.get<int>("trader.port_udp");
-
-    Config::cfg = config;
+    // Cpu
+    Config::cfg.threadsIo = pt.get<int>("cpu.threads_io");
+    Config::cfg.threadsApp = pt.get<int>("cpu.threads_app");
+    Config::cfg.threadsPin = pt.get<bool>("cpu.thread_pin");
   }
 #else
   static void readConfig() {
-    Config::cfg =
-        Config{NetworkConfig{"127.0.0.1", 8080, 8081}, NetworkConfig{"127.0.0.1", 8081, 8080}};
+    Config::cfg.url = SERVER_URL;
+    Config::cfg.portTcpIn = PORT_TCP_IN;
+    Config::cfg.portTcpOut = PORT_TCP_OUT;
+    Config::cfg.portUdp = PORT_UDP;
+    Config::cfg.threadsIo = THREADS_IO;
+    Config::cfg.threadsApp = THREADS_APP;
+    Config::cfg.threadsPin = THREADS_PIN;
   }
 #endif
 };

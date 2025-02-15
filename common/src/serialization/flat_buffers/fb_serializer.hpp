@@ -32,7 +32,7 @@ public:
       return ErrorCode::Error;
     }
     auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
-    // clang format everybody
+    // Beautiful
     return Order{
         0,           msg->id(), toString(msg->ticker()), convert(msg->action()), msg->quantity(),
         msg->price()};
@@ -47,7 +47,11 @@ public:
       return ErrorCode::Error;
     }
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);
-    return OrderStatus{0, orderMsg->id(), convert(orderMsg->state()), orderMsg->quantity(),
+    return OrderStatus{0,
+                       orderMsg->id(),
+                       toString(orderMsg->ticker()),
+                       convert(orderMsg->state()),
+                       orderMsg->quantity(),
                        orderMsg->fill_price()};
   }
 
@@ -76,8 +80,9 @@ public:
   static DetachedBuffer serialize(const OrderStatus &order) {
     flatbuffers::FlatBufferBuilder builder;
 
-    auto msg = gen::fbs::CreateOrderStatus(builder, order.id, convert(order.state), order.quantity,
-                                           order.fillPrice);
+    auto msg = gen::fbs::CreateOrderStatus(
+        builder, order.id, builder.CreateString(order.ticker.data(), order.ticker.size()),
+        convert(order.state), order.quantity, order.fillPrice);
     builder.Finish(msg);
     return builder.Release();
   }

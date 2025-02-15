@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@ using ObjectId = uintptr_t;
 constexpr size_t BUFFER_SIZE = 1024 * 4;
 
 using ByteBuffer = std::vector<uint8_t>;
+using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
 
 template <typename Arg>
 using CRefHandler = std::function<void(const Arg &)>;

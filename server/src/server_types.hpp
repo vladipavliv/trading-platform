@@ -19,12 +19,8 @@
 
 namespace hft::server {
 
-constexpr uint8_t EVENT_THREAD_COUNT = 1;
-constexpr uint8_t IO_THREAD_COUNT = 1;
-constexpr uint16_t EVENT_QUEUE_SIZE = 1024;
-
-using DataSink = EventSink<EVENT_THREAD_COUNT, EVENT_QUEUE_SIZE, Order>;
-using NetworkSink = IoSink<IO_THREAD_COUNT, OrderStatus, PriceUpdate>;
+using DataSink = EventSink<Order>;
+using NetworkSink = IoSink<OrderStatus, PriceUpdate>;
 using ControlSink = CommandSink<ServerCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;

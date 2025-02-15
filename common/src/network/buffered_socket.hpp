@@ -32,24 +32,35 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
 
-  BufferedSocket(Sink &sink)
-      : mSink{sink}, mSocket{mSink.ctx()}, mTimer{mSink.ctx()}, mBuffer(BUFFER_SIZE) {}
+  BufferedSocket(Sink &sink, Endpoint endpoint)
+      : mSink{sink}, mSocket{mSink.ctx()}, mEndpoint{std::move(endpoint)}, mBuffer(BUFFER_SIZE) {}
 
   BufferedSocket(Sink &sink, Socket &&socket)
-      : mSink{sink}, mSocket{std::move(socket)}, mTimer{mSink.ctx()}, mBuffer(BUFFER_SIZE) {}
+      : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE) {}
 
-  void asyncConnect(Endpoint &&endpoint) {
-    mEndpoint = std::move(endpoint);
-    asyncConnect();
+  void asyncConnect() {
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      mSocket.async_connect(mEndpoint, [this](BoostErrorRef ec) { connectHandler(ec); });
+    } else if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      mSocket.open(Udp::v4());
+      mSocket.set_option(boost::asio::socket_base::broadcast(true));
+      asyncRead();
+    }
   }
 
   void asyncRead() {
-    size_t writable = BUFFER_SIZE - mTail;
+    size_t writable = mBuffer.size() - mTail;
     uint8_t *writePtr = mBuffer.data() + mHead;
 
-    mSocket.async_read_some(
-        boost::asio::buffer(writePtr, writable),
-        [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      mSocket.async_read_some(
+          boost::asio::buffer(writePtr, writable),
+          [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.async_receive_from(
+          boost::asio::buffer(writePtr, writable), mEndpoint,
+          [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    }
   }
 
   template <typename MessageTypeOut>
@@ -65,9 +76,15 @@ public:
     std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
     std::memcpy(dataPtr->data() + sizeof(bodySize), buffer.data(), buffer.size());
 
-    boost::asio::async_write(
-        mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
-        [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      boost::asio::async_write(
+          mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
+          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.async_send_to(
+          boost::asio::buffer(dataPtr->data(), dataPtr->size()), mEndpoint,
+          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    }
   }
 
   template <typename MessageTypeOut>
@@ -91,16 +108,22 @@ public:
       realSize += bodySize + sizeof(bodySize);
     }
 
-    boost::asio::async_write(
-        mSocket, boost::asio::buffer(dataPtr->data(), realSize),
-        [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      boost::asio::async_write(
+          mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
+          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.async_send_to(
+          boost::asio::buffer(dataPtr->data(), dataPtr->size()), mEndpoint,
+          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+    }
   }
 
   void close() { mSocket.close(); }
 
 private:
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
-    if (ec) {
+    if (ec || bytesRead > mBuffer.size() - mTail) {
       spdlog::error("Failed to read from the socket: {}", ec.message());
       mHead = mTail = 0;
       return;
@@ -113,7 +136,7 @@ private:
       MessageSize bodySize{0};
       std::memcpy(&bodySize, cursor + mHead, sizeof(MessageSize));
       bodySize = ntohs(bodySize);
-      if (bodySize > BUFFER_SIZE) {
+      if (bodySize > mBuffer.size()) {
         spdlog::error("Invalid body size {}", bodySize);
         mHead = mTail = 0;
         break;
@@ -136,7 +159,7 @@ private:
       mHead += bodySize + sizeof(MessageSize);
     }
     // If we getting close to the edge of the buffer lets just wrap around
-    if (BUFFER_SIZE - mTail < 256) {
+    if (mBuffer.size() - mTail < 256) {
       // TODO(self): Would work for now but need improvement for overlap
       std::memcpy(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
@@ -148,53 +171,29 @@ private:
     asyncRead();
   }
 
-  void asyncConnect() {
-    if (!mEndpoint.has_value()) {
-      spdlog::error("Socket ain't reconnectable");
-      return;
-    }
-    mSocket.async_connect(mEndpoint.value(), [this](BoostErrorRef ec) { connectHandler(ec); });
-  }
-
   void connectHandler(BoostErrorRef ec) {
     if (ec) {
-      spdlog::error("Failed to connect: {}", ec.message());
-      scheduleConnect();
-    } else {
-      spdlog::debug("Socket connected successfully");
-      asyncRead();
+      spdlog::error("Socket connect failed: {}", ec.message());
+      return;
     }
-  }
-
-  void scheduleConnect() {
-    mTimer.expires_after(Seconds(3));
-    mTimer.async_wait([this](BoostErrorRef ec) {
-      if (ec) {
-        spdlog::error("Failed to reconnect");
-        scheduleConnect();
-      } else {
-        asyncConnect();
-      }
-    });
+    spdlog::debug("Socket connected successfully");
+    asyncRead();
   }
 
   void writeHandler(BoostErrorRef ec, size_t written) {
     if (ec) {
-      spdlog::error("Failed to send message: {}", ec.message());
-      scheduleConnect();
+      spdlog::error("Socket write failed: {}", ec.message());
     }
   }
 
 private:
   Sink &mSink;
   Socket mSocket;
+  Endpoint mEndpoint;
 
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mBuffer;
-
-  SteadyTimer mTimer;
-  std::optional<Endpoint> mEndpoint;
 };
 
 } // namespace hft

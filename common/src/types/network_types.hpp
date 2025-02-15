@@ -16,6 +16,7 @@ namespace hft {
 using Port = uint16_t;
 using SteadyTimer = boost::asio::steady_timer;
 
+namespace Ip = boost::asio::ip;
 using Tcp = boost::asio::ip::tcp;
 using TcpSocket = boost::asio::ip::tcp::socket;
 using TcpEndpoint = boost::asio::ip::tcp::endpoint;

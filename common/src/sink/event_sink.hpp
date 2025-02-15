@@ -23,14 +23,14 @@
 
 namespace hft {
 
-template <uint8_t ThreadCount, size_t QueueSize, typename... EventTypes>
+template <typename... EventTypes>
 class EventSink {
 public:
-  EventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(QueueSize)) {}
+  EventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(EVENT_Q_SIZE)) {}
   ~EventSink() { stop(); }
 
   void start() {
-    for (size_t i = 0; i < ThreadCount; ++i) {
+    for (size_t i = 0; i < THREADS_APP; ++i) {
       mThreads[i] = std::thread([this, i] {
         utils::setTheadRealTime();
         mThreadIndex = i;
@@ -137,15 +137,15 @@ private:
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
   std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
 
-  std::array<std::thread, ThreadCount> mThreads;
-  std::array<PaddedCounter, ThreadCount> mCounters;
+  std::array<std::thread, THREADS_APP> mThreads;
+  std::array<PaddedCounter, THREADS_APP> mCounters;
   std::atomic_bool mStop{false};
 
   static thread_local uint8_t mThreadIndex;
 };
 
-template <uint8_t ThreadCount, size_t QueueSize, typename... EventTypes>
-thread_local uint8_t EventSink<ThreadCount, QueueSize, EventTypes...>::mThreadIndex = 0;
+template <typename... EventTypes>
+thread_local uint8_t EventSink<EventTypes...>::mThreadIndex = 0;
 
 } // namespace hft
 

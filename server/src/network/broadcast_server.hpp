@@ -27,27 +27,20 @@ public:
   using Socket = ServerSocket<UdpSocket, PriceUpdate>;
 
   BroadcastServer(ServerSink &sink)
-      : mSink{sink},
-        mEndpoint{Ip::address::from_string(Config::cfg.server.url), Config::cfg.server.portUdp},
-        mSocket{mSink.dataSink, mEndpoint} {}
+      : mSink{sink}, mSocket{mSink, UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
+  }
+  ~BroadcastServer() { stop(); }
 
   void start() {
-    mSink.networkSink.setHandler<PriceUpdate>([this](const PriceUpdate &status) { /*send*/ });
-    // mSocket.set_option(boost::asio::socket_base::broadcast(true));
+    mSocket.asyncConnect();
+    mSink.networkSink.setHandler<PriceUpdate>(
+        [this](const PriceUpdate &status) { mSocket.asyncWrite(status); });
   }
 
-  void stop() {}
-
-private:
-  void sendHandler(BoostErrorRef ec, std::size_t size) {
-    if (ec) {
-      spdlog::error("Failed to send broadcast message: {}", ec.message());
-    }
-  }
+  void stop() { mSocket.close(); }
 
 private:
   ServerSink &mSink;
-  UdpEndpoint mEndpoint;
   Socket mSocket;
 };
 } // namespace hft::server::network

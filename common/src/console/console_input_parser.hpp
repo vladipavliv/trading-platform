@@ -29,7 +29,12 @@ public:
 
   ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
     std::cin.sync_with_stdio(false);
+
+    std::string header = "Available commands:";
+    spdlog::info("> {} {}", header, std::string(mCommandsWidth - header.length() - 1, '~'));
     printCommands();
+    spdlog::info("> {}", std::string(mCommandsWidth, '~'));
+    spdlog::info("");
   }
 
   Result<Command> getCommand() {
@@ -60,7 +65,6 @@ private:
       }
     }
 
-    spdlog::info("> Available commands: ");
     for (auto &inpVec : cmdToInput) {
       std::stringstream ss;
       ss << "> ";
@@ -69,14 +73,17 @@ private:
       }
       auto cmdStr = ss.str();
       auto descrStr = utils::toString(inpVec.first);
-      spdlog::info(
-          std::format("{} {} {}", cmdStr, std::string(60 - cmdStr.length(), '.'), descrStr));
+      spdlog::info(std::format(
+          "{:<} {:^} {:>}", cmdStr,
+          std::string(mCommandsWidth - cmdStr.length() - descrStr.length() - 1, '.'), descrStr));
     }
   }
 
 private:
   std::string mInput;
   std::map<std::string, Command> mCommandMap;
+
+  const uint8_t mCommandsWidth{60};
 };
 
 } // namespace hft

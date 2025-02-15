@@ -23,13 +23,10 @@ public:
   HftTrader() : mCc{mSink}, mServer{mSink} {}
 
   void start() {
-    spdlog::debug("Starting server");
-    mSink.dataSink.setHandler<PriceUpdate>([this](const PriceUpdate &price) {
-      spdlog::debug("PriceUpdate: {}", utils::toString(price));
-    });
-    mSink.dataSink.setHandler<OrderStatus>([this](const OrderStatus &status) {
-      spdlog::debug("OrderStatus: {}", utils::toString(status));
-    });
+    mSink.dataSink.setHandler<PriceUpdate>(
+        [this](const PriceUpdate &price) { spdlog::debug(utils::toString(price)); });
+    mSink.dataSink.setHandler<OrderStatus>(
+        [this](const OrderStatus &status) { spdlog::debug(utils::toString(status)); });
     mSink.controlSink.setHandler(TraderCommand::Shutdown, [this](TraderCommand cmd) {
       if (cmd == TraderCommand::Shutdown) {
         stop();
@@ -43,7 +40,6 @@ public:
   }
 
   void stop() {
-    spdlog::debug("Stoping server");
     mSink.networkSink.stop();
     mSink.dataSink.stop();
     mSink.controlSink.stop();

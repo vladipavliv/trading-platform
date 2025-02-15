@@ -14,13 +14,9 @@ if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-# Definitions
-set(NETWORK_CORES 4)
-set(APP_CORES 4)
 set(CMAKE_AR "/usr/bin/ar")
 set(CMAKE_RANLIB "/usr/bin/ranlib")
 add_definitions(-DBOOST_NO_EXCEPTIONS)
-
 
 find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
 find_package(spdlog REQUIRED)
@@ -49,11 +45,7 @@ file(GLOB_RECURSE TRADER_SOURCES "trader/src/*.cpp" "trader/src/**/*.cpp" "trade
 add_library(hft_common STATIC ${COMMON_SOURCES})
 set_target_properties(hft_common PROPERTIES LINKER_LANGUAGE CXX)
 
-target_include_directories(hft_common PUBLIC 
-    common/src 
-    common/src/gen 
-    common/src/types
-)
+target_include_directories(hft_common PUBLIC common/src common/src/gen common/src/types)
 target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog)
 
 add_custom_command(TARGET hft_common POST_BUILD
@@ -61,25 +53,31 @@ add_custom_command(TARGET hft_common POST_BUILD
     COMMENT "Running ranlib on libhft_common.a"
 )
 
+# Definitions
+set(SERVER_URL "127.0.0.1")
+set(PORT_TCP_IN 8080)
+set(PORT_TCP_OUT 8081)
+set(PORT_UDP 8082)
+set(THREADS_IO 4)
+set(THREADS_APP 4)
+set(THREAD_PIN 0)
+set(EVENT_Q_SIZE 1024)
+
 # Server Target
 add_executable(hft_server ${SERVER_SOURCES})
-target_compile_definitions(hft_server PRIVATE NETWORK_CORES=${NETWORK_CORES} APP_CORES=${APP_CORES})
+target_compile_definitions(hft_server PRIVATE 
+    SERVER_URL="${SERVER_URL}" PORT_TCP_IN=${PORT_TCP_IN} PORT_TCP_OUT=${PORT_TCP_OUT} PORT_UDP=${PORT_UDP} 
+    THREADS_IO=${THREADS_IO} THREADS_APP=${THREADS_APP} THREADS_PIN=${THREAD_PIN} EVENT_Q_SIZE=${EVENT_Q_SIZE})
 target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog)
-target_include_directories(hft_server PRIVATE 
-    common/src
-    server/src
-    server/src/types
-)
+target_include_directories(hft_server PRIVATE  common/src server/src server/src/types)
 
 # Client Target
 add_executable(hft_trader ${TRADER_SOURCES})
-target_compile_definitions(hft_trader PRIVATE NETWORK_CORES=${NETWORK_CORES} APP_CORES=${APP_CORES})
+target_compile_definitions(hft_trader PRIVATE 
+    SERVER_URL="${SERVER_URL}" PORT_TCP_IN=${PORT_TCP_IN} PORT_TCP_OUT=${PORT_TCP_OUT} PORT_UDP=${PORT_UDP} 
+    THREADS_IO=${THREADS_IO} THREADS_APP=${THREADS_APP} THREADS_PIN=${THREAD_PIN} EVENT_Q_SIZE=${EVENT_Q_SIZE})
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog)
-target_include_directories(hft_trader PRIVATE 
-    common/src 
-    trader/src
-    trader/src/types
-)
+target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
 
 add_dependencies(hft_server code_generator)
 add_dependencies(hft_trader code_generator)

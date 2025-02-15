@@ -3,12 +3,14 @@
 #include "hft_trader.hpp"
 #include "init_logger.hpp"
 
+#include <boost/asio.hpp>
+
 int main() {
   using namespace hft;
   initLogger();
 
   ConfigReader::readConfig();
-  Config::logTraderConfig(Config::cfg.trader);
+  // Config::logConfig(Config::cfg);
 
   trader::HftTrader trader;
   trader.start();

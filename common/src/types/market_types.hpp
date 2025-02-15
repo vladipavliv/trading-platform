@@ -38,6 +38,7 @@ struct Order {
 struct OrderStatus {
   TraderId traderId; // Server side id TODO(me) initialize
   OrderId id;
+  Ticker ticker{};
   FulfillmentState state;
   Quantity quantity;
   Price fillPrice;

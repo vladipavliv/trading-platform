@@ -24,26 +24,55 @@ std::string toString(const Type &val) {
 }
 
 template <>
+std::string toString<FulfillmentState>(const FulfillmentState &state) {
+  switch (state) {
+  case FulfillmentState::Full:
+    return "Full";
+  case FulfillmentState::Partial:
+    return "Partial";
+  default:
+    assert(0);
+  }
+}
+
+template <>
+std::string toString<OrderAction>(const OrderAction &state) {
+  switch (state) {
+  case OrderAction::Buy:
+    return "Buy";
+  case OrderAction::Sell:
+    return "Sell";
+  case OrderAction::Limit:
+    return "Limit";
+  case OrderAction::Market:
+    return "Market";
+  default:
+    assert(0);
+  }
+}
+
+template <>
 std::string toString<Order>(const Order &order) {
   std::stringstream ss;
-  ss << "Order id: " << order.id << ", Ticker: " << order.ticker.data()
-     << ", Action: " << static_cast<uint8_t>(order.action) << ", Quantity: " << order.quantity
-     << ", Price: " << order.price;
+  ss << "Order " << toString(order.action) << ": " << order.quantity << " shares of "
+     << order.ticker.data() << " at $" << order.price << " each";
   return ss.str();
 }
 
 template <>
 std::string toString<OrderStatus>(const OrderStatus &order) {
   std::stringstream ss;
-  ss << "OrderStatus Id: " << order.id << ", State: " << static_cast<uint8_t>(order.state)
-     << ", Quantity: " << order.quantity << ", FillPrice: " << order.fillPrice;
+  ss << "Order " << order.id << ": "
+     << ((order.state == FulfillmentState::Partial) ? "Partially filled " : "Filled ")
+     << order.quantity << " shares of " << order.ticker.data() << " at $" << order.fillPrice
+     << " each";
   return ss.str();
 }
 
 template <>
 std::string toString<PriceUpdate>(const PriceUpdate &price) {
   std::stringstream ss;
-  ss << "PriceUpdate Ticker: " << price.ticker.data() << ", Price: " << price.price;
+  ss << "Price update for " << price.ticker.data() << ":$" << price.price;
   return ss.str();
 }
 

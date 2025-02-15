@@ -24,16 +24,12 @@
 
 namespace hft::utils {
 
-/**
- * @brief Fast and reliable id for local objects
- */
 template <typename Type>
 inline uintptr_t getId(const Type *obj) {
   return reinterpret_cast<uintptr_t>(obj);
 }
 
 void pinThreadToCore(int core_id);
-
 void setTheadRealTime();
 
 size_t getTraderId(const TcpSocket &sock);
@@ -43,7 +39,10 @@ inline size_t generateOrderId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 };
 
+uint8_t generateNumber();
+Ticker generateTicker();
 Order generateOrder();
+PriceUpdate generatePriceUpdate();
 
 uint64_t timeStampWeak();
 

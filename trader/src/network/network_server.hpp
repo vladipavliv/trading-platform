@@ -13,6 +13,7 @@
 #include "network_types.hpp"
 #include "trader_types.hpp"
 #include "types.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::trader {
 
@@ -22,32 +23,36 @@ public:
   using PriceSocket = TraderSocket<UdpSocket, PriceUpdate>;
 
   NetworkServer(TraderSink &sink)
-      : mSink{sink}, mCfg{Config::cfg}, mOrderSocket{sink},
-        mStatusSocket{sink} // mPriceSocket{sink}
-  {}
+      : mSink{sink},
+        mOrderSocket{sink, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
+        mStatusSocket{sink, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
+        mPriceSocket{sink, UdpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portUdp}} {}
 
   void start() {
-    mOrderSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpOut});
-    mStatusSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portTcpIn});
-    // mPriceSocket.asyncConnect({Ip::make_address(mCfg.trader.url), mCfg.trader.portUdp});
+    mOrderSocket.asyncConnect();
+    mStatusSocket.asyncConnect();
+    mPriceSocket.asyncConnect();
 
     mSink.networkSink.setHandler<Order>(
         [this](const Order &order) { mOrderSocket.asyncWrite(order); });
+    mSink.dataSink.setHandler<OrderStatus>(
+        [this](const OrderStatus &status) { spdlog::debug(utils::toString(status)); });
+    mSink.dataSink.setHandler<PriceUpdate>(
+        [this](const PriceUpdate &price) { spdlog::debug(utils::toString(price)); });
   }
 
   void stop() {
     mOrderSocket.close();
     mStatusSocket.close();
-    // mPriceSocket.close();
+    mPriceSocket.close();
   }
 
 private:
   TraderSink &mSink;
-  const Config &mCfg;
 
   OrderSocket mOrderSocket;
   OrderSocket mStatusSocket;
-  // PriceSocket mPriceSocket;
+  PriceSocket mPriceSocket;
 };
 
 } // namespace hft::trader

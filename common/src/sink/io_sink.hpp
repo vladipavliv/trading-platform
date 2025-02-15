@@ -16,10 +16,10 @@
 
 namespace hft {
 
-template <uint8_t ThreadCount, typename... EventTypes>
+template <typename... EventTypes>
 class IoSink {
 public:
-  IoSink() : mCtxGuard{mCtx}, mThreadCount{NETWORK_CORES} {}
+  IoSink() : mCtxGuard{mCtx}, mThreadCount{Config::cfg.threadsIo} {}
   ~IoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
