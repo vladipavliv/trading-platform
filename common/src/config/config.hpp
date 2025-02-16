@@ -1,7 +1,4 @@
 /**
- * @file config.hpp
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-10
  */

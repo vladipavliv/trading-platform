@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -fno-exceptions -fno-rtti -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -fno-exceptions -DNDEBUG") # -fno-rtti
 
 add_definitions(-DBOOST_NO_EXCEPTIONS)
 
@@ -18,14 +18,14 @@ set(SERVER_URL "127.0.0.1")
 set(PORT_TCP_IN 8080)
 set(PORT_TCP_OUT 8081)
 set(PORT_UDP 8082)
-set(SERVER_CORE_COUNT 3)
-set(TRADER_CORE_COUNT 3)
-set(CORES_SERVER "2,4,6")
-set(CORES_TRADER "3,5,7")
+set(SERVER_CORE_COUNT 4)
+set(TRADER_CORE_COUNT 4)
+set(CORES_SERVER "2,4,6,8")
+set(CORES_TRADER "3,5,7,9")
 set(CACHE_LINE_SIZE 64)
 set(USE_MIMALLOC ON)
-set(FEED_RATE 10) # price update every 10ms
-set(ORDER_RATE 10) # place new order every 100ms
+set(FEED_RATE 50) # price update every 0-50ms
+set(ORDER_RATE 50) # place new order every 0-50ms
 
 # Generate flatbuffers code from the schema
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)

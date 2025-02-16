@@ -1,7 +1,4 @@
 /**
- * @file
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -17,7 +14,6 @@
 int main(int argc, char *argv[]) {
   using namespace hft;
 
-  // initAsyncLogger("hft_trader.txt");
   initLogger();
   ConfigReader::readConfig();
 

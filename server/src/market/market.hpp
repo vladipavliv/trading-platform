@@ -1,7 +1,4 @@
 /**
- * @file
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -23,17 +20,16 @@ namespace hft::server::market {
 
 class Market {
 public:
-  Market(ServerSink &sink) : mSink{sink}, mFeed{mSink} {}
+  Market(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink} {}
 
   void start() {
+    mPriceFeed.setCurrentPrices(db::PostgresAdapter::readTickers());
+
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStart,
-                                 [this](ServerCommand command) { mFeed.start(); });
+                                 [this](ServerCommand command) { mPriceFeed.start(); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
-                                 [this](ServerCommand command) { mFeed.stop(); });
-
-    // Load data from DB
-    // db::PostgresAdapter::readTickers();
+                                 [this](ServerCommand command) { mPriceFeed.stop(); });
   }
   void stop() {}
 
@@ -47,8 +43,11 @@ private:
 
 private:
   ServerSink &mSink;
+
+  std::vector<PriceUpdate> mPrices;
+
   OrderBook mBook;
-  PriceFeed mFeed;
+  PriceFeed mPriceFeed;
 };
 
 } // namespace hft::server::market

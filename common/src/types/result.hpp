@@ -1,7 +1,4 @@
 /**
- * @file result.hpp
- * @brief Helper class to return errors
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */

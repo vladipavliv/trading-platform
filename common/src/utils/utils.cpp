@@ -1,7 +1,4 @@
 /**
- * @file
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -48,17 +45,17 @@ size_t getTraderId(const TcpSocket &sock) {
   return std::hash<std::string>{}(idString);
 }
 
-uint8_t generateNumber() {
+uint32_t generateNumber(uint32_t val) {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<> dis(0, 255);
+  std::uniform_int_distribution<uint32_t> dis(0, val);
   return dis(gen);
 }
 
 Ticker generateTicker() {
   Ticker ticker;
   for (int i = 0; i < 4; ++i) {
-    ticker[i] = 'A' + generateNumber() % 26;
+    ticker[i] = 'A' + generateNumber(26);
   }
   return ticker;
 }
@@ -67,15 +64,15 @@ Order generateOrder() {
   Order order;
   order.id = getLinuxTimestamp();
   order.ticker = generateTicker();
-  order.price = generateNumber();
-  order.quantity = generateNumber();
+  order.price = generateNumber(700);
+  order.quantity = generateNumber(50);
   return order;
 }
 
 PriceUpdate generatePriceUpdate() {
   PriceUpdate price;
   price.ticker = generateTicker();
-  price.price = generateNumber();
+  price.price = generateNumber(700);
   return price;
 }
 

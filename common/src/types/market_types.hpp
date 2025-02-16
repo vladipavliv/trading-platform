@@ -1,7 +1,4 @@
 /**
- * @file market_types.hpp
- * @brief Market types
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */

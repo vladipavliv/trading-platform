@@ -1,7 +1,4 @@
 /**
- * @file utils.hpp
- * @brief Helper functions and stuff
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -50,16 +47,16 @@ std::string toString<OrderAction>(const OrderAction &state) {
 template <>
 std::string toString<Order>(const Order &order) {
   std::stringstream ss;
-  ss << "Order " << toString(order.action) << ": " << order.quantity << " shares of "
-     << order.ticker.data() << " at $" << order.price << " each";
+  ss << toString(order.action) << ": " << order.quantity << " shares of " << order.ticker.data()
+     << " at $" << order.price << " each";
   return ss.str();
 }
 
 template <>
 std::string toString<OrderStatus>(const OrderStatus &order) {
   std::stringstream ss;
-  ss << "Order " << order.id << ": "
-     << ((order.state == FulfillmentState::Partial) ? "Partially filled " : "Filled ")
+  ss << //"Order " << order.id << ": " <<
+      ((order.state == FulfillmentState::Partial) ? "Partially filled " : "Filled ")
      << order.quantity << " shares of " << order.ticker.data() << " at $" << order.fillPrice
      << " each";
   return ss.str();

@@ -1,7 +1,4 @@
 /**
- * @file network_types.hpp
- * @brief Network type aliases
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */

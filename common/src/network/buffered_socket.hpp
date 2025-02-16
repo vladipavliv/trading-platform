@@ -1,6 +1,4 @@
 /**
- * @file
- * @brief
  *
  * @author Vladimir Pavliv
  * @date 2025-02-13

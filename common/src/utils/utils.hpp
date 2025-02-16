@@ -1,7 +1,4 @@
 /**
- * @file utils.hpp
- * @brief Helper functions and stuff
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -39,7 +36,7 @@ inline size_t generateOrderId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 };
 
-uint8_t generateNumber();
+uint32_t generateNumber(uint32_t val);
 Ticker generateTicker();
 Order generateOrder();
 PriceUpdate generatePriceUpdate();

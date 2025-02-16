@@ -1,7 +1,4 @@
 /**
- * @file
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -9,10 +6,7 @@
 #ifndef HFT_COMMON_DB_POSTGRESADAPTER_HPP
 #define HFT_COMMON_DB_POSTGRESADAPTER_HPP
 
-#include <ctime>
-#include <iostream>
 #include <pqxx/pqxx>
-#include <random>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <string>
@@ -28,12 +22,13 @@ class PostgresAdapter {
 public:
   static std::vector<PriceUpdate> readTickers() {
     pqxx::connection conn("dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432");
-
     if (!conn.is_open()) {
-      std::cerr << "Failed to connect to the database" << std::endl;
-      return;
+      spdlog::error("Failed to open db");
+      assert(false);
+      return {};
     }
     std::vector<PriceUpdate> tickers;
+    tickers.reserve(1001);
     pqxx::work txn(conn);
 
     std::string query = "SELECT * FROM tickers";

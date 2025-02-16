@@ -1,7 +1,4 @@
 /**
- * @file
- * @brief
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -11,6 +8,7 @@
 
 #include <atomic>
 #include <spdlog/spdlog.h>
+#include <vector>
 
 #include "boost_types.hpp"
 #include "market_types.hpp"
@@ -23,41 +21,49 @@ class PriceFeed {
 public:
   PriceFeed(ServerSink &sink) : mSink{sink}, mTimer{mSink.ctx()} {}
 
+  void setCurrentPrices(std::vector<PriceUpdate> &&prices) { mPrices = std::move(prices); }
+
   void start() {
-    mGenerating = true;
+    mSpeed += 10;
     generate();
   }
 
   void stop() {
-    mGenerating = false;
+    mSpeed = mSpeed > 0 ? mSpeed - 10 : 0;
     mTimer.cancel();
   }
 
 private:
   void generate() {
-    if (!mGenerating) {
+    if (mSpeed <= 0) {
       return;
     }
-    mTimer.expires_after(mRate);
+    mTimer.expires_after(mRate - MilliSeconds(mSpeed));
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
-        updatePrices();
+        updatePrice();
         generate();
       }
     });
   }
 
-  void updatePrices() {
-    PriceUpdate update = utils::generatePriceUpdate();
-    mSink.networkSink.post(update);
+  void updatePrice() {
+    static auto cursor = mPrices.begin();
+    if (cursor == mPrices.end()) {
+      cursor = mPrices.begin();
+    }
+    cursor->price += utils::generateNumber(9000);
+    mSink.networkSink.post(*cursor);
+    cursor++;
   }
 
 private:
   ServerSink &mSink;
   MilliSeconds mRate{MilliSeconds(FEED_RATE)};
-
-  std::atomic_bool mGenerating;
   SteadyTimer mTimer;
+
+  std::atomic<int> mSpeed{0};
+  std::vector<PriceUpdate> mPrices;
 };
 
 } // namespace hft::server::market
