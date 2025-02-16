@@ -13,6 +13,7 @@
 #include "market_types.hpp"
 #include "network/buffered_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
+#include "sink/balancing_event_sink.hpp"
 #include "sink/command_sink.hpp"
 #include "sink/io_sink.hpp"
 #include "sink/pool_event_sink.hpp"

@@ -17,7 +17,8 @@
 int main(int argc, char *argv[]) {
   using namespace hft;
 
-  initAsyncLogger("hft_trader.txt");
+  // initAsyncLogger("hft_trader.txt");
+  initLogger();
   ConfigReader::readConfig();
 
   trader::HftTrader trader;

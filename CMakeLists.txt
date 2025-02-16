@@ -70,7 +70,7 @@ file(GLOB_RECURSE TRADER_SOURCES "trader/src/*.cpp" "trader/src/**/*.cpp" "trade
 add_executable(hft_trader ${TRADER_SOURCES})
 target_compile_definitions(hft_trader PRIVATE 
     SERVER_URL="${SERVER_URL}" PORT_TCP_IN=${PORT_TCP_IN} PORT_TCP_OUT=${PORT_TCP_OUT} PORT_UDP=${PORT_UDP} 
-    THREADS_IO=${THREADS_IO} THREADS_EVENT=${THREADS_EVENT} THREADS_PIN=${THREAD_PIN} )
+    THREADS_IO=${THREADS_IO} THREADS_EVENT=${THREADS_EVENT} THREADS_PIN=${THREAD_PIN} CACHE_LINE_SIZE=${CACHE_LINE_SIZE})
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog)
 target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
 

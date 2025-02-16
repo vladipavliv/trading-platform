@@ -13,7 +13,8 @@
 
 int main() {
   using namespace hft;
-  initAsyncLogger("hft_server.txt");
+  // initAsyncLogger("hft_server.txt");
+  initLogger();
 
   ConfigReader::readConfig();
 

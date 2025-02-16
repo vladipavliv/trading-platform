@@ -24,13 +24,13 @@
 
 namespace hft {
 
-// TODO(self) Generalize with type traits and generic key type
-template <typename EventType, typename = void>
-struct HasTicker : std::false_type {};
-
 template <typename EventType>
-struct HasTicker<EventType, std::void_t<decltype(std::declval<EventType>().ticker)>>
-    : std::is_same<std::decay_t<decltype(std::declval<EventType>().ticker)>, Ticker> {};
+struct KeyExtractor;
+
+template <>
+struct KeyExtractor<Order> {
+  static const Ticker &key(const Order &order) { return order.ticker; }
+};
 
 /**
  * @brief Distributes events by Ticker across N threads
@@ -39,10 +39,13 @@ struct HasTicker<EventType, std::void_t<decltype(std::declval<EventType>().ticke
  * Not quite sure if its any good of an idea, it would require significant load to test and check
  * Maybe there are better ideas on the market, but it's cool and its my so lets go
  * TODO(this) Profile the stuff
+ * @bug Just realized, balancing would require additional management of order book
+ * Say thread 1 is busy and it processes orders of a certain ticker, then rebalance happens
+ * and ticker gets assigned to another thread which immediately picks up new orders
+ * while previous thread is still in work. Probably some book merging could solve the issue
  */
 template <size_t ThreadsCount, typename... EventTypes>
 class BalancingEventSink {
-  static_assert((HasTicker<EventTypes>::value && ...), "Type must have 'ticker' member");
   /**
    * @brief Links event with the thread id, whenever rebalancing is needed
    */
@@ -112,15 +115,12 @@ public:
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
-    if (!mControlBlockMap.contains(event.ticker)) {
+    if (!mControlBlockMap.contains(KeyExtractor<EventType>::key(event))) {
       spdlog::error("Unknown ticker");
       return;
     }
-    const auto &block = mControlBlockMap[event.ticker];
-    auto &queue = getQueue<EventType>(block.threadId.load());
-    while (!queue.push(event)) {
-      std::this_thread::yield();
-    }
+    const auto &block = mControlBlockMap[KeyExtractor<EventType>::key(event.ticker)];
+    doHandle<EventType>(event, block.threadId.load());
   }
 
   template <typename EventType>
@@ -133,28 +133,42 @@ public:
     // For Batch processing all events must be able to be handled by one core
     auto &baseBlock = mControlBlockMap[events.begin()->ticker];
     for (auto &event : events) {
-      auto &block = mControlBlockMap[event.ticker];
+      auto &block = mControlBlockMap[KeyExtractor<EventType>::key(event.ticker)];
       if (block.threadId != baseBlock.threadId) {
         spdlog::error("Unable to handle all events on a single core");
         return;
       }
-      auto &queue = getQueue<EventType>(block.threadId.load());
-      while (!queue.push(event)) {
-        std::this_thread::yield();
-      }
+      doHandle<EventType>(event, block.threadId.load());
     }
   }
 
-  std::vector<std::pair<Ticker, size_t>> getStats() {
-    std::vector<std::pair<Ticker, size_t>> result;
+  std::vector<std::map<Ticker, size_t>> getStats() {
+    std::vector<std::map<Ticker, size_t>> result;
+    result.reserve(ThreadsCount);
     for (auto &&[index, value] : std::views::enumerate(mControlBlockMap)) {
+      result[index][value.first] = value.second.eventCounter.load();
     }
+  }
+
+  void rebalance(const Ticker &ticker, ThreadId newThreadId) {
+    assert(newThreadId < ThreadsCount);
+    // For now just manual rebalancing, all new events would be handled by the %newThreadId%
+    auto &block = mControlBlockMap[ticker];
+    block.threadId.store(newThreadId);
   }
 
 private:
   void processEvents() {
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
+    }
+  }
+
+  template <typename EventType>
+  void doHandle(const EventType &event, ThreadId threadId) {
+    auto &queue = getQueue<EventType>(threadId);
+    while (!queue.push(event)) {
+      std::this_thread::yield();
     }
   }
 
