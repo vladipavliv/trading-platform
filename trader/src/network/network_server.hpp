@@ -38,8 +38,11 @@ public:
 
     mSink.networkSink.setHandler<Order>(
         [this](const Order &order) { mOrderSocket.asyncWrite(order); });
-    mSink.dataSink.setHandler<OrderStatus>(
-        [this](const OrderStatus &status) { spdlog::debug(utils::toString(status)); });
+    mSink.dataSink.setHandler<OrderStatus>([this](const OrderStatus &status) {
+      auto timestamp = utils::getLinuxTimestamp();
+      auto RTT = timestamp - status.id;
+      spdlog::debug("{} {}μs", utils::toString(status), RTT / 1000);
+    });
     mSink.dataSink.setHandler<PriceUpdate>(
         [this](const PriceUpdate &price) { spdlog::debug(utils::toString(price)); });
   }

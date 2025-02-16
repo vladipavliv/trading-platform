@@ -2,12 +2,15 @@
 
 clear
 
+# export LD_PRELOAD=/usr/local/lib/libmimalloc.so.1
+# export MIMALLOC_SHOW_STATS=1
+# export MIMALLOC_VERBOSE=1
+# export MIMALLOC_SHOW_ERRORS=1
+
 cd build 
 
-if [ "$1" == "s" ] || [ "$1" == "server" ]; then
-    clear
+if [ "$1" == "s" ]; then
     sudo ./hft_server
-elif [ "$1" == "t" ] || [ "$1" == "trader" ]; then
-    clear
+else [ "$1" == "t" ] || [ "$1" == "trader" ];
     sudo ./hft_trader
 fi

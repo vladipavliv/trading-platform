@@ -16,25 +16,28 @@
 #include "boost_types.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
-#include "padded_counter.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft {
 
+/**
+ * @brief Handles incoming events on N threads in an unstructured way
+ * whichever thread gets to process whatever amount of events
+ */
 template <typename... EventTypes>
-class EventSink {
+class PoolEventSink {
 public:
-  EventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(EVENT_Q_SIZE)) {}
-  ~EventSink() { stop(); }
+  PoolEventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(EVENT_QUEUE_SIZE)) {}
+  ~PoolEventSink() { stop(); }
 
   void start() {
-    for (size_t i = 0; i < THREADS_APP; ++i) {
+    for (size_t i = 0; i < THREADS_EVENT; ++i) {
       mThreads[i] = std::thread([this, i] {
+        spdlog::debug("Started {} thread", i);
+        utils::pinThreadToCore(i * 2);
         utils::setTheadRealTime();
-        mThreadIndex = i;
-        // spdlog::info("Thread {} started", i);
         processEvents();
       });
     }
@@ -49,9 +52,6 @@ public:
       if (thread.joinable()) {
         thread.join();
       }
-    }
-    for (size_t i = 0; i < mCounters.size(); ++i) {
-      // spdlog::debug("Thread {} processed {} events", i, mCounters[i].value.load());
     }
   }
 
@@ -84,28 +84,14 @@ private:
   void processEvents() {
     while (!mStop.load()) {
       (processQueue<EventTypes>(), ...);
-      std::this_thread::yield();
     }
   }
 
   template <typename EventType>
   void processQueue() {
     auto &queue = getQueue<EventType>();
-    EventType event;
-    while (queue.pop(event) && !mStop.load()) {
-      handleEvent(std::move(event));
-    }
-  }
-
-  template <typename EventType>
-  void handleEvent(const EventType &event) {
-    auto &handler = getHandler<EventType>();
-    if (handler) {
-      handler(event);
-      mCounters[mThreadIndex].value.fetch_add(1, std::memory_order_relaxed);
-    } else {
-      spdlog::error("Handler not set: {}", utils::toString<EventType>(event));
-    }
+    queue.consume_all(getHandler<EventType>());
+    std::this_thread::yield();
   }
 
   template <typename EventType>
@@ -137,16 +123,12 @@ private:
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
   std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
 
-  std::array<std::thread, THREADS_APP> mThreads;
-  std::array<PaddedCounter, THREADS_APP> mCounters;
+  std::array<std::thread, THREADS_EVENT> mThreads;
   std::atomic_bool mStop{false};
 
   static thread_local uint8_t mThreadIndex;
 };
 
-template <typename... EventTypes>
-thread_local uint8_t EventSink<EventTypes...>::mThreadIndex = 0;
-
 } // namespace hft
 
-#endif // HFT_SERVER_
+#endif // HFT_EVENTSINK_HPP

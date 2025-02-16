@@ -31,19 +31,21 @@ void initConsoleLogger() {
   spdlog::flush_on(spdlog::level::debug);
 }
 
-void initAsyncLogger() {
+void initAsyncLogger(const std::string &filename) {
   spdlog::init_thread_pool(8192, 1);
   auto async_file_logger = std::make_shared<spdlog::async_logger>(
-      "async_file_logger", std::make_shared<spdlog::sinks::basic_file_sink_mt>("hft_logs.txt"),
+      "async_file_logger", std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename),
       spdlog::thread_pool());
 
+  spdlog::set_level(spdlog::level::trace);
   spdlog::set_default_logger(async_file_logger);
   spdlog::info("Async logging initialized.");
 };
 
-void initRotatingLogger() {
-  auto rotating_logger = spdlog::rotating_logger_mt("rotating_logger", "hft_logs.txt", 10485760, 3);
+void initRotatingLogger(const std::string &filename) {
+  auto rotating_logger = spdlog::rotating_logger_mt("rotating_logger", filename, 10485760, 3);
 
+  spdlog::set_level(spdlog::level::debug);
   spdlog::set_default_logger(rotating_logger);
   spdlog::info("Rotating logging initialized.");
 }

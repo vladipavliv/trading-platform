@@ -23,9 +23,8 @@ class PriceFeed {
 public:
   PriceFeed(ServerSink &sink) : mSink{sink}, mTimer{mSink.ctx()} {}
 
-  void start(MilliSeconds rate) {
+  void start() {
     mGenerating = true;
-    mRate = rate;
     generate();
   }
 
@@ -55,7 +54,7 @@ private:
 
 private:
   ServerSink &mSink;
-  MilliSeconds mRate;
+  MilliSeconds mRate{MilliSeconds(10)};
 
   std::atomic_bool mGenerating;
   SteadyTimer mTimer;

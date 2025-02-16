@@ -50,29 +50,39 @@ public:
 private:
   void consoleMonitor() {
     while (!mStop.load()) {
-      auto cmdRes = mConsoleParser.getCommand();
-      while (cmdRes.ok()) {
-        auto cmd = cmdRes.value();
-        spdlog::debug(utils::toString(cmd));
-        mSink.controlSink.post(cmd);
-        if (cmd == TraderCommand::Shutdown) {
-          return;
-        }
-        if (cmd == TraderCommand::PlaceOrder) {
-          mSink.networkSink.post(utils::generateOrder());
-        }
-        cmdRes = mConsoleParser.getCommand();
-      }
       boost::this_fiber::yield();
+      auto cmdRes = mConsoleParser.getCommand();
+      if (!cmdRes.ok()) {
+        continue;
+      }
+      auto cmd = cmdRes.value();
+      mSink.controlSink.post(cmd);
+      if (cmd == TraderCommand::Shutdown) {
+        return;
+      }
+      if (cmd == TraderCommand::PlaceOrder) {
+        mBuyAll = !mBuyAll;
+      }
+      cmdRes = mConsoleParser.getCommand();
     }
   }
 
-  void systemMonitor() { /* TODO(self): Make trace sink for monitoring all events? */ }
+  void systemMonitor() {
+    /* TODO(self): Make trace sink for monitoring all events? */
+    while (!mStop.load()) {
+      if (mBuyAll) {
+        mSink.networkSink.post(utils::generateOrder());
+      }
+      boost::this_fiber::sleep_for(MilliSeconds(10));
+      boost::this_fiber::yield();
+    }
+  }
 
 private:
   TraderSink &mSink;
   ConsoleParser mConsoleParser;
 
+  std::atomic_bool mBuyAll{false};
   std::atomic_bool mStop{false};
 };
 

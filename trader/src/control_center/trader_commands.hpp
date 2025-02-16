@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 
+#include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::trader {

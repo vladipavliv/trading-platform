@@ -32,7 +32,6 @@ public:
       return ErrorCode::Error;
     }
     auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
-    // Beautiful
     return Order{
         0,           msg->id(), toString(msg->ticker()), convert(msg->action()), msg->quantity(),
         msg->price()};

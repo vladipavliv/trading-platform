@@ -1,16 +1,24 @@
-#include "config/config.hpp"
+/**
+ * @file
+ * @brief
+ *
+ * @author Vladimir Pavliv
+ * @date 2025-02-13
+ */
+
 #include "config/config_reader.hpp"
 #include "hft_trader.hpp"
 #include "init_logger.hpp"
 
-#include <boost/asio.hpp>
+#include <atomic>
+#include <iostream>
+#include <thread>
 
-int main() {
+int main(int argc, char *argv[]) {
   using namespace hft;
-  initLogger();
 
+  initAsyncLogger("hft_trader.txt");
   ConfigReader::readConfig();
-  // Config::logConfig(Config::cfg);
 
   trader::HftTrader trader;
   trader.start();

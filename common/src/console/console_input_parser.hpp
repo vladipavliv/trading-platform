@@ -9,11 +9,14 @@
 #ifndef HFT_COMMON_CONSOLE_INPUT_PARSER_HPP
 #define HFT_COMMON_CONSOLE_INPUT_PARSER_HPP
 
+#include <fcntl.h>
 #include <format>
 #include <iostream>
 #include <map>
 #include <spdlog/spdlog.h>
 #include <string>
+#include <sys/select.h>
+#include <unistd.h>
 
 #include "error_code.hpp"
 #include "result.hpp"
@@ -28,7 +31,8 @@ public:
   using Command = CommandType;
 
   ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
-    std::cin.sync_with_stdio(false);
+    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+    std::cout << std::unitbuf;
 
     std::string header = "Available commands:";
     spdlog::info("> {} {}", header, std::string(mCommandsWidth - header.length() - 1, '~'));
@@ -38,25 +42,28 @@ public:
   }
 
   Result<Command> getCommand() {
-    // Get a character from the user without blocking
-    char ch;
-    while (std::cin.get(ch)) {
-      if (ch != '\n') {
-        mInput += ch;
-        continue;
-      }
-      auto cmdIt = mCommandMap.find(mInput);
-      mInput.clear();
-      if (cmdIt == mCommandMap.end()) {
-        return ErrorCode::Empty;
-      } else {
-        return cmdIt->second;
-      }
+    if (!inputAvailable()) {
+      return ErrorCode::Error;
+    }
+    std::getline(std::cin, mInput);
+    auto cmdIt = mCommandMap.find(mInput);
+    mInput.clear();
+    if (cmdIt == mCommandMap.end()) {
+      return ErrorCode::Empty;
+    } else {
+      return cmdIt->second;
     }
     return ErrorCode::Empty;
   }
 
+  Result<Command> tryGetCommand() {}
+
 private:
+  bool inputAvailable() {
+    struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
+    return poll(&fds, 1, 0) == 1;
+  }
+
   void printCommands() {
     static std::map<Command, std::vector<std::string>> cmdToInput;
     if (cmdToInput.empty()) {

@@ -33,35 +33,29 @@ struct PriceUpdateT;
 enum OrderAction : int8_t {
   OrderAction_BUY = 0,
   OrderAction_SELL = 1,
-  OrderAction_LIMIT = 2,
-  OrderAction_MARKET = 3,
   OrderAction_MIN = OrderAction_BUY,
-  OrderAction_MAX = OrderAction_MARKET
+  OrderAction_MAX = OrderAction_SELL
 };
 
-inline const OrderAction (&EnumValuesOrderAction())[4] {
+inline const OrderAction (&EnumValuesOrderAction())[2] {
   static const OrderAction values[] = {
     OrderAction_BUY,
-    OrderAction_SELL,
-    OrderAction_LIMIT,
-    OrderAction_MARKET
+    OrderAction_SELL
   };
   return values;
 }
 
 inline const char * const *EnumNamesOrderAction() {
-  static const char * const names[5] = {
+  static const char * const names[3] = {
     "BUY",
     "SELL",
-    "LIMIT",
-    "MARKET",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameOrderAction(OrderAction e) {
-  if (flatbuffers::IsOutRange(e, OrderAction_BUY, OrderAction_MARKET)) return "";
+  if (flatbuffers::IsOutRange(e, OrderAction_BUY, OrderAction_SELL)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesOrderAction()[index];
 }

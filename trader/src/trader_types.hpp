@@ -14,19 +14,19 @@
 #include "network/buffered_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "sink/command_sink.hpp"
-#include "sink/event_sink.hpp"
 #include "sink/io_sink.hpp"
+#include "sink/pool_event_sink.hpp"
 
 namespace hft::trader {
 
-using DataSink = EventSink<OrderStatus, PriceUpdate>;
+using EventSink = PoolEventSink<OrderStatus, PriceUpdate>;
 using NetworkSink = IoSink<Order>;
 using ControlSink = CommandSink<TraderCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;
 
 struct TraderSink { // SinkSink
-  DataSink dataSink;
+  EventSink dataSink;
   NetworkSink networkSink;
   ControlSink controlSink;
   inline IoContext &ctx() { return networkSink.ctx(); }

@@ -17,17 +17,17 @@
 namespace hft {
 
 using OrderId = uint32_t;
+using Timestamp = uint64_t;
 using TraderId = uint32_t;
 using Quantity = uint32_t;
 using Price = float;
 using Ticker = std::array<char, 5>;
 
-enum class OrderAction : uint8_t { Buy = 0U, Sell = 1U, Limit = 2U, Market = 3U };
-
+enum class OrderAction : uint8_t { Buy = 0U, Sell = 1U };
 enum class FulfillmentState : uint8_t { Partial = 0U, Full = 1U };
 
 struct Order {
-  TraderId traderId; // Server side id TODO(me) initialize
+  TraderId traderId; // Server side
   OrderId id;
   Ticker ticker{};
   OrderAction action{OrderAction::Buy};
@@ -36,7 +36,7 @@ struct Order {
 };
 
 struct OrderStatus {
-  TraderId traderId; // Server side id TODO(me) initialize
+  TraderId traderId; // Server side
   OrderId id;
   Ticker ticker{};
   FulfillmentState state;

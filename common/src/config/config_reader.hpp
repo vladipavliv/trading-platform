@@ -41,7 +41,7 @@ struct ConfigReader {
 
     // Cpu
     Config::cfg.threadsIo = pt.get<int>("cpu.threads_io");
-    Config::cfg.threadsApp = pt.get<int>("cpu.threads_app");
+    Config::cfg.threadsApp = pt.get<int>("cpu.threads_event");
     Config::cfg.threadsPin = pt.get<bool>("cpu.thread_pin");
   }
 #else
@@ -51,7 +51,7 @@ struct ConfigReader {
     Config::cfg.portTcpOut = PORT_TCP_OUT;
     Config::cfg.portUdp = PORT_UDP;
     Config::cfg.threadsIo = THREADS_IO;
-    Config::cfg.threadsApp = THREADS_APP;
+    Config::cfg.threadsApp = THREADS_EVENT;
     Config::cfg.threadsPin = THREADS_PIN;
   }
 #endif

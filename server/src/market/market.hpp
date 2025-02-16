@@ -13,6 +13,7 @@
 
 #include "boost_types.hpp"
 #include "market_types.hpp"
+#include "order_book.hpp"
 #include "price_feed.hpp"
 #include "server_types.hpp"
 #include "utils/utils.hpp"
@@ -26,7 +27,7 @@ public:
   void start() {
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStart,
-                                 [this](ServerCommand command) { mFeed.start(MilliSeconds(100)); });
+                                 [this](ServerCommand command) { mFeed.start(); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
                                  [this](ServerCommand command) { mFeed.stop(); });
   }
@@ -42,6 +43,7 @@ private:
 
 private:
   ServerSink &mSink;
+  OrderBook mBook;
   PriceFeed mFeed;
 };
 

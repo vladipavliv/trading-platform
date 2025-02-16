@@ -42,10 +42,6 @@ std::string toString<OrderAction>(const OrderAction &state) {
     return "Buy";
   case OrderAction::Sell:
     return "Sell";
-  case OrderAction::Limit:
-    return "Limit";
-  case OrderAction::Market:
-    return "Market";
   default:
     assert(0);
   }

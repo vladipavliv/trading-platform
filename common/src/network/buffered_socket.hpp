@@ -123,7 +123,9 @@ public:
 private:
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
     if (ec) {
-      spdlog::error("Failed to read from the socket: {}", ec.message());
+      if (ec != boost::asio::error::eof) {
+        spdlog::error("Failed to read from the socket: {}", ec.message());
+      }
       mHead = mTail = 0;
       return;
     }

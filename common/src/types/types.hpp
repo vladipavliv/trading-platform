@@ -25,12 +25,15 @@ using StringView = std::string_view;
 using ObjectId = uintptr_t;
 
 constexpr size_t BUFFER_SIZE = 1024 * 4;
+constexpr size_t EVENT_QUEUE_SIZE = 1024;
 
 using ByteBuffer = std::vector<uint8_t>;
 using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
 
 template <typename Arg>
 using CRefHandler = std::function<void(const Arg &)>;
+
+using ThreadId = uint8_t;
 
 } // namespace hft
 

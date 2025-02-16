@@ -2,9 +2,7 @@ namespace hft.serialization.gen.fbs;
 
 enum OrderAction: byte {
     BUY = 0,
-    SELL = 1,
-    LIMIT = 2,
-    MARKET = 3
+    SELL = 1
 }
 
 enum FulfillmentState: byte {

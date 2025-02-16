@@ -30,10 +30,6 @@ OrderAction convert(gen::fbs::OrderAction action) {
     return OrderAction::Buy;
   case gen::fbs::OrderAction::OrderAction_SELL:
     return OrderAction::Sell;
-  case gen::fbs::OrderAction::OrderAction_LIMIT:
-    return OrderAction::Limit;
-  case gen::fbs::OrderAction::OrderAction_MARKET:
-    return OrderAction::Market;
   default:
     assert(0);
   }
@@ -45,10 +41,6 @@ gen::fbs::OrderAction convert(OrderAction action) {
     return gen::fbs::OrderAction::OrderAction_BUY;
   case OrderAction::Sell:
     return gen::fbs::OrderAction::OrderAction_SELL;
-  case OrderAction::Limit:
-    return gen::fbs::OrderAction::OrderAction_LIMIT;
-  case OrderAction::Market:
-    return gen::fbs::OrderAction::OrderAction_MARKET;
   default:
     assert(0);
   }

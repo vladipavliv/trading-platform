@@ -46,6 +46,8 @@ PriceUpdate generatePriceUpdate();
 
 uint64_t timeStampWeak();
 
+uint64_t getLinuxTimestamp();
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_UTILITIES_HPP

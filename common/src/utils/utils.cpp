@@ -21,6 +21,8 @@ void pinThreadToCore(int core_id) {
   CPU_ZERO(&cpuset);
   CPU_SET(core_id, &cpuset);
 
+  sched_setaffinity(core_id, sizeof(cpu_set_t), &cpuset);
+
   pthread_t thread = pthread_self();
   int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (result != 0) {
@@ -29,21 +31,12 @@ void pinThreadToCore(int core_id) {
 }
 
 void setTheadRealTime() {
-  // Set CPU affinity for the thread
-  cpu_set_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(0, &cpuset); // Bind to CPU core 0
-
-  int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-  if (rc != 0) {
-    spdlog::error("Failed to set CPU affinity: {}", rc);
-    return;
-  }
-
   // Set real-time priority (SCHED_FIFO)
   struct sched_param param;
   param.sched_priority = 99; // Highest priority for real-time threads
-  rc = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+  sched_setscheduler(0, SCHED_FIFO, &param);
+
+  auto rc = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (rc != 0) {
     spdlog::error("Failed to set real-time priority: {}", rc);
   }
@@ -72,6 +65,7 @@ Ticker generateTicker() {
 
 Order generateOrder() {
   Order order;
+  order.id = getLinuxTimestamp();
   order.ticker = generateTicker();
   order.price = generateNumber();
   order.quantity = generateNumber();
@@ -89,6 +83,12 @@ uint64_t timeStampWeak() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
              std::chrono::high_resolution_clock::now().time_since_epoch())
       .count();
+}
+
+uint64_t getLinuxTimestamp() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return ts.tv_sec * 1'000'000'000 + ts.tv_nsec;
 }
 
 } // namespace hft::utils
