@@ -33,10 +33,15 @@ public:
   ~PoolEventSink() { stop(); }
 
   void start() {
-    for (size_t i = 0; i < THREADS_EVENT; ++i) {
+    if (Config::cfg.coresApp.empty()) {
+      spdlog::error("No cores provided");
+      assert(false);
+      return;
+    }
+    for (size_t i = 0; i < Config::cfg.coresApp.size(); ++i) {
       mThreads[i] = std::thread([this, i] {
-        spdlog::debug("Started {} thread", i);
-        utils::pinThreadToCore(i * 2);
+        spdlog::debug("Started Worker thread on the core ID:{}", Config::cfg.coresApp[i]);
+        utils::pinThreadToCore(Config::cfg.coresApp[i]);
         utils::setTheadRealTime();
         processEvents();
       });
@@ -123,7 +128,7 @@ private:
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
   std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
 
-  std::array<std::thread, THREADS_EVENT> mThreads;
+  std::array<std::thread, CORES - 1> mThreads;
   std::atomic_bool mStop{false};
 
   static thread_local uint8_t mThreadIndex;

@@ -11,7 +11,7 @@ enum FulfillmentState: byte {
 }
 
 table Order {
-    id: uint;
+    id: uint64;
     ticker: string;
     action: OrderAction;
     quantity: uint;
@@ -19,7 +19,7 @@ table Order {
 }
 
 table OrderStatus {
-    id: uint;
+    id: uint64;
     ticker: string;
     state: FulfillmentState;
     quantity: uint;

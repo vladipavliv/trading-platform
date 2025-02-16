@@ -16,7 +16,7 @@
 
 namespace hft {
 
-using OrderId = uint32_t;
+using OrderId = uint64_t;
 using Timestamp = uint64_t;
 using TraderId = uint32_t;
 using Quantity = uint32_t;

@@ -23,17 +23,14 @@ struct Config {
   Port portTcpIn;
   Port portTcpOut;
   Port portUdp;
-  uint8_t threadsIo;
-  uint8_t threadsApp;
-  bool threadsPin;
+  std::vector<uint8_t> coresIo;
+  std::vector<uint8_t> coresApp;
 
   static Config cfg;
 
   static void logConfig(const Config &config) {
-    spdlog::debug("url: {} tcp port in: {} tcp port out: {} udp port: {} threads io: {} threads "
-                  "app: {} threads pin: ",
-                  config.url, config.portTcpIn, config.portTcpOut, config.portUdp, config.threadsIo,
-                  config.threadsApp, config.threadsPin);
+    spdlog::debug("url: {} tcp port in: {} tcp port out: {} udp port: {} cores: {} core ids: {}",
+                  config.url, config.portTcpIn, config.portTcpOut, config.portUdp, CORES, CORE_IDS);
   }
 };
 

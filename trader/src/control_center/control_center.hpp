@@ -73,7 +73,7 @@ private:
       if (mBuyAll) {
         mSink.networkSink.post(utils::generateOrder());
       }
-      boost::this_fiber::sleep_for(MilliSeconds(10));
+      boost::this_fiber::sleep_for(MilliSeconds(ORDER_RATE));
       boost::this_fiber::yield();
     }
   }

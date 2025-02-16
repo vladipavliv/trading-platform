@@ -24,7 +24,7 @@ void initConsoleLogger() {
   auto logger = std::make_shared<spdlog::logger>("console", console_sink);
 
   spdlog::set_default_logger(logger);
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::trace);
 
   spdlog::set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
 

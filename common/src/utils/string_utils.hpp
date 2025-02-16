@@ -78,6 +78,12 @@ String toLower(String str) {
   return str;
 }
 
+Ticker toTicker(const std::string &str) {
+  Ticker ticker;
+  std::copy(str.begin(), str.begin() + std::min(str.size(), ticker.size()), ticker.begin());
+  return ticker;
+}
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_STRING_UTILS_HPP

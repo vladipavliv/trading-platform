@@ -16,7 +16,11 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 echo "⚙️ Running CMake..."
-cmake .. -DCMAKE_BUILD_TYPE=Release
+if [ "$1" == "d" ]; then
+    cmake .. -DCMAKE_BUILD_TYPE=Debug
+else
+    cmake .. -DCMAKE_BUILD_TYPE=Release
+fi
 
 echo "🚀 Compiling project..."
 make -j$(nproc)

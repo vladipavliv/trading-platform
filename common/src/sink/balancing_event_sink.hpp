@@ -47,16 +47,20 @@ struct KeyExtractor<Order> {
 template <size_t ThreadsCount, typename... EventTypes>
 class BalancingEventSink {
   /**
-   * @brief Links event with the thread id, whenever rebalancing is needed
+   * @brief Links event with the thread id
+   * @details Need alignment cause when rebalancing would happen one thread could
+   * increment the counter while another thread changes the threadId
    */
-  struct ControlBlock {
+  struct alignas(CACHE_LINE_SIZE) ControlBlock {
     mutable std::atomic<ThreadId> threadId;
+    Padding<ThreadId> p1; // Plenty of space
     mutable std::atomic<size_t> eventCounter;
+    Padding<ThreadId> p2; // For more statistics
   };
 
   struct alignas(CACHE_LINE_SIZE) ThreadEventCounter {
     size_t value{0};
-    std::array<char, CACHE_LINE_SIZE - sizeof(size_t)> pad{};
+    Padding<size_t> p;
   };
 
   /**
@@ -120,25 +124,17 @@ public:
       return;
     }
     const auto &block = mControlBlockMap[KeyExtractor<EventType>::key(event.ticker)];
-    doHandle<EventType>(event, block.threadId.load());
+    auto &queue = getQueue<EventType>(block.threadId);
+    while (!queue.push(event)) {
+      std::this_thread::yield();
+    }
   }
 
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const std::vector<EventType> &events) {
-    if (!mControlBlockMap.contains(events.begin()->ticker)) {
-      spdlog::error("Unknown ticker");
-      return;
-    }
-    // For Batch processing all events must be able to be handled by one core
-    auto &baseBlock = mControlBlockMap[events.begin()->ticker];
     for (auto &event : events) {
-      auto &block = mControlBlockMap[KeyExtractor<EventType>::key(event.ticker)];
-      if (block.threadId != baseBlock.threadId) {
-        spdlog::error("Unable to handle all events on a single core");
-        return;
-      }
-      doHandle<EventType>(event, block.threadId.load());
+      post<EventType>(event);
     }
   }
 
@@ -161,14 +157,6 @@ private:
   void processEvents() {
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
-    }
-  }
-
-  template <typename EventType>
-  void doHandle(const EventType &event, ThreadId threadId) {
-    auto &queue = getQueue<EventType>(threadId);
-    while (!queue.push(event)) {
-      std::this_thread::yield();
     }
   }
 

@@ -19,7 +19,7 @@ namespace hft {
 template <typename... EventTypes>
 class IoSink {
 public:
-  IoSink() : mCtxGuard{mCtx}, mThreadCount{Config::cfg.threadsIo} {}
+  IoSink() : mCtxGuard{mCtx} {}
   ~IoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
@@ -29,13 +29,16 @@ public:
   }
 
   void start() {
-    if (mThreadCount == 0) {
-      mCtx.run();
+    if (Config::cfg.coresIo.empty()) {
+      spdlog::error("No cores provided");
+      assert(false);
+      return;
     }
-    mThreads.reserve(mThreadCount);
-    for (size_t i = 0; i < mThreadCount; ++i) {
+    mThreads.reserve(Config::cfg.coresIo.size());
+    for (size_t i = 0; i < Config::cfg.coresIo.size(); ++i) {
       mThreads.emplace_back([this, i]() {
-        // utils::pinThreadToCore(2);
+        spdlog::debug("Started Io thread on the core ID:{}", Config::cfg.coresIo[i]);
+        utils::pinThreadToCore(Config::cfg.coresIo[i]);
         utils::setTheadRealTime();
         mCtx.run();
       });
@@ -88,8 +91,6 @@ private:
   ContextGuard mCtxGuard;
 
   std::tuple<std::function<void(const EventTypes)>...> mHandlers;
-
-  const uint8_t mThreadCount;
   std::vector<std::thread> mThreads;
 };
 

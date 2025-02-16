@@ -54,7 +54,7 @@ private:
 
 private:
   ServerSink &mSink;
-  MilliSeconds mRate{MilliSeconds(10)};
+  MilliSeconds mRate{MilliSeconds(FEED_RATE)};
 
   std::atomic_bool mGenerating;
   SteadyTimer mTimer;

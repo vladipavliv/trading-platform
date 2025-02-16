@@ -35,6 +35,15 @@ using CRefHandler = std::function<void(const Arg &)>;
 
 using ThreadId = uint8_t;
 
+#ifndef CACHE_LINE_SIZE
+#define CACHE_LINE_SIZE 64
+#endif
+
+template <typename ValueType>
+struct Padding {
+  std::array<char, CACHE_LINE_SIZE - sizeof(ValueType)> padding{};
+};
+
 } // namespace hft
 
 #endif // HFT_COMMON_TYPES_HPP

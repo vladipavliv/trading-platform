@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 
 #include "boost_types.hpp"
+#include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
 #include "price_feed.hpp"
@@ -30,6 +31,9 @@ public:
                                  [this](ServerCommand command) { mFeed.start(); });
     mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
                                  [this](ServerCommand command) { mFeed.stop(); });
+
+    // Load data from DB
+    // db::PostgresAdapter::readTickers();
   }
   void stop() {}
 

@@ -130,6 +130,7 @@ private:
       return;
     }
     mTail += bytesRead;
+    // spdlog::trace("Read {} bytes mHead {} mTail {}", bytesRead, mHead, mTail);
 
     uint8_t *cursor = mBuffer.data() + mHead;
     std::vector<MessageIn> messages;
@@ -163,8 +164,8 @@ private:
     }
     // If we getting close to the edge of the buffer lets just wrap around
     if (mBuffer.size() - mTail < 256) {
-      // TODO(self): Would work for now but need improvement for overlap
-      std::memcpy(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
+      // memmove handles potential overlap fine, but it should not happen here anyway
+      std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
       mHead = 0;
     }
