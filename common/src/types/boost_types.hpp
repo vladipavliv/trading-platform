@@ -21,6 +21,7 @@ using BoostErrorRef = const BoostError &;
 
 using Fiber = boost::fibers::fiber;
 
+using SteadyTimer = boost::asio::steady_timer;
 using Seconds = boost::asio::chrono::seconds;
 using MilliSeconds = boost::asio::chrono::milliseconds;
 

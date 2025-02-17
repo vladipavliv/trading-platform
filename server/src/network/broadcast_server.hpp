@@ -21,20 +21,19 @@ namespace hft::server::network {
 
 class BroadcastServer {
 public:
-  using Socket = ServerSocket<UdpSocket, PriceUpdate>;
+  using Socket = ServerSocket<UdpSocket, TickerPrice>;
 
   BroadcastServer(ServerSink &sink)
       : mSink{sink}, mSocket{mSink, createSocket(sink.ctx()),
-                             UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {}
-  ~BroadcastServer() { stop(); }
-
-  void start() {
-    spdlog::debug("Start broadcasting market data at {}", Config::cfg.portUdp);
-    mSink.networkSink.setHandler<PriceUpdate>([this](const PriceUpdate &price) {
+                             UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
+    mSink.networkSink.setHandler<TickerPrice>([this](const TickerPrice &price) {
       spdlog::debug(utils::toString(price));
       mSocket.asyncWrite(price);
     });
   }
+  ~BroadcastServer() { stop(); }
+
+  void start() { /*spdlog::debug("Start broadcasting market data at {}", Config::cfg.portUdp);*/ }
 
   void stop() { mSocket.close(); }
 

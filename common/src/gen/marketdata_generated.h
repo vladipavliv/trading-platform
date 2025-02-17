@@ -26,9 +26,9 @@ struct OrderStatus;
 struct OrderStatusBuilder;
 struct OrderStatusT;
 
-struct PriceUpdate;
-struct PriceUpdateBuilder;
-struct PriceUpdateT;
+struct TickerPrice;
+struct TickerPriceBuilder;
+struct TickerPriceT;
 
 enum OrderAction : int8_t {
   OrderAction_BUY = 0,
@@ -60,34 +60,41 @@ inline const char *EnumNameOrderAction(OrderAction e) {
   return EnumNamesOrderAction()[index];
 }
 
-enum FulfillmentState : int8_t {
-  FulfillmentState_PARTIAL = 0,
-  FulfillmentState_FULL = 1,
-  FulfillmentState_MIN = FulfillmentState_PARTIAL,
-  FulfillmentState_MAX = FulfillmentState_FULL
+enum OrderState : int32_t {
+  OrderState_Accepted = 0,
+  OrderState_Partial = 1,
+  OrderState_Full = 2,
+  OrderState_Instant = 4,
+  OrderState_MIN = OrderState_Accepted,
+  OrderState_MAX = OrderState_Instant
 };
 
-inline const FulfillmentState (&EnumValuesFulfillmentState())[2] {
-  static const FulfillmentState values[] = {
-    FulfillmentState_PARTIAL,
-    FulfillmentState_FULL
+inline const OrderState (&EnumValuesOrderState())[4] {
+  static const OrderState values[] = {
+    OrderState_Accepted,
+    OrderState_Partial,
+    OrderState_Full,
+    OrderState_Instant
   };
   return values;
 }
 
-inline const char * const *EnumNamesFulfillmentState() {
-  static const char * const names[3] = {
-    "PARTIAL",
-    "FULL",
+inline const char * const *EnumNamesOrderState() {
+  static const char * const names[6] = {
+    "Accepted",
+    "Partial",
+    "Full",
+    "",
+    "Instant",
     nullptr
   };
   return names;
 }
 
-inline const char *EnumNameFulfillmentState(FulfillmentState e) {
-  if (flatbuffers::IsOutRange(e, FulfillmentState_PARTIAL, FulfillmentState_FULL)) return "";
+inline const char *EnumNameOrderState(OrderState e) {
+  if (flatbuffers::IsOutRange(e, OrderState_Accepted, OrderState_Instant)) return "";
   const size_t index = static_cast<size_t>(e);
-  return EnumNamesFulfillmentState()[index];
+  return EnumNamesOrderState()[index];
 }
 
 struct OrderT : public flatbuffers::NativeTable {
@@ -208,7 +215,7 @@ struct OrderStatusT : public flatbuffers::NativeTable {
   typedef OrderStatus TableType;
   uint64_t id = 0;
   std::string ticker{};
-  hft::serialization::gen::fbs::FulfillmentState state = hft::serialization::gen::fbs::FulfillmentState_PARTIAL;
+  hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted;
   uint32_t quantity = 0;
   float fill_price = 0.0f;
 };
@@ -229,8 +236,8 @@ struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
   }
-  hft::serialization::gen::fbs::FulfillmentState state() const {
-    return static_cast<hft::serialization::gen::fbs::FulfillmentState>(GetField<int8_t>(VT_STATE, 0));
+  hft::serialization::gen::fbs::OrderState state() const {
+    return static_cast<hft::serialization::gen::fbs::OrderState>(GetField<int32_t>(VT_STATE, 0));
   }
   uint32_t quantity() const {
     return GetField<uint32_t>(VT_QUANTITY, 0);
@@ -243,7 +250,7 @@ struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<uint64_t>(verifier, VT_ID, 8) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
-           VerifyField<int8_t>(verifier, VT_STATE, 1) &&
+           VerifyField<int32_t>(verifier, VT_STATE, 4) &&
            VerifyField<uint32_t>(verifier, VT_QUANTITY, 4) &&
            VerifyField<float>(verifier, VT_FILL_PRICE, 4) &&
            verifier.EndTable();
@@ -263,8 +270,8 @@ struct OrderStatusBuilder {
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(OrderStatus::VT_TICKER, ticker);
   }
-  void add_state(hft::serialization::gen::fbs::FulfillmentState state) {
-    fbb_.AddElement<int8_t>(OrderStatus::VT_STATE, static_cast<int8_t>(state), 0);
+  void add_state(hft::serialization::gen::fbs::OrderState state) {
+    fbb_.AddElement<int32_t>(OrderStatus::VT_STATE, static_cast<int32_t>(state), 0);
   }
   void add_quantity(uint32_t quantity) {
     fbb_.AddElement<uint32_t>(OrderStatus::VT_QUANTITY, quantity, 0);
@@ -287,15 +294,15 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint64_t id = 0,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
-    hft::serialization::gen::fbs::FulfillmentState state = hft::serialization::gen::fbs::FulfillmentState_PARTIAL,
+    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
     uint32_t quantity = 0,
     float fill_price = 0.0f) {
   OrderStatusBuilder builder_(_fbb);
   builder_.add_id(id);
   builder_.add_fill_price(fill_price);
   builder_.add_quantity(quantity);
-  builder_.add_ticker(ticker);
   builder_.add_state(state);
+  builder_.add_ticker(ticker);
   return builder_.Finish();
 }
 
@@ -303,7 +310,7 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatusDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint64_t id = 0,
     const char *ticker = nullptr,
-    hft::serialization::gen::fbs::FulfillmentState state = hft::serialization::gen::fbs::FulfillmentState_PARTIAL,
+    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
     uint32_t quantity = 0,
     float fill_price = 0.0f) {
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
@@ -318,15 +325,15 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatusDirect(
 
 flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBufferBuilder &_fbb, const OrderStatusT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct PriceUpdateT : public flatbuffers::NativeTable {
-  typedef PriceUpdate TableType;
+struct TickerPriceT : public flatbuffers::NativeTable {
+  typedef TickerPrice TableType;
   std::string ticker{};
   float price = 0.0f;
 };
 
-struct PriceUpdate FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PriceUpdateT NativeTableType;
-  typedef PriceUpdateBuilder Builder;
+struct TickerPrice FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef TickerPriceT NativeTableType;
+  typedef TickerPriceBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_TICKER = 4,
     VT_PRICE = 6
@@ -344,54 +351,54 @@ struct PriceUpdate FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<float>(verifier, VT_PRICE, 4) &&
            verifier.EndTable();
   }
-  PriceUpdateT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PriceUpdateT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PriceUpdate> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PriceUpdateT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  TickerPriceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TickerPriceT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<TickerPrice> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TickerPriceT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct PriceUpdateBuilder {
-  typedef PriceUpdate Table;
+struct TickerPriceBuilder {
+  typedef TickerPrice Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
-    fbb_.AddOffset(PriceUpdate::VT_TICKER, ticker);
+    fbb_.AddOffset(TickerPrice::VT_TICKER, ticker);
   }
   void add_price(float price) {
-    fbb_.AddElement<float>(PriceUpdate::VT_PRICE, price, 0.0f);
+    fbb_.AddElement<float>(TickerPrice::VT_PRICE, price, 0.0f);
   }
-  explicit PriceUpdateBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit TickerPriceBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<PriceUpdate> Finish() {
+  flatbuffers::Offset<TickerPrice> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PriceUpdate>(end);
+    auto o = flatbuffers::Offset<TickerPrice>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<PriceUpdate> CreatePriceUpdate(
+inline flatbuffers::Offset<TickerPrice> CreateTickerPrice(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
     float price = 0.0f) {
-  PriceUpdateBuilder builder_(_fbb);
+  TickerPriceBuilder builder_(_fbb);
   builder_.add_price(price);
   builder_.add_ticker(ticker);
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<PriceUpdate> CreatePriceUpdateDirect(
+inline flatbuffers::Offset<TickerPrice> CreateTickerPriceDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *ticker = nullptr,
     float price = 0.0f) {
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
-  return hft::serialization::gen::fbs::CreatePriceUpdate(
+  return hft::serialization::gen::fbs::CreateTickerPrice(
       _fbb,
       ticker__,
       price);
 }
 
-flatbuffers::Offset<PriceUpdate> CreatePriceUpdate(flatbuffers::FlatBufferBuilder &_fbb, const PriceUpdateT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+flatbuffers::Offset<TickerPrice> CreateTickerPrice(flatbuffers::FlatBufferBuilder &_fbb, const TickerPriceT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline OrderT *Order::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<OrderT>(new OrderT());
@@ -469,30 +476,30 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBuffe
       _fill_price);
 }
 
-inline PriceUpdateT *PriceUpdate::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<PriceUpdateT>(new PriceUpdateT());
+inline TickerPriceT *TickerPrice::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<TickerPriceT>(new TickerPriceT());
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void PriceUpdate::UnPackTo(PriceUpdateT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void TickerPrice::UnPackTo(TickerPriceT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = ticker(); if (_e) _o->ticker = _e->str(); }
   { auto _e = price(); _o->price = _e; }
 }
 
-inline flatbuffers::Offset<PriceUpdate> PriceUpdate::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PriceUpdateT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePriceUpdate(_fbb, _o, _rehasher);
+inline flatbuffers::Offset<TickerPrice> TickerPrice::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TickerPriceT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateTickerPrice(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<PriceUpdate> CreatePriceUpdate(flatbuffers::FlatBufferBuilder &_fbb, const PriceUpdateT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<TickerPrice> CreateTickerPrice(flatbuffers::FlatBufferBuilder &_fbb, const TickerPriceT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PriceUpdateT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TickerPriceT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _ticker = _o->ticker.empty() ? 0 : _fbb.CreateString(_o->ticker);
   auto _price = _o->price;
-  return hft::serialization::gen::fbs::CreatePriceUpdate(
+  return hft::serialization::gen::fbs::CreateTickerPrice(
       _fbb,
       _ticker,
       _price);

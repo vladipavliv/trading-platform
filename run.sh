@@ -9,6 +9,8 @@ clear
 
 cd build 
 
+ulimit -c unlimited
+
 if [ "$1" == "s" ]; then
     sudo ./hft_server
 else [ "$1" == "t" ] || [ "$1" == "trader" ];

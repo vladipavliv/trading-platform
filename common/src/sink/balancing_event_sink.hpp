@@ -7,7 +7,6 @@
 #define HFT_BALANCING_EVENTSINK_HPP
 
 #include <functional>
-#include <ranges>
 #include <spdlog/spdlog.h>
 #include <thread>
 #include <unordered_map>
@@ -21,77 +20,50 @@
 
 namespace hft {
 
-template <typename EventType>
-struct KeyExtractor;
-
-template <>
-struct KeyExtractor<Order> {
-  static const Ticker &key(const Order &order) { return order.ticker; }
-};
-
 /**
  * @brief Distributes events by Ticker across N threads
- * @details Performs balancing based on event traffic and threads load
- * Whenever rebalancing is needed simply assign new thread id to a Ticker
- * Not quite sure if its any good of an idea, it would require significant load to test and check
- * Maybe there are better ideas on the market, but it's cool and its my so lets go
- * TODO(this) Profile the stuff
- * @bug Just realized, balancing would require additional management of order book
- * Say thread 1 is busy and it processes orders of a certain ticker, then rebalance happens
- * and ticker gets assigned to another thread which immediately picks up new orders
- * while previous thread is still in work. Probably some book merging could solve the issue
+ * @details Every thread works with its own set of tickers. Better for cache locality,
+ * significantly simpler code, the only issue i see is rebalancing. For that we map
+ * Ticker -> ThreadId. All tickers are well known and never change so synchronizing the whole map
+ * is not needed. When we switch the thread id we can have the order book for thet ticker
+ * marked 'in transition' untill old thread processes its incoming orders
+ * and new thread takes over. Maybe unprocessed orders could be transferred to a new threads buffer
+ * maybe some book merging could take place so both threads can proceed.
+ *
  */
-template <size_t ThreadsCount, typename... EventTypes>
+template <typename LoadBalancer, typename... EventTypes>
 class BalancingEventSink {
-  /**
-   * @brief Links event with the thread id
-   * @details Need alignment cause when rebalancing would happen one thread could
-   * increment the counter while another thread changes the threadId
-   */
-  struct alignas(CACHE_LINE_SIZE) ControlBlock {
-    mutable std::atomic<ThreadId> threadId;
-    Padding<ThreadId> p1; // Plenty of space
-    mutable std::atomic<size_t> eventCounter;
-    Padding<ThreadId> p2; // For more statistics
-  };
-
-  struct alignas(CACHE_LINE_SIZE) ThreadEventCounter {
-    size_t value{0};
-    Padding<size_t> p;
-  };
-
-  /**
-   * @brief All const for thread safety
-   */
-  using ControlBlockMap = const std::unordered_map<Ticker, const ControlBlock>;
-
 public:
-  BalancingEventSink(const std::array<std::set<Ticker>, ThreadsCount> &tickerGroups) {
-    // First create all the LFQs, evety thread would have its own tuple of LFQs with blackjack
-    mEventQueues.reserve(ThreadsCount);
-    std::generate_n(std::back_inserter(mEventQueues), ThreadsCount,
+  using Balancer = LoadBalancer;
+
+  BalancingEventSink() {
+    const auto threads = Config().cfg.coresApp.size();
+    mEventQueues.reserve(threads);
+    std::generate_n(std::back_inserter(mEventQueues), threads,
                     [this]() { return createLFQueueTuple<EventTypes...>(EVENT_QUEUE_SIZE); });
-    // Now initialize control blocks
-    for (auto &&[index, value] : std::views::enumerate(tickerGroups)) {
-      std::string tickers;
-      for (auto &ticker : value) {
-        mControlBlockMap[ticker] = ControlBlock{index, 0};
-        tickers += std::string(ticker.begin(), ticker.end()) + " ";
-      }
-      spdlog::debug("Tickers {} are assigned to core {}", index);
-    }
   }
 
   ~BalancingEventSink() { stop(); }
 
   void start() {
-    for (size_t i = 0; i < ThreadsCount; ++i) {
-      mThreads[i] = std::thread([this, i] {
-        spdlog::debug("Started {} thread", i);
-        utils::pinThreadToCore(i * 2);
-        utils::setTheadRealTime();
-        mThreadId = i;
-        processEvents();
+    if (Config::cfg.coresApp.empty()) {
+      spdlog::error("No cores provided");
+      assert(false);
+      return;
+    }
+    mThreads.reserve(Config::cfg.coresApp.size());
+    for (size_t i = 0; i < Config().cfg.coresApp.size(); ++i) {
+      mThreads.emplace_back([this, i] {
+        try {
+          ThreadId core = Config().cfg.coresApp[i];
+          spdlog::debug("Started Worker thread on the core: {}", core);
+          utils::pinThreadToCore(core);
+          utils::setTheadRealTime();
+          mThreadId = i;
+          processEvents();
+        } catch (const std::exception &e) {
+          std::cerr << e.what() << '\n';
+        }
       });
     }
   }
@@ -116,12 +88,13 @@ public:
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
-    if (!mControlBlockMap.contains(KeyExtractor<EventType>::key(event))) {
-      spdlog::error("Unknown ticker");
+    auto id = LoadBalancer::getWorkerId(event);
+    if (id == std::numeric_limits<uint8_t>::max()) {
+      // Ticker not found
+      spdlog::error("Ticker not found: {}", utils::toString(event));
       return;
     }
-    const auto &block = mControlBlockMap[KeyExtractor<EventType>::key(event.ticker)];
-    auto &queue = getQueue<EventType>(block.threadId);
+    auto &queue = getQueue<EventType>(id);
     while (!queue.push(event)) {
       std::this_thread::yield();
     }
@@ -133,21 +106,6 @@ public:
     for (auto &event : events) {
       post<EventType>(event);
     }
-  }
-
-  std::vector<std::map<Ticker, size_t>> getStats() {
-    std::vector<std::map<Ticker, size_t>> result;
-    result.reserve(ThreadsCount);
-    for (auto &&[index, value] : std::views::enumerate(mControlBlockMap)) {
-      result[index][value.first] = value.second.eventCounter.load();
-    }
-  }
-
-  void rebalance(const Ticker &ticker, ThreadId newThreadId) {
-    assert(newThreadId < ThreadsCount);
-    // For now just manual rebalancing, all new events would be handled by the %newThreadId%
-    auto &block = mControlBlockMap[ticker];
-    block.threadId.store(newThreadId);
   }
 
 private:
@@ -193,15 +151,14 @@ private:
 
   std::vector<std::tuple<UPtrLFQueue<EventTypes>...>> mEventQueues;
   std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
+  std::vector<std::thread> mThreads;
 
-  std::array<std::thread, ThreadsCount> mThreads;
-  ControlBlockMap mControlBlockMap;
   static thread_local ThreadId mThreadId;
   std::atomic_bool mStop{false};
 };
 
-template <size_t ThreadCount, typename... EventTypes>
-thread_local ThreadId BalancingEventSink<ThreadCount, EventTypes...>::mThreadId = 0;
+template <typename LoadBalancer, typename... EventTypes>
+thread_local ThreadId BalancingEventSink<LoadBalancer, EventTypes...>::mThreadId = 0;
 
 } // namespace hft
 

@@ -6,9 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -fno-exceptions -DNDEBUG") # -fno-rtti
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG") # -fno-rtti -fno-exceptions
 
-add_definitions(-DBOOST_NO_EXCEPTIONS)
+# add_definitions(-DBOOST_NO_EXCEPTIONS)
 
 find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
 find_package(spdlog REQUIRED)
@@ -18,14 +18,15 @@ set(SERVER_URL "127.0.0.1")
 set(PORT_TCP_IN 8080)
 set(PORT_TCP_OUT 8081)
 set(PORT_UDP 8082)
-set(SERVER_CORE_COUNT 4)
-set(TRADER_CORE_COUNT 4)
-set(CORES_SERVER "2,4,6,8")
-set(CORES_TRADER "3,5,7,9")
+set(CORES_SERVER_IO "4") # 2,4
+set(CORES_SERVER_APP "2") # 6,8
+set(CORES_TRADER_IO "8") # 3,5
+set(CORES_TRADER_APP "6") # 7,9
 set(CACHE_LINE_SIZE 64)
-set(USE_MIMALLOC ON)
-set(FEED_RATE 50) # price update every 0-50ms
-set(ORDER_RATE 50) # place new order every 0-50ms
+set(USE_MIMALLOC OFF)
+set(ORDER_BOOK_LIMIT 5000)
+set(FEED_RATE 100)
+set(TRADE_RATE 100)
 
 # Generate flatbuffers code from the schema
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)
@@ -73,8 +74,9 @@ target_compile_definitions(hft_server PRIVATE
     PORT_UDP=${PORT_UDP} 
     CACHE_LINE_SIZE=${CACHE_LINE_SIZE}
     FEED_RATE=${FEED_RATE}
-    CORES=${SERVER_CORE_COUNT}
-    CORE_IDS="${CORES_SERVER}")
+    CORES_IO="${CORES_SERVER_IO}"
+    CORES_APP="${CORES_SERVER_APP}"
+    ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
 target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES})
 target_include_directories(hft_server PRIVATE  common/src server/src server/src/types)
 
@@ -87,9 +89,10 @@ target_compile_definitions(hft_trader PRIVATE
     PORT_TCP_OUT=${PORT_TCP_OUT} 
     PORT_UDP=${PORT_UDP} 
     CACHE_LINE_SIZE=${CACHE_LINE_SIZE}
-    ORDER_RATE=${ORDER_RATE}
-    CORES=${TRADER_CORE_COUNT}
-    CORE_IDS="${CORES_TRADER}")
+    TRADE_RATE=${TRADE_RATE}
+    CORES_IO="${CORES_TRADER_IO}"
+    CORES_APP="${CORES_TRADER_APP}"
+    ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES})
 target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
 

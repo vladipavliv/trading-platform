@@ -21,15 +21,16 @@ std::string toString(const Type &val) {
 }
 
 template <>
-std::string toString<FulfillmentState>(const FulfillmentState &state) {
+std::string toString<OrderState>(const OrderState &state) {
   switch (state) {
-  case FulfillmentState::Full:
+  case OrderState::Full:
     return "Full";
-  case FulfillmentState::Partial:
+  case OrderState::Partial:
     return "Partial";
   default:
-    assert(0);
+    spdlog::error("Unknown OrderState {}", (uint8_t)state);
   }
+  return "";
 }
 
 template <>
@@ -40,32 +41,58 @@ std::string toString<OrderAction>(const OrderAction &state) {
   case OrderAction::Sell:
     return "Sell";
   default:
-    assert(0);
+    spdlog::error("Unknown OrderAction {}", (uint8_t)state);
   }
+  return "";
+}
+
+template <>
+std::string toString<Ticker>(const Ticker &ticker) {
+  return std::string(ticker.data(), ticker.size());
 }
 
 template <>
 std::string toString<Order>(const Order &order) {
   std::stringstream ss;
-  ss << toString(order.action) << ": " << order.quantity << " shares of " << order.ticker.data()
+  ss << toString(order.action) << ": " << order.quantity << " shares of " << toString(order.ticker)
      << " at $" << order.price << " each";
   return ss.str();
 }
 
 template <>
 std::string toString<OrderStatus>(const OrderStatus &order) {
-  std::stringstream ss;
-  ss << //"Order " << order.id << ": " <<
-      ((order.state == FulfillmentState::Partial) ? "Partially filled " : "Filled ")
-     << order.quantity << " shares of " << order.ticker.data() << " at $" << order.fillPrice
-     << " each";
-  return ss.str();
+  std::string state;
+  if ((uint8_t)order.state & (uint8_t)OrderState::Partial) {
+    state += "Partially ";
+  }
+  if ((uint8_t)order.state & (uint8_t)OrderState::Full) {
+    state += "Fully ";
+  }
+  if (state.empty()) {
+    state = "Accepted ";
+  } else {
+    state += "filled ";
+  }
+  return std::format("{:<18}{:<5}{:<6}at ${:<12}", state, order.quantity, order.ticker.data(),
+                     order.fillPrice);
 }
 
 template <>
-std::string toString<PriceUpdate>(const PriceUpdate &price) {
+std::string toString<TickerPrice>(const TickerPrice &price) {
   std::stringstream ss;
-  ss << price.ticker.data() << ": $" << price.price;
+  ss << std::string(price.ticker.begin(), price.ticker.end()) << ": $" << price.price;
+  return ss.str();
+}
+
+template <typename Type>
+std::string toString(const std::vector<Type> &vec) {
+  std::stringstream ss;
+  for (size_t index = 0; auto &value : vec) {
+    ss << toString(value);
+    if (index < vec.size() - 1) {
+      ss << ",";
+    }
+  }
   return ss.str();
 }
 
@@ -75,10 +102,17 @@ String toLower(String str) {
   return str;
 }
 
-Ticker toTicker(const std::string &str) {
-  Ticker ticker;
+Ticker toTicker(StringRef str) {
+  Ticker ticker{};
   std::copy(str.begin(), str.begin() + std::min(str.size(), ticker.size()), ticker.begin());
   return ticker;
+}
+
+bool empty(const Ticker &ticker) {
+  if (std::all_of(ticker.begin(), ticker.end(), [](char c) { return c == '\0'; })) {
+    return true;
+  }
+  return false;
 }
 
 } // namespace hft::utils

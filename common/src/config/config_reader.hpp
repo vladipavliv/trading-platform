@@ -47,27 +47,20 @@ struct ConfigReader {
     Config::cfg.portTcpIn = PORT_TCP_IN;
     Config::cfg.portTcpOut = PORT_TCP_OUT;
     Config::cfg.portUdp = PORT_UDP;
+    Config::cfg.coresIo = parseCores(CORES_IO);
+    Config::cfg.coresApp = parseCores(CORES_APP);
+  }
 
-    std::vector<uint8_t> cores;
-    std::string coresStr = CORE_IDS;
-    std::stringstream ss(coresStr);
+  static ByteBuffer parseCores(StringRef input) {
+    ByteBuffer result;
+    std::stringstream ss(input);
     std::string token;
 
     while (std::getline(ss, token, ',')) {
-      cores.push_back(static_cast<uint8_t>(std::stoi(token)));
+      result.push_back(static_cast<uint8_t>(std::stoi(token)));
     }
-
-    bool eventCore{true};
-    for (auto id : cores) {
-      if (eventCore) {
-        Config::cfg.coresApp.push_back(id);
-      } else {
-        Config::cfg.coresIo.push_back(id);
-      }
-      eventCore = !eventCore;
-    }
+    return result;
   }
-
 #endif
 };
 

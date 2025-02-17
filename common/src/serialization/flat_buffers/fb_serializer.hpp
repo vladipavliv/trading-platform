@@ -53,15 +53,15 @@ public:
   }
 
   template <typename MessageType>
-  static std::enable_if_t<std::is_same<MessageType, PriceUpdate>::value, Result<PriceUpdate>>
+  static std::enable_if_t<std::is_same<MessageType, TickerPrice>::value, Result<TickerPrice>>
   deserialize(const uint8_t *buffer, size_t size) {
     flatbuffers::Verifier verifier(buffer, size);
-    if (!verifier.VerifyBuffer<gen::fbs::PriceUpdate>()) {
-      spdlog::error("PriceUpdate verification failed.");
+    if (!verifier.VerifyBuffer<gen::fbs::TickerPrice>()) {
+      spdlog::error("TickerPrice verification failed.");
       return ErrorCode::Error;
     }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::PriceUpdate>(buffer);
-    return PriceUpdate{toString(orderMsg->ticker()), orderMsg->price()};
+    auto orderMsg = flatbuffers::GetRoot<gen::fbs::TickerPrice>(buffer);
+    return TickerPrice{toString(orderMsg->ticker()), orderMsg->price()};
   }
 
   static DetachedBuffer serialize(const Order &order) {
@@ -84,10 +84,10 @@ public:
     return builder.Release();
   }
 
-  static DetachedBuffer serialize(const PriceUpdate &price) {
+  static DetachedBuffer serialize(const TickerPrice &price) {
     flatbuffers::FlatBufferBuilder builder;
 
-    auto msg = gen::fbs::CreatePriceUpdate(
+    auto msg = gen::fbs::CreateTickerPrice(
         builder, builder.CreateString(price.ticker.data(), price.ticker.size()), price.price);
     builder.Finish(msg);
     return builder.Release();

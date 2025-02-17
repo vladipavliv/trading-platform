@@ -29,7 +29,8 @@ OrderAction convert(gen::fbs::OrderAction action) {
   case gen::fbs::OrderAction::OrderAction_SELL:
     return OrderAction::Sell;
   default:
-    assert(0);
+    spdlog::error("Unknown OrderAction {}", (uint8_t)action);
+    return OrderAction::Buy;
   }
 }
 
@@ -40,31 +41,14 @@ gen::fbs::OrderAction convert(OrderAction action) {
   case OrderAction::Sell:
     return gen::fbs::OrderAction::OrderAction_SELL;
   default:
-    assert(0);
+    spdlog::error("Unknown OrderAction {}", (uint8_t)action);
+    return gen::fbs::OrderAction::OrderAction_BUY;
   }
 }
 
-FulfillmentState convert(gen::fbs::FulfillmentState state) {
-  switch (state) {
-  case gen::fbs::FulfillmentState::FulfillmentState_FULL:
-    return FulfillmentState::Full;
-  case gen::fbs::FulfillmentState::FulfillmentState_PARTIAL:
-    return FulfillmentState::Partial;
-  default:
-    assert(0);
-  }
-}
+OrderState convert(gen::fbs::OrderState state) { return static_cast<OrderState>(state); }
 
-gen::fbs::FulfillmentState convert(FulfillmentState state) {
-  switch (state) {
-  case FulfillmentState::Full:
-    return gen::fbs::FulfillmentState::FulfillmentState_FULL;
-  case FulfillmentState::Partial:
-    return gen::fbs::FulfillmentState::FulfillmentState_PARTIAL;
-  default:
-    assert(0);
-  }
-}
+gen::fbs::OrderState convert(OrderState state) { return static_cast<gen::fbs::OrderState>(state); }
 
 } // namespace hft::serialization
 

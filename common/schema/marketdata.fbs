@@ -5,9 +5,12 @@ enum OrderAction: byte {
     SELL = 1
 }
 
-enum FulfillmentState: byte {
-    PARTIAL = 0,
-    FULL = 1
+// Bitmask
+enum OrderState: int {
+    Accepted = 0,
+    Partial = 1,
+    Full = 2,
+    Instant = 4
 }
 
 table Order {
@@ -21,12 +24,12 @@ table Order {
 table OrderStatus {
     id: uint64;
     ticker: string;
-    state: FulfillmentState;
+    state: OrderState;
     quantity: uint;
     fill_price: float;
 }
 
-table PriceUpdate {
+table TickerPrice {
     ticker: string;
     price: float;
 }

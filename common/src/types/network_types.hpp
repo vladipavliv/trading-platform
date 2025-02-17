@@ -11,7 +11,6 @@
 namespace hft {
 
 using Port = uint16_t;
-using SteadyTimer = boost::asio::steady_timer;
 
 namespace Ip = boost::asio::ip;
 using Tcp = boost::asio::ip::tcp;

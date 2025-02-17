@@ -27,14 +27,10 @@ public:
   ~IngressServer() { stop(); }
 
   void start() {
-    spdlog::info("Start accepting connections on: {}", mPort);
-
     TcpEndpoint endpoint(Tcp::v4(), mPort);
-
     mAcceptor.open(endpoint.protocol());
     mAcceptor.bind(endpoint);
     mAcceptor.listen();
-
     acceptConnection();
   }
 
@@ -47,21 +43,17 @@ public:
 
 private:
   void acceptConnection() {
+    mAcceptor.set_option(TcpSocket::reuse_address(true));
     mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
-      TraderId traderId = utils::getTraderId(socket);
-      if (!ec) {
-        if (mConnections.find(traderId) != mConnections.end()) {
-          spdlog::error("Trader {} connected already", traderId);
-        } else {
-          spdlog::debug("Accepted new ingress connection from id: {}", traderId);
-
-          auto conn = std::make_unique<Socket>(mSink, std::move(socket));
-          conn->asyncRead();
-          mConnections.emplace(traderId, std::move(conn));
-        }
-      } else {
-        spdlog::error("Failed to accept connection {}", traderId);
+      if (ec) {
+        spdlog::error("Failed to accept connection {}", ec.message());
+        return;
       }
+      auto conn = std::make_unique<Socket>(mSink, std::move(socket));
+      conn->asyncRead();
+      conn->retrieveTraderId();
+      spdlog::debug("{} connected", conn->getTraderId());
+      mConnections.emplace(conn->getTraderId(), std::move(conn));
       acceptConnection();
     });
   }

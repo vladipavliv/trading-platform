@@ -6,6 +6,7 @@
 #ifndef HFT_TRADER_COMMAND_HPP
 #define HFT_TRADER_COMMAND_HPP
 
+#include <spdlog/spdlog.h>
 #include <stdint.h>
 
 #include "utils/string_utils.hpp"
@@ -14,11 +15,12 @@
 namespace hft::trader {
 
 enum class TraderCommand : uint8_t {
-  PlaceOrder = 0U,
-  PriceFeedStart = 1U,
-  PriceFeedStop = 2U,
-  ShowStats = 3U,
-  Shutdown = 4U
+  StartTrading = 0U,
+  StopTrading = 1U,
+  PriceFeedStart = 2U,
+  PriceFeedStop = 3U,
+  ShowMarketStats = 4U,
+  Shutdown = 5U
 };
 
 } // namespace hft::trader
@@ -27,18 +29,21 @@ namespace hft::utils {
 template <>
 std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
   switch (cmd) {
-  case trader::TraderCommand::PlaceOrder:
-    return "place order";
+  case trader::TraderCommand::StartTrading:
+    return "start trading";
+  case trader::TraderCommand::StopTrading:
+    return "stop trading";
   case trader::TraderCommand::PriceFeedStart:
     return "start price feed";
   case trader::TraderCommand::PriceFeedStop:
     return "stop price feed";
-  case trader::TraderCommand::ShowStats:
+  case trader::TraderCommand::ShowMarketStats:
     return "show stats";
   case trader::TraderCommand::Shutdown:
     return "shutdown";
   default:
-    assert(0);
+    spdlog::error("Unknown TraderCommand {}", (uint8_t)cmd);
+    return "";
   }
 }
 } // namespace hft::utils

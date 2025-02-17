@@ -17,7 +17,7 @@
 
 namespace hft::trader {
 
-using EventSink = PoolEventSink<OrderStatus, PriceUpdate>;
+using EventSink = PoolEventSink<OrderStatus, TickerPrice>;
 using NetworkSink = IoSink<Order>;
 using ControlSink = CommandSink<TraderCommand>;
 

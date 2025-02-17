@@ -35,10 +35,14 @@ public:
     mThreads.reserve(Config::cfg.coresIo.size());
     for (size_t i = 0; i < Config::cfg.coresIo.size(); ++i) {
       mThreads.emplace_back([this, i]() {
-        spdlog::debug("Started Io thread on the core ID:{}", Config::cfg.coresIo[i]);
-        utils::pinThreadToCore(Config::cfg.coresIo[i]);
-        utils::setTheadRealTime();
-        mCtx.run();
+        try {
+          spdlog::debug("Started Io thread on the core: {}", Config::cfg.coresIo[i]);
+          utils::pinThreadToCore(Config::cfg.coresIo[i]);
+          utils::setTheadRealTime();
+          mCtx.run();
+        } catch (const std::exception &e) {
+          std::cerr << e.what() << '\n';
+        }
       });
     }
   }

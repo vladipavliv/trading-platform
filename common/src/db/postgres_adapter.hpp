@@ -20,14 +20,14 @@ namespace hft::db {
 
 class PostgresAdapter {
 public:
-  static std::vector<PriceUpdate> readTickers() {
+  static std::vector<TickerPrice> readTickers() {
     pqxx::connection conn("dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432");
     if (!conn.is_open()) {
       spdlog::error("Failed to open db");
       assert(false);
       return {};
     }
-    std::vector<PriceUpdate> tickers;
+    std::vector<TickerPrice> tickers;
     tickers.reserve(1001);
     pqxx::work txn(conn);
 
@@ -36,8 +36,12 @@ public:
 
     for (auto row : res) {
       std::string ticker = row["ticker"].as<std::string>();
-      Price price = row["price"].as<double>();
-      tickers.push_back(PriceUpdate{utils::toTicker(ticker), price});
+      Price price = row["price"].as<float>();
+      if (ticker.empty()) {
+        spdlog::error("Empty ticker read from DB");
+      } else {
+        tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
+      }
     }
     txn.commit();
     return tickers;
@@ -57,7 +61,7 @@ public:
     query << "INSERT INTO tickers (ticker, price) VALUES ";
 
     for (int i = 0; i < size; ++i) {
-      PriceUpdate ticker = utils::generatePriceUpdate();
+      TickerPrice ticker = utils::generateTickerPrice();
       std::string tickerStr(ticker.ticker.begin(), ticker.ticker.end());
 
       pgWork.exec_params("INSERT INTO tickers (ticker, price) VALUES ($1, $2)", tickerStr,

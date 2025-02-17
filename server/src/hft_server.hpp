@@ -15,14 +15,15 @@ namespace hft::server {
 
 class HftServer {
 public:
-  HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink} {}
-
-  void start() {
+  HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink} {
     mSink.controlSink.setHandler(ServerCommand::Shutdown, [this](ServerCommand cmd) {
       if (cmd == ServerCommand::Shutdown) {
         stop();
       }
     });
+  }
+
+  void start() {
     mSink.networkSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
@@ -43,7 +44,7 @@ public:
 private:
   ServerSink mSink;
   network::NetworkServer mNetwork;
-  market::Market mMarket;
+  Market mMarket;
   ControlCenter mCc;
 };
 

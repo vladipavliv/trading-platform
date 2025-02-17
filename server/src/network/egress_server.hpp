@@ -22,12 +22,11 @@ public:
   using Socket = ServerSocket<TcpSocket, Order>;
 
   EgressServer(ServerSink &sink)
-      : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpOut} {}
+      : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpOut} {
+    mSink.networkSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
+  }
 
   void start() {
-    spdlog::info("Start accepting connections on: {}", mPort);
-    mSink.networkSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
-
     TcpEndpoint endpoint(Tcp::v4(), mPort);
     mAcceptor.open(endpoint.protocol());
     mAcceptor.bind(endpoint);
@@ -46,27 +45,23 @@ public:
   void send(const MessageType &message) {
     auto conn = mConnections.find(message.traderId);
     if (conn == mConnections.end()) {
-      spdlog::error("{} not connected", message.traderId);
       return;
     }
+    spdlog::debug("Notifying trader {}", utils::toString(message));
     conn->second->asyncWrite(message);
   }
 
 private:
   void acceptConnection() {
     mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
-      if (!ec) {
-        auto traderId = utils::getTraderId(socket);
-        if (mConnections.find(traderId) != mConnections.end()) {
-          spdlog::error("{} already connected", traderId);
-        } else {
-          spdlog::debug("{} connected", traderId);
-          auto conn = std::make_unique<Socket>(mSink, std::move(socket));
-          mConnections.emplace(traderId, std::move(conn));
-        }
-      } else {
+      if (ec) {
         spdlog::error("Failed to accept connection: {}", ec.message());
+        return;
       }
+      auto conn = std::make_unique<Socket>(mSink, std::move(socket));
+      conn->retrieveTraderId();
+      spdlog::debug("{} connected", conn->getTraderId());
+      mConnections.emplace(conn->getTraderId(), std::move(conn));
       acceptConnection();
     });
   }

@@ -9,12 +9,17 @@
 #include "init_logger.hpp"
 
 int main() {
-  using namespace hft;
-  // initAsyncLogger("hft_server.txt");
-  initLogger();
-  ConfigReader::readConfig();
+  try {
+    using namespace hft;
+    // initAsyncLogger("hft_server.txt");
+    initLogger();
+    ConfigReader::readConfig();
+    Config::cfg.log();
 
-  server::HftServer server;
-  server.start();
+    server::HftServer server;
+    server.start();
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
   return 0;
 }

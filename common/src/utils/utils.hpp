@@ -21,29 +21,33 @@
 
 namespace hft::utils {
 
-template <typename Type>
-inline uintptr_t getId(const Type *obj) {
-  return reinterpret_cast<uintptr_t>(obj);
-}
-
 void pinThreadToCore(int core_id);
 void setTheadRealTime();
 
 size_t getTraderId(const TcpSocket &sock);
+size_t generateTraderId();
 
 inline size_t generateOrderId() {
   static std::atomic<size_t> counter{0};
   return counter.fetch_add(1, std::memory_order_relaxed);
 };
 
-uint32_t generateNumber(uint32_t val);
+Order createOrder(TraderId trId, Ticker tkr, OrderAction act, Quantity quan, Price price);
 Ticker generateTicker();
 Order generateOrder();
-PriceUpdate generatePriceUpdate();
+TickerPrice generateTickerPrice();
 
 uint64_t timeStampWeak();
 
 uint64_t getLinuxTimestamp();
+std::string getScale(size_t);
+
+size_t getId();
+
+/*template <typename Type>
+inline uintptr_t getId(const Type *obj) {
+  return reinterpret_cast<uintptr_t>(obj);
+}*/
 
 } // namespace hft::utils
 

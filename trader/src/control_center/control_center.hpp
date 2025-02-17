@@ -25,8 +25,10 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(TraderSink &sink)
-      : mSink{sink}, mConsoleParser{{{"order", Command::PlaceOrder},
-                                     {"o", Command::PlaceOrder},
+      : mSink{sink}, mConsoleParser{{{"trade start", Command::StartTrading},
+                                     {"t+", Command::StartTrading},
+                                     {"trade stop", Command::StopTrading},
+                                     {"t-", Command::StopTrading},
                                      {"feed+", Command::PriceFeedStart},
                                      {"f+", Command::PriceFeedStart},
                                      {"feed-", Command::PriceFeedStop},
@@ -57,29 +59,16 @@ private:
       if (cmd == TraderCommand::Shutdown) {
         return;
       }
-      if (cmd == TraderCommand::PlaceOrder) {
-        mBuyAll = !mBuyAll;
-      }
       cmdRes = mConsoleParser.getCommand();
     }
   }
 
-  void systemMonitor() {
-    /* TODO(self): Make trace sink for monitoring all events? */
-    while (!mStop.load()) {
-      if (mBuyAll) {
-        mSink.networkSink.post(utils::generateOrder());
-      }
-      boost::this_fiber::sleep_for(MilliSeconds(ORDER_RATE));
-      boost::this_fiber::yield();
-    }
-  }
+  void systemMonitor() { /* TODO(self): Make trace sink for monitoring all events? */ }
 
 private:
   TraderSink &mSink;
   ConsoleParser mConsoleParser;
 
-  std::atomic_bool mBuyAll{false};
   std::atomic_bool mStop{false};
 };
 

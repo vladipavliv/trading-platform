@@ -17,8 +17,11 @@
 
 namespace hft::server {
 
-using EventSink = PoolEventSink<Order>;
-using NetworkSink = IoSink<OrderStatus, PriceUpdate>;
+class Market;
+
+using EventSink = BalancingEventSink<Market, Order>;
+// PoolEventSink<Order>;
+using NetworkSink = IoSink<OrderStatus, TickerPrice>;
 using ControlSink = CommandSink<ServerCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;

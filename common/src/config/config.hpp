@@ -12,6 +12,7 @@
 
 #include "network_types.hpp"
 #include "types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft {
 
@@ -24,10 +25,11 @@ struct Config {
   std::vector<uint8_t> coresApp;
 
   static Config cfg;
-
-  static void logConfig(const Config &config) {
-    spdlog::debug("url: {} tcp port in: {} tcp port out: {} udp port: {} cores: {} core ids: {}",
-                  config.url, config.portTcpIn, config.portTcpOut, config.portUdp, CORES, CORE_IDS);
+  static void log() {
+    spdlog::debug(
+        "url: {} tcp port in: {} tcp port out: {} udp port: {} io cores: {} app cores: {}", cfg.url,
+        cfg.portTcpIn, cfg.portTcpOut, cfg.portUdp, utils::toString(cfg.coresIo),
+        utils::toString(cfg.coresApp));
   }
 };
 

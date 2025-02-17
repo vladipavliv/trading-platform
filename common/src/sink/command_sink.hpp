@@ -12,6 +12,9 @@
 
 namespace hft {
 
+/**
+ * @todo Extend to pass parameters instead of echoing command
+ */
 template <typename CommandType>
 class CommandSink {
 public:

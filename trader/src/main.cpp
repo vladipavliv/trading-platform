@@ -3,21 +3,28 @@
  * @date 2025-02-13
  */
 
-#include "config/config_reader.hpp"
-#include "hft_trader.hpp"
-#include "init_logger.hpp"
-
 #include <atomic>
 #include <iostream>
 #include <thread>
 
+#include "config/config_reader.hpp"
+#include "hft_trader.hpp"
+#include "init_logger.hpp"
+#include "utils/string_utils.hpp"
+
 int main(int argc, char *argv[]) {
-  using namespace hft;
+  try {
+    using namespace hft;
 
-  initLogger();
-  ConfigReader::readConfig();
+    // initAsyncLogger("hft_trader.txt");
+    initLogger();
+    ConfigReader::readConfig();
 
-  trader::HftTrader trader;
-  trader.start();
+    trader::HftTrader trader;
+    trader.start();
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
+
   return 0;
 }

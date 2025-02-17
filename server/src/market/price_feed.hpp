@@ -12,33 +12,38 @@
 
 #include "boost_types.hpp"
 #include "market_types.hpp"
+#include "prices_view.hpp"
 #include "server_types.hpp"
+#include "utils/rng.hpp"
 #include "utils/utils.hpp"
 
-namespace hft::server::market {
+namespace hft::server {
 
 class PriceFeed {
 public:
-  PriceFeed(ServerSink &sink) : mSink{sink}, mTimer{mSink.ctx()} {}
-
-  void setCurrentPrices(std::vector<PriceUpdate> &&prices) { mPrices = std::move(prices); }
+  PriceFeed(ServerSink &sink, PricesView prices)
+      : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {}
 
   void start() {
     mSpeed += 10;
+    mInProgress.store(true);
     generate();
   }
 
   void stop() {
-    mSpeed = mSpeed > 0 ? mSpeed - 10 : 0;
+    mSpeed -= 10;
+    mInProgress.store(false);
     mTimer.cancel();
   }
 
 private:
   void generate() {
-    if (mSpeed <= 0) {
+    if (!mInProgress) {
       return;
     }
-    mTimer.expires_after(mRate - MilliSeconds(mSpeed));
+    auto next = mRate - MilliSeconds(mSpeed);
+    next = next < MilliSeconds(5) ? MilliSeconds(5) : next;
+    mTimer.expires_after(next);
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         updatePrice();
@@ -48,24 +53,27 @@ private:
   }
 
   void updatePrice() {
-    static auto cursor = mPrices.begin();
-    if (cursor == mPrices.end()) {
-      cursor = mPrices.begin();
+    static auto cursor = mPrices.getPriceIterator();
+    if (cursor.end()) {
+      cursor.reset();
     }
-    cursor->price += utils::generateNumber(9000);
+    auto tickerPrice = *cursor;
+    mPrices.setPrice({tickerPrice.ticker, utils::RNG::rng(900.0f)});
     mSink.networkSink.post(*cursor);
     cursor++;
   }
 
 private:
   ServerSink &mSink;
+  PricesView mPrices;
+
   MilliSeconds mRate{MilliSeconds(FEED_RATE)};
   SteadyTimer mTimer;
 
   std::atomic<int> mSpeed{0};
-  std::vector<PriceUpdate> mPrices;
+  std::atomic_bool mInProgress{false};
 };
 
-} // namespace hft::server::market
+} // namespace hft::server
 
 #endif // HFT_SERVER_PRICEFEED_HPP

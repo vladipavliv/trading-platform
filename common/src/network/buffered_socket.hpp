@@ -31,11 +31,20 @@ public:
   using UPtr = std::unique_ptr<Type>;
 
   BufferedSocket(Sink &sink, Socket &&socket)
-      : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE) {}
+      : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE),
+        mId{utils::getTraderId(mSocket)} {
+    if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.set_option(boost::asio::socket_base::reuse_address{true});
+    }
+  }
 
   BufferedSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
       : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
-        mBuffer(BUFFER_SIZE) {}
+        mBuffer(BUFFER_SIZE) {
+    if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.set_option(boost::asio::socket_base::reuse_address{true});
+    }
+  }
 
   void asyncConnect() {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
@@ -68,6 +77,7 @@ public:
     }
     auto buffer = Serializer::serialize(msg);
     MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
+    // Could reuse those buffers
     auto dataPtr = std::make_shared<ByteBuffer>(sizeof(MessageSize) + buffer.size());
 
     std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
@@ -91,6 +101,7 @@ public:
       return;
     }
     size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
+    // Could reuse those buffers
     auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
     size_t realSize{0};
@@ -118,12 +129,32 @@ public:
 
   void close() { mSocket.close(); }
 
+  void retrieveTraderId() {
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      if (mId == std::numeric_limits<TraderId>::max()) {
+        mId = utils::getTraderId(mSocket);
+      }
+    }
+  }
+
+  inline TraderId getTraderId() const { return mId; }
+
 private:
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
     if (ec) {
       if (ec != boost::asio::error::eof) {
         spdlog::error("Failed to read from the socket: {}", ec.message());
       }
+      mHead = mTail = 0;
+      return;
+    }
+    if (bytesRead > mBuffer.size()) {
+      spdlog::error("Socket read too much data");
+      mHead = mTail = 0;
+      return;
+    }
+    if (mTail + bytesRead > mBuffer.size()) {
+      spdlog::error("Socket tail out of bounds");
       mHead = mTail = 0;
       return;
     }
@@ -141,24 +172,28 @@ private:
         mHead = mTail = 0;
         break;
       }
-      cursor += sizeof(MessageSize);
       if (mHead + bodySize + sizeof(MessageSize) > mTail) {
         // Unable to parse message, wait for more data
         break;
       }
-
+      cursor += sizeof(MessageSize);
       auto result = Serializer::template deserialize<MessageIn>(cursor, bodySize);
       if (!result.ok()) {
-        // TODO(do) Clear all?
+        spdlog::error("Message parsing failed");
         mHead = mTail = 0;
-        return;
+        break;
       }
       auto message = result.value();
-      if constexpr (!std::is_same_v<MessageTypeIn, PriceUpdate>) {
-        message.traderId = utils::getTraderId(mSocket);
+      if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
+        message.traderId = getTraderId();
       }
       messages.emplace_back(std::move(message));
       mHead += bodySize + sizeof(MessageSize);
+      if (mHead > mTail) {
+        spdlog::error("mHead > mTail");
+        mHead = mTail = 0;
+        break;
+      }
     }
     // If we getting close to the edge of the buffer lets just wrap around
     if (mBuffer.size() - mTail < 256) {
@@ -178,7 +213,7 @@ private:
       spdlog::error("Connect failed: {}", ec.message());
       return;
     }
-    spdlog::debug("Connected to {}", mSocket.remote_endpoint().address().to_string());
+    mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
     asyncRead();
   }
 
@@ -196,6 +231,8 @@ private:
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mBuffer;
+
+  TraderId mId{std::numeric_limits<TraderId>::max()};
 };
 
 } // namespace hft

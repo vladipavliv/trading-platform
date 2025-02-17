@@ -17,7 +17,7 @@ namespace hft::trader {
 class NetworkServer {
 public:
   using OrderSocket = TraderSocket<TcpSocket, OrderStatus>;
-  using PriceSocket = TraderSocket<UdpSocket, PriceUpdate>;
+  using PriceSocket = TraderSocket<UdpSocket, TickerPrice>;
 
   NetworkServer(TraderSink &sink)
       : mSink{sink},
@@ -26,22 +26,15 @@ public:
         mStatusSocket{sink, TcpSocket{sink.ctx()},
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
         mPriceSocket{sink, createUdpSocket(sink.ctx()),
-                     UdpEndpoint(Udp::v4(), Config::cfg.portUdp)} {}
+                     UdpEndpoint(Udp::v4(), Config::cfg.portUdp)} {
+    mSink.networkSink.setHandler<Order>(
+        [this](const Order &order) { mOrderSocket.asyncWrite(order); });
+  }
 
   void start() {
     mOrderSocket.asyncConnect();
     mStatusSocket.asyncConnect();
     mPriceSocket.asyncConnect();
-
-    mSink.networkSink.setHandler<Order>(
-        [this](const Order &order) { mOrderSocket.asyncWrite(order); });
-    mSink.dataSink.setHandler<OrderStatus>([this](const OrderStatus &status) {
-      auto timestamp = utils::getLinuxTimestamp();
-      auto RTT = timestamp - status.id;
-      spdlog::debug("{} {}μs", utils::toString(status), RTT / 1000);
-    });
-    mSink.dataSink.setHandler<PriceUpdate>(
-        [this](const PriceUpdate &price) { spdlog::debug(utils::toString(price)); });
   }
 
   void stop() {
@@ -53,6 +46,7 @@ public:
 private:
   UdpSocket createUdpSocket(IoContext &ctx) {
     UdpSocket socket(ctx, Udp::v4());
+    socket.set_option(boost::asio::socket_base::reuse_address{true});
     socket.bind(UdpEndpoint(Udp::v4(), Config::cfg.portUdp));
     return socket;
   }

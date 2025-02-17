@@ -9,6 +9,7 @@
 #include <random>
 #include <spdlog/spdlog.h>
 
+#include "rng.hpp"
 #include "utils.hpp"
 
 namespace hft::utils {
@@ -45,17 +46,19 @@ size_t getTraderId(const TcpSocket &sock) {
   return std::hash<std::string>{}(idString);
 }
 
-uint32_t generateNumber(uint32_t val) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  std::uniform_int_distribution<uint32_t> dis(0, val);
-  return dis(gen);
+size_t getId() { // For the sake of testing
+  static size_t counter = 0;
+  return counter++;
+}
+
+Order createOrder(TraderId trId, const Ticker &tkr, OrderAction act, Quantity quan, Price price) {
+  return {trId, getLinuxTimestamp(), tkr, act, quan, price};
 }
 
 Ticker generateTicker() {
-  Ticker ticker;
-  for (int i = 0; i < 4; ++i) {
-    ticker[i] = 'A' + generateNumber(26);
+  Ticker ticker{};
+  for (int i = 0; i < TICKER_SIZE; ++i) {
+    ticker[i] = 'A' + RNG::rng(26);
   }
   return ticker;
 }
@@ -64,15 +67,15 @@ Order generateOrder() {
   Order order;
   order.id = getLinuxTimestamp();
   order.ticker = generateTicker();
-  order.price = generateNumber(700);
-  order.quantity = generateNumber(50);
+  order.price = RNG::rng(700);
+  order.quantity = RNG::rng(50);
   return order;
 }
 
-PriceUpdate generatePriceUpdate() {
-  PriceUpdate price;
+TickerPrice generatePriceUpdate() {
+  TickerPrice price;
   price.ticker = generateTicker();
-  price.price = generateNumber(700);
+  price.price = RNG::rng(700);
   return price;
 }
 
@@ -86,6 +89,25 @@ uint64_t getLinuxTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return ts.tv_sec * 1'000'000'000 + ts.tv_nsec;
+}
+
+std::string getScale(size_t nanoseconds) {
+  if (nanoseconds < 1000) {
+    return std::to_string(nanoseconds) + "ns";
+  }
+  nanoseconds /= 1000;
+  if (nanoseconds < 1000) {
+    return std::to_string(nanoseconds) + "µs";
+  }
+  nanoseconds /= 1000;
+  if (nanoseconds < 1000) {
+    return std::to_string(nanoseconds) + "ms";
+  }
+  nanoseconds /= 1000;
+  if (nanoseconds < 60) {
+    return std::to_string(nanoseconds) + "s";
+  }
+  return "eternity";
 }
 
 } // namespace hft::utils

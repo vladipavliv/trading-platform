@@ -33,12 +33,12 @@ public:
   void start() {
     if (Config::cfg.coresApp.empty()) {
       spdlog::error("No cores provided");
-      assert(false);
       return;
     }
+    mThreads.reserve(Config::cfg.coresApp.size());
     for (size_t i = 0; i < Config::cfg.coresApp.size(); ++i) {
-      mThreads[i] = std::thread([this, i] {
-        spdlog::debug("Started Worker thread on the core ID:{}", Config::cfg.coresApp[i]);
+      mThreads.emplace_back([this, i] {
+        spdlog::debug("Started Worker thread on the core: {}", Config::cfg.coresApp[i]);
         utils::pinThreadToCore(Config::cfg.coresApp[i]);
         utils::setTheadRealTime();
         processEvents();
@@ -126,7 +126,7 @@ private:
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
   std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
 
-  std::array<std::thread, CORES - 1> mThreads;
+  std::vector<std::thread> mThreads;
   std::atomic_bool mStop{false};
 
   static thread_local uint8_t mThreadIndex;

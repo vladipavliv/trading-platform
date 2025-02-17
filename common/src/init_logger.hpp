@@ -28,7 +28,7 @@ void initConsoleLogger() {
   spdlog::flush_on(spdlog::level::debug);
 }
 
-void initAsyncLogger(const std::string &filename) {
+void initAsyncLogger(StringRef filename) {
   spdlog::init_thread_pool(8192, 1);
   auto async_file_logger = std::make_shared<spdlog::async_logger>(
       "async_file_logger", std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename),
@@ -36,10 +36,11 @@ void initAsyncLogger(const std::string &filename) {
 
   spdlog::set_level(spdlog::level::trace);
   spdlog::set_default_logger(async_file_logger);
+  spdlog::flush_on(spdlog::level::debug);
   spdlog::info("Async logging initialized.");
 };
 
-void initRotatingLogger(const std::string &filename) {
+void initRotatingLogger(StringRef filename) {
   auto rotating_logger = spdlog::rotating_logger_mt("rotating_logger", filename, 10485760, 3);
 
   spdlog::set_level(spdlog::level::debug);
