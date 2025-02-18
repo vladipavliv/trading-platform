@@ -1,5 +1,4 @@
 /**
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -12,9 +11,6 @@
 
 namespace hft {
 
-/**
- * @todo Extend to pass parameters instead of echoing command
- */
 template <typename CommandType>
 class CommandSink {
 public:

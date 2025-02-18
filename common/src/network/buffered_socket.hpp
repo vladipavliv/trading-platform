@@ -1,5 +1,4 @@
 /**
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -128,7 +127,7 @@ public:
 
   void retrieveTraderId() {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      if (mId == std::numeric_limits<TraderId>::max()) {
+      if (mId == 0) {
         mId = utils::getTraderId(mSocket);
       }
     }

@@ -1,5 +1,4 @@
 /**
- *
  * @author Vladimir Pavliv
  * @date 2025-02-13
  */
@@ -20,10 +19,6 @@
 
 namespace hft {
 
-/**
- * @brief Handles incoming events on N threads in an unstructured way
- * whichever thread gets to process whatever amount of events
- */
 template <typename... EventTypes>
 class PoolEventSink {
 public:
