@@ -23,7 +23,7 @@ using ControlSink = CommandSink<TraderCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;
 
-struct TraderSink { // SinkSink
+struct TraderSink {
   EventSink dataSink;
   NetworkSink networkSink;
   ControlSink controlSink;

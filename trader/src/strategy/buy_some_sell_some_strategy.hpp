@@ -48,12 +48,10 @@ private:
   }
 
   void tradeStart() {
-    mSpeed += 10;
     mTrading.store(true);
     tradeCycle();
   }
   void tradeStop() {
-    mSpeed -= 10;
     mTrading.store(false);
     mTimer.cancel();
   }
@@ -66,11 +64,7 @@ private:
     order.price = utils::RNG::rng<float>(tickerPrice.price * 2);
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     order.quantity = utils::RNG::rng(1000);
-    // spdlog::debug("Placing order {}", utils::toString(order));
-    if (utils::empty(order.ticker)) {
-      spdlog::error("Ticker is empty {}", utils::toString(order));
-      return;
-    }
+    spdlog::debug("Placing order {}", utils::toString(order));
     mSink.networkSink.post(order);
   }
 
@@ -79,9 +73,7 @@ private:
     if (!mTrading.load()) {
       return;
     }
-    // auto next = MilliSeconds(TRADE_RATE) - MilliSeconds(mSpeed);
-    // next = (next < MilliSeconds(1)) ? MilliSeconds(1) : next;
-    mTimer.expires_after(boost::asio::chrono::microseconds(100));
+    mTimer.expires_after(Microseconds(TRADE_RATE));
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         tradeSomething();
@@ -94,7 +86,6 @@ private:
   std::vector<TickerPrice> mPrices;
 
   std::atomic_bool mTrading;
-  int mSpeed{0};
   SteadyTimer mTimer;
 };
 

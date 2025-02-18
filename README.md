@@ -1,1 +1,1 @@
-# hft
+Trading platform simulator

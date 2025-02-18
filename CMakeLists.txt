@@ -25,8 +25,8 @@ set(CORES_TRADER_APP "5,7,9") # 7,9
 set(CACHE_LINE_SIZE 64)
 set(USE_MIMALLOC OFF)
 set(ORDER_BOOK_LIMIT 5000)
-set(FEED_RATE 1)
-set(TRADE_RATE 1)
+set(FEED_RATE 100) # μs
+set(TRADE_RATE 100) # μs
 
 # Generate flatbuffers code from the schema
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)

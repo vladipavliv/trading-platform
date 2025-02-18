@@ -27,7 +27,7 @@ using ControlSink = CommandSink<ServerCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;
 
-struct ServerSink { // SinkSink
+struct ServerSink {
   EventSink dataSink;
   NetworkSink networkSink;
   ControlSink controlSink;

@@ -16,9 +16,6 @@
 
 namespace hft {
 
-// TODO(do): Enable raw sockets timestamping
-/**
- */
 template <typename SinkType, typename SerializerType, typename SocketType, typename MessageTypeIn>
 class BufferedSocket {
 public:
@@ -159,7 +156,6 @@ private:
       return;
     }
     mTail += bytesRead;
-    // spdlog::trace("Read {} bytes mHead {} mTail {}", bytesRead, mHead, mTail);
 
     uint8_t *cursor = mBuffer.data() + mHead;
     std::vector<MessageIn> messages;
@@ -194,9 +190,7 @@ private:
         break;
       }
     }
-    // If we getting close to the edge of the buffer lets just wrap around
     if (mBuffer.size() - mTail < 256) {
-      // memmove handles potential overlap fine, but it should not happen here anyway
       std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
       mHead = 0;
@@ -231,7 +225,7 @@ private:
   size_t mTail{0};
   ByteBuffer mBuffer;
 
-  TraderId mId{std::numeric_limits<TraderId>::max()};
+  TraderId mId{};
 };
 
 } // namespace hft
