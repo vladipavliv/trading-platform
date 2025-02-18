@@ -6,7 +6,7 @@
 #ifndef HFT_SERVER_MARKET_PRICESVIEW_HPP
 #define HFT_SERVER_MARKET_PRICESVIEW_HPP
 
-#include "market_data.hpp"
+#include "aggregator_data.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 
@@ -14,7 +14,7 @@ namespace hft::server {
 
 class PriceIterator {
 public:
-  PriceIterator(const MarketData &data) : mData{data}, mCursor{mData.begin()} {};
+  PriceIterator(const AggregatorData &data) : mData{data}, mCursor{mData.begin()} {};
 
   void reset() { mCursor = mData.begin(); }
 
@@ -43,8 +43,8 @@ public:
   bool end() { return mCursor == mData.end(); }
 
 private:
-  const MarketData &mData;
-  MarketData::const_iterator mCursor;
+  const AggregatorData &mData;
+  AggregatorData::const_iterator mCursor;
 };
 
 /**
@@ -53,7 +53,7 @@ private:
  */
 class PricesView {
 public:
-  PricesView(const MarketData &data) : mData{data} {}
+  PricesView(const AggregatorData &data) : mData{data} {}
 
   Price getPrice(TickerRef ticker) {
     if (!mData.contains(ticker)) {
@@ -74,7 +74,7 @@ public:
   PriceIterator getPriceIterator() { return PriceIterator{mData}; }
 
 private:
-  const MarketData &mData;
+  const AggregatorData &mData;
 };
 
 } // namespace hft::server

@@ -8,6 +8,7 @@
 
 #include <atomic>
 
+#include "boost_types.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
 
@@ -28,11 +29,12 @@ struct alignas(CACHE_LINE_SIZE) TickerData {
   using UPtr = std::unique_ptr<TickerData>;
 };
 
-using MarketData = std::unordered_map<Ticker, TickerData, TickerHash>;
+using AggregatorData = std::unordered_map<Ticker, TickerData, TickerHash>;
 
-struct MarketStats {
-  size_t ordersCurrent{0};
-  size_t requestsProcessed{0};
+struct TrafficStats {
+  size_t currentOrders{0};
+  size_t processedOrders{0};
+  Timestamp timestamp{std::chrono::system_clock::now()};
 };
 
 } // namespace hft::server

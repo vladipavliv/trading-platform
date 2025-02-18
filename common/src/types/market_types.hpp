@@ -15,7 +15,7 @@
 namespace hft {
 
 using OrderId = uint64_t; // For the sake of simplicity would use timestamp
-using Timestamp = uint64_t;
+using TimestampRaw = uint64_t;
 using TraderId = uint64_t;
 using Quantity = uint32_t;
 using Price = float;

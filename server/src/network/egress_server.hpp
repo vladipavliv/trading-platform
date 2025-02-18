@@ -23,7 +23,7 @@ public:
 
   EgressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpOut} {
-    mSink.networkSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
+    mSink.ioSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
   }
 
   void start() {
@@ -32,13 +32,6 @@ public:
     mAcceptor.bind(endpoint);
     mAcceptor.listen();
     acceptConnection();
-  }
-
-  void stop() {
-    mAcceptor.close();
-    for (auto &conn : mConnections) {
-      conn.second->close();
-    }
   }
 
   template <typename MessageType>

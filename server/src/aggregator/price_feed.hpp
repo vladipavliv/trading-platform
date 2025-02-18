@@ -22,44 +22,51 @@ namespace hft::server {
 class PriceFeed {
 public:
   PriceFeed(ServerSink &sink, PricesView prices)
-      : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {}
-
-  void start() {
-    mSpeed += 10;
-    mInProgress.store(true);
-    generate();
-  }
-
-  void stop() {
-    mSpeed -= 10;
-    mInProgress.store(false);
-    mTimer.cancel();
+      : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {
+    mSink.controlSink.addCommandHandler(
+        {ServerCommand::PriceFeedStart, ServerCommand::PriceFeedStop},
+        [this](ServerCommand command) {
+          if (command == ServerCommand::PriceFeedStart) {
+            switchMode(true);
+          } else if (command == ServerCommand::PriceFeedStop) {
+            switchMode(false);
+          }
+        });
   }
 
 private:
-  void generate() {
-    if (!mInProgress) {
+  void switchMode(bool show) {
+    mShow = show;
+    if (mShow) {
+      schedulePriceChange();
+    } else {
+      mShow.store(false);
+      mTimer.cancel();
+    }
+  }
+
+  void schedulePriceChange() {
+    if (!mShow) {
       return;
     }
-    auto next = mRate - MilliSeconds(mSpeed);
-    next = next < MilliSeconds(5) ? MilliSeconds(5) : next;
-    mTimer.expires_after(next);
+    mTimer.expires_after(Microseconds(FEED_RATE));
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         updatePrice();
-        generate();
+        schedulePriceChange();
       }
     });
   }
 
   void updatePrice() {
+    // Iterate one ticker at a time and update its price
     static auto cursor = mPrices.getPriceIterator();
     if (cursor.end()) {
       cursor.reset();
     }
     auto tickerPrice = *cursor;
     mPrices.setPrice({tickerPrice.ticker, utils::RNG::rng(900.0f)});
-    mSink.networkSink.post(*cursor);
+    mSink.ioSink.post(*cursor);
     cursor++;
   }
 
@@ -67,11 +74,8 @@ private:
   ServerSink &mSink;
   PricesView mPrices;
 
-  MilliSeconds mRate{MilliSeconds(FEED_RATE)};
   SteadyTimer mTimer;
-
-  std::atomic<int> mSpeed{0};
-  std::atomic_bool mInProgress{false};
+  std::atomic_bool mShow{false};
 };
 
 } // namespace hft::server

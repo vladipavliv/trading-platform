@@ -24,21 +24,12 @@ public:
   IngressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpIn} {}
 
-  ~IngressServer() { stop(); }
-
   void start() {
     TcpEndpoint endpoint(Tcp::v4(), mPort);
     mAcceptor.open(endpoint.protocol());
     mAcceptor.bind(endpoint);
     mAcceptor.listen();
     acceptConnection();
-  }
-
-  void stop() {
-    mAcceptor.close();
-    for (auto &conn : mConnections) {
-      conn.second->close();
-    }
   }
 
 private:

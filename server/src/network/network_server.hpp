@@ -26,12 +26,6 @@ public:
     mMarketDataServer.start();
   }
 
-  void stop() {
-    mIngressServer.stop();
-    mEgressServer.stop();
-    mMarketDataServer.stop();
-  }
-
 private:
   ServerSink &mSink;
 

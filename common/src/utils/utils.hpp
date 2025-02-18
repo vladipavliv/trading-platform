@@ -39,15 +39,27 @@ TickerPrice generateTickerPrice();
 
 uint64_t timeStampWeak();
 
-uint64_t getLinuxTimestamp();
+TimestampRaw getLinuxTimestamp();
 std::string getScale(size_t);
 
 size_t getId();
 
-/*template <typename Type>
-inline uintptr_t getId(const Type *obj) {
-  return reinterpret_cast<uintptr_t>(obj);
-}*/
+template <typename EventType, typename First, typename... Rest>
+constexpr size_t indexOf() {
+  if constexpr (std::is_same_v<EventType, First>) {
+    return 0;
+  } else if constexpr (sizeof...(Rest) > 0) {
+    return 1 + indexOf<EventType, Rest...>();
+  } else {
+    static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
+    return -1;
+  }
+}
+
+template <typename EventType, typename... Types>
+constexpr size_t getTypeIndex() {
+  return indexOf<EventType, Types...>();
+}
 
 } // namespace hft::utils
 

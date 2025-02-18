@@ -15,13 +15,13 @@
 namespace hft::trader {
 
 enum class TraderCommand : uint8_t {
-  StartTrading = 0U,
-  StopTrading = 1U,
+  TradeStart = 0U,
+  TradeStop = 1U,
   PriceFeedStart = 2U,
   PriceFeedStop = 3U,
-  ShowMarketStats = 4U,
-  SwitchDebugMode = 5U,
-  Shutdown = 6U
+  LogLevelUp = 5U,
+  LogLevelDown = 6U,
+  Shutdown = 7U
 };
 
 } // namespace hft::trader
@@ -30,18 +30,18 @@ namespace hft::utils {
 template <>
 std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
   switch (cmd) {
-  case trader::TraderCommand::StartTrading:
+  case trader::TraderCommand::TradeStart:
     return "start trading";
-  case trader::TraderCommand::StopTrading:
+  case trader::TraderCommand::TradeStop:
     return "stop trading";
   case trader::TraderCommand::PriceFeedStart:
     return "start price feed";
   case trader::TraderCommand::PriceFeedStop:
     return "stop price feed";
-  case trader::TraderCommand::ShowMarketStats:
-    return "show stats";
-  case trader::TraderCommand::SwitchDebugMode:
-    return "switch debug on/off";
+  case trader::TraderCommand::LogLevelUp:
+    return "increase log level";
+  case trader::TraderCommand::LogLevelDown:
+    return "decrease log level";
   case trader::TraderCommand::Shutdown:
     return "shutdown";
   default:

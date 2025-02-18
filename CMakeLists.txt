@@ -18,10 +18,10 @@ set(SERVER_URL "127.0.0.1")
 set(PORT_TCP_IN 8080)
 set(PORT_TCP_OUT 8081)
 set(PORT_UDP 8082)
-set(CORES_SERVER_IO "8,10") # 2,4
-set(CORES_SERVER_APP "2,4,6") # 6,8
-set(CORES_TRADER_IO "3,11") # 3,5
-set(CORES_TRADER_APP "5,7,9") # 7,9
+set(CORES_SERVER_IO "8") # Additional core alongside the main thread
+set(CORES_SERVER_APP "2,4,6")
+set(CORES_TRADER_IO "3") # Additional core alongside the main thread
+set(CORES_TRADER_APP "5,7,9")
 set(CACHE_LINE_SIZE 64)
 set(USE_MIMALLOC OFF)
 set(ORDER_BOOK_LIMIT 5000)

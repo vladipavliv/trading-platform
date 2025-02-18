@@ -25,7 +25,7 @@ public:
   deserialize(const uint8_t *buffer, size_t size) {
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::Order>()) {
-      spdlog::error("Order verification failed.");
+      spdlog::error("Order verification failed");
       return ErrorCode::Error;
     }
     auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
@@ -39,7 +39,7 @@ public:
   deserialize(const uint8_t *buffer, size_t size) {
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::OrderStatus>()) {
-      spdlog::error("OrderStatus verification failed.");
+      spdlog::error("OrderStatus verification failed");
       return ErrorCode::Error;
     }
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);

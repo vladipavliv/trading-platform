@@ -17,21 +17,20 @@
 
 namespace hft::server {
 
-class Market;
+class Aggregator;
+class TrafficStats;
 
-using EventSink = BalancingEventSink<Market, Order>;
-// PoolEventSink<Order>;
-
-using NetworkSink = IoSink<OrderStatus, TickerPrice>;
-using ControlSink = CommandSink<ServerCommand>;
+using EventSink = BalancingEventSink<Aggregator, Order>; // PoolEventSink<Order>;
+using ServerIoSink = IoSink<OrderStatus, TickerPrice>;
+using ServerControlSink = ControlSink<ServerCommand, TrafficStats>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;
 
 struct ServerSink {
   EventSink dataSink;
-  NetworkSink networkSink;
-  ControlSink controlSink;
-  inline IoContext &ctx() { return networkSink.ctx(); }
+  ServerIoSink ioSink;
+  ServerControlSink controlSink;
+  inline IoContext &ctx() { return ioSink.ctx(); }
 };
 
 template <typename SocketType, typename MessageType>

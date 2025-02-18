@@ -19,7 +19,7 @@ namespace hft::trader {
 class HftTrader {
 public:
   HftTrader() : mServer{mSink}, mCc{mSink}, mStrategy{mSink} {
-    mSink.controlSink.setHandler([this](TraderCommand cmd) {
+    mSink.controlSink.addCommandHandler({TraderCommand::Shutdown}, [this](TraderCommand cmd) {
       if (cmd == TraderCommand::Shutdown) {
         stop();
       }
@@ -27,19 +27,16 @@ public:
   }
 
   void start() {
-    mSink.networkSink.start();
+    mSink.ioSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
     mServer.start();
-    mCc.start();
+    mSink.ioSink.ctx().run();
   }
 
   void stop() {
-    mSink.networkSink.stop();
+    mSink.ioSink.ctx().stop();
     mSink.dataSink.stop();
-    mSink.controlSink.stop();
-    mServer.stop();
-    mCc.stop();
   }
 
 private:

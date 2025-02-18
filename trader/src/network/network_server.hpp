@@ -27,20 +27,13 @@ public:
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
         mPriceSocket{sink, createUdpSocket(sink.ctx()),
                      UdpEndpoint(Udp::v4(), Config::cfg.portUdp)} {
-    mSink.networkSink.setHandler<Order>(
-        [this](const Order &order) { mOrderSocket.asyncWrite(order); });
+    mSink.ioSink.setHandler<Order>([this](const Order &order) { mOrderSocket.asyncWrite(order); });
   }
 
   void start() {
     mOrderSocket.asyncConnect();
     mStatusSocket.asyncConnect();
     mPriceSocket.asyncConnect();
-  }
-
-  void stop() {
-    mOrderSocket.close();
-    mStatusSocket.close();
-    mPriceSocket.close();
   }
 
 private:

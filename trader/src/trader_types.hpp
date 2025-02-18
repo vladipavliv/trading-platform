@@ -18,16 +18,16 @@
 namespace hft::trader {
 
 using EventSink = PoolEventSink<OrderStatus, TickerPrice>;
-using NetworkSink = IoSink<Order>;
-using ControlSink = CommandSink<TraderCommand>;
+using TraderIoSink = IoSink<Order>;
+using TraderControlSink = ControlSink<TraderCommand>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;
 
 struct TraderSink {
   EventSink dataSink;
-  NetworkSink networkSink;
-  ControlSink controlSink;
-  inline IoContext &ctx() { return networkSink.ctx(); }
+  TraderIoSink ioSink;
+  TraderControlSink controlSink;
+  inline IoContext &ctx() { return ioSink.ctx(); }
 };
 
 template <typename SocketType, typename MessageType>

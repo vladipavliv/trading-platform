@@ -9,27 +9,59 @@
 #include <functional>
 #include <map>
 
+#include "utils/utils.hpp"
+
 namespace hft {
 
-template <typename CommandType>
-class CommandSink {
+template <typename CommandType, typename... EventTypes>
+class ControlSink {
 public:
   using Command = CommandType;
-  using Handler = std::function<void(Command)>;
+  using CommandHandler = std::function<void(Command)>;
 
   void start() {}
   void stop() {}
 
-  void setHandler(Handler &&handler) { mHandlers.push_back(std::move(handler)); }
+  void addCommandHandler(const std::vector<Command> &commands, CommandHandler handler) {
+    for (auto command : commands) {
+      mHandlers[command].push_back(handler);
+    }
+  }
 
-  void post(Command command) {
-    for (auto &handler : mHandlers) {
+  template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
+  void addEventHandler(CRefHandler<EventType> &&handler) {
+    getEventHandlers<EventType>().push_back(std::move(handler));
+  }
+
+  void onCommand(Command command) {
+    auto cmdHandlers = mHandlers.find(command);
+    if (cmdHandlers == mHandlers.end()) {
+      return;
+    }
+    for (const auto &handler : cmdHandlers->second) {
       handler(command);
     }
   }
 
+  template <typename EventType>
+    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
+  void onEvent(const EventType &event) {
+    for (auto &handler : getEventHandlers<EventType>()) {
+      handler(event);
+    }
+  }
+
 private:
-  std::vector<Handler> mHandlers;
+  template <typename EventType>
+  std::vector<CRefHandler<EventType>> &getEventHandlers() {
+    constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
+    return std::get<index>(mEventHandlers);
+  }
+
+private:
+  std::map<Command, std::vector<CommandHandler>> mHandlers;
+  std::tuple<std::vector<CRefHandler<EventTypes>>...> mEventHandlers;
 };
 
 } // namespace hft

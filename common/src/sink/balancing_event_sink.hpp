@@ -56,7 +56,7 @@ public:
       mThreads.emplace_back([this, i] {
         try {
           ThreadId core = Config().cfg.coresApp[i];
-          spdlog::debug("Started Worker thread on the core: {}", core);
+          spdlog::trace("Started Worker thread on the core: {}", core);
           utils::pinThreadToCore(core);
           utils::setTheadRealTime();
           mThreadId = i;

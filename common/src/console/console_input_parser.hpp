@@ -27,20 +27,21 @@ class ConsoleInputParser {
 public:
   using Command = CommandType;
 
-  ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
+  ConsoleInputParser(std::map<std::string, Command> &&cmdMap, bool blocking = false)
+      : mCommandMap{std::move(cmdMap)} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
-
-    std::string header = "Available commands:";
-    spdlog::info("> {} {}", header, std::string(mCommandsWidth - header.length() - 1, '~'));
     printCommands();
-    spdlog::info("> {}", std::string(mCommandsWidth, '~'));
-    spdlog::info("");
   }
 
-  Result<Command> getCommand() {
-    if (!inputAvailable()) {
-      return ErrorCode::Error;
+  bool waitForInput(uint32_t timeoutMs = 0) {
+    struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
+    return poll(&fds, 1, timeoutMs) == 1;
+  }
+
+  Result<Command> getCommand(uint32_t timeoutMs = 0) {
+    if (!waitForInput(timeoutMs)) {
+      return ErrorCode::Empty;
     }
     std::getline(std::cin, mInput);
     auto cmdIt = mCommandMap.find(mInput);
@@ -53,14 +54,7 @@ public:
     return ErrorCode::Empty;
   }
 
-  Result<Command> tryGetCommand() {}
-
 private:
-  bool inputAvailable() {
-    struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
-    return poll(&fds, 1, 0) == 1;
-  }
-
   void printCommands() {
     static std::map<Command, std::vector<std::string>> cmdToInput;
     if (cmdToInput.empty()) {
@@ -86,7 +80,6 @@ private:
 private:
   std::string mInput;
   std::map<std::string, Command> mCommandMap;
-
   const uint8_t mCommandsWidth{60};
 };
 

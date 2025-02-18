@@ -128,6 +128,7 @@ private:
     status.state = (OrderState)state;
     status.traderId = order.traderId;
     status.ticker = order.ticker;
+    spdlog::info("Order match:{}", utils::toString(status));
     mHandler(status);
   }
 

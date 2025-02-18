@@ -17,7 +17,7 @@
 namespace hft::trader {
 
 /**
- * @brief AKA BSSSStrategy
+ * @brief AKA BSSS Strategy
  */
 class BuySomeSellSomeStrategy {
 public:
@@ -27,13 +27,14 @@ public:
         [this](const TickerPrice &price) { priceUpdate(price); });
     mSink.dataSink.setHandler<OrderStatus>(
         [this](const OrderStatus &status) { orderStatus(status); });
-    mSink.controlSink.setHandler([this](TraderCommand cmd) {
-      if (cmd == TraderCommand::StartTrading) {
-        tradeStart();
-      } else if (cmd == TraderCommand::StopTrading) {
-        tradeStop();
-      }
-    });
+    mSink.controlSink.addCommandHandler({TraderCommand::TradeStart, TraderCommand::TradeStop},
+                                        [this](TraderCommand cmd) {
+                                          if (cmd == TraderCommand::TradeStart) {
+                                            tradeStart();
+                                          } else if (cmd == TraderCommand::TradeStop) {
+                                            tradeStop();
+                                          }
+                                        });
   }
 
   void start() {}
@@ -44,7 +45,7 @@ private:
   void orderStatus(const OrderStatus &status) {
     std::string scaleStr = utils::getScale(utils::getLinuxTimestamp() - status.id);
     std::string statusStr = utils::toString(status);
-    spdlog::debug("{} RTT: {}", statusStr, scaleStr);
+    spdlog::info("{} RTT: {}", statusStr, scaleStr);
   }
 
   void tradeStart() {
@@ -65,7 +66,7 @@ private:
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     order.quantity = utils::RNG::rng(1000);
     spdlog::debug("Placing order {}", utils::toString(order));
-    mSink.networkSink.post(order);
+    mSink.ioSink.post(order);
   }
 
 private:

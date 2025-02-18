@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_CONFIG_HPP
 #define HFT_COMMON_CONFIG_HPP
 
+#include <format>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <vector>
@@ -25,11 +26,10 @@ struct Config {
   std::vector<uint8_t> coresApp;
 
   static Config cfg;
-  static void log() {
-    spdlog::debug(
-        "url: {} tcp port in: {} tcp port out: {} udp port: {} io cores: {} app cores: {}", cfg.url,
-        cfg.portTcpIn, cfg.portTcpOut, cfg.portUdp, utils::toString(cfg.coresIo),
-        utils::toString(cfg.coresApp));
+  static String toString() {
+    return std::format("Url:{} TcpIn:{} TcpOut:{} Udp:{} IoCoreIDs:{} AppCoreIDs:{}", cfg.url,
+                       cfg.portTcpIn, cfg.portTcpOut, cfg.portUdp, utils::toString(cfg.coresIo),
+                       utils::toString(cfg.coresApp));
   }
 };
 

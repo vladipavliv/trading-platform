@@ -12,6 +12,7 @@
 
 #include "boost_types.hpp"
 #include "console/console_input_parser.hpp"
+#include "logger_manager.hpp"
 #include "market_types.hpp"
 #include "trader_types.hpp"
 #include "utils/string_utils.hpp"
@@ -21,58 +22,58 @@ namespace hft::trader {
 
 class ControlCenter {
 public:
-  using Command = ControlSink::Command;
+  using Command = TraderControlSink::Command;
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(TraderSink &sink)
-      : mSink{sink}, mConsoleParser{{{"t+", Command::StartTrading},
-                                     {"t-", Command::StopTrading},
-                                     {"f+", Command::PriceFeedStart},
-                                     {"f-", Command::PriceFeedStop},
-                                     {"d", Command::SwitchDebugMode},
-                                     {"q", Command::Shutdown}}} {}
-
-  void start() {
-    Fiber consoleFiber([this]() { consoleMonitor(); });
-    Fiber monitorFiber([this]() { systemMonitor(); });
-
-    consoleFiber.join();
-    monitorFiber.join();
+      : mSink{sink}, mConsoleParser{{{"t+", Command::TradeStart},
+                                     {"t-", Command::TradeStop},
+                                     {"p+", Command::PriceFeedStart},
+                                     {"p-", Command::PriceFeedStop},
+                                     {"l+", Command::LogLevelUp},
+                                     {"l-", Command::LogLevelDown},
+                                     {"q", Command::Shutdown}}},
+        mTimer{mSink.ctx()} {
+    scheduleTimer();
   }
 
-  void stop() { mStop.store(true); }
-
 private:
-  void consoleMonitor() {
-    while (!mStop.load()) {
-      boost::this_fiber::yield();
-      auto cmdRes = mConsoleParser.getCommand();
-      if (!cmdRes.ok()) {
-        continue;
+  void scheduleTimer() {
+    mTimer.expires_after(MilliSeconds(100));
+    mTimer.async_wait([this](BoostErrorRef ec) {
+      if (!ec) {
+        processCommands();
+        scheduleTimer();
       }
+    });
+  }
+
+  void processCommands() {
+    auto cmdRes = mConsoleParser.getCommand();
+    while (cmdRes.ok()) {
       auto cmd = cmdRes.value();
-      mSink.controlSink.post(cmd);
-      if (cmd == TraderCommand::Shutdown) {
-        return;
-      }
-      if (cmd == TraderCommand::SwitchDebugMode) {
-        if (spdlog::get_level() == spdlog::level::debug) {
-          spdlog::set_level(spdlog::level::info);
-        } else {
-          spdlog::set_level(spdlog::level::debug);
-        }
+      // Notify others. CC ain't subscribed so process those commands manually
+      mSink.controlSink.onCommand(cmd);
+      switch (cmd) {
+      case Command::LogLevelUp:
+        LoggerManager::switchLogLevel(true);
+        break;
+      case Command::LogLevelDown:
+        LoggerManager::switchLogLevel(false);
+        break;
+      case Command::Shutdown:
+      default:
+        break;
       }
       cmdRes = mConsoleParser.getCommand();
     }
   }
 
-  void systemMonitor() { /* TODO(self): Make trace sink for monitoring all events? */ }
-
 private:
   TraderSink &mSink;
   ConsoleParser mConsoleParser;
 
-  std::atomic_bool mStop{false};
+  SteadyTimer mTimer;
 };
 
 } // namespace hft::trader

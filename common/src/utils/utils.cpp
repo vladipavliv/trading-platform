@@ -85,7 +85,7 @@ uint64_t timeStampWeak() {
       .count();
 }
 
-uint64_t getLinuxTimestamp() {
+TimestampRaw getLinuxTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return ts.tv_sec * 1'000'000'000 + ts.tv_nsec;

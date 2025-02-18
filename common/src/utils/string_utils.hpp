@@ -7,6 +7,7 @@
 #define HFT_COMMON_STRING_UTILS_HPP
 
 #include <functional>
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <string>
 
@@ -55,7 +56,7 @@ template <>
 std::string toString<Order>(const Order &order) {
   std::stringstream ss;
   ss << toString(order.action) << ": " << order.quantity << " shares of " << toString(order.ticker)
-     << " at $" << order.price << " each";
+     << " at $" << order.price;
   return ss.str();
 }
 
@@ -89,7 +90,7 @@ std::string toString(const std::vector<Type> &vec) {
   std::stringstream ss;
   for (size_t index = 0; auto &value : vec) {
     ss << toString(value);
-    if (index < vec.size() - 1) {
+    if (index++ < vec.size() - 1) {
       ss << ",";
     }
   }
@@ -113,6 +114,25 @@ bool empty(const Ticker &ticker) {
     return true;
   }
   return false;
+}
+
+String toString(spdlog::level::level_enum logLvl) {
+  switch (logLvl) {
+  case spdlog::level::level_enum::trace:
+    return "trace";
+  case spdlog::level::level_enum::debug:
+    return "debug";
+  case spdlog::level::level_enum::info:
+    return "info";
+  case spdlog::level::level_enum::warn:
+    return "warn";
+  case spdlog::level::level_enum::err:
+    return "error";
+  case spdlog::level::level_enum::critical:
+    return "critical";
+  default:
+    return "debug";
+  }
 }
 
 } // namespace hft::utils
