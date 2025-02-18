@@ -20,7 +20,8 @@ enum class TraderCommand : uint8_t {
   PriceFeedStart = 2U,
   PriceFeedStop = 3U,
   ShowMarketStats = 4U,
-  Shutdown = 5U
+  SwitchDebugMode = 5U,
+  Shutdown = 6U
 };
 
 } // namespace hft::trader
@@ -39,6 +40,8 @@ std::string toString<trader::TraderCommand>(const trader::TraderCommand &cmd) {
     return "stop price feed";
   case trader::TraderCommand::ShowMarketStats:
     return "show stats";
+  case trader::TraderCommand::SwitchDebugMode:
+    return "switch debug on/off";
   case trader::TraderCommand::Shutdown:
     return "shutdown";
   default:

@@ -27,10 +27,13 @@ public:
         [this](const TickerPrice &price) { priceUpdate(price); });
     mSink.dataSink.setHandler<OrderStatus>(
         [this](const OrderStatus &status) { orderStatus(status); });
-    mSink.controlSink.setHandler(TraderCommand::StartTrading,
-                                 [this](TraderCommand cmd) { tradeStart(); });
-    mSink.controlSink.setHandler(TraderCommand::StopTrading,
-                                 [this](TraderCommand cmd) { tradeStop(); });
+    mSink.controlSink.setHandler([this](TraderCommand cmd) {
+      if (cmd == TraderCommand::StartTrading) {
+        tradeStart();
+      } else if (cmd == TraderCommand::StopTrading) {
+        tradeStop();
+      }
+    });
   }
 
   void start() {}
@@ -76,9 +79,9 @@ private:
     if (!mTrading.load()) {
       return;
     }
-    auto next = MilliSeconds(TRADE_RATE) - MilliSeconds(mSpeed);
-    next = next < MilliSeconds(5) ? MilliSeconds(5) : next; // Lets not go bananums
-    mTimer.expires_after(next);
+    // auto next = MilliSeconds(TRADE_RATE) - MilliSeconds(mSpeed);
+    // next = (next < MilliSeconds(1)) ? MilliSeconds(1) : next;
+    mTimer.expires_after(boost::asio::chrono::microseconds(100));
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         tradeSomething();

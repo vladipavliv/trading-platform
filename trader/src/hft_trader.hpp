@@ -19,7 +19,7 @@ namespace hft::trader {
 class HftTrader {
 public:
   HftTrader() : mServer{mSink}, mCc{mSink}, mStrategy{mSink} {
-    mSink.controlSink.setHandler(TraderCommand::Shutdown, [this](TraderCommand cmd) {
+    mSink.controlSink.setHandler([this](TraderCommand cmd) {
       if (cmd == TraderCommand::Shutdown) {
         stop();
       }

@@ -25,15 +25,11 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(TraderSink &sink)
-      : mSink{sink}, mConsoleParser{{{"trade start", Command::StartTrading},
-                                     {"t+", Command::StartTrading},
-                                     {"trade stop", Command::StopTrading},
+      : mSink{sink}, mConsoleParser{{{"t+", Command::StartTrading},
                                      {"t-", Command::StopTrading},
-                                     {"feed+", Command::PriceFeedStart},
                                      {"f+", Command::PriceFeedStart},
-                                     {"feed-", Command::PriceFeedStop},
                                      {"f-", Command::PriceFeedStop},
-                                     {"quit", Command::Shutdown},
+                                     {"d", Command::SwitchDebugMode},
                                      {"q", Command::Shutdown}}} {}
 
   void start() {
@@ -58,6 +54,13 @@ private:
       mSink.controlSink.post(cmd);
       if (cmd == TraderCommand::Shutdown) {
         return;
+      }
+      if (cmd == TraderCommand::SwitchDebugMode) {
+        if (spdlog::get_level() == spdlog::level::debug) {
+          spdlog::set_level(spdlog::level::info);
+        } else {
+          spdlog::set_level(spdlog::level::debug);
+        }
       }
       cmdRes = mConsoleParser.getCommand();
     }

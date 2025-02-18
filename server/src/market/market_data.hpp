@@ -33,6 +33,11 @@ struct alignas(CACHE_LINE_SIZE) TickerData {
 
 using MarketData = std::unordered_map<Ticker, TickerData, TickerHash>;
 
+struct MarketStats {
+  size_t ordersCurrent{0};
+  size_t requestsProcessed{0};
+};
+
 } // namespace hft::server
 
 #endif // HFT_SERVER_TICKERDATA_HPP

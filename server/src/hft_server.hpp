@@ -16,7 +16,7 @@ namespace hft::server {
 class HftServer {
 public:
   HftServer() : mNetwork{mSink}, mCc{mSink.controlSink}, mMarket{mSink} {
-    mSink.controlSink.setHandler(ServerCommand::Shutdown, [this](ServerCommand cmd) {
+    mSink.controlSink.setHandler([this](ServerCommand cmd) {
       if (cmd == ServerCommand::Shutdown) {
         stop();
       }

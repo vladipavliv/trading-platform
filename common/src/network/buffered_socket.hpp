@@ -179,7 +179,6 @@ private:
       cursor += sizeof(MessageSize);
       auto result = Serializer::template deserialize<MessageIn>(cursor, bodySize);
       if (!result.ok()) {
-        spdlog::error("Message parsing failed");
         mHead = mTail = 0;
         break;
       }

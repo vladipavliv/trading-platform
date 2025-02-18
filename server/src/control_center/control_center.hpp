@@ -25,19 +25,11 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenter(ControlSink &sink)
-      : mSink{sink}, mConsoleParser{{{"market data", Command::PrintMarketData},
-                                     {"m", Command::PrintMarketData},
-                                     {"feed+", Command::PriceFeedStart},
-                                     {"f+", Command::PriceFeedStart},
-                                     {"feed-", Command::PriceFeedStop},
+      : mSink{sink}, mConsoleParser{{{"f+", Command::PriceFeedStart},
                                      {"f-", Command::PriceFeedStop},
-                                     {"stat", Command::ShowMarketStats},
-                                     {"s", Command::ShowMarketStats},
-                                     {"traffic", Command::ShowTrafficStats},
-                                     {"t", Command::ShowTrafficStats},
-                                     {"exit", Command::Shutdown},
-                                     {"q", Command::Shutdown},
-                                     {"e", Command::Shutdown}}} {}
+                                     {"s+", Command::MarketStatsShow},
+                                     {"s-", Command::MarketStatsHide},
+                                     {"q", Command::Shutdown}}} {}
 
   void start() {
     Fiber consoleFiber([this]() { consoleMonitor(); });
@@ -71,7 +63,6 @@ private:
 private:
   ControlSink &mSink;
   ConsoleParser mConsoleParser;
-
   std::atomic_bool mStop{false};
 };
 

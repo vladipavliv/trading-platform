@@ -21,6 +21,7 @@ class Market;
 
 using EventSink = BalancingEventSink<Market, Order>;
 // PoolEventSink<Order>;
+
 using NetworkSink = IoSink<OrderStatus, TickerPrice>;
 using ControlSink = CommandSink<ServerCommand>;
 

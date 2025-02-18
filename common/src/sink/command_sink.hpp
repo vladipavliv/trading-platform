@@ -24,22 +24,16 @@ public:
   void start() {}
   void stop() {}
 
-  void setHandler(Command command, Handler &&handler) {
-    mHandlers[command].push_back(std::move(handler));
-  }
+  void setHandler(Handler &&handler) { mHandlers.push_back(std::move(handler)); }
 
   void post(Command command) {
-    auto commands = mHandlers.find(command);
-    if (commands == mHandlers.end()) {
-      return;
-    }
-    for (const auto &handler : commands->second) {
+    for (auto &handler : mHandlers) {
       handler(command);
     }
   }
 
 private:
-  std::map<Command, std::vector<Handler>> mHandlers;
+  std::vector<Handler> mHandlers;
 };
 
 } // namespace hft

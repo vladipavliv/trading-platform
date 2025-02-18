@@ -24,21 +24,34 @@ namespace hft::server {
 
 class Market {
 public:
-  Market(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink, getPricesView()} {
+  Market(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink, getPricesView()}, mTimer{mSink.ctx()} {
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
-    mSink.controlSink.setHandler(ServerCommand::PriceFeedStart,
-                                 [this](ServerCommand command) { mPriceFeed.start(); });
-    mSink.controlSink.setHandler(ServerCommand::PriceFeedStop,
-                                 [this](ServerCommand command) { mPriceFeed.stop(); });
-    mSink.controlSink.setHandler(ServerCommand::PrintMarketData,
-                                 [this](ServerCommand command) { printData(); });
-    mSink.controlSink.setHandler(ServerCommand::ShowMarketStats,
-                                 [this](ServerCommand command) { printStats(); });
+    mSink.controlSink.setHandler([this](ServerCommand command) {
+      switch (command) {
+      case ServerCommand::PriceFeedStart:
+        mPriceFeed.start();
+        break;
+      case ServerCommand::PriceFeedStop:
+        mPriceFeed.stop();
+        break;
+      case ServerCommand::MarketStatsShow:
+        showStats(true);
+        break;
+      case ServerCommand::MarketStatsHide:
+        showStats(false);
+        break;
+      default:
+        break;
+      }
+    });
   }
 
   void start() {}
   void stop() {}
 
+  /**
+   * @brief Load balancer
+   */
   static ThreadId getWorkerId(const Order &order) {
     if (!skMarketData.contains(order.ticker)) {
       spdlog::error("Unknown ticker {}", utils::toString(order.ticker));
@@ -82,58 +95,38 @@ private:
     data.eventCounter.fetch_add(1, std::memory_order_relaxed);
   }
 
-  void printData() {
-    std::stringstream ss;
-    spdlog::info("Market contains {} tickers:", skMarketData.size());
-    auto roundRobin = 0;
-    for (auto &item : skMarketData) {
-      ss << std::string(item.first.begin(), item.first.end()) << " $"
-         << item.second.currentPrice.load() << " ";
-      if (++roundRobin == 10) {
-        roundRobin = 0;
-        spdlog::info(ss.str());
-        ss.str("");
-        ss.clear();
-      }
+  void showStats(bool showStats) {
+    mShowStats = showStats;
+    if (mShowStats) {
+      doPrintStats();
+    } else {
+      mStats.ordersCurrent = 0;
+      mStats.requestsProcessed = 0;
+      mTimer.cancel();
     }
-    spdlog::info(ss.str());
   }
 
-  void printStats() {
-    size_t currentOrders = 0;
-    std::vector<size_t> eventsProcessed;
-    eventsProcessed.resize(Config::cfg.coresApp.size());
-    std::map<Ticker, size_t> tickerStats;
+  void doPrintStats() {
+    if (!mShowStats) {
+      return;
+    }
+    size_t requestsCurrent{0};
+    size_t ordersCurrent{0};
     for (auto &item : skMarketData) {
-      eventsProcessed[item.second.threadId.load()] += item.second.eventCounter.load();
-      currentOrders += item.second.orderBook->ordersCount();
-      if (item.second.eventCounter > 0) {
-        tickerStats[item.first]++;
-      }
+      requestsCurrent += item.second.eventCounter.load();
+      ordersCurrent += item.second.orderBook->ordersCount();
     }
-    spdlog::info("Market stats:");
-    spdlog::info("Current orders: {}", currentOrders);
+    std::string rps;
+    if (mStats.requestsProcessed != 0) {
+      rps = std::format("RPS: {}", (requestsCurrent - mStats.requestsProcessed) / 10);
+    }
+    mStats.requestsProcessed = requestsCurrent;
+    mStats.ordersCurrent = ordersCurrent;
+    spdlog::info("Orders total: {} current: {} {}", mStats.requestsProcessed, mStats.ordersCurrent,
+                 rps);
 
-    ThreadId id{0};
-    for (auto &item : eventsProcessed) {
-      spdlog::debug("Thread {} processed {} orders", id++, item);
-    }
-    return;
-    int roundRobin = 0;
-    std::string tickerStatStr;
-    for (auto &item : tickerStats) {
-      tickerStatStr += std::format("{}: {}", item.first.data(), item.second);
-      if (roundRobin++ > 10) {
-        spdlog::info(tickerStatStr);
-        tickerStatStr.clear();
-        roundRobin = 0;
-      } else {
-        tickerStatStr += ',';
-      }
-    }
-    if (!tickerStatStr.empty()) {
-      spdlog::info(tickerStatStr);
-    }
+    mTimer.expires_after(Seconds(mStatsRate));
+    mTimer.async_wait([this](BoostErrorRef ec) { doPrintStats(); });
   }
 
 private:
@@ -141,6 +134,11 @@ private:
 
   static MarketData skMarketData;
   PriceFeed mPriceFeed;
+
+  uint8_t mStatsRate{10};
+  std::atomic_bool mShowStats{true};
+  MarketStats mStats;
+  SteadyTimer mTimer;
 };
 
 MarketData Market::skMarketData;

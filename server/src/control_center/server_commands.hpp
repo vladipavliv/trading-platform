@@ -13,12 +13,11 @@
 namespace hft::server {
 
 enum class ServerCommand : uint8_t {
-  PrintMarketData = 0U,
-  PriceFeedStart = 1U,
-  PriceFeedStop = 2U,
-  ShowMarketStats = 3U,
-  ShowTrafficStats = 4U,
-  Shutdown = 5U
+  PriceFeedStart = 0U,
+  PriceFeedStop = 1U,
+  MarketStatsShow = 2U,
+  MarketStatsHide = 3U,
+  Shutdown = 4U
 };
 
 } // namespace hft::server
@@ -27,16 +26,14 @@ namespace hft::utils {
 template <>
 std::string toString<server::ServerCommand>(const server::ServerCommand &cmd) {
   switch (cmd) {
-  case server::ServerCommand::PrintMarketData:
-    return "print market data";
   case server::ServerCommand::PriceFeedStart:
     return "start price feed";
   case server::ServerCommand::PriceFeedStop:
     return "stop price feed";
-  case server::ServerCommand::ShowMarketStats:
-    return "show stats";
-  case server::ServerCommand::ShowTrafficStats:
-    return "show stats";
+  case server::ServerCommand::MarketStatsShow:
+    return "show market stats";
+  case server::ServerCommand::MarketStatsHide:
+    return "show market stats";
   case server::ServerCommand::Shutdown:
     return "shutdown";
   default:

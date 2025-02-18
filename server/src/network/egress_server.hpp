@@ -47,7 +47,6 @@ public:
     if (conn == mConnections.end()) {
       return;
     }
-    spdlog::debug("Notifying trader {}", utils::toString(message));
     conn->second->asyncWrite(message);
   }
 
