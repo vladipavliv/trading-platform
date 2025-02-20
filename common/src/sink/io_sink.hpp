@@ -14,6 +14,12 @@
 
 namespace hft {
 
+/**
+ * @brief Sink for Io operations. Events are being posted not on the IoContext
+ * directly to minimize overhead, but rather io dependend objects register for events
+ * and process them asynchronously. Runs Io context on a number of threads
+ * along with the main thread joining
+ */
 template <typename... EventTypes>
 class IoSink {
 public:

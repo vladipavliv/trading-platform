@@ -20,8 +20,9 @@
 namespace hft::server {
 
 /**
- * @brief For simulation sake if order not matched immediately TraderId gets reset
- * to simulate lots of traders and not spam client side
+ * @brief For simulation sake if order not matched immediately TraderId gets changed
+ * to simulate lots of traders and not polute client side statistics with filled orders
+ * that were placed 5 seconds ago
  */
 class MapOrderBook {
 public:
@@ -36,7 +37,6 @@ public:
 
   void add(const Order &order) {
     mOrdersCurrent.fetch_add(1);
-    // TODO(self) Batch add
     if (order.action == OrderAction::Buy) {
       if (mBids.size() > ORDER_BOOK_LIMIT) {
         spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
@@ -53,33 +53,30 @@ public:
         return;
       }
       auto &priceBids = mAsks[order.price];
-      if (priceBids.empty()) { // Was just created
+      if (priceBids.empty()) {
         priceBids.reserve(ORDER_BOOK_LIMIT);
       }
       priceBids.push_back(order);
     }
-    match(order.id);
-    /* Randomizer: change Traderid in this order */
-    if (mBids.contains(order.price) && !mBids[order.price].empty()) {
-      // It could be a different trader but thats fine
+    match();
+    if (mBids.contains(order.price)) {
       mBids[order.price].back().traderId++;
     }
-    if (mAsks.contains(order.price) && !mAsks[order.price].empty()) {
+    if (mAsks.contains(order.price)) {
       mAsks[order.price].back().traderId++;
     }
   }
 
-  void match(OrderId id) {
-    // TODO() Buffer matches for the same TraderId to send them in bulk
+  void match() {
     while (!mBids.empty() && !mAsks.empty()) {
       auto &bestBids = mBids.begin()->second;
       auto &bestAsks = mAsks.begin()->second;
 
-      if (bestBids.front().price < bestAsks.front().price) {
+      if (bestBids.back().price < bestAsks.back().price) {
         break;
       }
-      auto &bestBid = bestBids.front();
-      auto &bestAsk = bestAsks.front();
+      auto &bestBid = bestBids.back();
+      auto &bestAsk = bestAsks.back();
 
       int quantity = std::min(bestBid.quantity, bestAsk.quantity);
 
@@ -90,13 +87,13 @@ public:
       handleMatch(bestAsk, quantity, bestAsk.price);
 
       if (bestBid.quantity == 0) {
-        bestBids.erase(bestBids.begin());
+        bestBids.pop_back();
         if (bestBids.empty()) {
           mBids.erase(mBids.begin());
         }
       }
       if (bestAsk.quantity == 0) {
-        bestAsks.erase(bestAsks.begin());
+        bestAsks.pop_back();
         if (bestAsks.empty()) {
           mAsks.erase(mAsks.begin());
         }

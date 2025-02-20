@@ -13,6 +13,11 @@
 
 namespace hft {
 
+/**
+ * @brief Sink for synchronous message exchange. Handles commands from console
+ * Ojbects subscribe to commands and events, which are being registered in template list
+ * Posting certain command sends request for event like collect stats about traffic
+ */
 template <typename CommandType, typename... EventTypes>
 class ControlSink {
 public:

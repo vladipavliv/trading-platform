@@ -24,7 +24,6 @@ namespace hft::server {
 
 /**
  * @brief Monitors console commands, prints stats, tunes the system
- * @details Could have used some timer for the needs, but
  */
 class ServerControlCenter {
 public:

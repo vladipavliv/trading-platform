@@ -23,7 +23,14 @@
 namespace hft::server {
 
 /**
- * @brief Handles OrderBooks, balances tickers between worker threads
+ * @brief Handles OrderBooks, balances tickers between worker threads. Does not provide
+ * any synchronozation, instead relies on scheduling worker threads to work with specific
+ * tickers synchronously. Amount of tickers would always be higher then amount of worker threads
+ * Tickers are also well known, so we can have lock-free mapping Ticker -> ThreadId
+ * When rebalancing would be needed, orderbook can be marked untill previous thread finishes
+ * processing its messages, and then next thread takes over. Next thread meanwhile works on
+ * other ticker orders, and requests for this ticker are still being processed by previous thread
+ * Not sure if thats a viable idea or if thats truly lock-free
  */
 class Aggregator {
 public:
@@ -96,6 +103,17 @@ private:
       stats.currentOrders += item.second.orderBook->ordersCount();
     }
     mSink.controlSink.onEvent(stats);
+  }
+
+  void generateOrders() {
+    auto iterator = skData.begin();
+    for (int i = 0; i < 1000000; ++i) {
+      if (iterator == skData.end()) {
+        iterator = skData.begin();
+      }
+      processOrder(utils::generateOrder(iterator->first));
+      iterator++;
+    }
   }
 
 private:

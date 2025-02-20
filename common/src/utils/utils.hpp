@@ -33,7 +33,7 @@ inline size_t generateOrderId() {
 
 Order createOrder(TraderId trId, Ticker tkr, OrderAction act, Quantity quan, Price price);
 Ticker generateTicker();
-Order generateOrder();
+Order generateOrder(Ticker ticker);
 TickerPrice generateTickerPrice();
 
 uint64_t timeStampWeak();

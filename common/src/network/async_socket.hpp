@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_BUFFEREDSOCKET_HPP
-#define HFT_COMMON_BUFFEREDSOCKET_HPP
+#ifndef HFT_COMMON_ASYNCSOCKET_HPP
+#define HFT_COMMON_ASYNCSOCKET_HPP
 
 #include <boost/endian/arithmetic.hpp>
 #include <boost/endian/conversion.hpp>
@@ -18,10 +18,13 @@
 
 namespace hft {
 
+/**
+ * @brief Performs asynchronous reads and writes to a socket,
+ */
 template <typename SinkType, typename SerializerType, typename SocketType, typename MessageTypeIn>
-class BufferedSocket {
+class AsyncSocket {
 public:
-  using Type = BufferedSocket<SinkType, SerializerType, SocketType, MessageTypeIn>;
+  using Type = AsyncSocket<SinkType, SerializerType, SocketType, MessageTypeIn>;
   using Sink = SinkType;
   using Serializer = SerializerType;
   using Socket = SocketType;
@@ -29,7 +32,7 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
 
-  BufferedSocket(Sink &sink, Socket &&socket)
+  AsyncSocket(Sink &sink, Socket &&socket)
       : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE),
         mId{utils::getTraderId(mSocket)} {
     mMessageBuffer.reserve(100);
@@ -38,7 +41,7 @@ public:
     }
   }
 
-  BufferedSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
+  AsyncSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
       : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
         mBuffer(BUFFER_SIZE) {
     mMessageBuffer.reserve(100);
@@ -107,7 +110,7 @@ public:
     uint8_t *cursor = dataPtr->data();
     for (auto &msg : msgVec) {
       auto buffer = Serializer::serialize(msg);
-      MessageSize bodySize = static_cast<MessageSize>(buffer.size());
+      boost::endian::little_int16_at bodySize = static_cast<MessageSize>(buffer.size());
 
       std::memcpy(cursor, &bodySize, sizeof(bodySize));
       std::memcpy(cursor + sizeof(bodySize), buffer.data(), buffer.size());
@@ -135,6 +138,9 @@ public:
     }
   }
 
+  /**
+   * @brief Just a quick way to distinguish between clients
+   */
   inline TraderId getTraderId() const { return mId; }
 
 private:
@@ -210,4 +216,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_BUFFEREDSOCKET_HPP
+#endif // HFT_COMMON_ASYNCSOCKET_HPP

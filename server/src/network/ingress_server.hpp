@@ -17,6 +17,9 @@
 
 namespace hft::server::network {
 
+/**
+ * @brief Accepts incoming requests for sending orders
+ */
 class IngressServer {
 public:
   using Socket = ServerSocket<TcpSocket, Order>;

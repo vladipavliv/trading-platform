@@ -15,6 +15,9 @@
 
 namespace hft::server::network {
 
+/**
+ * @brief For simplicity clients are identified by ip
+ */
 class NetworkServer {
 public:
   NetworkServer(ServerSink &sink)

@@ -8,7 +8,7 @@
 
 #include "control_center/trader_commands.hpp"
 #include "market_types.hpp"
-#include "network/buffered_socket.hpp"
+#include "network/async_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "sink/balancing_event_sink.hpp"
 #include "sink/command_sink.hpp"
@@ -33,7 +33,7 @@ struct TraderSink {
 };
 
 template <typename SocketType, typename MessageType>
-using TraderSocket = BufferedSocket<TraderSink, Serializer, SocketType, MessageType>;
+using TraderSocket = AsyncSocket<TraderSink, Serializer, SocketType, MessageType>;
 
 } // namespace hft::trader
 

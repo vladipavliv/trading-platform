@@ -8,7 +8,7 @@
 
 #include "control_center/server_commands.hpp"
 #include "market_types.hpp"
-#include "network/buffered_socket.hpp"
+#include "network/async_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "sink/balancing_event_sink.hpp"
 #include "sink/command_sink.hpp"
@@ -36,7 +36,7 @@ struct ServerSink {
 };
 
 template <typename SocketType, typename MessageType>
-using ServerSocket = BufferedSocket<ServerSink, Serializer, SocketType, MessageType>;
+using ServerSocket = AsyncSocket<ServerSink, Serializer, SocketType, MessageType>;
 
 } // namespace hft::server
 

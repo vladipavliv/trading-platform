@@ -22,9 +22,9 @@
 namespace hft {
 
 /**
- * @brief Base for control center class that periodically checks console
- * for input commands in non-blocking way, processes service commands like
- * switch service mode on/off and switch log level
+ * @brief Base for control center class that periodically checks console for input commands,
+ * posts them to a command sink, and processes service commands like switching log level
+ * and switch to monitoring mode that turns default logger off and wites stats to a console
  */
 template <typename CommandType, typename SinkType>
 class ControlCenterBase {
@@ -92,11 +92,9 @@ private:
     // Trigger stats collecting if needed
     auto now = std::chrono::system_clock::now();
     if (std::chrono::duration_cast<Seconds>(now - mMonitorTimestamp) < mMonitorRate) {
-      spdlog::error("RETURN");
       return;
     }
     mMonitorTimestamp = now;
-    spdlog::error("COLLECT");
     mSink.controlSink.onCommand(Command::CollectStats);
   }
 

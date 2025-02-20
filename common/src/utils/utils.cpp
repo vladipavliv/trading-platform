@@ -63,12 +63,15 @@ Ticker generateTicker() {
   return ticker;
 }
 
-Order generateOrder() {
+Order generateOrder(Ticker ticker) {
+  static size_t traderId = 0;
   Order order;
+  order.traderId = traderId++;
+  order.action = RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
   order.id = getLinuxTimestamp();
-  order.ticker = generateTicker();
-  order.price = RNG::rng(700);
-  order.quantity = RNG::rng(50);
+  order.ticker = ticker;
+  order.price = RNG::rng(7000);
+  order.quantity = RNG::rng(100);
   return order;
 }
 

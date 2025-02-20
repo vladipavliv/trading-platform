@@ -19,6 +19,11 @@
 
 namespace hft {
 
+/**
+ * @brief Processes events on N threads via lock-free queues, whatever thread
+ * picks up the message gets to process it. Incompatible with current data aggregator
+ * implementation as the latter relies on the pool for concurrency
+ */
 template <typename... EventTypes>
 class PoolEventSink {
 public:

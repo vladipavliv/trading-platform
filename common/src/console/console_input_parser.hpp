@@ -22,6 +22,9 @@
 
 namespace hft {
 
+/**
+ * @brief Reads and parses commands from console in non blocking way
+ */
 template <typename CommandType>
 class ConsoleInputParser {
 public:

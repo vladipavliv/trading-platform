@@ -22,14 +22,11 @@ namespace hft {
 
 /**
  * @brief Distributes events by Ticker across N threads
- * @details Every thread works with its own set of tickers. Better for cache locality,
- * significantly simpler code, the only issue i see is rebalancing. For that we map
- * Ticker -> ThreadId. All tickers are well known and never change so synchronizing the whole map
- * is not needed. When we switch the thread id we can have the order book for thet ticker
- * marked 'in transition' untill old thread processes its incoming orders
- * and new thread takes over. Maybe unprocessed orders could be transferred to a new threads buffer
- * maybe some book merging could take place so both threads can proceed.
- *
+ * @details Every thread has its own set of queues. Tickers are distributed among threads
+ * and each thread works with order book synchronously. Rebalancing is suggested to be done
+ * via data aggregator, that holds a map Ticker -> ThreadId, so it can be done atomicly
+ * by redirecting to another ThreadId, letting previous thread process its incoming orders
+ * meanwhile working on another queues, once OrderBook is free, new thread takes over
  */
 template <typename LoadBalancer, typename... EventTypes>
 class BalancingEventSink {
@@ -62,7 +59,7 @@ public:
           mThreadId = i;
           processEvents();
         } catch (const std::exception &e) {
-          std::cerr << e.what() << '\n';
+          spdlog::error(e.what());
         }
       });
     }
@@ -90,7 +87,6 @@ public:
   void post(const EventType &event) {
     auto id = LoadBalancer::getWorkerId(event);
     if (id == std::numeric_limits<uint8_t>::max()) {
-      // Ticker not found
       spdlog::error("Ticker not found: {}", utils::toString(event));
       return;
     }

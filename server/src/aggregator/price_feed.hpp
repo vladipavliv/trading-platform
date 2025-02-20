@@ -19,6 +19,9 @@
 
 namespace hft::server {
 
+/**
+ * @brief Generates prices based on the priceview
+ */
 class PriceFeed {
 public:
   PriceFeed(ServerSink &sink, PricesView prices)

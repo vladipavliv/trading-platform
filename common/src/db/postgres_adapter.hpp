@@ -18,6 +18,9 @@
 
 namespace hft::db {
 
+/**
+ * @brief Quick adapter just for local testing
+ */
 class PostgresAdapter {
 public:
   static std::vector<TickerPrice> readTickers() {

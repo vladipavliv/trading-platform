@@ -18,6 +18,10 @@
 
 namespace hft {
 
+/**
+ * @brief By switching to a monitoring mode main logger gets disabled
+ * and logs written via logService get to console via a separate logger
+ */
 class LoggerManager {
 public:
   using LogLevel = spdlog::level::level_enum;

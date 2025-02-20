@@ -17,6 +17,9 @@
 
 namespace hft::server::network {
 
+/**
+ * @brief Accepts incoming requests for sending replies to the client
+ */
 class EgressServer {
 public:
   using Socket = ServerSocket<TcpSocket, Order>;
@@ -63,7 +66,6 @@ private:
   TcpAcceptor mAcceptor;
   Port mPort;
 
-  // TODO(self) Investigate for cache locality.
   std::unordered_map<TraderId, Socket::UPtr> mConnections;
 };
 } // namespace hft::server::network
