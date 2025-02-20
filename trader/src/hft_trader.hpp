@@ -8,7 +8,7 @@
 
 #include <chrono>
 
-#include "control_center/control_center.hpp"
+#include "control_center/trader_control_center.hpp"
 #include "network/network_server.hpp"
 #include "strategy/buy_some_sell_some_strategy.hpp"
 #include "trader_types.hpp"
@@ -27,11 +27,10 @@ public:
   }
 
   void start() {
-    mSink.ioSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
     mServer.start();
-    mSink.ioSink.ctx().run();
+    mSink.ioSink.start();
   }
 
   void stop() {
@@ -42,7 +41,7 @@ public:
 private:
   TraderSink mSink;
   NetworkServer mServer;
-  ControlCenter mCc;
+  TraderControlCenter mCc;
   BuySomeSellSomeStrategy mStrategy;
 };
 

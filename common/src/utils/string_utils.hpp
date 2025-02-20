@@ -47,15 +47,14 @@ std::string toString<OrderAction>(const OrderAction &state) {
   return "";
 }
 
-template <>
-std::string toString<Ticker>(const Ticker &ticker) {
-  return std::string(ticker.data(), ticker.size());
+std::string_view toStrView(const Ticker &ticker) {
+  return std::string_view(ticker.data(), TICKER_SIZE);
 }
 
 template <>
 std::string toString<Order>(const Order &order) {
   std::stringstream ss;
-  ss << toString(order.action) << ": " << order.quantity << " shares of " << toString(order.ticker)
+  ss << toString(order.action) << " " << order.quantity << " shares of " << toStrView(order.ticker)
      << " at $" << order.price;
   return ss.str();
 }
@@ -74,26 +73,28 @@ std::string toString<OrderStatus>(const OrderStatus &order) {
   } else {
     state += "filled ";
   }
-  return std::format("{:<18}{:<5}{:<6}at ${:<12}", state, order.quantity, order.ticker.data(),
+  return std::format("{} {} {} at {}", state, order.quantity, toStrView(order.ticker),
                      order.fillPrice);
 }
 
 template <>
 std::string toString<TickerPrice>(const TickerPrice &price) {
   std::stringstream ss;
-  ss << std::string(price.ticker.begin(), price.ticker.end()) << ": $" << price.price;
+  ss << toStrView(price.ticker) << ": $" << price.price;
   return ss.str();
 }
 
 template <typename Type>
 std::string toString(const std::vector<Type> &vec) {
   std::stringstream ss;
+  ss << "[";
   for (size_t index = 0; auto &value : vec) {
     ss << toString(value);
     if (index++ < vec.size() - 1) {
       ss << ",";
     }
   }
+  ss << "]";
   return ss.str();
 }
 
@@ -105,7 +106,7 @@ String toLower(String str) {
 
 Ticker toTicker(StringRef str) {
   Ticker ticker{};
-  std::copy(str.begin(), str.begin() + std::min(str.size(), ticker.size()), ticker.begin());
+  std::memcpy(ticker.data(), str.data(), std::min(str.size(), TICKER_SIZE));
   return ticker;
 }
 
@@ -133,6 +134,20 @@ String toString(spdlog::level::level_enum logLvl) {
   default:
     return "debug";
   }
+}
+
+std::string toStringDebug(const OrderStatus &status) {
+  return std::format("OrderStatus {} {} {} {} {}", status.id, toStrView(status.ticker),
+                     (uint8_t)status.state, status.quantity, status.fillPrice);
+}
+
+std::string toStringDebug(const Order &order) {
+  return std::format("Order {} {} {} {}", order.id, toStrView(order.ticker), (uint8_t)order.action,
+                     order.quantity, order.price);
+}
+
+std::string toStringDebug(const TickerPrice &price) {
+  return std::format("TickerPrice {} {}", price.price, toStrView(price.ticker));
 }
 
 } // namespace hft::utils

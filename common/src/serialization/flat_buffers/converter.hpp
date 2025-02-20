@@ -14,10 +14,10 @@
 
 namespace hft::serialization {
 
-static inline Ticker toString(const flatbuffers::String *str) {
+static inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   Ticker ticker{};
-  std::strncpy(ticker.data(), str->data(),
-               (str->size() >= ticker.size()) ? ticker.size() : str->size());
+  const auto size = std::min((size_t)str->size(), TICKER_SIZE);
+  std::memcpy(ticker.data(), str->data(), size);
   return ticker;
 }
 

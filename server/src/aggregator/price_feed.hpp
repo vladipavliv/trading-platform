@@ -23,15 +23,18 @@ class PriceFeed {
 public:
   PriceFeed(ServerSink &sink, PricesView prices)
       : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {
-    mSink.controlSink.addCommandHandler(
-        {ServerCommand::PriceFeedStart, ServerCommand::PriceFeedStop},
-        [this](ServerCommand command) {
-          if (command == ServerCommand::PriceFeedStart) {
-            switchMode(true);
-          } else if (command == ServerCommand::PriceFeedStop) {
-            switchMode(false);
-          }
-        });
+    mSink.controlSink.addCommandHandler({ServerCommand::PriceFeedStart,
+                                         ServerCommand::PriceFeedStop,
+                                         ServerCommand::PriceFeedSwitch},
+                                        [this](ServerCommand command) {
+                                          if (command == ServerCommand::PriceFeedStart) {
+                                            switchMode(true);
+                                          } else if (command == ServerCommand::PriceFeedStop) {
+                                            switchMode(false);
+                                          } else if (command == ServerCommand::PriceFeedSwitch) {
+                                            switchMode(!mShow);
+                                          }
+                                        });
   }
 
 private:
@@ -49,7 +52,7 @@ private:
     if (!mShow) {
       return;
     }
-    mTimer.expires_after(Microseconds(FEED_RATE));
+    mTimer.expires_after(Microseconds(Config::cfg.priceFeedRateUs));
     mTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         updatePrice();
@@ -65,7 +68,7 @@ private:
       cursor.reset();
     }
     auto tickerPrice = *cursor;
-    mPrices.setPrice({tickerPrice.ticker, utils::RNG::rng(900.0f)});
+    mPrices.setPrice({tickerPrice.ticker, utils::RNG::rng<uint32_t>(900)});
     mSink.ioSink.post(*cursor);
     cursor++;
   }

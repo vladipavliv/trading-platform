@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 
-#ifdef CXX_HAS_RTTI
+#ifdef __cpp_rtti
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #endif
@@ -23,12 +23,10 @@ namespace hft {
 
 struct ConfigReader {
 
-#ifdef CXX_HAS_RTTI
-  static void readConfig() {
+#ifdef __cpp_rtti
+  static void readConfig(const std::string &fileName) {
     boost::property_tree::ptree pt;
-    std::string filename{"config.ini"};
-
-    boost::property_tree::read_ini(filename, pt);
+    boost::property_tree::read_ini(fileName, pt);
 
     // Network config
     Config::cfg.url = pt.get<std::string>("network.url");
@@ -37,9 +35,11 @@ struct ConfigReader {
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cpu
-    Config::cfg.threadsIo = pt.get<int>("cpu.threads_io");
-    Config::cfg.threadsApp = pt.get<int>("cpu.threads_event");
-    Config::cfg.threadsPin = pt.get<bool>("cpu.thread_pin");
+    Config::cfg.coresIo = parseCores(pt.get<std::string>("cpu.cores_io"));
+    Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
+    Config::cfg.tradeRateUs = pt.get<int>("rates.trade_rate");
+    Config::cfg.priceFeedRateUs = pt.get<int>("rates.price_feed_rate");
+    Config::cfg.monitorRateS = pt.get<int>("rates.monitor_rate");
   }
 #else
   static void readConfig() {
@@ -50,7 +50,7 @@ struct ConfigReader {
     Config::cfg.coresIo = parseCores(CORES_IO);
     Config::cfg.coresApp = parseCores(CORES_APP);
   }
-
+#endif
   static ByteBuffer parseCores(StringRef input) {
     ByteBuffer result;
     std::stringstream ss(input);
@@ -61,7 +61,6 @@ struct ConfigReader {
     }
     return result;
   }
-#endif
 };
 
 } // namespace hft

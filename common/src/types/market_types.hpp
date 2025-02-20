@@ -14,13 +14,12 @@
 
 namespace hft {
 
-using OrderId = uint64_t; // For the sake of simplicity would use timestamp
-using TimestampRaw = uint64_t;
-using TraderId = uint64_t;
+using OrderId = uint32_t;
+using TraderId = uint32_t;
 using Quantity = uint32_t;
-using Price = float;
+using Price = uint32_t;
 
-constexpr uint8_t TICKER_SIZE = 8;
+constexpr size_t TICKER_SIZE = 4;
 using Ticker = std::array<char, TICKER_SIZE>;
 using TickerRef = const Ticker &;
 
@@ -42,18 +41,19 @@ struct Order {
   TraderId traderId; // Server side
   OrderId id;
   Ticker ticker{};
-  OrderAction action{OrderAction::Buy};
   Quantity quantity;
   Price price;
+  OrderAction action;
 };
 
 struct OrderStatus {
   TraderId traderId; // Server side
   OrderId id;
   Ticker ticker{};
-  OrderState state;
   Quantity quantity;
   Price fillPrice;
+  OrderState state;
+  OrderAction action;
 };
 
 struct TickerPrice {
@@ -61,8 +61,8 @@ struct TickerPrice {
   Price price;
 };
 
-constexpr size_t MAX_MESSAGE_SIZE =
-    std::max({sizeof(Order), sizeof(OrderStatus), sizeof(TickerPrice)}) + sizeof(uint16_t);
+constexpr size_t MAX_MESSAGE_SIZE = 256;
+// std::max({sizeof(Order), sizeof(OrderStatus), sizeof(TickerPrice)}) + sizeof(uint16_t);
 
 } // namespace hft
 

@@ -27,8 +27,7 @@ class ConsoleInputParser {
 public:
   using Command = CommandType;
 
-  ConsoleInputParser(std::map<std::string, Command> &&cmdMap, bool blocking = false)
-      : mCommandMap{std::move(cmdMap)} {
+  ConsoleInputParser(std::map<std::string, Command> &&cmdMap) : mCommandMap{std::move(cmdMap)} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
     printCommands();
@@ -65,14 +64,13 @@ private:
 
     for (auto &inpVec : cmdToInput) {
       std::stringstream ss;
-      ss << "> ";
       for (auto &cmd : inpVec.second) {
         ss << "\'" << cmd << "\' ";
       }
       auto cmdStr = ss.str();
       auto descrStr = utils::toString(inpVec.first);
       spdlog::info(std::format(
-          "{:<} {:^} {:>}", cmdStr,
+          "> {:<} {:^} {:>}", cmdStr,
           std::string(mCommandsWidth - cmdStr.length() - descrStr.length() - 1, '.'), descrStr));
     }
   }

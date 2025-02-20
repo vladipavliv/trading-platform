@@ -24,8 +24,7 @@ namespace hft::utils {
 void pinThreadToCore(int core_id);
 void setTheadRealTime();
 
-size_t getTraderId(const TcpSocket &sock);
-size_t generateTraderId();
+TraderId getTraderId(const TcpSocket &sock);
 
 inline size_t generateOrderId() {
   static std::atomic<size_t> counter{0};
@@ -39,10 +38,13 @@ TickerPrice generateTickerPrice();
 
 uint64_t timeStampWeak();
 
-TimestampRaw getLinuxTimestamp();
-std::string getScale(size_t);
+uint64_t getLinuxTimestamp();
+std::string getScaleMs(size_t);
+std::string getScaleUs(size_t);
+std::string getScaleNs(size_t);
 
 size_t getId();
+void printRawPuffer(const uint8_t *buffer, size_t size);
 
 template <typename EventType, typename First, typename... Rest>
 constexpr size_t indexOf() {

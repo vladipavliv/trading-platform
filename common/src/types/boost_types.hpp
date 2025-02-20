@@ -14,7 +14,7 @@ namespace hft {
 
 namespace Ip = boost::asio::ip;
 using IoContext = boost::asio::io_context;
-using ContextGuard = boost::asio::io_context::work;
+using ContextGuard = boost::asio::executor_work_guard<IoContext::executor_type>;
 
 using BoostError = boost::system::error_code;
 using BoostErrorRef = const BoostError &;

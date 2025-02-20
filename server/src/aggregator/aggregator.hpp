@@ -15,7 +15,7 @@
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
-#include "order_book.hpp"
+#include "order_traffic_stats.hpp"
 #include "price_feed.hpp"
 #include "server_types.hpp"
 #include "utils/utils.hpp"
@@ -29,9 +29,9 @@ class Aggregator {
 public:
   Aggregator(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink, getPricesView()} {
     mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
-    mSink.controlSink.addCommandHandler({ServerCommand::GetTrafficStats},
+    mSink.controlSink.addCommandHandler({ServerCommand::CollectStats},
                                         [this](ServerCommand command) {
-                                          if (command == ServerCommand::GetTrafficStats) {
+                                          if (command == ServerCommand::CollectStats) {
                                             getTrafficStats();
                                           }
                                         });
@@ -47,7 +47,7 @@ public:
    */
   static ThreadId getWorkerId(const Order &order) {
     if (!skData.contains(order.ticker)) {
-      spdlog::error("Unknown ticker {}", utils::toString(order.ticker));
+      spdlog::error("Unknown ticker {}", utils::toStrView(order.ticker));
       return std::numeric_limits<uint8_t>::max();
     }
     return skData[order.ticker].threadId;
@@ -63,9 +63,10 @@ private:
       if (roundRobin >= Config::cfg.coresApp.size()) {
         roundRobin = 0;
       }
-      skData[item.ticker].threadId = roundRobin;
-      skData[item.ticker].currentPrice = item.price;
-      skData[item.ticker].orderBook = std::make_unique<OrderBook>(
+      auto &data = skData[item.ticker];
+      data.threadId = roundRobin;
+      data.currentPrice = item.price;
+      data.orderBook = std::make_unique<OrderBook>(
           item.ticker, [this](const OrderStatus &status) { mSink.ioSink.post(status); });
       roundRobin++;
     }
@@ -89,7 +90,7 @@ private:
   }
 
   void getTrafficStats() {
-    TrafficStats stats;
+    OrderTrafficStats stats;
     for (auto &item : skData) {
       stats.processedOrders += item.second.eventCounter.load();
       stats.currentOrders += item.second.orderBook->ordersCount();

@@ -14,22 +14,23 @@ enum OrderState: int {
 }
 
 table Order {
-    id: uint64;
+    id: uint;
     ticker: string;
-    action: OrderAction;
     quantity: uint;
-    price: float;
+    price: uint;
+    action: OrderAction;
 }
 
 table OrderStatus {
-    id: uint64;
+    id: uint;
     ticker: string;
-    state: OrderState;
     quantity: uint;
-    fill_price: float;
+    fill_price: uint;
+    state: OrderState;
+    action: OrderAction;
 }
 
 table TickerPrice {
     ticker: string;
-    price: float;
+    price: uint;
 }

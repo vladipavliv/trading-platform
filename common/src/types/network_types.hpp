@@ -22,7 +22,8 @@ using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
 
-using MessageSize = uint16_t; // TODO(do) try even more smol for extra blazing fastnmess
+using MessageSize = uint16_t;
+using FullHeader = uint32_t;
 
 } // namespace hft
 

@@ -1,0 +1,124 @@
+/**
+ * @author Vladimir Pavliv
+ * @date 2025-02-10
+ */
+
+#ifndef HFT_COMMON_CONTROLCENTERBASE_HPP
+#define HFT_COMMON_CONTROLCENTERBASE_HPP
+
+#include <deque>
+#include <map>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+#include "boost_types.hpp"
+#include "config/config.hpp"
+#include "console_input_parser.hpp"
+#include "logger_manager.hpp"
+#include "market_types.hpp"
+#include "utils/string_utils.hpp"
+#include "utils/utils.hpp"
+
+namespace hft {
+
+/**
+ * @brief Base for control center class that periodically checks console
+ * for input commands in non-blocking way, processes service commands like
+ * switch service mode on/off and switch log level
+ */
+template <typename CommandType, typename SinkType>
+class ControlCenterBase {
+public:
+  using Command = CommandType;
+  using Sink = SinkType;
+  using ConsoleParser = ConsoleInputParser<Command>;
+
+  ControlCenterBase(Sink &sink, std::map<std::string, Command> &&cmdMap)
+      : mSink{sink}, mConsoleParser{std::move(cmdMap)}, mTimer{mSink.ctx()},
+        mMonitorRate{Config::cfg.monitorRateS},
+        mMonitorTimestamp{std::chrono::system_clock::now()} {
+    scheduleTimer();
+  }
+
+private:
+  void scheduleTimer() {
+    mTimer.expires_after(MilliSeconds(100));
+    mTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      monitorMode();
+      processCommands();
+      scheduleTimer();
+    });
+  }
+
+  void processCommands() {
+    auto cmdRes = mConsoleParser.getCommand();
+    while (cmdRes.ok()) {
+      auto cmd = cmdRes.value();
+      // Notify others. Some commands processed by control center manually
+      mSink.controlSink.onCommand(cmd);
+      switch (cmd) {
+      case Command::MonitorModeStart:
+        Config::cfg.monitorStats = true;
+        switchMode(true);
+        break;
+      case Command::MonitorModeStop:
+        Config::cfg.monitorStats = false;
+        switchMode(false);
+        break;
+      case Command::MonitorModeSwitch:
+        Config::cfg.monitorStats = !mMonitorMode;
+        switchMode(!mMonitorMode);
+        break;
+      case Command::LogLevelUp:
+        LoggerManager::switchLogLevel(true);
+        break;
+      case Command::LogLevelDown:
+        LoggerManager::switchLogLevel(false);
+        break;
+      default:
+        break;
+      }
+      cmdRes = mConsoleParser.getCommand();
+    }
+  }
+
+  void monitorMode() {
+    if (!mMonitorMode) {
+      return;
+    }
+    // Trigger stats collecting if needed
+    auto now = std::chrono::system_clock::now();
+    if (std::chrono::duration_cast<Seconds>(now - mMonitorTimestamp) < mMonitorRate) {
+      spdlog::error("RETURN");
+      return;
+    }
+    mMonitorTimestamp = now;
+    spdlog::error("COLLECT");
+    mSink.controlSink.onCommand(Command::CollectStats);
+  }
+
+  void switchMode(bool monitorMode) {
+    mMonitorMode = monitorMode;
+    if (monitorMode) {
+      LoggerManager::toMonitorMode();
+    } else {
+      LoggerManager::toNormalMode();
+    }
+  }
+
+private:
+  Sink &mSink;
+  ConsoleParser mConsoleParser;
+  SteadyTimer mTimer;
+
+  Seconds mMonitorRate;
+  bool mMonitorMode{false};
+  Timestamp mMonitorTimestamp;
+};
+
+} // namespace hft
+
+#endif // HFT_COMMON_CONTROLCENTERBASE_HPP

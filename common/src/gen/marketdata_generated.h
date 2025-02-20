@@ -99,11 +99,11 @@ inline const char *EnumNameOrderState(OrderState e) {
 
 struct OrderT : public flatbuffers::NativeTable {
   typedef Order TableType;
-  uint64_t id = 0;
+  uint32_t id = 0;
   std::string ticker{};
-  hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY;
   uint32_t quantity = 0;
-  float price = 0.0f;
+  uint32_t price = 0;
+  hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY;
 };
 
 struct Order FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -112,33 +112,33 @@ struct Order FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
     VT_TICKER = 6,
-    VT_ACTION = 8,
-    VT_QUANTITY = 10,
-    VT_PRICE = 12
+    VT_QUANTITY = 8,
+    VT_PRICE = 10,
+    VT_ACTION = 12
   };
-  uint64_t id() const {
-    return GetField<uint64_t>(VT_ID, 0);
+  uint32_t id() const {
+    return GetField<uint32_t>(VT_ID, 0);
   }
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
   }
-  hft::serialization::gen::fbs::OrderAction action() const {
-    return static_cast<hft::serialization::gen::fbs::OrderAction>(GetField<int8_t>(VT_ACTION, 0));
-  }
   uint32_t quantity() const {
     return GetField<uint32_t>(VT_QUANTITY, 0);
   }
-  float price() const {
-    return GetField<float>(VT_PRICE, 0.0f);
+  uint32_t price() const {
+    return GetField<uint32_t>(VT_PRICE, 0);
+  }
+  hft::serialization::gen::fbs::OrderAction action() const {
+    return static_cast<hft::serialization::gen::fbs::OrderAction>(GetField<int8_t>(VT_ACTION, 0));
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint64_t>(verifier, VT_ID, 8) &&
+           VerifyField<uint32_t>(verifier, VT_ID, 4) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
-           VerifyField<int8_t>(verifier, VT_ACTION, 1) &&
            VerifyField<uint32_t>(verifier, VT_QUANTITY, 4) &&
-           VerifyField<float>(verifier, VT_PRICE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_PRICE, 4) &&
+           VerifyField<int8_t>(verifier, VT_ACTION, 1) &&
            verifier.EndTable();
   }
   OrderT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -150,20 +150,20 @@ struct OrderBuilder {
   typedef Order Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_id(uint64_t id) {
-    fbb_.AddElement<uint64_t>(Order::VT_ID, id, 0);
+  void add_id(uint32_t id) {
+    fbb_.AddElement<uint32_t>(Order::VT_ID, id, 0);
   }
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(Order::VT_TICKER, ticker);
   }
-  void add_action(hft::serialization::gen::fbs::OrderAction action) {
-    fbb_.AddElement<int8_t>(Order::VT_ACTION, static_cast<int8_t>(action), 0);
-  }
   void add_quantity(uint32_t quantity) {
     fbb_.AddElement<uint32_t>(Order::VT_QUANTITY, quantity, 0);
   }
-  void add_price(float price) {
-    fbb_.AddElement<float>(Order::VT_PRICE, price, 0.0f);
+  void add_price(uint32_t price) {
+    fbb_.AddElement<uint32_t>(Order::VT_PRICE, price, 0);
+  }
+  void add_action(hft::serialization::gen::fbs::OrderAction action) {
+    fbb_.AddElement<int8_t>(Order::VT_ACTION, static_cast<int8_t>(action), 0);
   }
   explicit OrderBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -178,46 +178,47 @@ struct OrderBuilder {
 
 inline flatbuffers::Offset<Order> CreateOrder(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint64_t id = 0,
+    uint32_t id = 0,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
-    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY,
     uint32_t quantity = 0,
-    float price = 0.0f) {
+    uint32_t price = 0,
+    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   OrderBuilder builder_(_fbb);
-  builder_.add_id(id);
   builder_.add_price(price);
   builder_.add_quantity(quantity);
   builder_.add_ticker(ticker);
+  builder_.add_id(id);
   builder_.add_action(action);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<Order> CreateOrderDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint64_t id = 0,
+    uint32_t id = 0,
     const char *ticker = nullptr,
-    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY,
     uint32_t quantity = 0,
-    float price = 0.0f) {
+    uint32_t price = 0,
+    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
   return hft::serialization::gen::fbs::CreateOrder(
       _fbb,
       id,
       ticker__,
-      action,
       quantity,
-      price);
+      price,
+      action);
 }
 
 flatbuffers::Offset<Order> CreateOrder(flatbuffers::FlatBufferBuilder &_fbb, const OrderT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct OrderStatusT : public flatbuffers::NativeTable {
   typedef OrderStatus TableType;
-  uint64_t id = 0;
+  uint32_t id = 0;
   std::string ticker{};
-  hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted;
   uint32_t quantity = 0;
-  float fill_price = 0.0f;
+  uint32_t fill_price = 0;
+  hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted;
+  hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY;
 };
 
 struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -226,33 +227,38 @@ struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ID = 4,
     VT_TICKER = 6,
-    VT_STATE = 8,
-    VT_QUANTITY = 10,
-    VT_FILL_PRICE = 12
+    VT_QUANTITY = 8,
+    VT_FILL_PRICE = 10,
+    VT_STATE = 12,
+    VT_ACTION = 14
   };
-  uint64_t id() const {
-    return GetField<uint64_t>(VT_ID, 0);
+  uint32_t id() const {
+    return GetField<uint32_t>(VT_ID, 0);
   }
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
   }
-  hft::serialization::gen::fbs::OrderState state() const {
-    return static_cast<hft::serialization::gen::fbs::OrderState>(GetField<int32_t>(VT_STATE, 0));
-  }
   uint32_t quantity() const {
     return GetField<uint32_t>(VT_QUANTITY, 0);
   }
-  float fill_price() const {
-    return GetField<float>(VT_FILL_PRICE, 0.0f);
+  uint32_t fill_price() const {
+    return GetField<uint32_t>(VT_FILL_PRICE, 0);
+  }
+  hft::serialization::gen::fbs::OrderState state() const {
+    return static_cast<hft::serialization::gen::fbs::OrderState>(GetField<int32_t>(VT_STATE, 0));
+  }
+  hft::serialization::gen::fbs::OrderAction action() const {
+    return static_cast<hft::serialization::gen::fbs::OrderAction>(GetField<int8_t>(VT_ACTION, 0));
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint64_t>(verifier, VT_ID, 8) &&
+           VerifyField<uint32_t>(verifier, VT_ID, 4) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
-           VerifyField<int32_t>(verifier, VT_STATE, 4) &&
            VerifyField<uint32_t>(verifier, VT_QUANTITY, 4) &&
-           VerifyField<float>(verifier, VT_FILL_PRICE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_FILL_PRICE, 4) &&
+           VerifyField<int32_t>(verifier, VT_STATE, 4) &&
+           VerifyField<int8_t>(verifier, VT_ACTION, 1) &&
            verifier.EndTable();
   }
   OrderStatusT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -264,20 +270,23 @@ struct OrderStatusBuilder {
   typedef OrderStatus Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_id(uint64_t id) {
-    fbb_.AddElement<uint64_t>(OrderStatus::VT_ID, id, 0);
+  void add_id(uint32_t id) {
+    fbb_.AddElement<uint32_t>(OrderStatus::VT_ID, id, 0);
   }
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(OrderStatus::VT_TICKER, ticker);
   }
-  void add_state(hft::serialization::gen::fbs::OrderState state) {
-    fbb_.AddElement<int32_t>(OrderStatus::VT_STATE, static_cast<int32_t>(state), 0);
-  }
   void add_quantity(uint32_t quantity) {
     fbb_.AddElement<uint32_t>(OrderStatus::VT_QUANTITY, quantity, 0);
   }
-  void add_fill_price(float fill_price) {
-    fbb_.AddElement<float>(OrderStatus::VT_FILL_PRICE, fill_price, 0.0f);
+  void add_fill_price(uint32_t fill_price) {
+    fbb_.AddElement<uint32_t>(OrderStatus::VT_FILL_PRICE, fill_price, 0);
+  }
+  void add_state(hft::serialization::gen::fbs::OrderState state) {
+    fbb_.AddElement<int32_t>(OrderStatus::VT_STATE, static_cast<int32_t>(state), 0);
+  }
+  void add_action(hft::serialization::gen::fbs::OrderAction action) {
+    fbb_.AddElement<int8_t>(OrderStatus::VT_ACTION, static_cast<int8_t>(action), 0);
   }
   explicit OrderStatusBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -292,35 +301,39 @@ struct OrderStatusBuilder {
 
 inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint64_t id = 0,
+    uint32_t id = 0,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
-    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
     uint32_t quantity = 0,
-    float fill_price = 0.0f) {
+    uint32_t fill_price = 0,
+    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
+    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   OrderStatusBuilder builder_(_fbb);
-  builder_.add_id(id);
+  builder_.add_state(state);
   builder_.add_fill_price(fill_price);
   builder_.add_quantity(quantity);
-  builder_.add_state(state);
   builder_.add_ticker(ticker);
+  builder_.add_id(id);
+  builder_.add_action(action);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<OrderStatus> CreateOrderStatusDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint64_t id = 0,
+    uint32_t id = 0,
     const char *ticker = nullptr,
-    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
     uint32_t quantity = 0,
-    float fill_price = 0.0f) {
+    uint32_t fill_price = 0,
+    hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
+    hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
   return hft::serialization::gen::fbs::CreateOrderStatus(
       _fbb,
       id,
       ticker__,
-      state,
       quantity,
-      fill_price);
+      fill_price,
+      state,
+      action);
 }
 
 flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBufferBuilder &_fbb, const OrderStatusT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -328,7 +341,7 @@ flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBufferBuilde
 struct TickerPriceT : public flatbuffers::NativeTable {
   typedef TickerPrice TableType;
   std::string ticker{};
-  float price = 0.0f;
+  uint32_t price = 0;
 };
 
 struct TickerPrice FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -341,14 +354,14 @@ struct TickerPrice FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
   }
-  float price() const {
-    return GetField<float>(VT_PRICE, 0.0f);
+  uint32_t price() const {
+    return GetField<uint32_t>(VT_PRICE, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
-           VerifyField<float>(verifier, VT_PRICE, 4) &&
+           VerifyField<uint32_t>(verifier, VT_PRICE, 4) &&
            verifier.EndTable();
   }
   TickerPriceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -363,8 +376,8 @@ struct TickerPriceBuilder {
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(TickerPrice::VT_TICKER, ticker);
   }
-  void add_price(float price) {
-    fbb_.AddElement<float>(TickerPrice::VT_PRICE, price, 0.0f);
+  void add_price(uint32_t price) {
+    fbb_.AddElement<uint32_t>(TickerPrice::VT_PRICE, price, 0);
   }
   explicit TickerPriceBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -380,7 +393,7 @@ struct TickerPriceBuilder {
 inline flatbuffers::Offset<TickerPrice> CreateTickerPrice(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
-    float price = 0.0f) {
+    uint32_t price = 0) {
   TickerPriceBuilder builder_(_fbb);
   builder_.add_price(price);
   builder_.add_ticker(ticker);
@@ -390,7 +403,7 @@ inline flatbuffers::Offset<TickerPrice> CreateTickerPrice(
 inline flatbuffers::Offset<TickerPrice> CreateTickerPriceDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *ticker = nullptr,
-    float price = 0.0f) {
+    uint32_t price = 0) {
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
   return hft::serialization::gen::fbs::CreateTickerPrice(
       _fbb,
@@ -411,9 +424,9 @@ inline void Order::UnPackTo(OrderT *_o, const flatbuffers::resolver_function_t *
   (void)_resolver;
   { auto _e = id(); _o->id = _e; }
   { auto _e = ticker(); if (_e) _o->ticker = _e->str(); }
-  { auto _e = action(); _o->action = _e; }
   { auto _e = quantity(); _o->quantity = _e; }
   { auto _e = price(); _o->price = _e; }
+  { auto _e = action(); _o->action = _e; }
 }
 
 inline flatbuffers::Offset<Order> Order::Pack(flatbuffers::FlatBufferBuilder &_fbb, const OrderT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -426,16 +439,16 @@ inline flatbuffers::Offset<Order> CreateOrder(flatbuffers::FlatBufferBuilder &_f
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const OrderT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _id = _o->id;
   auto _ticker = _o->ticker.empty() ? 0 : _fbb.CreateString(_o->ticker);
-  auto _action = _o->action;
   auto _quantity = _o->quantity;
   auto _price = _o->price;
+  auto _action = _o->action;
   return hft::serialization::gen::fbs::CreateOrder(
       _fbb,
       _id,
       _ticker,
-      _action,
       _quantity,
-      _price);
+      _price,
+      _action);
 }
 
 inline OrderStatusT *OrderStatus::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -449,9 +462,10 @@ inline void OrderStatus::UnPackTo(OrderStatusT *_o, const flatbuffers::resolver_
   (void)_resolver;
   { auto _e = id(); _o->id = _e; }
   { auto _e = ticker(); if (_e) _o->ticker = _e->str(); }
-  { auto _e = state(); _o->state = _e; }
   { auto _e = quantity(); _o->quantity = _e; }
   { auto _e = fill_price(); _o->fill_price = _e; }
+  { auto _e = state(); _o->state = _e; }
+  { auto _e = action(); _o->action = _e; }
 }
 
 inline flatbuffers::Offset<OrderStatus> OrderStatus::Pack(flatbuffers::FlatBufferBuilder &_fbb, const OrderStatusT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -464,16 +478,18 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBuffe
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const OrderStatusT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _id = _o->id;
   auto _ticker = _o->ticker.empty() ? 0 : _fbb.CreateString(_o->ticker);
-  auto _state = _o->state;
   auto _quantity = _o->quantity;
   auto _fill_price = _o->fill_price;
+  auto _state = _o->state;
+  auto _action = _o->action;
   return hft::serialization::gen::fbs::CreateOrderStatus(
       _fbb,
       _id,
       _ticker,
-      _state,
       _quantity,
-      _fill_price);
+      _fill_price,
+      _state,
+      _action);
 }
 
 inline TickerPriceT *TickerPrice::UnPack(const flatbuffers::resolver_function_t *_resolver) const {

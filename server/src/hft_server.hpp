@@ -3,11 +3,11 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_HPP
-#define HFT_SERVER_HPP
+#ifndef HFT_SERVER_SERVER_HPP
+#define HFT_SERVER_SERVER_HPP
 
 #include "aggregator/aggregator.hpp"
-#include "control_center/control_center.hpp"
+#include "control_center/server_control_center.hpp"
 #include "network/network_server.hpp"
 #include "server_types.hpp"
 
@@ -24,13 +24,12 @@ public:
   }
 
   void start() {
-    mSink.ioSink.start();
     mSink.dataSink.start();
     mSink.controlSink.start();
     mNetwork.start();
     mAggregator.start();
     // Run io context along with other threads
-    mSink.ctx().run();
+    mSink.ioSink.start();
   }
 
   void stop() {
@@ -42,9 +41,9 @@ private:
   ServerSink mSink;
   network::NetworkServer mNetwork;
   Aggregator mAggregator;
-  ControlCenter mCc;
+  ServerControlCenter mCc;
 };
 
 } // namespace hft::server
 
-#endif // HFT_SERVER_HPP
+#endif // HFT_SERVER_SERVER_HPP

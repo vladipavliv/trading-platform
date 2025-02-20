@@ -18,13 +18,15 @@
 namespace hft::server {
 
 class Aggregator;
-class TrafficStats;
+class OrderTrafficStats;
+class MapOrderBook;
+class FlatOrderBook;
 
-using EventSink = BalancingEventSink<Aggregator, Order>; // PoolEventSink<Order>;
+using EventSink = BalancingEventSink<Aggregator, Order>;
 using ServerIoSink = IoSink<OrderStatus, TickerPrice>;
-using ServerControlSink = ControlSink<ServerCommand, TrafficStats>;
-
+using ServerControlSink = ControlSink<ServerCommand, OrderTrafficStats>;
 using Serializer = hft::serialization::FlatBuffersSerializer;
+using OrderBook = MapOrderBook;
 
 struct ServerSink {
   EventSink dataSink;

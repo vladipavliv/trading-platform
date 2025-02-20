@@ -29,9 +29,12 @@ public:
       return ErrorCode::Error;
     }
     auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
-    return Order{
-        0,           msg->id(), toString(msg->ticker()), convert(msg->action()), msg->quantity(),
-        msg->price()};
+    return Order{0,
+                 msg->id(),
+                 fbStringToTicker(msg->ticker()),
+                 msg->quantity(),
+                 msg->price(),
+                 convert(msg->action())};
   }
 
   template <typename MessageType>
@@ -45,10 +48,11 @@ public:
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);
     return OrderStatus{0,
                        orderMsg->id(),
-                       toString(orderMsg->ticker()),
-                       convert(orderMsg->state()),
+                       fbStringToTicker(orderMsg->ticker()),
                        orderMsg->quantity(),
-                       orderMsg->fill_price()};
+                       orderMsg->fill_price(),
+                       convert(orderMsg->state()),
+                       convert(orderMsg->action())};
   }
 
   template <typename MessageType>
@@ -56,38 +60,35 @@ public:
   deserialize(const uint8_t *buffer, size_t size) {
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::TickerPrice>()) {
-      spdlog::error("TickerPrice verification failed.");
+      spdlog::error("TickerPrice verification failed");
       return ErrorCode::Error;
     }
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::TickerPrice>(buffer);
-    return TickerPrice{toString(orderMsg->ticker()), orderMsg->price()};
+    return TickerPrice{fbStringToTicker(orderMsg->ticker()), orderMsg->price()};
   }
 
   static DetachedBuffer serialize(const Order &order) {
     flatbuffers::FlatBufferBuilder builder;
-
     auto msg = gen::fbs::CreateOrder(builder, order.id,
-                                     builder.CreateString(order.ticker.data(), order.ticker.size()),
-                                     convert(order.action), order.quantity, order.price);
+                                     builder.CreateString(order.ticker.data(), TICKER_SIZE),
+                                     order.quantity, order.price, convert(order.action));
     builder.Finish(msg);
     return builder.Release();
   }
 
   static DetachedBuffer serialize(const OrderStatus &order) {
     flatbuffers::FlatBufferBuilder builder;
-
     auto msg = gen::fbs::CreateOrderStatus(
-        builder, order.id, builder.CreateString(order.ticker.data(), order.ticker.size()),
-        convert(order.state), order.quantity, order.fillPrice);
+        builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE), order.quantity,
+        order.fillPrice, convert(order.state), convert(order.action));
     builder.Finish(msg);
     return builder.Release();
   }
 
   static DetachedBuffer serialize(const TickerPrice &price) {
     flatbuffers::FlatBufferBuilder builder;
-
     auto msg = gen::fbs::CreateTickerPrice(
-        builder, builder.CreateString(price.ticker.data(), price.ticker.size()), price.price);
+        builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);
     builder.Finish(msg);
     return builder.Release();
   }

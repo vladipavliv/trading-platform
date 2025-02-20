@@ -31,8 +31,10 @@ using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
 
 template <typename Arg>
 using CRefHandler = std::function<void(const Arg &)>;
+using Callback = std::function<void()>;
 
 using ThreadId = uint8_t;
+using TimestampRaw = uint64_t;
 
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE 64

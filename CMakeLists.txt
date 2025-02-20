@@ -6,7 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG") # -fno-rtti -fno-exceptions
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG -fomit-frame-pointer") # -fno-rtti -fno-exceptions
+set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fno-omit-frame-pointer")
 
 # add_definitions(-DBOOST_NO_EXCEPTIONS)
 
@@ -18,15 +19,15 @@ set(SERVER_URL "127.0.0.1")
 set(PORT_TCP_IN 8080)
 set(PORT_TCP_OUT 8081)
 set(PORT_UDP 8082)
-set(CORES_SERVER_IO "8") # Additional core alongside the main thread
-set(CORES_SERVER_APP "2,4,6")
-set(CORES_TRADER_IO "3") # Additional core alongside the main thread
-set(CORES_TRADER_APP "5,7,9")
+set(CORES_SERVER_IO "10") # Additional core alongside the main thread
+set(CORES_SERVER_APP "2,4")
+set(CORES_TRADER_IO "11") # Additional core alongside the main thread
+set(CORES_TRADER_APP "3,5")
 set(CACHE_LINE_SIZE 64)
 set(USE_MIMALLOC OFF)
-set(ORDER_BOOK_LIMIT 5000)
-set(FEED_RATE 100) # μs
-set(TRADE_RATE 100) # μs
+set(ORDER_BOOK_LIMIT 500)
+set(FEED_RATE 1000) # μs
+set(TRADE_RATE 1000) # μs
 
 # Generate flatbuffers code from the schema
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)
@@ -51,7 +52,7 @@ file(GLOB_RECURSE COMMON_SOURCES "common/src/*.cpp" "common/src/**/*.cpp" "commo
 add_library(hft_common STATIC ${COMMON_SOURCES})
 
 target_include_directories(hft_common PUBLIC common/src common/src/gen common/src/types ${LIBPQXX_INCLUDE_DIRS})
-target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES})
+target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 
 add_custom_command(TARGET hft_common POST_BUILD
     COMMAND ranlib ${CMAKE_CURRENT_BINARY_DIR}/libhft_common.a
@@ -77,7 +78,7 @@ target_compile_definitions(hft_server PRIVATE
     CORES_IO="${CORES_SERVER_IO}"
     CORES_APP="${CORES_SERVER_APP}"
     ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
-target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES})
+target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_server PRIVATE  common/src server/src server/src/types)
 
 # Trader Target
@@ -93,7 +94,7 @@ target_compile_definitions(hft_trader PRIVATE
     CORES_IO="${CORES_TRADER_IO}"
     CORES_APP="${CORES_TRADER_APP}"
     ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
-target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES})
+target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
 
 # mimalloc
@@ -108,5 +109,10 @@ add_dependencies(hft_trader code_generator)
 
 add_custom_command(
     TARGET hft_trader POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/config.ini ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/server_config.ini ${CMAKE_BINARY_DIR}
+)
+
+add_custom_command(
+    TARGET hft_trader POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/trader_config.ini ${CMAKE_BINARY_DIR}
 )

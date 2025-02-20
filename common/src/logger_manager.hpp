@@ -20,66 +20,104 @@ namespace hft {
 
 class LoggerManager {
 public:
-  static void switchLogLevel(bool switchUp) {
+  using LogLevel = spdlog::level::level_enum;
+  using SPtrSpdLogger = std::shared_ptr<spdlog::logger>;
+
+  enum class LoggerMode : uint8_t { Console = 0U, AsyncFile = 1U, RotatingFile = 2U };
+
+  static void initialize(LoggerMode mode, LogLevel logLvl, const std::string &fileName = "") {
+    switch (mode) {
+    case LoggerMode::AsyncFile:
+      initAsyncLogger(logLvl, fileName);
+      break;
+    case LoggerMode::RotatingFile:
+      initRotatingLogger(logLvl, fileName);
+      break;
+    default:
+      initConsoleLogger(logLvl);
+      break;
+    }
+    initServiceLogger();
+    toNormalMode();
+    spdlog::set_level(logLvl);
+    spdlog::flush_on(logLvl);
+  }
+
+  static inline void toMonitorMode() { spdlog::set_level(spdlog::level::off); }
+  static inline void toNormalMode() { spdlog::set_level(kLogLevel); }
+  static inline void logService(StringRef msg) { kMonitorLogger->info(msg); }
+
+  static void switchLogLevel(bool goUp) {
     using namespace spdlog::level;
-    level_enum newLvl;
     level_enum currentLvl = spdlog::get_level();
     switch (currentLvl) {
     case level_enum::trace:
-      newLvl = switchUp ? level_enum::trace : level_enum::debug;
+      kLogLevel = goUp ? level_enum::trace : level_enum::debug;
       break;
     case level_enum::debug:
-      newLvl = switchUp ? level_enum::trace : level_enum::info;
+      kLogLevel = goUp ? level_enum::trace : level_enum::info;
       break;
     case level_enum::info:
-      newLvl = switchUp ? level_enum::debug : level_enum::warn;
+      kLogLevel = goUp ? level_enum::debug : level_enum::warn;
       break;
     case level_enum::warn:
-      newLvl = switchUp ? level_enum::info : level_enum::err;
+      kLogLevel = goUp ? level_enum::info : level_enum::err;
       break;
     case level_enum::err:
-      newLvl = switchUp ? level_enum::warn : level_enum::critical;
+      kLogLevel = goUp ? level_enum::warn : level_enum::critical;
       break;
     case level_enum::critical:
-      newLvl = switchUp ? level_enum::err : level_enum::critical;
+      kLogLevel = goUp ? level_enum::err : level_enum::critical;
       break;
+    case level_enum::off:
+      // monitor mode
+      return;
     default:
-      newLvl = currentLvl;
+      kLogLevel = currentLvl;
       break;
     }
-    spdlog::set_level(newLvl);
-    spdlog::flush_on(newLvl);
-    spdlog::info("Log level: {}", utils::toString(newLvl));
+    spdlog::set_level(kLogLevel);
+    spdlog::flush_on(kLogLevel);
   }
 
-  static void initConsoleLogger(spdlog::level::level_enum logLvl) {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    auto logger = std::make_shared<spdlog::logger>("console", console_sink);
-
-    spdlog::set_default_logger(logger);
-    spdlog::set_level(logLvl);
-    spdlog::set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
-    spdlog::flush_on(logLvl);
+private:
+  static void initConsoleLogger(LogLevel logLvl) {
+    auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    kMainLogger = std::make_shared<spdlog::logger>("console", consoleSink);
+    kMainLogger->set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
+    spdlog::set_default_logger(kMainLogger);
   }
 
-  static void initAsyncLogger(spdlog::level::level_enum logLvl, const std::string &filename) {
+  static void initAsyncLogger(LogLevel logLvl, const std::string &filename) {
     spdlog::init_thread_pool(8192, 1);
-    auto async_file_logger = std::make_shared<spdlog::async_logger>(
+    kMainLogger = std::make_shared<spdlog::async_logger>(
         "async_file_logger", std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename),
         spdlog::thread_pool());
-
-    spdlog::set_level(logLvl);
-    spdlog::set_default_logger(async_file_logger);
-    spdlog::flush_on(logLvl);
+    kMainLogger->set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
+    spdlog::set_default_logger(kMainLogger);
   };
 
-  static void initRotatingLogger(spdlog::level::level_enum logLvl, const std::string &filename) {
-    auto rotating_logger = spdlog::rotating_logger_mt("rotating_logger", filename, 10485760, 3);
-
-    spdlog::set_level(logLvl);
-    spdlog::set_default_logger(rotating_logger);
+  static void initRotatingLogger(LogLevel logLvl, const std::string &filename) {
+    kMainLogger = spdlog::rotating_logger_mt("rotating_logger", filename, 10485760, 3);
+    kMainLogger->set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
+    spdlog::set_default_logger(kMainLogger);
   }
+
+private:
+  static void initServiceLogger() {
+    auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    kMonitorLogger = std::make_shared<spdlog::logger>("console_monitor", consoleSink);
+    kMonitorLogger->set_pattern("[%H:%M:%S.%e] [%^%L%$] %v");
+  }
+
+  static SPtrSpdLogger kMainLogger;
+  static SPtrSpdLogger kMonitorLogger;
+  static LogLevel kLogLevel;
 };
+
+LoggerManager::SPtrSpdLogger LoggerManager::kMainLogger{};
+LoggerManager::SPtrSpdLogger LoggerManager::kMonitorLogger{};
+LoggerManager::LogLevel LoggerManager::kLogLevel{};
 
 } // namespace hft
 

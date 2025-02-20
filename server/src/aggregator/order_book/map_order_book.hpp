@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_ORDER_BOOK_HPP
-#define HFT_SERVER_ORDER_BOOK_HPP
+#ifndef HFT_SERVER_MAPORDERBOOK_HPP
+#define HFT_SERVER_MAPORDERBOOK_HPP
 
 #include <algorithm>
 #include <map>
@@ -15,6 +15,7 @@
 #include "market_types.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::server {
 
@@ -22,21 +23,23 @@ namespace hft::server {
  * @brief For simulation sake if order not matched immediately TraderId gets reset
  * to simulate lots of traders and not spam client side
  */
-class OrderBook {
+class MapOrderBook {
 public:
   using MatchHandler = std::function<void(const OrderStatus &)>;
-  using UPtr = std::unique_ptr<OrderBook>;
+  using UPtr = std::unique_ptr<MapOrderBook>;
 
-  OrderBook() = delete;
-  OrderBook(Ticker ticker, MatchHandler matcher) : mTicker{ticker}, mHandler{std::move(matcher)} {
+  MapOrderBook() = delete;
+  MapOrderBook(Ticker ticker, MatchHandler matcher)
+      : mTicker{ticker}, mHandler{std::move(matcher)} {
     assert(mHandler != nullptr);
   }
 
   void add(const Order &order) {
+    mOrdersCurrent.fetch_add(1);
     // TODO(self) Batch add
     if (order.action == OrderAction::Buy) {
       if (mBids.size() > ORDER_BOOK_LIMIT) {
-        spdlog::error("Order limit reached for {}", utils::toString(mTicker));
+        spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
         return;
       }
       auto &priceBids = mBids[order.price];
@@ -46,7 +49,7 @@ public:
       priceBids.push_back(order);
     } else {
       if (mAsks.size() > ORDER_BOOK_LIMIT) {
-        spdlog::error("Order limit reached for {}", utils::toString(mTicker));
+        spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
         return;
       }
       auto &priceBids = mAsks[order.price];
@@ -59,10 +62,10 @@ public:
     /* Randomizer: change Traderid in this order */
     if (mBids.contains(order.price) && !mBids[order.price].empty()) {
       // It could be a different trader but thats fine
-      mBids[order.price].back().traderId = utils::RNG::rng(77777);
+      mBids[order.price].back().traderId++;
     }
     if (mAsks.contains(order.price) && !mAsks[order.price].empty()) {
-      mAsks[order.price].back().traderId = utils::RNG::rng(77777);
+      mAsks[order.price].back().traderId++;
     }
   }
 
@@ -80,23 +83,11 @@ public:
 
       int quantity = std::min(bestBid.quantity, bestAsk.quantity);
 
-      uint8_t bidState =
-          (bestBid.quantity == quantity) ? (uint8_t)OrderState::Full : (uint8_t)OrderState::Partial;
-      uint8_t askState =
-          (bestAsk.quantity == quantity) ? (uint8_t)OrderState::Full : (uint8_t)OrderState::Partial;
-
-      if (bestBid.id == id) {
-        bidState |= static_cast<uint8_t>(OrderState::Instant);
-      }
-      if (bestAsk.id == id) {
-        askState |= static_cast<uint8_t>(OrderState::Instant);
-      }
-
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      handleMatch(bestBid, quantity, bidState, bestAsk.price);
-      handleMatch(bestAsk, quantity, askState, bestAsk.price);
+      handleMatch(bestBid, quantity, bestAsk.price);
+      handleMatch(bestAsk, quantity, bestAsk.price);
 
       if (bestBid.quantity == 0) {
         bestBids.erase(bestBids.begin());
@@ -113,33 +104,35 @@ public:
     }
   }
 
-  /**
-   * @details CAUTION! Not thread-safe. Call on your own risk.
-   * Its just for testing
-   */
-  inline size_t ordersCount() const { return mBids.size() + mAsks.size(); }
+  inline size_t ordersCount() const { return mOrdersCurrent.load(); }
 
 private:
-  void handleMatch(const Order &order, Quantity quantity, uint8_t state, Price price) {
+  void handleMatch(const Order &order, Quantity quantity, Price price) {
     OrderStatus status;
     status.id = order.id;
     status.quantity = quantity;
     status.fillPrice = price;
-    status.state = (OrderState)state;
+    status.state = order.quantity == 0 ? OrderState::Full : OrderState::Partial;
+    status.action = order.action;
     status.traderId = order.traderId;
     status.ticker = order.ticker;
-    spdlog::info("Order match:{}", utils::toString(status));
+    spdlog::info(utils::toString(status));
     mHandler(status);
+    if (order.quantity == 0) {
+      mOrdersCurrent.fetch_sub(1);
+    }
   }
 
 private:
-  std::map<double, std::vector<Order>, std::greater<double>> mBids;
-  std::map<double, std::vector<Order>> mAsks;
+  std::map<uint32_t, std::vector<Order>, std::greater<uint32_t>> mBids;
+  std::map<uint32_t, std::vector<Order>> mAsks;
 
   Ticker mTicker;
   MatchHandler mHandler;
+
+  alignas(CACHE_LINE_SIZE) std::atomic<size_t> mOrdersCurrent;
 };
 
 } // namespace hft::server
 
-#endif // HFT_SERVER_ORDER_BOOK_HPP
+#endif // HFT_SERVER_MAPORDERBOOK_HPP

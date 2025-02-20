@@ -17,7 +17,7 @@ namespace hft {
 template <typename... EventTypes>
 class IoSink {
 public:
-  IoSink() : mCtxGuard{mCtx} {}
+  IoSink() : mCtxGuard{mCtx.get_executor()} {}
   ~IoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
@@ -27,11 +27,6 @@ public:
   }
 
   void start() {
-    if (Config::cfg.coresIo.empty()) {
-      spdlog::error("No cores provided");
-      assert(false);
-      return;
-    }
     mThreads.reserve(Config::cfg.coresIo.size());
     for (size_t i = 0; i < Config::cfg.coresIo.size(); ++i) {
       mThreads.emplace_back([this, i]() {
@@ -41,15 +36,16 @@ public:
           utils::setTheadRealTime();
           mCtx.run();
         } catch (const std::exception &e) {
-          std::cerr << e.what() << '\n';
+          spdlog::error(e.what());
         }
       });
     }
+    mCtx.run();
   }
 
   template <typename EventType>
     requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
-  void setHandler(std::function<void(const EventType &)> &&handler) {
+  void setHandler(CRefHandler<EventType> &&handler) {
     constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers) = std::move(handler);
   }
@@ -66,7 +62,7 @@ public:
 
 private:
   template <typename EventType>
-  std::function<void(const EventType &)> &getHandler() {
+  CRefHandler<EventType> &getHandler() {
     constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
     return std::get<index>(mHandlers);
   }

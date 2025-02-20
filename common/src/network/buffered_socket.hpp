@@ -6,12 +6,15 @@
 #ifndef HFT_COMMON_BUFFEREDSOCKET_HPP
 #define HFT_COMMON_BUFFEREDSOCKET_HPP
 
+#include <boost/endian/arithmetic.hpp>
+#include <boost/endian/conversion.hpp>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <vector>
 
 #include "network_types.hpp"
 #include "types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft {
 
@@ -29,6 +32,7 @@ public:
   BufferedSocket(Sink &sink, Socket &&socket)
       : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE),
         mId{utils::getTraderId(mSocket)} {
+    mMessageBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
@@ -37,6 +41,7 @@ public:
   BufferedSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
       : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
         mBuffer(BUFFER_SIZE) {
+    mMessageBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
@@ -72,8 +77,7 @@ public:
       return;
     }
     auto buffer = Serializer::serialize(msg);
-    MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
-    // Could reuse those buffers
+    boost::endian::little_int16_at bodySize = static_cast<MessageSize>(buffer.size());
     auto dataPtr = std::make_shared<ByteBuffer>(sizeof(MessageSize) + buffer.size());
 
     std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
@@ -97,17 +101,17 @@ public:
       return;
     }
     size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
-    // Could reuse those buffers
     auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
     size_t realSize{0};
     uint8_t *cursor = dataPtr->data();
     for (auto &msg : msgVec) {
       auto buffer = Serializer::serialize(msg);
-      MessageSize bodySize = htons(static_cast<MessageSize>(buffer.size()));
+      MessageSize bodySize = static_cast<MessageSize>(buffer.size());
 
       std::memcpy(cursor, &bodySize, sizeof(bodySize));
       std::memcpy(cursor + sizeof(bodySize), buffer.data(), buffer.size());
+
       cursor += bodySize + sizeof(bodySize);
       realSize += bodySize + sizeof(bodySize);
     }
@@ -123,8 +127,6 @@ public:
     }
   }
 
-  void close() { mSocket.close(); }
-
   void retrieveTraderId() {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       if (mId == 0) {
@@ -138,37 +140,20 @@ public:
 private:
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
     if (ec) {
+      mHead = mTail = 0;
       if (ec != boost::asio::error::eof) {
-        spdlog::error("Failed to read from the socket: {}", ec.message());
+        spdlog::error(ec.message());
       }
-      mHead = mTail = 0;
-      return;
-    }
-    if (bytesRead > mBuffer.size()) {
-      spdlog::error("Socket read too much data");
-      mHead = mTail = 0;
-      return;
-    }
-    if (mTail + bytesRead > mBuffer.size()) {
-      spdlog::error("Socket tail out of bounds");
-      mHead = mTail = 0;
       return;
     }
     mTail += bytesRead;
-
-    uint8_t *cursor = mBuffer.data() + mHead;
-    std::vector<MessageIn> messages;
     while (mHead + sizeof(MessageSize) < mTail) {
-      MessageSize bodySize{0};
-      std::memcpy(&bodySize, cursor, sizeof(MessageSize));
-      bodySize = ntohs(bodySize);
-      if (bodySize > mBuffer.size()) {
-        spdlog::error("Invalid body size {}", bodySize);
-        mHead = mTail = 0;
-        break;
-      }
-      if (mHead + bodySize + sizeof(MessageSize) > mTail) {
-        // Unable to parse message, wait for more data
+      uint8_t *cursor = mBuffer.data() + mHead;
+      boost::endian::little_int16_at littleBodySize;
+      std::memcpy(&littleBodySize, cursor, sizeof(littleBodySize));
+      MessageSize bodySize = littleBodySize.value();
+      if (mHead + sizeof(MessageSize) + bodySize > mTail) {
+        // continue reading;
         break;
       }
       cursor += sizeof(MessageSize);
@@ -177,26 +162,21 @@ private:
         mHead = mTail = 0;
         break;
       }
-      auto message = result.value();
+      mMessageBuffer.emplace_back(result.value());
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
-        message.traderId = getTraderId();
+        mMessageBuffer.back().traderId = getTraderId();
       }
-      messages.emplace_back(std::move(message));
       mHead += bodySize + sizeof(MessageSize);
-      if (mHead > mTail) {
-        spdlog::error("mHead > mTail");
-        mHead = mTail = 0;
-        break;
-      }
     }
     if (mBuffer.size() - mTail < 256) {
       std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
       mTail = mTail - mHead;
       mHead = 0;
     }
-    if (!messages.empty()) {
-      mSink.dataSink.post(messages);
+    if (!mMessageBuffer.empty()) {
+      mSink.dataSink.post(mMessageBuffer);
     }
+    mMessageBuffer.clear();
     asyncRead();
   }
 
@@ -223,6 +203,7 @@ private:
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mBuffer;
+  std::vector<MessageIn> mMessageBuffer;
 
   TraderId mId{};
 };

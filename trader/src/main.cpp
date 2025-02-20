@@ -3,8 +3,7 @@
  * @date 2025-02-13
  */
 
-#include <iostream>
-
+#include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "hft_trader.hpp"
 #include "logger_manager.hpp"
@@ -13,14 +12,12 @@
 int main(int argc, char *argv[]) {
   try {
     using namespace hft;
-    LoggerManager::initConsoleLogger(spdlog::level::debug);
-    ConfigReader::readConfig();
+    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::info);
+    ConfigReader::readConfig("trader_config.ini");
 
     spdlog::info("Trader configuration:");
-    String cfg = Config::cfg.toString();
-    spdlog::info("{}", cfg);
-    size_t tradeRate = TRADE_RATE; // In microseconds
-    spdlog::info("Trading rate:{}μs LogLevel:{}", tradeRate, utils::toString(spdlog::get_level()));
+    Config::cfg.logConfig();
+    spdlog::info("LogLevel:{}", utils::toString(spdlog::get_level()));
 
     trader::HftTrader trader;
     trader.start();
