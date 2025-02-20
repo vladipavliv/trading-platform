@@ -7,6 +7,7 @@
 #define HFT_COMMON_CONTROL_CENTER_HPP
 
 #include <deque>
+#include <format>
 #include <map>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -58,8 +59,8 @@ private:
       return;
     }
 
-    std::string log =
-        std::format("Orders: {}/{} ", mStats.front().currentOrders, mStats.front().processedOrders);
+    std::string log = std::format("[open|total]: {:L}|{:L} ", mStats.front().currentOrders,
+                                  mStats.front().processedOrders);
     if (mStats.size() > 1) {
       // Get time difference between last collected stats and now to calculate rps
       const uint32_t factor =

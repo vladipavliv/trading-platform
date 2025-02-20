@@ -38,7 +38,8 @@ TickerPrice generateTickerPrice();
 
 uint64_t timeStampWeak();
 
-uint64_t getLinuxTimestamp();
+// Use only half for efficieny, precise enough for our needs
+uint32_t getLinuxTimestamp();
 std::string getScaleMs(size_t);
 std::string getScaleUs(size_t);
 std::string getScaleNs(size_t);

@@ -37,10 +37,15 @@ public:
 
   void add(const Order &order) {
     mOrdersCurrent.fetch_add(1);
+    bool matchingNeeded{false};
     if (order.action == OrderAction::Buy) {
       if (mBids.size() > ORDER_BOOK_LIMIT) {
         spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
         return;
+      }
+      // If bid is lower then current best bid - we can skip matching
+      if (mBids.empty() || order.price > mBids.begin()->first) {
+        matchingNeeded = true;
       }
       auto &priceBids = mBids[order.price];
       if (priceBids.empty()) { // Was just created
@@ -52,22 +57,24 @@ public:
         spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
         return;
       }
+      if (mAsks.empty() || order.price < mAsks.begin()->first) {
+        matchingNeeded = true;
+      }
       auto &priceBids = mAsks[order.price];
       if (priceBids.empty()) {
         priceBids.reserve(ORDER_BOOK_LIMIT);
       }
       priceBids.push_back(order);
     }
-    match();
-    if (mBids.contains(order.price)) {
-      mBids[order.price].back().traderId++;
-    }
-    if (mAsks.contains(order.price)) {
-      mAsks[order.price].back().traderId++;
+    if (matchingNeeded) {
+      match(order.id);
     }
   }
 
-  void match() {
+  /**
+   * @brief Simulate tracking active users with passing order id
+   */
+  void match(OrderId activeOrder) {
     while (!mBids.empty() && !mAsks.empty()) {
       auto &bestBids = mBids.begin()->second;
       auto &bestAsks = mAsks.begin()->second;
@@ -83,8 +90,8 @@ public:
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      handleMatch(bestBid, quantity, bestAsk.price);
-      handleMatch(bestAsk, quantity, bestAsk.price);
+      handleMatch(bestBid, quantity, bestAsk.price, activeOrder);
+      handleMatch(bestAsk, quantity, bestAsk.price, activeOrder);
 
       if (bestBid.quantity == 0) {
         bestBids.pop_back();
@@ -104,7 +111,10 @@ public:
   inline size_t ordersCount() const { return mOrdersCurrent.load(); }
 
 private:
-  void handleMatch(const Order &order, Quantity quantity, Price price) {
+  void handleMatch(const Order &order, Quantity quantity, Price price, OrderId activeOrder) {
+    if (order.id != activeOrder) {
+      return;
+    }
     OrderStatus status;
     status.id = order.id;
     status.quantity = quantity;

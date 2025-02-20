@@ -12,13 +12,10 @@
 
 namespace hft::trader {
 
-struct TradingStats {
-  double balance{0};
-  size_t operations{0};
-  size_t rttSum{0};
-  size_t rttBest{std::numeric_limits<size_t>::max()};
-  size_t rttWorst{0};
-  size_t rttSpikes{0};
+struct alignas(64) TradingStats {
+  std::atomic_uint64_t balance{0};
+  Padding<size_t> p;
+  std::atomic_uint64_t ordersClosed{0};
 };
 
 } // namespace hft::trader

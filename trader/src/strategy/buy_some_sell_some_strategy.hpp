@@ -12,6 +12,7 @@
 #include "boost_types.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
+#include "rtt_tracker.hpp"
 #include "trader_types.hpp"
 #include "trading_stats.hpp"
 #include "types.hpp"
@@ -27,8 +28,8 @@ class BuySomeSellSomeStrategy {
 public:
   BuySomeSellSomeStrategy(TraderSink &sink)
       : mSink{sink}, mPrices{db::PostgresAdapter::readTickers()},
-        mBalance{utils::RNG::rng<double>(1000000)}, mTradeRate{Config::cfg.tradeRateUs},
-        mTimer{mSink.ctx()} {
+        mTradeRate{Config::cfg.tradeRateUs}, mTimer{mSink.ctx()} {
+    mStats.balance = utils::RNG::rng<uint64_t>(1000000);
     mSink.dataSink.setHandler<TickerPrice>(
         [this](const TickerPrice &price) { priceUpdate(price); });
     mSink.dataSink.setHandler<OrderStatus>(
@@ -42,27 +43,12 @@ public:
 private:
   void priceUpdate(const TickerPrice &newPrice) { spdlog::debug(utils::toString(newPrice)); }
   void orderStatus(const OrderStatus &status) {
-    size_t rtt = static_cast<uint32_t>(utils::getLinuxTimestamp()) - status.id;
-    std::string scaleStr = utils::getScaleNs(rtt);
-    std::string statusStr = utils::toString(status);
-    spdlog::info(std::format("{} {} {}", statusStr, "RTT: ", scaleStr, rtt));
-
-    if (!Config::cfg.monitorStats) {
-      return;
-    }
-    auto stats = mStats.load();
-    if (rtt > (stats.rttBest * 100)) {
-      stats.rttSpikes++;
-    } else {
-      stats.operations++;
-      stats.rttSum += rtt;
-      stats.rttBest = rtt < stats.rttBest ? rtt : stats.rttBest;
-    }
-
-    stats.rttWorst = rtt > stats.rttWorst ? rtt : stats.rttWorst;
-    auto amount = status.fillPrice * status.quantity;
-    (status.action == OrderAction::Buy) ? (stats.balance += amount) : (stats.balance -= amount);
-    mStats.store(stats);
+    mStats.ordersClosed.fetch_add(1);
+    auto rtt = RttTracker::logRtt(status.id);
+    spdlog::info("{} RTT {}", utils::toString(status), utils::getScaleUs(rtt));
+    (status.action == OrderAction::Buy)
+        ? mStats.balance.fetch_add(status.fillPrice * status.quantity)
+        : mStats.balance.fetch_sub(status.fillPrice * status.quantity);
   }
 
   void tradeSwitch(bool start) {
@@ -86,11 +72,6 @@ private:
     mSink.ioSink.post(order);
   }
 
-  void collectStats() {
-    auto stats = mStats.load();
-    mSink.controlSink.onEvent(stats);
-  }
-
   void processCommand(TraderCommand cmd) {
     switch (cmd) {
     case TraderCommand::TradeStart:
@@ -103,10 +84,10 @@ private:
       tradeSwitch(!mTrading);
       break;
     case TraderCommand::CollectStats:
-      collectStats();
+      mSink.controlSink.onEvent(mStats);
       break;
     case TraderCommand::TradeSpeedUp:
-      if (mTradeRate > 100) {
+      if (mTradeRate > 50) {
         mTradeRate.store(mTradeRate / 2);
       }
       spdlog::info("Trade rate: {}", utils::getScaleUs(mTradeRate));
@@ -137,8 +118,8 @@ private:
 private:
   TraderSink &mSink;
   std::vector<TickerPrice> mPrices;
-  std::atomic<TradingStats> mStats;
-  double mBalance;
+
+  TradingStats mStats;
 
   std::atomic<size_t> mTradeRate;
   std::atomic_bool mTrading;

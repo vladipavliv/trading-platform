@@ -52,7 +52,7 @@ size_t getId() { // For the sake of testing
 }
 
 Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act) {
-  return {trId, static_cast<uint32_t>(getLinuxTimestamp()), tkr, quan, price, act};
+  return {trId, getLinuxTimestamp(), tkr, quan, price, act};
 }
 
 Ticker generateTicker() {
@@ -88,10 +88,10 @@ uint64_t timeStampWeak() {
       .count();
 }
 
-TimestampRaw getLinuxTimestamp() {
+uint32_t getLinuxTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return ts.tv_sec * 1'000'000'000 + ts.tv_nsec;
+  return static_cast<uint32_t>(ts.tv_sec * 1'000'000'000 + ts.tv_nsec);
 }
 
 void printRawPuffer(const uint8_t *buffer, size_t size) {

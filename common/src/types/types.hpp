@@ -34,7 +34,7 @@ using CRefHandler = std::function<void(const Arg &)>;
 using Callback = std::function<void()>;
 
 using ThreadId = uint8_t;
-using TimestampRaw = uint64_t;
+using TimestampRaw = uint32_t;
 
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE 64

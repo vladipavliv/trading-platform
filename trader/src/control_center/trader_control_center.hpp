@@ -14,6 +14,7 @@
 #include "boost_types.hpp"
 #include "console/control_center_base.hpp"
 #include "logger_manager.hpp"
+#include "rtt_tracker.hpp"
 #include "strategy/trading_stats.hpp"
 #include "trader_types.hpp"
 #include "utils/string_utils.hpp"
@@ -50,17 +51,26 @@ public:
 private:
   void printStats(const TradingStats &stats) {
     using namespace utils;
-    auto avgRtt = stats.operations == 0 ? 0 : stats.rttSum / stats.operations;
+    auto rtt = RttTracker::getStats().samples;
+    auto sampleSize = rtt[0].size + rtt[1].size + rtt[2].size;
+    auto s0Rate = ((float)rtt[0].size / sampleSize) * 100;
+    auto s1Rate = ((float)rtt[1].size / sampleSize) * 100;
+    auto s2Rate = ((float)rtt[2].size / sampleSize) * 100;
 
-    auto balance = std::format("Balance: ${}", static_cast<size_t>(stats.balance));
-    auto avgStr = std::format("avg:{}", utils::getScaleNs(avgRtt));
-    auto bestStr = std::format("best:{}", utils::getScaleNs(stats.rttBest));
-    auto worstStr = std::format("worst:{}", utils::getScaleNs(stats.rttWorst));
-    auto spikesStr = std::format("spikes:{}", stats.rttSpikes);
+    if (sampleSize == 0) {
+      return;
+    }
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2);
+    ss << "RTT [1us|100us|1ms]  " << s0Rate << "% avg:";
+    ss << ((rtt[0].size != 0) ? (rtt[0].sum / rtt[0].size) : 0);
+    ss << "us  " << s1Rate << "% avg:";
+    ss << ((rtt[1].size != 0) ? (rtt[1].sum / rtt[1].size) : 0);
+    ss << "us  " << s2Rate << "% avg:";
+    ss << ((rtt[2].size != 0) ? ((rtt[2].sum / rtt[2].size) / 1000) : 0);
+    ss << "ms";
 
-    auto log = std::format("{} Orders filled: {}   RTT {} {} {} {}", balance, stats.operations,
-                           avgStr, bestStr, worstStr, spikesStr);
-    LoggerManager::logService(log);
+    LoggerManager::logService(ss.str());
   }
 
 private:
