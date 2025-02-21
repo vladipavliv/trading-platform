@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
+#include "constants.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"

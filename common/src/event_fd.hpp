@@ -11,12 +11,14 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 
+#include "constants.hpp"
+
 namespace hft {
 
 /**
  * @brief Lightweight condition variable to wake up threads
- * Okay after testing maybe its not as lightweight as one would have hoped, need some additional
- * logic like yeild thread for 100 cycles and then sleep on this fd or something
+ * @details uses busy waiting for %BUSY_WAIT_CYCLES% to improve performance
+ * and then waits on eventfd
  */
 class EventFd {
 public:
@@ -30,8 +32,17 @@ public:
     close(mEfd);
   }
 
+  void wait(Predicate condition) {
+    for (size_t i = 0; i < BUSY_WAIT_CYCLES; ++i) {
+      if (condition()) {
+        return;
+      }
+      std::this_thread::yield();
+    }
+    wait();
+  }
+
   void wait() {
-    return; // Needs further improvement
     mWaiting.store(true, std::memory_order_relaxed);
     uint64_t val;
     if (read(mEfd, &val, sizeof(val)) == -1) {
@@ -40,7 +51,6 @@ public:
   }
 
   void notify() {
-    return; // Needs further improvement
     if (!mWaiting.load(std::memory_order_relaxed)) {
       return;
     }

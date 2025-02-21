@@ -80,9 +80,7 @@ private:
     mEFd.wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(), ...);
-      if (isTupleEmpty(mEventQueues)) {
-        mEFd.wait();
-      }
+      mEFd.wait([this]() { return !isTupleEmpty(mEventQueues); });
     }
   }
 

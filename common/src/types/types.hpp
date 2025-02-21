@@ -19,19 +19,6 @@
 
 namespace hft {
 
-constexpr size_t BUFFER_SIZE = 1024 * 8;
-constexpr size_t LFQ_SIZE = 1024;
-/**
- * @brief Prevent infinite loop while consuming elements from lock free Q
- * consume_all is not good enough as processing events in chunks is more efficient
- * @todo try increasing and test
- */
-constexpr size_t LFQ_POP_LIMIT = 10;
-
-#ifndef CACHE_LINE_SIZE
-#define CACHE_LINE_SIZE 64
-#endif
-
 using String = std::string;
 using StringRef = const std::string &;
 using StringView = std::string_view;

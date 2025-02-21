@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "boost_types.hpp"
+#include "constants.hpp"
 #include "event_fd.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
@@ -111,9 +112,7 @@ private:
     mEFd.wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
-      if (isTupleEmpty(mEventQueues[mThreadId])) {
-        mEFd.wait();
-      }
+      mEFd.wait([this]() { return !isTupleEmpty(mEventQueues[mThreadId]); });
     }
   }
 

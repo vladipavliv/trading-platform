@@ -58,6 +58,7 @@ std::pair<Span<Type>, Span<Type>> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}
  * handler types
  */
 using Callback = std::function<void()>;
+using Predicate = std::function<bool()>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
 template <typename ArgType>
