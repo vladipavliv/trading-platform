@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 
+#include "template_types.hpp"
 #include "utils/utils.hpp"
 
 namespace hft {

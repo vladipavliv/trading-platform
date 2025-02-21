@@ -12,42 +12,34 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <stdint.h>
 #include <string>
 #include <vector>
 
 namespace hft {
 
-using String = std::string;
-using StringRef = const std::string &;
-using StringView = std::string_view;
-using ObjectId = uintptr_t;
-
 constexpr size_t BUFFER_SIZE = 1024 * 8;
-constexpr size_t EVENT_QUEUE_SIZE = 1024;
-
-using ByteBuffer = std::vector<uint8_t>;
-using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
-
-template <typename Arg>
-using CRefHandler = std::function<void(const Arg &)>;
-using Callback = std::function<void()>;
-
-using ThreadId = uint8_t;
-using TimestampRaw = uint32_t;
+constexpr size_t LFQ_SIZE = 1024;
+/**
+ * @brief Prevent infinite loop while consuming elements from lock free Q
+ * consume_all is not good enough as processing events in chunks is more efficient
+ * @todo try increasing and test
+ */
+constexpr size_t LFQ_POP_LIMIT = 10;
 
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE 64
 #endif
 
-template <typename... ValueTypes>
-struct Padding {
-  static constexpr size_t DataSize = (sizeof(ValueTypes) + ... + 0);
-  static constexpr size_t PaddingSize =
-      (CACHE_LINE_SIZE > DataSize) ? (CACHE_LINE_SIZE - DataSize) : 0;
-
-  std::array<char, PaddingSize> padding{};
-};
+using String = std::string;
+using StringRef = const std::string &;
+using StringView = std::string_view;
+using ObjectId = uintptr_t;
+using ByteBuffer = std::vector<uint8_t>;
+using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
+using ThreadId = uint8_t;
+using TimestampRaw = uint32_t;
 
 } // namespace hft
 

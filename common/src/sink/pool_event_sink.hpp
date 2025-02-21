@@ -27,7 +27,7 @@ namespace hft {
 template <typename... EventTypes>
 class PoolEventSink {
 public:
-  PoolEventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(EVENT_QUEUE_SIZE)) {}
+  PoolEventSink() : mEventQueues(createLFQueueTuple<EventTypes...>(LFQ_SIZE)) {}
   ~PoolEventSink() { stop(); }
 
   void start() {
@@ -59,12 +59,11 @@ public:
   }
 
   template <typename EventType>
-  void setHandler(CRefHandler<EventType> &&handler) {
+  void setHandler(SpanHandler<EventType> &&handler) {
     getHandler<EventType>() = std::move(handler);
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
     auto &queue = getQueue<EventType>();
     while (!queue.push(event)) {
@@ -73,8 +72,7 @@ public:
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
-  void post(const std::vector<EventType> &events) {
+  void post(Span<EventType> events) {
     auto &queue = getQueue<EventType>();
     for (auto &event : events) {
       while (!queue.push(event)) {
@@ -93,8 +91,13 @@ private:
   template <typename EventType>
   void processQueue() {
     auto &queue = getQueue<EventType>();
-    queue.consume_all(getHandler<EventType>());
-    std::this_thread::yield();
+    std::vector<EventType> buffer;
+    buffer.reserve(LFQ_POP_LIMIT);
+    EventType event;
+    while (buffer.size() < LFQ_POP_LIMIT && queue.pop(event)) {
+      buffer.emplace_back(event);
+    }
+    getHandler<EventType>()(Span<EventType>(buffer));
   }
 
   template <typename EventType>
@@ -103,8 +106,8 @@ private:
   }
 
   template <typename EventType>
-  std::function<void(const EventType &)> &getHandler() {
-    return std::get<CRefHandler<EventType>>(mEventHandlers);
+  SpanHandler<EventType> &getHandler() {
+    return std::get<SpanHandler<EventType>>(mEventHandlers);
   }
 
   template <typename Type>
@@ -113,18 +116,8 @@ private:
   }
 
 private:
-  template <typename EventType>
-  static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
-    return std::make_unique<LFQueue<EventType>>(size);
-  }
-
-  template <typename... TupleTypes>
-  static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
-    return std::make_tuple(createLFQueue<TupleTypes>(size)...);
-  }
-
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
-  std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
+  std::tuple<SpanHandler<EventTypes>...> mEventHandlers;
 
   std::vector<std::thread> mThreads;
   std::atomic_bool mStop{false};

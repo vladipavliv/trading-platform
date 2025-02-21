@@ -180,7 +180,7 @@ private:
       mHead = 0;
     }
     if (!mMessageBuffer.empty()) {
-      mSink.dataSink.post(mMessageBuffer);
+      mSink.dataSink.post(Span<MessageIn>(mMessageBuffer));
     }
     mMessageBuffer.clear();
     asyncRead();

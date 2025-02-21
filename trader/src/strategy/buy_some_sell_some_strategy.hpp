@@ -31,9 +31,9 @@ public:
         mTradeRate{Config::cfg.tradeRateUs}, mTimer{mSink.ctx()} {
     mStats.balance = utils::RNG::rng<uint64_t>(1000000);
     mSink.dataSink.setHandler<TickerPrice>(
-        [this](const TickerPrice &price) { priceUpdate(price); });
+        [this](Span<TickerPrice> prices) { priceUpdate(prices); });
     mSink.dataSink.setHandler<OrderStatus>(
-        [this](const OrderStatus &status) { orderStatus(status); });
+        [this](Span<OrderStatus> statuses) { orderUpdates(statuses); });
     mSink.controlSink.addCommandHandler(
         {TraderCommand::TradeStart, TraderCommand::TradeStop, TraderCommand::TradeSwitch,
          TraderCommand::CollectStats, TraderCommand::TradeSpeedUp, TraderCommand::TradeSpeedDown},
@@ -41,14 +41,23 @@ public:
   }
 
 private:
-  void priceUpdate(const TickerPrice &newPrice) { spdlog::debug(utils::toString(newPrice)); }
-  void orderStatus(const OrderStatus &status) {
-    mStats.ordersClosed.fetch_add(1);
-    auto rtt = RttTracker::logRtt(status.id);
-    spdlog::info("{} RTT {}", utils::toString(status), utils::getScaleUs(rtt));
-    (status.action == OrderAction::Buy)
-        ? mStats.balance.fetch_add(status.fillPrice * status.quantity)
-        : mStats.balance.fetch_sub(status.fillPrice * status.quantity);
+  void priceUpdate(Span<TickerPrice> prices) {
+    std::string pricesStr;
+    for (auto &price : prices) {
+      pricesStr += utils::toString(price) + " ";
+    }
+    spdlog::info(pricesStr);
+  }
+
+  void orderUpdates(Span<OrderStatus> statuses) {
+    mStats.ordersClosed.fetch_add(statuses.size());
+    for (auto &status : statuses) {
+      auto rtt = RttTracker::logRtt(status.id);
+      spdlog::info("{} RTT {}", utils::toString(status), utils::getScaleUs(rtt));
+      (status.action == OrderAction::Buy)
+          ? mStats.balance.fetch_add(status.fillPrice * status.quantity)
+          : mStats.balance.fetch_sub(status.fillPrice * status.quantity);
+    }
   }
 
   void tradeSwitch(bool start) {

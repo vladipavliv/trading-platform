@@ -27,6 +27,9 @@ struct RttStats {
   std::vector<RttRangeSample> samples{SAMPLES_SIZE};
 };
 
+/**
+ * @brief HdrHistogram at home
+ */
 class RttTracker {
   struct alignas(64) GlobalSample {
     std::atomic_uint64_t sum;
