@@ -36,10 +36,11 @@ public:
     for (size_t i = 0; i < Config::cfg.coresIo.size(); ++i) {
       mThreads.emplace_back([this, i]() {
         try {
-          spdlog::trace("Started Io thread on the core: {}", Config::cfg.coresIo[i]);
+          spdlog::debug("Started Io thread {} on the core: {}", i, Config::cfg.coresIo[i]);
           utils::pinThreadToCore(Config::cfg.coresIo[i]);
           utils::setTheadRealTime();
           mCtx.run();
+          spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
           spdlog::error(e.what());
         }

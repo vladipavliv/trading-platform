@@ -36,7 +36,7 @@ class PartitionEventSink {
 public:
   using Balancer = LoadBalancer;
 
-  PartitionEventSink() {
+  PartitionEventSink() : mEFds(Config().cfg.coresApp.size()) {
     const auto threads = Config().cfg.coresApp.size();
     mEventQueues.reserve(threads);
     std::generate_n(std::back_inserter(mEventQueues), threads,
@@ -55,12 +55,13 @@ public:
     for (size_t i = 0; i < Config().cfg.coresApp.size(); ++i) {
       mThreads.emplace_back([this, i] {
         try {
+          mThreadId = i;
           ThreadId core = Config().cfg.coresApp[i];
-          spdlog::trace("Started Worker thread on the core: {}", core);
+          spdlog::debug("Started worker thread {} on the core: {}", i, core);
           utils::pinThreadToCore(core);
           utils::setTheadRealTime();
-          mThreadId = i;
           processEvents();
+          spdlog::debug("Finished worker thread {}", i);
         } catch (const std::exception &e) {
           spdlog::error(e.what());
         }
@@ -72,8 +73,10 @@ public:
     if (mStop.load()) {
       return;
     }
-    mEFd.notify();
     mStop.store(true);
+    for (auto &fd : mEFds) {
+      fd.notify();
+    }
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
         thread.join();
@@ -97,7 +100,7 @@ public:
     while (!queue.push(event)) {
       std::this_thread::yield();
     }
-    mEFd.notify();
+    mEFds[id].notify();
   }
 
   template <typename EventType>
@@ -109,10 +112,10 @@ public:
 
 private:
   void processEvents() {
-    mEFd.wait();
+    mEFds[mThreadId].wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
-      mEFd.wait([this]() { return !isTupleEmpty(mEventQueues[mThreadId]); });
+      mEFds[mThreadId].wait([this]() { return !isTupleEmpty(mEventQueues[mThreadId]); });
     }
   }
 
@@ -147,9 +150,9 @@ private:
   std::vector<std::tuple<UPtrLFQueue<EventTypes>...>> mEventQueues;
   std::tuple<SpanHandler<EventTypes>...> mEventHandlers;
   std::vector<std::thread> mThreads;
+  std::vector<EventFd> mEFds;
 
   static thread_local ThreadId mThreadId;
-  EventFd mEFd;
   std::atomic_bool mStop{false};
 };
 

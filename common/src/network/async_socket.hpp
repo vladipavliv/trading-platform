@@ -102,7 +102,7 @@ public:
           [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.async_send_to(
-          boost::asio::buffer(dataPtr->data(), dataPtr->size()), mEndpoint,
+          boost::asio::buffer(dataPtr->data(), realSize), mEndpoint,
           [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
     }
   }

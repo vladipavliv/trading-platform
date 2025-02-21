@@ -12,7 +12,7 @@
 int main() {
   try {
     using namespace hft;
-    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::info);
+    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::debug);
     ConfigReader::readConfig("server_config.ini");
 
     spdlog::info("Server configuration:");

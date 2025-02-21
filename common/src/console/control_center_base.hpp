@@ -57,7 +57,7 @@ private:
     auto cmdRes = mConsoleParser.getCommand();
     while (cmdRes.ok()) {
       auto cmd = cmdRes.value();
-      // Notify others. Some commands processed by control center manually
+      spdlog::info(utils::toString(cmd));
       mSink.controlSink.onCommand(cmd);
       switch (cmd) {
       case Command::MonitorModeStart:

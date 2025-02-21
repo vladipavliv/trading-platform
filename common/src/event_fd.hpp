@@ -50,14 +50,15 @@ public:
     }
   }
 
-  void notify() {
-    if (!mWaiting.load(std::memory_order_relaxed)) {
+  void notify(bool force = false) {
+    if (!force && !mWaiting.load(std::memory_order_relaxed)) {
       return;
     }
     uint64_t val{1};
     if (write(mEfd, &val, sizeof(val)) == -1) {
       spdlog::error("Failed to write to eventfd");
     }
+    mWaiting.store(false, std::memory_order_relaxed);
   }
 
 private:

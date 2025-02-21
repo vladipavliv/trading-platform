@@ -26,10 +26,8 @@ public:
   BroadcastServer(ServerSink &sink)
       : mSink{sink}, mSocket{mSink, createSocket(sink.ctx()),
                              UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
-    mSink.ioSink.setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
-      spdlog::debug(utils::toString(prices));
-      mSocket.asyncWrite(prices);
-    });
+    mSink.ioSink.setHandler<TickerPrice>(
+        [this](Span<TickerPrice> prices) { mSocket.asyncWrite(prices); });
   }
 
   void start() { /*spdlog::debug("Start broadcasting market data at {}", Config::cfg.portUdp);*/ }

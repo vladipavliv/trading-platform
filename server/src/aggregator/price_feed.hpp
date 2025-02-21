@@ -72,17 +72,21 @@ private:
     }
     std::vector<TickerPrice> priceUpdates;
     priceUpdates.reserve(10);
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 5; ++i) {
       auto tickerPrice = *cursor++;
       if (cursor.end()) {
         cursor.reset();
       }
       tickerPrice.price = utils::RNG::rng<uint32_t>(900);
       mPrices.setPrice(tickerPrice);
+      priceUpdates.emplace_back(std::move(tickerPrice));
     }
-
+    std::string pricesLog;
+    for (auto &price : priceUpdates) {
+      pricesLog += utils::toString(price) + " ";
+    }
+    spdlog::debug(pricesLog);
     mSink.ioSink.post(Span<TickerPrice>(priceUpdates));
-    cursor++;
   }
 
 private:

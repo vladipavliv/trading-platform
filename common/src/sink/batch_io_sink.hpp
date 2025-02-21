@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_HYBRIDIOSINK_HPP
-#define HFT_COMMON_HYBRIDIOSINK_HPP
+#ifndef HFT_COMMON_BUFFEREDIOSINK_HPP
+#define HFT_COMMON_BUFFEREDIOSINK_HPP
 
 #include <spdlog/spdlog.h>
 
@@ -21,14 +21,14 @@ namespace hft {
  * @brief
  */
 template <typename... EventTypes>
-class HybridIoSink {
+class BatchIoSink {
   static constexpr size_t TypeCount = sizeof...(EventTypes);
 
 public:
-  HybridIoSink()
+  BatchIoSink()
       : mCtxGuard{mCtx.get_executor()}, mEventQueues(createLFQueueTuple<EventTypes...>(LFQ_SIZE)) {}
 
-  ~HybridIoSink() {
+  ~BatchIoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
         thread.join();
@@ -41,10 +41,11 @@ public:
     for (size_t i = 0; i < Config::cfg.coresIo.size(); ++i) {
       mThreads.emplace_back([this, i]() {
         try {
-          spdlog::trace("Started Io thread on the core: {}", Config::cfg.coresIo[i]);
+          spdlog::debug("Started Io thread {} on the core: {}", i, Config::cfg.coresIo[i]);
           utils::pinThreadToCore(Config::cfg.coresIo[i]);
           utils::setTheadRealTime();
           mCtx.run();
+          spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
           spdlog::error(e.what());
         }
@@ -122,4 +123,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_HYBRIDIOSINK_HPP
+#endif // HFT_COMMON_BUFFEREDIOSINK_HPP

@@ -13,7 +13,7 @@
 int main(int argc, char *argv[]) {
   try {
     using namespace hft;
-    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::info);
+    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::debug);
     ConfigReader::readConfig("trader_config.ini");
 
     spdlog::info("Trader configuration:");
