@@ -5,6 +5,7 @@
 
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
+#include "event_fd.hpp"
 #include "hft_trader.hpp"
 #include "logger_manager.hpp"
 #include "utils/string_utils.hpp"

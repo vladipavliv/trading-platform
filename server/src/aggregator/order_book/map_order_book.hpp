@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "market_types.hpp"
+#include "template_types.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
 #include "utils/string_utils.hpp"
@@ -26,48 +27,56 @@ namespace hft::server {
  */
 class MapOrderBook {
 public:
-  using MatchHandler = std::function<void(const OrderStatus &)>;
+  using MatchHandler = SpanHandler<OrderStatus>;
   using UPtr = std::unique_ptr<MapOrderBook>;
 
   MapOrderBook() = delete;
   MapOrderBook(Ticker ticker, MatchHandler matcher)
       : mTicker{ticker}, mHandler{std::move(matcher)} {
     assert(mHandler != nullptr);
+    mMatchesBuffer.reserve(20);
   }
 
-  void add(const Order &order) {
+  void add(Span<Order> orders) {
     mOrdersCurrent.fetch_add(1);
     bool matchingNeeded{false};
-    if (order.action == OrderAction::Buy) {
-      if (mBids.size() > ORDER_BOOK_LIMIT) {
-        spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
-        return;
+    // TODO() Remove later, this is optimization for the current test setup
+    // Only the best order gets notification
+    TraderId matchingId;
+    for (auto &order : orders) {
+      if (order.action == OrderAction::Buy) {
+        if (mBids.size() > ORDER_BOOK_LIMIT) {
+          spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
+          continue;
+        }
+        // If bid is lower then current best bid - we can skip matching
+        if (mBids.empty() || order.price > mBids.begin()->first) {
+          matchingNeeded = true;
+          matchingId = order.id;
+        }
+        auto &priceBids = mBids[order.price];
+        if (priceBids.empty()) { // Was just created
+          priceBids.reserve(ORDER_BOOK_LIMIT);
+        }
+        priceBids.push_back(order);
+      } else {
+        if (mAsks.size() > ORDER_BOOK_LIMIT) {
+          spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
+          return;
+        }
+        if (mAsks.empty() || order.price < mAsks.begin()->first) {
+          matchingNeeded = true;
+          matchingId = order.id;
+        }
+        auto &priceBids = mAsks[order.price];
+        if (priceBids.empty()) {
+          priceBids.reserve(ORDER_BOOK_LIMIT);
+        }
+        priceBids.push_back(order);
       }
-      // If bid is lower then current best bid - we can skip matching
-      if (mBids.empty() || order.price > mBids.begin()->first) {
-        matchingNeeded = true;
-      }
-      auto &priceBids = mBids[order.price];
-      if (priceBids.empty()) { // Was just created
-        priceBids.reserve(ORDER_BOOK_LIMIT);
-      }
-      priceBids.push_back(order);
-    } else {
-      if (mAsks.size() > ORDER_BOOK_LIMIT) {
-        spdlog::error("Order limit reached for {}", utils::toStrView(mTicker));
-        return;
-      }
-      if (mAsks.empty() || order.price < mAsks.begin()->first) {
-        matchingNeeded = true;
-      }
-      auto &priceBids = mAsks[order.price];
-      if (priceBids.empty()) {
-        priceBids.reserve(ORDER_BOOK_LIMIT);
-      }
-      priceBids.push_back(order);
     }
     if (matchingNeeded) {
-      match(order.id);
+      match(matchingId);
     }
   }
 
@@ -90,8 +99,8 @@ public:
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      handleMatch(bestBid, quantity, bestAsk.price, activeOrder);
-      handleMatch(bestAsk, quantity, bestAsk.price, activeOrder);
+      onOrderMatched(bestBid, quantity, bestAsk.price, activeOrder);
+      onOrderMatched(bestAsk, quantity, bestAsk.price, activeOrder);
 
       if (bestBid.quantity == 0) {
         bestBids.pop_back();
@@ -106,12 +115,14 @@ public:
         }
       }
     }
+    mHandler(Span<OrderStatus>{mMatchesBuffer});
+    mMatchesBuffer.clear();
   }
 
   inline size_t ordersCount() const { return mOrdersCurrent.load(); }
 
 private:
-  void handleMatch(const Order &order, Quantity quantity, Price price, OrderId activeOrder) {
+  void onOrderMatched(const Order &order, Quantity quantity, Price price, OrderId activeOrder) {
     if (order.id != activeOrder) {
       return;
     }
@@ -124,7 +135,7 @@ private:
     status.traderId = order.traderId;
     status.ticker = order.ticker;
     spdlog::info(utils::toString(status));
-    mHandler(status);
+    mMatchesBuffer.emplace_back(status);
     if (order.quantity == 0) {
       mOrdersCurrent.fetch_sub(1);
     }
@@ -136,6 +147,7 @@ private:
 
   Ticker mTicker;
   MatchHandler mHandler;
+  std::vector<OrderStatus> mMatchesBuffer;
 
   alignas(CACHE_LINE_SIZE) std::atomic<size_t> mOrdersCurrent;
 };

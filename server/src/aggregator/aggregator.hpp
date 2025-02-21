@@ -12,6 +12,7 @@
 
 #include "aggregator_data.hpp"
 #include "boost_types.hpp"
+#include "comparators.hpp"
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
@@ -35,7 +36,7 @@ namespace hft::server {
 class Aggregator {
 public:
   Aggregator(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink, getPricesView()} {
-    mSink.dataSink.setHandler<Order>([this](const Order &order) { processOrder(order); });
+    mSink.dataSink.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
     mSink.controlSink.addCommandHandler({ServerCommand::CollectStats},
                                         [this](ServerCommand command) {
                                           if (command == ServerCommand::CollectStats) {
@@ -74,7 +75,7 @@ private:
       data.threadId = roundRobin;
       data.currentPrice = item.price;
       data.orderBook = std::make_unique<OrderBook>(
-          item.ticker, [this](const OrderStatus &status) { mSink.ioSink.post(status); });
+          item.ticker, [this](Span<OrderStatus> statuses) { mSink.ioSink.post(statuses); });
       roundRobin++;
     }
     return data;
@@ -85,15 +86,20 @@ private:
     return PricesView{skData};
   }
 
-  void processOrder(const Order &order) {
-    spdlog::debug("Processing order {}", utils::toString(order));
-    if (!skData.contains(order.ticker)) {
-      spdlog::error("Unknown ticker {}", std::string(order.ticker.begin(), order.ticker.end()));
-      return;
+  void processOrders(Span<Order> orders) {
+    auto [subSpan, leftover] = frontSubspan(orders, TickerCmp<Order>{});
+    while (!subSpan.empty()) {
+      auto order = subSpan.front();
+      if (!skData.contains(order.ticker)) {
+        spdlog::error("Unknown ticker {}", std::string(order.ticker.begin(), order.ticker.end()));
+        continue;
+      }
+      auto &data = skData[order.ticker];
+      data.orderBook->add(subSpan);
+      data.eventCounter.fetch_add(1);
+
+      std::tie(subSpan, leftover) = frontSubspan(leftover, TickerCmp<Order>{});
     }
-    auto &data = skData[order.ticker];
-    data.orderBook->add(order);
-    data.eventCounter.fetch_add(1, std::memory_order_relaxed);
   }
 
   void getTrafficStats() {
@@ -111,7 +117,12 @@ private:
       if (iterator == skData.end()) {
         iterator = skData.begin();
       }
-      processOrder(utils::generateOrder(iterator->first));
+      std::vector<Order> orders;
+      orders.reserve(5);
+      for (int i = 0; i < 5; ++i) {
+        orders.emplace_back(utils::generateOrder(iterator->first));
+      }
+      processOrders(orders);
       iterator++;
     }
   }

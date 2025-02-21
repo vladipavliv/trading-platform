@@ -26,7 +26,7 @@ public:
 
   EgressServer(ServerSink &sink)
       : mSink{sink}, mAcceptor{mSink.ctx()}, mPort{Config::cfg.portTcpOut} {
-    mSink.ioSink.setHandler<OrderStatus>([this](const OrderStatus &status) { send(status); });
+    mSink.ioSink.setHandler<OrderStatus>([this](Span<OrderStatus> statuses) { send(statuses); });
   }
 
   void start() {
@@ -38,12 +38,20 @@ public:
   }
 
   template <typename MessageType>
-  void send(const MessageType &message) {
-    auto conn = mConnections.find(message.traderId);
-    if (conn == mConnections.end()) {
-      return;
+  void send(Span<MessageType> messages) {
+    std::sort(messages.begin(), messages.end(), TraderIdCmp<MessageType>{});
+
+    size_t cursor = 0;
+    auto [subSpan, leftover] = frontSubspan(messages, TraderIdCmp<MessageType>{});
+    while (!subSpan.empty()) {
+      auto conn = mConnections.find(subSpan.front().traderId);
+      if (conn == mConnections.end()) {
+        spdlog::debug("Trader {} is offline", subSpan.front().traderId);
+        continue;
+      }
+      conn->second->asyncWrite(subSpan);
+      std::tie(subSpan, leftover) = frontSubspan(leftover, TraderIdCmp<MessageType>{});
     }
-    conn->second->asyncWrite(message);
   }
 
 private:

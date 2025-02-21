@@ -12,8 +12,11 @@
 #include <unordered_map>
 
 #include "boost_types.hpp"
+#include "constants.hpp"
+#include "event_fd.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
+#include "template_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -23,24 +26,24 @@ namespace hft {
 /**
  * @brief Distributes events by Ticker across N threads
  * @details Every thread has its own set of queues. Tickers are distributed among threads
- * and each thread works with order book synchronously. Rebalancing is suggested to be done
+ * and each thread works with order books synchronously. Rebalancing is suggested to be done
  * via data aggregator, that holds a map Ticker -> ThreadId, so it can be done atomicly
  * by redirecting to another ThreadId, letting previous thread process its incoming orders
  * meanwhile working on another queues, once OrderBook is free, new thread takes over
  */
 template <typename LoadBalancer, typename... EventTypes>
-class BalancingEventSink {
+class PartitionEventSink {
 public:
   using Balancer = LoadBalancer;
 
-  BalancingEventSink() {
+  PartitionEventSink() {
     const auto threads = Config().cfg.coresApp.size();
     mEventQueues.reserve(threads);
     std::generate_n(std::back_inserter(mEventQueues), threads,
-                    [this]() { return createLFQueueTuple<EventTypes...>(EVENT_QUEUE_SIZE); });
+                    [this]() { return createLFQueueTuple<EventTypes...>(LFQ_SIZE); });
   }
 
-  ~BalancingEventSink() { stop(); }
+  ~PartitionEventSink() { stop(); }
 
   void start() {
     if (Config::cfg.coresApp.empty()) {
@@ -69,6 +72,7 @@ public:
     if (mStop.load()) {
       return;
     }
+    mEFd.notify();
     mStop.store(true);
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
@@ -78,12 +82,11 @@ public:
   }
 
   template <typename EventType>
-  void setHandler(CRefHandler<EventType> &&handler) {
+  void setHandler(SpanHandler<EventType> &&handler) {
     getHandler<EventType>() = std::move(handler);
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
     auto id = LoadBalancer::getWorkerId(event);
     if (id == std::numeric_limits<uint8_t>::max()) {
@@ -94,11 +97,11 @@ public:
     while (!queue.push(event)) {
       std::this_thread::yield();
     }
+    mEFd.notify();
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
-  void post(const std::vector<EventType> &events) {
+  void post(Span<EventType> events) {
     for (auto &event : events) {
       post<EventType>(event);
     }
@@ -106,16 +109,26 @@ public:
 
 private:
   void processEvents() {
+    mEFd.wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
+      mEFd.wait([this]() { return !isTupleEmpty(mEventQueues[mThreadId]); });
     }
   }
 
   template <typename EventType>
   void processQueue(ThreadId id) {
     auto &queue = getQueue<EventType>(id);
-    queue.consume_all(getHandler<EventType>());
-    std::this_thread::yield();
+    if (queue.empty()) {
+      return;
+    }
+    std::vector<EventType> buffer;
+    buffer.reserve(LFQ_POP_LIMIT);
+    EventType event;
+    while (buffer.size() < LFQ_POP_LIMIT && queue.pop(event)) {
+      buffer.emplace_back(event);
+    }
+    getHandler<EventType>()(Span<EventType>(buffer));
   }
 
   template <typename EventType>
@@ -125,36 +138,23 @@ private:
   }
 
   template <typename EventType>
-  std::function<void(const EventType &)> &getHandler() {
-    return std::get<CRefHandler<EventType>>(mEventHandlers);
-  }
-
-  template <typename Type>
-  static constexpr bool contains() {
-    return (std::is_same<Type, EventTypes>::value || ...);
+  SpanHandler<EventType> &getHandler() {
+    return std::get<SpanHandler<EventType>>(mEventHandlers);
   }
 
 private:
-  template <typename EventType>
-  static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
-    return std::make_unique<LFQueue<EventType>>(size);
-  }
-
-  template <typename... TupleTypes>
-  static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
-    return std::make_tuple(createLFQueue<TupleTypes>(size)...);
-  }
-
+  // Every thread has its own tuple with queues for events
   std::vector<std::tuple<UPtrLFQueue<EventTypes>...>> mEventQueues;
-  std::tuple<CRefHandler<EventTypes>...> mEventHandlers;
+  std::tuple<SpanHandler<EventTypes>...> mEventHandlers;
   std::vector<std::thread> mThreads;
 
   static thread_local ThreadId mThreadId;
+  EventFd mEFd;
   std::atomic_bool mStop{false};
 };
 
 template <typename LoadBalancer, typename... EventTypes>
-thread_local ThreadId BalancingEventSink<LoadBalancer, EventTypes...>::mThreadId = 0;
+thread_local ThreadId PartitionEventSink<LoadBalancer, EventTypes...>::mThreadId = 0;
 
 } // namespace hft
 

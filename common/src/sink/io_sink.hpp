@@ -16,9 +16,8 @@ namespace hft {
 
 /**
  * @brief Sink for Io operations. Events are being posted not on the IoContext
- * directly to minimize overhead, but rather io dependend objects register for events
- * and process them asynchronously. Runs Io context on a number of threads
- * along with the main thread joining
+ * directly to minimize overhead, but rather dispatchers register for events
+ * to process. Runs Io context on a number of threads
  */
 template <typename... EventTypes>
 class IoSink {
@@ -50,16 +49,14 @@ public:
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void setHandler(CRefHandler<EventType> &&handler) {
-    constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
+    constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers) = std::move(handler);
   }
 
   template <typename EventType>
-    requires(std::disjunction_v<std::is_same<EventType, EventTypes>...>)
   void post(const EventType &event) {
-    constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
+    constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers)(event);
   }
 
@@ -69,7 +66,7 @@ public:
 private:
   template <typename EventType>
   CRefHandler<EventType> &getHandler() {
-    constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
+    constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     return std::get<index>(mHandlers);
   }
 

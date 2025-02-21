@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
+#include "constants.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -74,31 +75,7 @@ public:
   }
 
   template <typename MessageTypeOut>
-  void asyncWrite(const MessageTypeOut &msg) {
-    if (!mSocket.is_open()) {
-      spdlog::error("Failed to write to the socket: not opened");
-      return;
-    }
-    auto buffer = Serializer::serialize(msg);
-    boost::endian::little_int16_at bodySize = static_cast<MessageSize>(buffer.size());
-    auto dataPtr = std::make_shared<ByteBuffer>(sizeof(MessageSize) + buffer.size());
-
-    std::memcpy(dataPtr->data(), &bodySize, sizeof(bodySize));
-    std::memcpy(dataPtr->data() + sizeof(bodySize), buffer.data(), buffer.size());
-
-    if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      boost::asio::async_write(
-          mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
-          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
-    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      mSocket.async_send_to(
-          boost::asio::buffer(dataPtr->data(), dataPtr->size()), mEndpoint,
-          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
-    }
-  }
-
-  template <typename MessageTypeOut>
-  void asyncWrite(const std::vector<MessageTypeOut> &msgVec) {
+  void asyncWrite(Span<MessageTypeOut> msgVec) {
     if (!mSocket.is_open()) {
       spdlog::error("Failed to write to the socket: not opened");
       return;
@@ -121,7 +98,7 @@ public:
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       boost::asio::async_write(
-          mSocket, boost::asio::buffer(dataPtr->data(), dataPtr->size()),
+          mSocket, boost::asio::buffer(dataPtr->data(), realSize),
           [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.async_send_to(
@@ -180,7 +157,7 @@ private:
       mHead = 0;
     }
     if (!mMessageBuffer.empty()) {
-      mSink.dataSink.post(mMessageBuffer);
+      mSink.dataSink.post(Span<MessageIn>(mMessageBuffer));
     }
     mMessageBuffer.clear();
     asyncRead();

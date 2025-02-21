@@ -61,7 +61,7 @@ struct TickerPrice {
   Price price;
 };
 
-constexpr size_t MAX_MESSAGE_SIZE = 256;
+constexpr size_t MAX_MESSAGE_SIZE = 90; // TODO() get more precise numbers
 // std::max({sizeof(Order), sizeof(OrderStatus), sizeof(TickerPrice)}) + sizeof(uint16_t);
 
 } // namespace hft

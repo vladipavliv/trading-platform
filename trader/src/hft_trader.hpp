@@ -31,6 +31,7 @@ public:
     mSink.controlSink.start();
     mServer.start();
     mSink.ioSink.start();
+    return;
   }
 
   void stop() {

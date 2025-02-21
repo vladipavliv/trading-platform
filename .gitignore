@@ -6,3 +6,9 @@ Makefile
 Makefile.*
 *.mk
 cmake_install.cmake
+config.ini
+hft_server
+hft_trader
+libhft_common.a
+server_config.ini
+trader_config.ini
