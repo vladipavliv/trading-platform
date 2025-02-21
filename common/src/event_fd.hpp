@@ -15,10 +15,12 @@ namespace hft {
 
 /**
  * @brief Lightweight condition variable to wake up threads
+ * Okay after testing maybe its not as lightweight as one would have hoped, need some additional
+ * logic like yeild thread for 100 cycles and then sleep on this fd or something
  */
 class EventFd {
 public:
-  EventFd() : mEfd{eventfd(0, EFD_NONBLOCK)} {
+  EventFd() : mEfd{eventfd(0, EFD_SEMAPHORE)} {
     if (mEfd == -1) {
       throw std::runtime_error("Failed to create eventfd");
     }
@@ -29,7 +31,8 @@ public:
   }
 
   void wait() {
-    mWaiting.store(true);
+    return; // Needs further improvement
+    mWaiting.store(true, std::memory_order_relaxed);
     uint64_t val;
     if (read(mEfd, &val, sizeof(val)) == -1) {
       spdlog::error("Failed to read from eventfd");
@@ -37,7 +40,8 @@ public:
   }
 
   void notify() {
-    if (!mWaiting.load()) {
+    return; // Needs further improvement
+    if (!mWaiting.load(std::memory_order_relaxed)) {
       return;
     }
     uint64_t val{1};

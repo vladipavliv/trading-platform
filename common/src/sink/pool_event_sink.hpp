@@ -51,6 +51,7 @@ public:
       return;
     }
     mStop.store(true);
+    mEFd.notify();
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
         thread.join();
@@ -64,14 +65,6 @@ public:
   }
 
   template <typename EventType>
-  void post(const EventType &event) {
-    auto &queue = getQueue<EventType>();
-    while (!queue.push(event)) {
-      std::this_thread::yield();
-    }
-  }
-
-  template <typename EventType>
   void post(Span<EventType> events) {
     auto &queue = getQueue<EventType>();
     for (auto &event : events) {
@@ -79,18 +72,26 @@ public:
         std::this_thread::yield();
       }
     }
+    mEFd.notify();
   }
 
 private:
   void processEvents() {
+    mEFd.wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(), ...);
+      if (isTupleEmpty(mEventQueues)) {
+        mEFd.wait();
+      }
     }
   }
 
   template <typename EventType>
   void processQueue() {
     auto &queue = getQueue<EventType>();
+    if (queue.empty()) {
+      return;
+    }
     std::vector<EventType> buffer;
     buffer.reserve(LFQ_POP_LIMIT);
     EventType event;
@@ -119,10 +120,11 @@ private:
   std::tuple<UPtrLFQueue<EventTypes>...> mEventQueues;
   std::tuple<SpanHandler<EventTypes>...> mEventHandlers;
 
-  std::vector<std::thread> mThreads;
+  EventFd mEFd;
   std::atomic_bool mStop{false};
-
   static thread_local uint8_t mThreadIndex;
+
+  std::vector<std::thread> mThreads;
 };
 
 } // namespace hft

@@ -71,6 +71,7 @@ public:
     if (mStop.load()) {
       return;
     }
+    mEFd.notify();
     mStop.store(true);
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
@@ -107,6 +108,7 @@ public:
 
 private:
   void processEvents() {
+    mEFd.wait();
     while (!mStop.load()) {
       (processQueue<EventTypes>(mThreadId), ...);
       if (isTupleEmpty(mEventQueues[mThreadId])) {
@@ -118,6 +120,9 @@ private:
   template <typename EventType>
   void processQueue(ThreadId id) {
     auto &queue = getQueue<EventType>(id);
+    if (queue.empty()) {
+      return;
+    }
     std::vector<EventType> buffer;
     buffer.reserve(LFQ_POP_LIMIT);
     EventType event;

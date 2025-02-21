@@ -46,7 +46,7 @@ private:
     for (auto &price : prices) {
       pricesStr += utils::toString(price) + " ";
     }
-    spdlog::info(pricesStr);
+    spdlog::info("PriceUpdate: {}", pricesStr);
   }
 
   void orderUpdates(Span<OrderStatus> statuses) {
