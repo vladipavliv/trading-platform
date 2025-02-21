@@ -61,7 +61,7 @@ public:
 private:
   template <typename EventType>
   std::vector<CRefHandler<EventType>> &getEventHandlers() {
-    constexpr auto index = utils::getTypeIndex<EventType, EventTypes...>();
+    constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     return std::get<index>(mEventHandlers);
   }
 

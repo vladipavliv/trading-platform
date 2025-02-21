@@ -61,12 +61,7 @@ struct TickerPrice {
   Price price;
 };
 
-template <typename Type>
-struct TickerCmp {
-  bool operator()(const Type &left, const Type &right) { return left.ticker < right.ticker; }
-};
-
-constexpr size_t MAX_MESSAGE_SIZE = 256; // TODO() fix this shit
+constexpr size_t MAX_MESSAGE_SIZE = 90; // TODO() get more precise numbers
 // std::max({sizeof(Order), sizeof(OrderStatus), sizeof(TickerPrice)}) + sizeof(uint16_t);
 
 } // namespace hft

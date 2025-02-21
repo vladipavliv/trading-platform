@@ -26,9 +26,9 @@ public:
   BroadcastServer(ServerSink &sink)
       : mSink{sink}, mSocket{mSink, createSocket(sink.ctx()),
                              UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
-    mSink.ioSink.setHandler<TickerPrice>([this](const TickerPrice &price) {
-      spdlog::debug(utils::toString(price));
-      mSocket.asyncWrite(price);
+    mSink.ioSink.setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
+      spdlog::debug(utils::toString(prices));
+      mSocket.asyncWrite(prices);
     });
   }
 

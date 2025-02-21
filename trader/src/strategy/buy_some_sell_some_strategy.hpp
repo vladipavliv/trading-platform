@@ -78,7 +78,7 @@ private:
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     order.quantity = utils::RNG::rng(1000);
     spdlog::debug("Placing order {}", utils::toString(order));
-    mSink.ioSink.post(order);
+    mSink.ioSink.post(Span<Order>{&order, 1});
   }
 
   void processCommand(TraderCommand cmd) {

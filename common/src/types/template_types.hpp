@@ -19,20 +19,39 @@
 namespace hft {
 
 /**
- * Span
+ * Generic helpers
+ */
+template <typename EventType, typename First, typename... Rest>
+constexpr size_t indexOf() {
+  if constexpr (std::is_same_v<EventType, First>) {
+    return 0;
+  } else if constexpr (sizeof...(Rest) > 0) {
+    return 1 + indexOf<EventType, Rest...>();
+  } else {
+    static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
+    return -1;
+  }
+}
+template <typename EventType, typename... Types>
+constexpr size_t getTypeIndex() {
+  return indexOf<EventType, Types...>();
+}
+
+/**
+ * span
  */
 template <typename Type>
 using Span = std::span<Type>;
 template <typename Type, typename Cmp>
-Span<Type> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}) {
+std::pair<Span<Type>, Span<Type>> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}) {
   if (input.size() < 2) {
-    return input;
+    return std::make_pair(input, Span<Type>());
   }
   size_t end = 0;
   while (end < input.size() && cmp(input.front(), input[end])) {
     ++end;
   }
-  return input.subspan(0, end);
+  return std::make_pair(input.subspan(0, end), input.subspan(end, input.size()));
 }
 
 /**

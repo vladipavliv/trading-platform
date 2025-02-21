@@ -12,6 +12,7 @@
 
 #include "aggregator_data.hpp"
 #include "boost_types.hpp"
+#include "comparators.hpp"
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
@@ -74,7 +75,7 @@ private:
       data.threadId = roundRobin;
       data.currentPrice = item.price;
       data.orderBook = std::make_unique<OrderBook>(
-          item.ticker, [this](const OrderStatus &status) { mSink.ioSink.post(status); });
+          item.ticker, [this](Span<OrderStatus> statuses) { mSink.ioSink.post(statuses); });
       roundRobin++;
     }
     return data;
@@ -86,8 +87,7 @@ private:
   }
 
   void processOrders(Span<Order> orders) {
-    auto subSpan = frontSubspan(orders, TickerCmp<Order>{});
-    auto cursor{0};
+    auto [subSpan, leftover] = frontSubspan(orders, TickerCmp<Order>{});
     while (!subSpan.empty()) {
       auto order = subSpan.front();
       if (!skData.contains(order.ticker)) {
@@ -98,8 +98,7 @@ private:
       data.orderBook->add(subSpan);
       data.eventCounter.fetch_add(1);
 
-      cursor += subSpan.size();
-      subSpan = frontSubspan(orders.subspan(cursor, orders.size() - cursor), TickerCmp<Order>{});
+      std::tie(subSpan, leftover) = frontSubspan(leftover, TickerCmp<Order>{});
     }
   }
 

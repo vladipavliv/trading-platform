@@ -27,13 +27,14 @@ namespace hft::server {
  */
 class MapOrderBook {
 public:
-  using MatchHandler = std::function<void(const OrderStatus &)>;
+  using MatchHandler = SpanHandler<OrderStatus>;
   using UPtr = std::unique_ptr<MapOrderBook>;
 
   MapOrderBook() = delete;
   MapOrderBook(Ticker ticker, MatchHandler matcher)
       : mTicker{ticker}, mHandler{std::move(matcher)} {
     assert(mHandler != nullptr);
+    mMatchesBuffer.reserve(20);
   }
 
   void add(Span<Order> orders) {
@@ -98,8 +99,8 @@ public:
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      handleMatch(bestBid, quantity, bestAsk.price, activeOrder);
-      handleMatch(bestAsk, quantity, bestAsk.price, activeOrder);
+      onOrderMatched(bestBid, quantity, bestAsk.price, activeOrder);
+      onOrderMatched(bestAsk, quantity, bestAsk.price, activeOrder);
 
       if (bestBid.quantity == 0) {
         bestBids.pop_back();
@@ -114,12 +115,14 @@ public:
         }
       }
     }
+    mHandler(Span<OrderStatus>{mMatchesBuffer});
+    mMatchesBuffer.clear();
   }
 
   inline size_t ordersCount() const { return mOrdersCurrent.load(); }
 
 private:
-  void handleMatch(const Order &order, Quantity quantity, Price price, OrderId activeOrder) {
+  void onOrderMatched(const Order &order, Quantity quantity, Price price, OrderId activeOrder) {
     if (order.id != activeOrder) {
       return;
     }
@@ -132,7 +135,7 @@ private:
     status.traderId = order.traderId;
     status.ticker = order.ticker;
     spdlog::info(utils::toString(status));
-    mHandler(status);
+    mMatchesBuffer.emplace_back(status);
     if (order.quantity == 0) {
       mOrdersCurrent.fetch_sub(1);
     }
@@ -144,6 +147,7 @@ private:
 
   Ticker mTicker;
   MatchHandler mHandler;
+  std::vector<OrderStatus> mMatchesBuffer;
 
   alignas(CACHE_LINE_SIZE) std::atomic<size_t> mOrdersCurrent;
 };

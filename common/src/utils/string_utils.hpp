@@ -11,8 +11,9 @@
 #include <sstream>
 #include <string>
 
-#include "types/market_types.hpp"
-#include "types/types.hpp"
+#include "market_types.hpp"
+#include "template_types.hpp"
+#include "types.hpp"
 
 namespace hft::utils {
 
@@ -96,6 +97,15 @@ std::string toString(const std::vector<Type> &vec) {
   }
   ss << "]";
   return ss.str();
+}
+
+template <typename Type>
+std::string toString(Span<Type> elements) {
+  std::string result;
+  for (auto &element : elements) {
+    result += toString(element) + " ";
+  }
+  return result;
 }
 
 String toLower(String str) {

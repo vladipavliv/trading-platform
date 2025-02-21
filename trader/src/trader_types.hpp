@@ -10,9 +10,10 @@
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
-#include "sink/balancing_event_sink.hpp"
 #include "sink/command_sink.hpp"
+#include "sink/hybrid_io_sink.hpp"
 #include "sink/io_sink.hpp"
+#include "sink/partition_event_sink.hpp"
 #include "sink/pool_event_sink.hpp"
 
 namespace hft::trader {
@@ -20,7 +21,7 @@ namespace hft::trader {
 struct TradingStats;
 
 using EventSink = PoolEventSink<OrderStatus, TickerPrice>;
-using TraderIoSink = IoSink<Order>;
+using TraderIoSink = HybridIoSink<Order>;
 using TraderControlSink = ControlSink<TraderCommand, TradingStats>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;

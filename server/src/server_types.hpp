@@ -10,9 +10,10 @@
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
-#include "sink/balancing_event_sink.hpp"
 #include "sink/command_sink.hpp"
+#include "sink/hybrid_io_sink.hpp"
 #include "sink/io_sink.hpp"
+#include "sink/partition_event_sink.hpp"
 #include "sink/pool_event_sink.hpp"
 
 namespace hft::server {
@@ -22,8 +23,8 @@ class OrderTrafficStats;
 class MapOrderBook;
 class FlatOrderBook;
 
-using EventSink = BalancingEventSink<Aggregator, Order>;
-using ServerIoSink = IoSink<OrderStatus, TickerPrice>;
+using EventSink = PartitionEventSink<Aggregator, Order>;
+using ServerIoSink = HybridIoSink<OrderStatus, TickerPrice>;
 using ServerControlSink = ControlSink<ServerCommand, OrderTrafficStats>;
 using Serializer = hft::serialization::FlatBuffersSerializer;
 using OrderBook = MapOrderBook;

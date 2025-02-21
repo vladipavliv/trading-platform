@@ -31,18 +31,18 @@ namespace hft {
  * meanwhile working on another queues, once OrderBook is free, new thread takes over
  */
 template <typename LoadBalancer, typename... EventTypes>
-class BalancingEventSink {
+class PartitionEventSink {
 public:
   using Balancer = LoadBalancer;
 
-  BalancingEventSink() {
+  PartitionEventSink() {
     const auto threads = Config().cfg.coresApp.size();
     mEventQueues.reserve(threads);
     std::generate_n(std::back_inserter(mEventQueues), threads,
                     [this]() { return createLFQueueTuple<EventTypes...>(LFQ_SIZE); });
   }
 
-  ~BalancingEventSink() { stop(); }
+  ~PartitionEventSink() { stop(); }
 
   void start() {
     if (Config::cfg.coresApp.empty()) {
@@ -150,7 +150,7 @@ private:
 };
 
 template <typename LoadBalancer, typename... EventTypes>
-thread_local ThreadId BalancingEventSink<LoadBalancer, EventTypes...>::mThreadId = 0;
+thread_local ThreadId PartitionEventSink<LoadBalancer, EventTypes...>::mThreadId = 0;
 
 } // namespace hft
 

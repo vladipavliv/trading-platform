@@ -70,9 +70,18 @@ private:
     if (cursor.end()) {
       cursor.reset();
     }
-    auto tickerPrice = *cursor;
-    mPrices.setPrice({tickerPrice.ticker, utils::RNG::rng<uint32_t>(900)});
-    mSink.ioSink.post(*cursor);
+    std::vector<TickerPrice> priceUpdates;
+    priceUpdates.reserve(10);
+    for (int i = 0; i < 10; ++i) {
+      auto tickerPrice = *cursor++;
+      if (cursor.end()) {
+        cursor.reset();
+      }
+      tickerPrice.price = utils::RNG::rng<uint32_t>(900);
+      mPrices.setPrice(tickerPrice);
+    }
+
+    mSink.ioSink.post(Span<TickerPrice>(priceUpdates));
     cursor++;
   }
 
