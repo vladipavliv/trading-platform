@@ -29,14 +29,13 @@ void pinThreadToCore(int core_id) {
 }
 
 void setTheadRealTime() {
-  // Set real-time priority (SCHED_FIFO)
   struct sched_param param;
-  param.sched_priority = 99; // Highest priority for real-time threads
+  param.sched_priority = 99;
   sched_setscheduler(0, SCHED_FIFO, &param);
 
-  auto rc = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
-  if (rc != 0) {
-    spdlog::error("Failed to set real-time priority: {}", rc);
+  auto code = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+  if (code != 0) {
+    spdlog::error("Failed to set real-time priority: {}", code);
   }
 }
 
@@ -44,11 +43,6 @@ TraderId getTraderId(const TcpSocket &sock) {
   auto endpoint = sock.remote_endpoint();
   std::string idString = endpoint.address().to_string();
   return static_cast<uint32_t>(std::hash<std::string>{}(idString));
-}
-
-size_t getId() { // For the sake of testing
-  static size_t counter = 0;
-  return counter++;
 }
 
 Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act) {

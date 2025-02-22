@@ -24,6 +24,7 @@ namespace hft::server {
  * @brief For simulation sake if order not matched immediately TraderId gets changed
  * to simulate lots of traders and not polute client side statistics with filled orders
  * that were placed 5 seconds ago
+ * Performing significantly better then the one upstairs
  */
 class MapOrderBook {
 public:

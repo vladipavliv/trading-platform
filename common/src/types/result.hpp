@@ -8,7 +8,7 @@
 
 #include <variant>
 
-#include "error_code.hpp"
+#include "status_code.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -16,17 +16,17 @@ namespace hft {
 template <typename ValueType>
 class Result {
 public:
-  Result() : mValue{ErrorCode::Empty} {}
-  Result(ValueType value) : mValue(std::move(value)) {}
-  Result(ErrorCode error) : mValue(error) {}
+  Result() : mValue{ValueType{}, StatusCode::Empty} {}
+  Result(ValueType value) : mValue{std::move(value), StatusCode::Ok} {}
+  Result(StatusCode error) : mValue{ValueType{}, error} {}
 
-  bool ok() const { return std::holds_alternative<ValueType>(mValue); }
+  bool ok() const { return mValue.second == StatusCode::Ok; }
   operator bool() const { return ok(); }
-  const ValueType &value() const { return std::get<ValueType>(mValue); }
-  ErrorCode error() const { return std::get<ErrorCode>(mValue); }
+  const ValueType &value() const { return mValue.first; }
+  StatusCode error() const { return mValue.second; }
 
 private:
-  std::variant<ValueType, ErrorCode> mValue;
+  std::pair<ValueType, StatusCode> mValue;
 };
 
 } // namespace hft

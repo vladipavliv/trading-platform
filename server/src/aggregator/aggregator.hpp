@@ -29,9 +29,9 @@ namespace hft::server {
  * tickers synchronously. Amount of tickers would always be higher then amount of worker threads
  * Tickers are also well known, so we can have lock-free mapping Ticker -> ThreadId
  * When rebalancing would be needed, orderbook can be marked untill previous thread finishes
- * processing its messages, and then next thread takes over. Next thread meanwhile works on
- * other ticker orders, and requests for this ticker are still being processed by previous thread
- * Not sure if thats a viable idea or if thats truly lock-free
+ * processing its messages, and then next thread takes over. Next thread meanwhile works on other
+ * ticker orders, and previous requests for this ticker are still being processed by previous thread
+ * Not sure if thats a viable idea or if thats truly lock-free stuff
  */
 class Aggregator {
 public:

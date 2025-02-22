@@ -26,7 +26,7 @@ public:
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::Order>()) {
       spdlog::error("Order verification failed");
-      return ErrorCode::Error;
+      return StatusCode::Error;
     }
     auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
     return Order{0,
@@ -43,7 +43,7 @@ public:
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::OrderStatus>()) {
       spdlog::error("OrderStatus verification failed");
-      return ErrorCode::Error;
+      return StatusCode::Error;
     }
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);
     return OrderStatus{0,
@@ -61,7 +61,7 @@ public:
     flatbuffers::Verifier verifier(buffer, size);
     if (!verifier.VerifyBuffer<gen::fbs::TickerPrice>()) {
       spdlog::error("TickerPrice verification failed");
-      return ErrorCode::Error;
+      return StatusCode::Error;
     }
     auto orderMsg = flatbuffers::GetRoot<gen::fbs::TickerPrice>(buffer);
     return TickerPrice{fbStringToTicker(orderMsg->ticker()), orderMsg->price()};

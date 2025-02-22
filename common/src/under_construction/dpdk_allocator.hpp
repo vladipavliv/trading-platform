@@ -18,6 +18,9 @@
 
 namespace hft {
 
+/**
+ * @brief Couldn't get it to perform well
+ */
 class DpdkMempool {
 public:
   static void init(int argc, char *argv[]) {
@@ -44,7 +47,6 @@ public:
 
   rte_mempool &getPool() { return *mPool; }
 
-  // Allocate an element from the memory pool
   void *alloc() {
     void *obj;
     if (rte_mempool_get(mPool, &obj) < 0) {
@@ -53,14 +55,12 @@ public:
     return obj;
   }
 
-  // Free an element back to the memory pool
   void free(void *obj) { rte_mempool_put(mPool, obj); }
 
 private:
   rte_mempool *mPool;
 };
 
-// Custom allocator for std::vector
 template <typename Type>
 class DpdkAllocator {
 public:

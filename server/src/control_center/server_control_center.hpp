@@ -55,7 +55,7 @@ public:
 
 private:
   void printStats() {
-    if (mStats.empty()) {
+    if (mStats.empty() || mStats.front().processedOrders == 0) {
       return;
     }
 

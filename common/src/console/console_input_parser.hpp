@@ -15,9 +15,9 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-#include "error_code.hpp"
 #include "result.hpp"
 #include "sink/command_sink.hpp"
+#include "status_code.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
@@ -43,17 +43,17 @@ public:
 
   Result<Command> getCommand(uint32_t timeoutMs = 0) {
     if (!waitForInput(timeoutMs)) {
-      return ErrorCode::Empty;
+      return StatusCode::Empty;
     }
     std::getline(std::cin, mInput);
     auto cmdIt = mCommandMap.find(mInput);
     mInput.clear();
     if (cmdIt == mCommandMap.end()) {
-      return ErrorCode::Empty;
+      return StatusCode::Empty;
     } else {
       return cmdIt->second;
     }
-    return ErrorCode::Empty;
+    return StatusCode::Empty;
   }
 
 private:

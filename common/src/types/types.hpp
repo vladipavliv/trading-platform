@@ -6,13 +6,8 @@
 #ifndef HFT_COMMON_TYPES_HPP
 #define HFT_COMMON_TYPES_HPP
 
-#include <array>
-#include <cassert>
-#include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
-#include <span>
 #include <stdint.h>
 #include <string>
 #include <vector>
