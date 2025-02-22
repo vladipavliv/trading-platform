@@ -48,7 +48,6 @@ public:
   }
 
   void onEvent(ThreadId threadId, Span<Order> orders) {
-    spdlog::trace("onEvent {} orders {}", threadId, orders.size());
     auto [subSpan, leftover] = frontSubspan(orders, TickerCmp<Order>{});
     while (!subSpan.empty()) {
       auto order = subSpan.front();
@@ -70,7 +69,6 @@ public:
         auto matches = data.orderBook->match();
         data.orderBook->release();
         if (!matches.empty()) {
-          spdlog::trace("{} matches", matches.size());
           mSink.ioSink.post(Span<OrderStatus>(matches));
         }
       } else {

@@ -13,7 +13,7 @@
 
 #include "boost_types.hpp"
 #include "console/control_center_base.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
 #include "rtt_tracker.hpp"
 #include "strategy/trading_stats.hpp"
 #include "trader_types.hpp"
@@ -30,25 +30,42 @@ public:
       : mSink{sink}, mBase{mSink,
                            {{"t+", Command::TradeStart},
                             {"t-", Command::TradeStop},
-                            {"t", Command::TradeSwitch},
                             {"ts+", Command::TradeSpeedUp},
                             {"ts-", Command::TradeSpeedDown},
-                            {"p+", Command::PriceFeedStart},
-                            {"p-", Command::PriceFeedStop},
-                            {"p", Command::PriceFeedSwitch},
-                            {"m+", Command::MonitorModeStart},
-                            {"m-", Command::MonitorModeStop},
-                            {"m", Command::MonitorModeSwitch},
                             {"l+", Command::LogLevelUp},
                             {"l-", Command::LogLevelDown},
-                            {"q", Command::Shutdown}}} {
+                            {"q", Command::Shutdown}}},
+        mMonitorRate{Config::cfg.monitorRateS}, mTimer{mSink.ctx()} {
     // Set stats collect callback it would be triggered synchronously
     // whenever we request them with command CollectStats
     mSink.controlSink.addEventHandler<TradingStats>(
         [this](const TradingStats &stats) { printStats(stats); });
+    mSink.controlSink.addCommandHandler({TraderCommand::TradeStart, TraderCommand::TradeStop},
+                                        [this](TraderCommand command) {
+                                          if (command == TraderCommand::TradeStart) {
+                                            mTrading = true;
+                                            scheduleTimer();
+                                          } else if (command == TraderCommand::TradeStop) {
+                                            mTrading = false;
+                                          }
+                                        });
   }
 
 private:
+  void scheduleTimer() {
+    if (!mTrading) {
+      return;
+    }
+    mTimer.expires_after(Seconds(mMonitorRate));
+    mTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      mSink.controlSink.onCommand(Command::CollectStats);
+      scheduleTimer();
+    });
+  }
+
   void printStats(const TradingStats &stats) {
     using namespace utils;
     auto rtt = RttTracker::getStats().samples;
@@ -70,12 +87,16 @@ private:
     ss << ((rtt[2].size != 0) ? ((rtt[2].sum / rtt[2].size) / 1000) : 0);
     ss << "ms";
 
-    LoggerManager::logService(ss.str());
+    Logger::monitorLogger->info(ss.str());
   }
 
 private:
   TraderSink &mSink;
   ControlCenterBase<Command, TraderSink> mBase;
+
+  std::atomic_bool mTrading{false};
+  Seconds mMonitorRate;
+  SteadyTimer mTimer;
 };
 
 } // namespace hft::trader

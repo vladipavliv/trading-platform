@@ -10,7 +10,7 @@
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
-#include "sink/batch_io_sink.hpp"
+#include "sink/buffer_io_sink.hpp"
 #include "sink/command_sink.hpp"
 #include "sink/io_sink.hpp"
 #include "sink/partition_event_sink.hpp"

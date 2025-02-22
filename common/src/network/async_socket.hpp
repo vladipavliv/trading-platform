@@ -40,7 +40,6 @@ public:
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
-    setSockOpts();
   }
 
   AsyncSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
@@ -50,7 +49,6 @@ public:
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
-    setSockOpts();
   }
 
   void asyncConnect() {
@@ -78,7 +76,6 @@ public:
 
   template <typename MessageTypeOut>
   void asyncWrite(Span<MessageTypeOut> msgVec) {
-    spdlog::trace("Socket::asyncWrite {} messages", msgVec.size());
     if (!mSocket.is_open()) {
       spdlog::error("Failed to write to the socket: not opened");
       return;
@@ -172,7 +169,6 @@ private:
       spdlog::error("Connect failed: {}", ec.message());
       return;
     }
-    setSockOpts();
     mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
     asyncRead();
   }

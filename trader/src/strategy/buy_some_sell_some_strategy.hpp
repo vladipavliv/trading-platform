@@ -34,10 +34,10 @@ public:
         [this](Span<TickerPrice> prices) { priceUpdate(prices); });
     mSink.dataSink.setHandler<OrderStatus>(
         [this](Span<OrderStatus> statuses) { orderUpdates(statuses); });
-    mSink.controlSink.addCommandHandler(
-        {TraderCommand::TradeStart, TraderCommand::TradeStop, TraderCommand::TradeSwitch,
-         TraderCommand::CollectStats, TraderCommand::TradeSpeedUp, TraderCommand::TradeSpeedDown},
-        [this](TraderCommand cmd) { processCommand(cmd); });
+    mSink.controlSink.addCommandHandler({TraderCommand::TradeStart, TraderCommand::TradeStop,
+                                         TraderCommand::CollectStats, TraderCommand::TradeSpeedUp,
+                                         TraderCommand::TradeSpeedDown},
+                                        [this](TraderCommand cmd) { processCommand(cmd); });
   }
 
 private:
@@ -92,9 +92,6 @@ private:
       break;
     case TraderCommand::TradeStop:
       tradeSwitch(false);
-      break;
-    case TraderCommand::TradeSwitch:
-      tradeSwitch(!mTrading);
       break;
     case TraderCommand::CollectStats:
       mSink.controlSink.onEvent(mStats);

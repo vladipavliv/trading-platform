@@ -38,7 +38,6 @@ public:
   inline size_t ordersCount() const { return mOrdersCurrent.load(std::memory_order_relaxed); }
 
   void add(Span<Order> orders) {
-    spdlog::trace("MapOrderBook::add {} orders", orders.size());
     for (auto &order : orders) {
       mOrdersCurrent.fetch_add(1);
       if (order.action == OrderAction::Buy) {
@@ -47,7 +46,7 @@ public:
           continue;
         }
         auto &priceBids = mBids[order.price];
-        if (priceBids.empty()) { // Was just created
+        if (priceBids.empty()) {
           priceBids.reserve(ORDER_BOOK_LIMIT);
         }
         priceBids.emplace_back(order);
@@ -67,9 +66,7 @@ public:
     }
   }
 
-  /* Randomizator */
   std::vector<OrderStatus> match() {
-    spdlog::trace("MapOrderBook::match");
     std::vector<OrderStatus> matches;
     matches.reserve(10); // TODO
     while (!mBids.empty() && !mAsks.empty()) {
@@ -132,7 +129,10 @@ private:
   // TODO try flat_map
   std::map<uint32_t, std::vector<Order>, std::greater<uint32_t>> mBids;
   std::map<uint32_t, std::vector<Order>> mAsks;
-  std::set<OrderId> mLastAdded; // RANDOMIZATOR
+  /* Randomizator: orders that have been added get placed in the set until match() is called
+  then upon matching only the last added orders get notification sent to the client
+  this way we simulate lots of traders for the sake of testing */
+  std::set<OrderId> mLastAdded;
 
   std::atomic_flag mBusy = ATOMIC_FLAG_INIT;
 

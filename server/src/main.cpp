@@ -6,19 +6,19 @@
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "hft_server.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
 #include "template_types.hpp"
 #include "utils/string_utils.hpp"
 
 int main() {
   try {
     using namespace hft;
-    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::trace);
+    Logger::initialize(spdlog::level::trace, "server_log.txt");
     ConfigReader::readConfig("server_config.ini");
 
-    spdlog::info("Server configuration:");
+    Logger::monitorLogger->info("Server configuration:");
     Config::cfg.logConfig();
-    spdlog::info("LogLevel:{}", utils::toString(spdlog::get_level()));
+    Logger::monitorLogger->info("LogLevel:{}", utils::toString(spdlog::get_level()));
 
     server::HftServer server;
     server.start();

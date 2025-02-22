@@ -26,18 +26,15 @@ class PriceFeed {
 public:
   PriceFeed(ServerSink &sink, PricesView prices)
       : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {
-    mSink.controlSink.addCommandHandler({ServerCommand::PriceFeedStart,
-                                         ServerCommand::PriceFeedStop,
-                                         ServerCommand::PriceFeedSwitch},
-                                        [this](ServerCommand command) {
-                                          if (command == ServerCommand::PriceFeedStart) {
-                                            switchMode(true);
-                                          } else if (command == ServerCommand::PriceFeedStop) {
-                                            switchMode(false);
-                                          } else if (command == ServerCommand::PriceFeedSwitch) {
-                                            switchMode(!mShow);
-                                          }
-                                        });
+    mSink.controlSink.addCommandHandler(
+        {ServerCommand::PriceFeedStart, ServerCommand::PriceFeedStop},
+        [this](ServerCommand command) {
+          if (command == ServerCommand::PriceFeedStart) {
+            switchMode(true);
+          } else if (command == ServerCommand::PriceFeedStop) {
+            switchMode(false);
+          }
+        });
   }
 
 private:

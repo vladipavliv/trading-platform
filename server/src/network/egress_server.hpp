@@ -39,7 +39,6 @@ public:
 
   template <typename MessageType>
   void send(Span<MessageType> messages) {
-    spdlog::trace("EgressServer::send {} messages", messages.size());
     std::sort(messages.begin(), messages.end(), TraderIdCmp<MessageType>{});
 
     auto [subSpan, leftover] = frontSubspan(messages, TraderIdCmp<MessageType>{});
