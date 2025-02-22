@@ -18,17 +18,21 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief Buffers incoming events in lock free queue before io threads can pick them up
+ * I was concerned about the 5% of 1ms-50ms spikes, and decided to try this batch approach
+ * Did not pay off. Last performance check:
+ * [20:15:48.671] [I] RTT [1us|100us|1ms]  91.15% avg:30us  4.02% avg:134us  4.83% avg:25ms
+ * [20:15:48.219] [I] [open|total]: 121978|186330 RPS:9551
  */
 template <typename... EventTypes>
-class BatchIoSink {
+class BufferIoSink {
   static constexpr size_t TypeCount = sizeof...(EventTypes);
 
 public:
-  BatchIoSink()
+  BufferIoSink()
       : mCtxGuard{mCtx.get_executor()}, mEventQueues(createLFQueueTuple<EventTypes...>(LFQ_SIZE)) {}
 
-  ~BatchIoSink() {
+  ~BufferIoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
         thread.join();

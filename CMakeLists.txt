@@ -14,21 +14,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fno-omit-frame-pointer")
 find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
 find_package(spdlog REQUIRED)
 
-# Definitions
-set(SERVER_URL "127.0.0.1")
-set(PORT_TCP_IN 8080)
-set(PORT_TCP_OUT 8081)
-set(PORT_UDP 8082)
-set(CORES_SERVER_IO "10") # Additional core alongside the main thread
-set(CORES_SERVER_APP "2,4")
-set(CORES_TRADER_IO "11") # Additional core alongside the main thread
-set(CORES_TRADER_APP "3,5")
-set(CACHE_LINE_SIZE 64)
-set(USE_MIMALLOC OFF)
-set(ORDER_BOOK_LIMIT 500)
-set(FEED_RATE 1000) # μs
-set(TRADE_RATE 1000) # μs
-
 # Generate flatbuffers code from the schema
 set(SCHEMA_FILE ${CMAKE_SOURCE_DIR}/common/schema/marketdata.fbs)
 set(GEN_DIR ${CMAKE_SOURCE_DIR}/common/src/gen)
@@ -42,6 +27,9 @@ add_custom_target(code_generator DEPENDS ${GEN_DIR}/marketdata_generated.h)
 
 set(CMAKE_AR "/usr/bin/ar")
 set(CMAKE_RANLIB "/usr/bin/ranlib")
+
+# definitions
+set(USE_MIMALLOC OFF)
 
 # PostgreSQL
 find_package(PkgConfig REQUIRED)
@@ -68,32 +56,14 @@ endif()
 # Server Target
 file(GLOB_RECURSE SERVER_SOURCES "server/src/*.cpp" "server/src/**/*.cpp" "server/src/*.hpp" "server/src/**/*.hpp")
 add_executable(hft_server ${SERVER_SOURCES})
-target_compile_definitions(hft_server PRIVATE 
-    SERVER_URL="${SERVER_URL}" 
-    PORT_TCP_IN=${PORT_TCP_IN} 
-    PORT_TCP_OUT=${PORT_TCP_OUT} 
-    PORT_UDP=${PORT_UDP} 
-    CACHE_LINE_SIZE=${CACHE_LINE_SIZE}
-    FEED_RATE=${FEED_RATE}
-    CORES_IO="${CORES_SERVER_IO}"
-    CORES_APP="${CORES_SERVER_APP}"
-    ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
+target_compile_definitions(hft_server PRIVATE)
 target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_server PRIVATE  common/src server/src server/src/types)
 
 # Trader Target
 file(GLOB_RECURSE TRADER_SOURCES "trader/src/*.cpp" "trader/src/**/*.cpp" "trader/src/*.hpp" "trader/src/**/*.hpp")
 add_executable(hft_trader ${TRADER_SOURCES})
-target_compile_definitions(hft_trader PRIVATE 
-    SERVER_URL="${SERVER_URL}" 
-    PORT_TCP_IN=${PORT_TCP_IN} 
-    PORT_TCP_OUT=${PORT_TCP_OUT} 
-    PORT_UDP=${PORT_UDP} 
-    CACHE_LINE_SIZE=${CACHE_LINE_SIZE}
-    TRADE_RATE=${TRADE_RATE}
-    CORES_IO="${CORES_TRADER_IO}"
-    CORES_APP="${CORES_TRADER_APP}"
-    ORDER_BOOK_LIMIT=${ORDER_BOOK_LIMIT})
+target_compile_definitions(hft_trader PRIVATE)
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
 

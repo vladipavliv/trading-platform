@@ -40,6 +40,7 @@ public:
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
+    setSockOpts();
   }
 
   AsyncSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
@@ -49,6 +50,7 @@ public:
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
+    setSockOpts();
   }
 
   void asyncConnect() {
@@ -81,6 +83,7 @@ public:
       spdlog::error("Failed to write to the socket: not opened");
       return;
     }
+
     size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
     auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
@@ -169,6 +172,7 @@ private:
       spdlog::error("Connect failed: {}", ec.message());
       return;
     }
+    setSockOpts();
     mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
     asyncRead();
   }
@@ -176,6 +180,18 @@ private:
   void writeHandler(BoostErrorRef ec, size_t written) {
     if (ec) {
       spdlog::error("Write failed: {}", ec.message());
+    }
+  }
+
+  void setSockOpts() {
+    auto handle = mSocket.native_handle();
+    int us = 50;
+    if (setsockopt(handle, SOL_SOCKET, SO_BUSY_POLL, &us, sizeof(us)) < 0) {
+      spdlog::error("Failed to set polling for socket");
+    }
+    int bufferSize = 1024 * 1024;
+    if (setsockopt(handle, SOL_SOCKET, SO_SNDBUF, &bufferSize, sizeof(bufferSize)) < 0) {
+      spdlog::error("Failed to set socket buffer size");
     }
   }
 

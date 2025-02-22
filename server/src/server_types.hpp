@@ -24,7 +24,7 @@ class MapOrderBook;
 class FlatOrderBook;
 
 using EventSink = PartitionEventSink<Aggregator, Order>;
-using ServerIoSink = BatchIoSink<OrderStatus, TickerPrice>;
+using ServerIoSink = IoSink<OrderStatus, TickerPrice>;
 using ServerControlSink = ControlSink<ServerCommand, OrderTrafficStats>;
 using Serializer = hft::serialization::FlatBuffersSerializer;
 using OrderBook = MapOrderBook;

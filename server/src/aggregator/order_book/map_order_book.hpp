@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "constants.hpp"
 #include "market_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
