@@ -32,9 +32,6 @@ struct alignas(CACHE_LINE_SIZE) TickerData {
 
   OrderBook::UPtr orderBook;
   std::atomic<ThreadId> threadId;
-  std::atomic<SPtrLFQueue<Order>> rerouteQueue;
-
-  alignas(CACHE_LINE_SIZE) std::atomic<size_t> eventCounter;
   alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> currentPrice;
 
   using UPtr = std::unique_ptr<TickerData>;

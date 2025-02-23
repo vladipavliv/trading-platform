@@ -11,12 +11,12 @@
 #include <ranges>
 #include <spdlog/spdlog.h>
 
-#include "acquirer.hpp"
 #include "aggregator_data.hpp"
 #include "boost_types.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
+#include "locker.hpp"
 #include "market_types.hpp"
 #include "order_traffic_stats.hpp"
 #include "pool/lfq_pool.hpp"
@@ -49,9 +49,7 @@ public:
                                             getTrafficStats();
                                           }
                                         });
-    // This rerouting approach is quite bad: Rtt for rerouted orders min:19ms max:561ms avg:119.0ms
-    // For rerouted orders we need to directly move them from old worker queue to a new worker queue
-    // scheduleLoadBalancing();
+    scheduleLoadBalancing();
   }
 
   void onEvent(ThreadId threadId, Span<Order> orders) {
@@ -60,48 +58,32 @@ public:
       auto order = subSpan.front();
       if (!skData.contains(order.ticker)) {
         spdlog::error("Unknown ticker {}", [&order] { return utils::toStrView(order.ticker); }());
-        continue;
+        break;
       }
       auto &data = skData[order.ticker];
-      AcquiRer<OrderBook> ack(*data.orderBook);
-      if (data.getThreadId() == threadId && ack.success) {
-        data.orderBook->add(subSpan);
-        // Steal the current queue to avoid hanging buffers, if its currently in use we will just
-        // pop all elements, if not, the previous thread will get a brand new queue from the pool
-        auto activeLfq = std::atomic_exchange(&data.rerouteQueue, nullptr);
-        if (activeLfq != nullptr && !activeLfq->empty()) {
-          spdlog::info("Processing buffer after rerouting");
-          std::vector<Order> reroutedOrders;
-          Order order;
-          while (activeLfq->pop(order)) {
-            reroutedOrders.emplace_back(std::move(order));
-          }
-          data.orderBook->add(Span<Order>(reroutedOrders));
+      Lock<OrderBook> lock{*data.orderBook};
+      if (!lock.success || data.getThreadId() != threadId) {
+        // When rerouting happens OrderBook gets locked first and then ThreadId gets switched
+        // So Thread wont get caught in the middle of the work with the book.
+        // So if we fail to lock the book here that means other thread took over.
+        // Push the orders back to the sink so they get handled by the new thread
+        for (auto &order : subSpan) {
+          spdlog::info("Rerouting {}", order.id);
         }
+        mSink.dataSink.post(subSpan);
+      } else {
+        data.orderBook->add(subSpan);
         auto matches = data.orderBook->match();
         if (!matches.empty()) {
+          for (auto &status : matches) {
+            if (status.state == OrderState::Full) {
+              mOrdersClosed.fetch_add(1, std::memory_order_relaxed);
+            }
+          }
           mSink.ioSink.post(Span<OrderStatus>(matches));
         }
-      } else {
-        std::stringstream ss;
-        for (auto &order : subSpan) {
-          spdlog::info("Rerouting {} to a buffer", order.id);
-        }
-        // Either previous thread revisits the rerouted order book cause it still
-        // has some orders in its queue, or new thread cannot yet take over cause previous
-        // thread was caught for reorder in the midst of operation. Cache the orders
-        LFQPool<Order>::SPtrLFQueueType existingLfq = nullptr;
-        auto activeLfq = mLfqPool.getLFQueue();
-        if (!std::atomic_compare_exchange_strong(&data.rerouteQueue, &existingLfq, activeLfq)) {
-          activeLfq = existingLfq;
-        }
-        for (auto &order : subSpan) {
-          while (!activeLfq->push(order)) {
-            std::this_thread::yield();
-          }
-        }
       }
-      data.eventCounter.fetch_add(1);
+      mOrdersTotal.fetch_add(subSpan.size(), std::memory_order_relaxed);
       std::tie(subSpan, leftover) = frontSubspan(leftover, TickerCmp<Order>{});
     }
   }
@@ -136,15 +118,13 @@ private:
 
   void getTrafficStats() {
     OrderTrafficStats stats;
-    for (auto &item : skData) {
-      stats.processedOrders += item.second.eventCounter.load();
-      stats.currentOrders += item.second.orderBook->ordersCount();
-    }
+    stats.ordersTotal = mOrdersTotal.load(std::memory_order_relaxed);
+    stats.ordersClosed = mOrdersClosed.load(std::memory_order_relaxed);
     mSink.controlSink.onEvent(stats);
   }
 
   void scheduleLoadBalancing() {
-    mLoadBalanceTimer.expires_after(MilliSeconds(1)); // Milliseconds(1)
+    mLoadBalanceTimer.expires_after(MilliSeconds(1));
     mLoadBalanceTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         balanceLoad();
@@ -161,8 +141,8 @@ private:
     auto iter = skData.begin();
     std::advance(iter, utils::RNG::rng<size_t>(skData.size() - 1));
 
-    auto rerouted = iter->second.rerouteQueue.load();
-    if (rerouted != nullptr) {
+    Lock<OrderBook> lock{*(iter->second.orderBook)};
+    if (!lock.success) {
       return;
     }
 
@@ -179,6 +159,9 @@ private:
   static AggregatorData skData;
   PriceFeed mPriceFeed;
   LFQPool<Order> mLfqPool;
+
+  std::atomic_size_t mOrdersTotal;
+  std::atomic_size_t mOrdersClosed;
 
   SteadyTimer mLoadBalanceTimer;
 };

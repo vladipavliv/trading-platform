@@ -12,12 +12,12 @@
 namespace hft::server {
 
 struct OrderTrafficStats {
-  size_t currentOrders{0};
-  size_t processedOrders{0};
+  size_t ordersTotal{0};
+  size_t ordersClosed{0};
   Timestamp timestamp{std::chrono::system_clock::now()};
 
   bool operator==(const OrderTrafficStats &other) const {
-    return currentOrders == other.currentOrders && processedOrders == other.processedOrders;
+    return ordersTotal == other.ordersTotal && ordersClosed == other.ordersClosed;
   }
 };
 

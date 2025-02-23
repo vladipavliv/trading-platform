@@ -11,9 +11,9 @@
 #include <memory>
 #include <spdlog/spdlog.h>
 
-#include "acquirer.hpp"
 #include "comparators.hpp"
 #include "constants.hpp"
+#include "locker.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
@@ -37,8 +37,8 @@ public:
   }
 
   SPtrLFQueueType getLFQueue() {
-    AcquiRer<Type> ack{*this};
-    if (!ack.success) {
+    Lock<Type> lock{*this};
+    if (!lock.success) {
       auto newLfq = std::make_shared<LFQueueType>(LFQ_SIZE);
       // Wanted to use lock free buffer here to add newly created lfq to a pool later but shared_ptr
       // aint trivially destructible. Not a big deal i think as this right here is quite a tight
