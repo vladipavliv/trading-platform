@@ -51,11 +51,15 @@ public:
           mCtx.run();
           spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
-          spdlog::error(e.what());
+          spdlog::critical("Exception in Io thread {}", e.what());
         }
       });
     }
-    mCtx.run();
+    try {
+      mCtx.run();
+    } catch (const std::exception &e) {
+      spdlog::critical("Exception in Io thread {}", e.what());
+    }
   }
 
   template <typename EventType>
@@ -105,6 +109,9 @@ private:
     EventType event;
     while (events.size() < LFQ_POP_LIMIT && queue.pop(event)) {
       events.emplace_back(std::move(event));
+    }
+    if (events.empty()) {
+      return;
     }
     std::get<SpanHandler<EventType>>(mHandlers)(Span<EventType>(events));
   }

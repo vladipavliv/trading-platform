@@ -65,7 +65,7 @@ public:
           processEvents();
           spdlog::debug("Finished worker thread {}", i);
         } catch (const std::exception &e) {
-          spdlog::error(e.what());
+          spdlog::critical("Exception in worker thread {}", e.what());
         }
       });
     }
@@ -107,6 +107,8 @@ public:
       post<EventType>(event);
     }
   }
+
+  inline size_t workers() const { return mThreads.size(); }
 
 private:
   void processEvents() {

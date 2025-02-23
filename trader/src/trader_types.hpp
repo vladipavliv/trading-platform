@@ -21,7 +21,7 @@ namespace hft::trader {
 struct TradingStats;
 
 using EventSink = PoolEventSink<OrderStatus, TickerPrice>;
-using TraderIoSink = BufferIoSink<Order>;
+using TraderIoSink = IoSink<Order>;
 using TraderControlSink = ControlSink<TraderCommand, TradingStats>;
 
 using Serializer = hft::serialization::FlatBuffersSerializer;

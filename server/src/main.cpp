@@ -11,8 +11,9 @@
 #include "utils/string_utils.hpp"
 
 int main() {
+  using namespace hft;
+  std::unique_ptr<server::HftServer> server;
   try {
-    using namespace hft;
     Logger::initialize(spdlog::level::trace, "server_log.txt");
     ConfigReader::readConfig("server_config.ini");
 
@@ -20,10 +21,12 @@ int main() {
     Config::cfg.logConfig();
     Logger::monitorLogger->info("LogLevel:{}", utils::toString(spdlog::get_level()));
 
-    server::HftServer server;
-    server.start();
+    server = std::make_unique<server::HftServer>();
+    server->start();
   } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
+    spdlog::critical("Exception caught in main {}", e.what());
+    spdlog::default_logger()->flush();
+    server->stop();
   }
   return 0;
 }

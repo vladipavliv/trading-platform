@@ -44,11 +44,15 @@ public:
           mCtx.run();
           spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
-          spdlog::error(e.what());
+          spdlog::critical("Exception in Io thread {}", e.what());
         }
       });
     }
-    mCtx.run();
+    try {
+      mCtx.run();
+    } catch (const std::exception &e) {
+      spdlog::critical("Exception in Io thread {}", e.what());
+    }
   }
 
   template <typename EventType>

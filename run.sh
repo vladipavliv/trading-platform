@@ -1,4 +1,4 @@
-#!/bin/bash
+    #!/bin/bash
 
 clear
 
@@ -12,7 +12,9 @@ cd build
 ulimit -c unlimited
 
 if [ "$1" == "s" ]; then
+    rm -f server_log.*.txt
     sudo ./hft_server
 else [ "$1" == "t" ] || [ "$1" == "trader" ];
+    rm -f trader_log.*.txt
     sudo ./hft_trader
 fi

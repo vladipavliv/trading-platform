@@ -55,7 +55,7 @@ private:
     mStats.ordersClosed.fetch_add(statuses.size());
     for (auto &status : statuses) {
       auto rtt = RttTracker::logRtt(status.id);
-      spdlog::info(
+      spdlog::trace(
           "{} RTT {}", [&status] { return utils::toString(status); }(),
           [&rtt] { return utils::getScaleUs(rtt); }());
       (status.action == OrderAction::Buy)
@@ -81,7 +81,7 @@ private:
     order.price = utils::RNG::rng<uint32_t>(tickerPrice.price * 2);
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     order.quantity = utils::RNG::rng(1000);
-    spdlog::debug("Placing order {}", [&order] { return utils::toString(order); }());
+    spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
     mSink.ioSink.post(Span<Order>{&order, 1});
   }
 

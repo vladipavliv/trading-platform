@@ -27,7 +27,7 @@ using EventSink = PartitionEventSink<Aggregator, Order>;
 using ServerIoSink = IoSink<OrderStatus, TickerPrice>;
 using ServerControlSink = ControlSink<ServerCommand, OrderTrafficStats>;
 using Serializer = hft::serialization::FlatBuffersSerializer;
-using OrderBook = MapOrderBook;
+using OrderBook = FlatOrderBook;
 
 struct ServerSink {
   EventSink dataSink;

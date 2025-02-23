@@ -21,7 +21,7 @@ namespace hft {
 
 constexpr size_t BUFFER_SIZE = 1024 * 8;
 constexpr size_t LFQ_SIZE = 1024;
-constexpr size_t LFQ_POP_LIMIT = 10;
+constexpr size_t LFQ_POP_LIMIT = 20;
 constexpr size_t BUSY_WAIT_CYCLES = 1000000;
 constexpr size_t ORDER_BOOK_LIMIT = 1000;
 constexpr size_t CACHE_LINE_SIZE = 64;

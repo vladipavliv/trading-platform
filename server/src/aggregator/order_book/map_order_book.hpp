@@ -10,24 +10,22 @@
 #include <map>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "constants.hpp"
 #include "market_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
-#include "utils/rng.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
 
 /**
- * @brief
+ * @brief OrderBook base on std::map. Supports basic acquire/release mechanism
+ * for atomic modifications
  */
 class MapOrderBook {
 public:
-  using MatchHandler = SpanHandler<OrderStatus>;
   using UPtr = std::unique_ptr<MapOrderBook>;
 
   MapOrderBook() = default;
@@ -50,7 +48,7 @@ public:
           priceBids.reserve(ORDER_BOOK_LIMIT);
         }
         priceBids.emplace_back(order);
-        mLastAdded.insert(order.id);
+        mLastAdded.insert(order.id); // Randomizator
       } else {
         if (mAsks.size() > ORDER_BOOK_LIMIT) {
           spdlog::error("Limit reached {}", [&order] { return utils::toStrView(order.ticker); }());
@@ -61,14 +59,14 @@ public:
           priceBids.reserve(ORDER_BOOK_LIMIT);
         }
         priceBids.emplace_back(order);
-        mLastAdded.insert(order.id);
+        mLastAdded.insert(order.id); // Randomizator
       }
     }
   }
 
   std::vector<OrderStatus> match() {
     std::vector<OrderStatus> matches;
-    matches.reserve(10); // TODO
+    matches.reserve(10);
     while (!mBids.empty() && !mAsks.empty()) {
       auto &bestBids = mBids.begin()->second;
       auto &bestAsks = mAsks.begin()->second;

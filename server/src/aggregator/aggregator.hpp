@@ -11,6 +11,7 @@
 #include <ranges>
 #include <spdlog/spdlog.h>
 
+#include "acquirer.hpp"
 #include "aggregator_data.hpp"
 #include "boost_types.hpp"
 #include "comparators.hpp"
@@ -37,7 +38,8 @@ namespace hft::server {
  */
 class Aggregator {
 public:
-  Aggregator(ServerSink &sink) : mSink{sink}, mPriceFeed{mSink, getPricesView()} {
+  Aggregator(ServerSink &sink)
+      : mSink{sink}, mPriceFeed{mSink, getPricesView()}, mLoadBalanceTimer{mSink.ctx()} {
     mSink.dataSink.setConsumer(this);
     mSink.controlSink.addCommandHandler({ServerCommand::CollectStats},
                                         [this](ServerCommand command) {
@@ -45,6 +47,7 @@ public:
                                             getTrafficStats();
                                           }
                                         });
+    scheduleLoadBalancing();
   }
 
   void onEvent(ThreadId threadId, Span<Order> orders) {
@@ -56,9 +59,11 @@ public:
         continue;
       }
       auto &data = skData[order.ticker];
-      if (data.getThreadId() == threadId && data.orderBook->acquire()) {
+      AcquiRer<OrderBook> ack(*data.orderBook);
+      if (data.getThreadId() == threadId && ack.success) {
         data.orderBook->add(subSpan);
         if (!data.rerouteQueue.empty()) {
+          spdlog::info("Processing buffer after rerouting");
           std::vector<Order> rerouted;
           Order order;
           while (data.rerouteQueue.pop(order)) {
@@ -72,7 +77,7 @@ public:
           mSink.ioSink.post(Span<OrderStatus>(matches));
         }
       } else {
-        spdlog::trace("Rerouting {} orders to a buffer", subSpan.size());
+        spdlog::info("Rerouting {} orders to a buffer", subSpan.size());
         // Either previous thread revisits the rerouted order book cause it still
         // has some orders in its queue, or new thread cannot yet take over cause previous
         // thread was caught for reorder in the midst of operation. Cache the orders
@@ -124,10 +129,38 @@ private:
     mSink.controlSink.onEvent(stats);
   }
 
+  void scheduleLoadBalancing() {
+    mLoadBalanceTimer.expires_after(Seconds(1)); // Milliseconds(1)
+    mLoadBalanceTimer.async_wait([this](BoostErrorRef ec) {
+      if (!ec) {
+        balanceLoad();
+        scheduleLoadBalancing();
+      }
+    });
+  }
+
+  void balanceLoad() {
+    auto workers = mSink.dataSink.workers();
+    if (workers < 2) {
+      return;
+    }
+    auto iter = skData.begin();
+    std::advance(iter, utils::RNG::rng<size_t>(skData.size() - 1));
+
+    ThreadId prevWorker = iter->second.getThreadId();
+    ThreadId newWorker = (prevWorker == workers - 1) ? 0 : prevWorker + 1;
+    iter->second.setThreadId(newWorker);
+    spdlog::info(
+        "Ticker {} have been rerouted from {} to {} ",
+        [&iter] { return utils::toStrView(iter->first); }(), prevWorker, newWorker);
+  }
+
 private:
   ServerSink &mSink;
   static AggregatorData skData;
   PriceFeed mPriceFeed;
+
+  SteadyTimer mLoadBalanceTimer;
 };
 
 AggregatorData Aggregator::skData;
