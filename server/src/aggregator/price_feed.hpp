@@ -26,18 +26,15 @@ class PriceFeed {
 public:
   PriceFeed(ServerSink &sink, PricesView prices)
       : mSink{sink}, mPrices{std::move(prices)}, mTimer{mSink.ctx()} {
-    mSink.controlSink.addCommandHandler({ServerCommand::PriceFeedStart,
-                                         ServerCommand::PriceFeedStop,
-                                         ServerCommand::PriceFeedSwitch},
-                                        [this](ServerCommand command) {
-                                          if (command == ServerCommand::PriceFeedStart) {
-                                            switchMode(true);
-                                          } else if (command == ServerCommand::PriceFeedStop) {
-                                            switchMode(false);
-                                          } else if (command == ServerCommand::PriceFeedSwitch) {
-                                            switchMode(!mShow);
-                                          }
-                                        });
+    mSink.controlSink.addCommandHandler(
+        {ServerCommand::PriceFeedStart, ServerCommand::PriceFeedStop},
+        [this](ServerCommand command) {
+          if (command == ServerCommand::PriceFeedStart) {
+            switchMode(true);
+          } else if (command == ServerCommand::PriceFeedStop) {
+            switchMode(false);
+          }
+        });
   }
 
 private:
@@ -80,12 +77,8 @@ private:
       tickerPrice.price = utils::RNG::rng<uint32_t>(900);
       mPrices.setPrice(tickerPrice);
       priceUpdates.emplace_back(std::move(tickerPrice));
+      spdlog::trace([&tickerPrice] { return utils::toString(tickerPrice); }());
     }
-    std::string pricesLog;
-    for (auto &price : priceUpdates) {
-      pricesLog += utils::toString(price) + " ";
-    }
-    spdlog::debug(pricesLog);
     mSink.ioSink.post(Span<TickerPrice>(priceUpdates));
   }
 

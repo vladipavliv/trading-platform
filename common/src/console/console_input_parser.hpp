@@ -72,7 +72,7 @@ private:
       }
       auto cmdStr = ss.str();
       auto descrStr = utils::toString(inpVec.first);
-      spdlog::info(std::format(
+      Logger::monitorLogger->info(std::format(
           "> {:<} {:^} {:>}", cmdStr,
           std::string(mCommandsWidth - cmdStr.length() - descrStr.length() - 1, '.'), descrStr));
     }

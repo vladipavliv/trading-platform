@@ -15,7 +15,7 @@
 #include "aggregator/order_traffic_stats.hpp"
 #include "boost_types.hpp"
 #include "console/control_center_base.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
 #include "market_types.hpp"
 #include "server_types.hpp"
 #include "utils/string_utils.hpp"
@@ -34,13 +34,10 @@ public:
       : mSink{sink}, mBase{mSink,
                            {{"p+", Command::PriceFeedStart},
                             {"p-", Command::PriceFeedStop},
-                            {"p", Command::PriceFeedSwitch},
-                            {"m+", Command::MonitorModeStart},
-                            {"m-", Command::MonitorModeStop},
-                            {"m", Command::MonitorModeSwitch},
                             {"l+", Command::LogLevelUp},
                             {"l-", Command::LogLevelDown},
-                            {"q", Command::Shutdown}}} {
+                            {"q", Command::Shutdown}}},
+        mMonitorRate{Config::cfg.monitorRateS}, mTimer{mSink.ctx()} {
     // Set stats collect callback,
     // it would be triggered synchronously whenever we request them with command CollectStats
     mSink.controlSink.addEventHandler<OrderTrafficStats>([this](const OrderTrafficStats &stats) {
@@ -51,11 +48,23 @@ public:
       mStats.push_front(stats);
       printStats();
     });
+    scheduleTimer();
   }
 
 private:
+  void scheduleTimer() {
+    mTimer.expires_after(Seconds(mMonitorRate));
+    mTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      mSink.controlSink.onCommand(Command::CollectStats);
+      scheduleTimer();
+    });
+  }
+
   void printStats() {
-    if (mStats.empty() || mStats.front().processedOrders == 0) {
+    if (mStats.size() < 2 || mStats.front() == mStats.back()) {
       return;
     }
 
@@ -69,7 +78,7 @@ private:
       auto pRps = (mStats.front().processedOrders - mStats.back().processedOrders) / factor;
       log += std::format("RPS:{}", pRps);
     }
-    LoggerManager::logService(log);
+    Logger::monitorLogger->info(log);
   }
 
 private:
@@ -77,7 +86,8 @@ private:
   ControlCenterBase<Command, ServerSink> mBase;
 
   std::deque<OrderTrafficStats> mStats;
-  Seconds mStatsRate{1};
+  Seconds mMonitorRate;
+  SteadyTimer mTimer;
 };
 
 } // namespace hft::server

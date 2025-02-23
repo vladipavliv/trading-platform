@@ -39,6 +39,7 @@ private:
   void acceptConnection() {
     mAcceptor.set_option(TcpSocket::reuse_address(true));
     mAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
+      socket.set_option(TcpSocket::protocol_type::no_delay(true));
       if (ec) {
         spdlog::error("Failed to accept connection {}", ec.message());
         return;

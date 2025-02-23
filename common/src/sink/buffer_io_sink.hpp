@@ -18,17 +18,21 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief Buffers incoming events in lock free queue before io threads can pick them up
+ * I was concerned about the 5% of 1ms-50ms spikes, and decided to try this batch approach
+ * Did not pay off. Last performance check:
+ * [20:15:48.671] [I] RTT [1us|100us|1ms]  91.15% avg:30us  4.02% avg:134us  4.83% avg:25ms
+ * [20:15:48.219] [I] [open|total]: 121978|186330 RPS:9551
  */
 template <typename... EventTypes>
-class BatchIoSink {
+class BufferIoSink {
   static constexpr size_t TypeCount = sizeof...(EventTypes);
 
 public:
-  BatchIoSink()
+  BufferIoSink()
       : mCtxGuard{mCtx.get_executor()}, mEventQueues(createLFQueueTuple<EventTypes...>(LFQ_SIZE)) {}
 
-  ~BatchIoSink() {
+  ~BufferIoSink() {
     for (auto &thread : mThreads) {
       if (thread.joinable()) {
         thread.join();
@@ -47,11 +51,15 @@ public:
           mCtx.run();
           spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
-          spdlog::error(e.what());
+          spdlog::critical("Exception in Io thread {}", e.what());
         }
       });
     }
-    mCtx.run();
+    try {
+      mCtx.run();
+    } catch (const std::exception &e) {
+      spdlog::critical("Exception in Io thread {}", e.what());
+    }
   }
 
   template <typename EventType>
@@ -101,6 +109,9 @@ private:
     EventType event;
     while (events.size() < LFQ_POP_LIMIT && queue.pop(event)) {
       events.emplace_back(std::move(event));
+    }
+    if (events.empty()) {
+      return;
     }
     std::get<SpanHandler<EventType>>(mHandlers)(Span<EventType>(events));
   }

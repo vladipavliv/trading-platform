@@ -36,7 +36,7 @@ public:
   AsyncSocket(Sink &sink, Socket &&socket)
       : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE),
         mId{utils::getTraderId(mSocket)} {
-    mMessageBuffer.reserve(100);
+    mReadMsgBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
@@ -45,7 +45,7 @@ public:
   AsyncSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
       : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
         mBuffer(BUFFER_SIZE) {
-    mMessageBuffer.reserve(100);
+    mReadMsgBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
     }
@@ -61,7 +61,7 @@ public:
 
   void asyncRead() {
     size_t writable = mBuffer.size() - mTail;
-    uint8_t *writePtr = mBuffer.data() + mHead;
+    uint8_t *writePtr = mBuffer.data() + mTail;
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       mSocket.async_read_some(
@@ -80,29 +80,25 @@ public:
       spdlog::error("Failed to write to the socket: not opened");
       return;
     }
+
     size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
     auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
-    size_t realSize{0};
+    size_t totalSize{0};
     uint8_t *cursor = dataPtr->data();
     for (auto &msg : msgVec) {
-      auto buffer = Serializer::serialize(msg);
-      boost::endian::little_int16_at bodySize = static_cast<MessageSize>(buffer.size());
-
-      std::memcpy(cursor, &bodySize, sizeof(bodySize));
-      std::memcpy(cursor + sizeof(bodySize), buffer.data(), buffer.size());
-
-      cursor += bodySize + sizeof(bodySize);
-      realSize += bodySize + sizeof(bodySize);
+      auto msgSize = serializeMessage(msg, cursor);
+      cursor += msgSize;
+      totalSize += msgSize;
     }
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       boost::asio::async_write(
-          mSocket, boost::asio::buffer(dataPtr->data(), realSize),
+          mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
           [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.async_send_to(
-          boost::asio::buffer(dataPtr->data(), realSize), mEndpoint,
+          boost::asio::buffer(dataPtr->data(), totalSize), mEndpoint,
           [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
     }
   }
@@ -121,6 +117,17 @@ public:
   inline TraderId getTraderId() const { return mId; }
 
 private:
+  template <typename Type>
+  boost::endian::little_int16_at serializeMessage(Type &msg, uint8_t *cursor) {
+    auto buffer = Serializer::serialize(msg);
+    boost::endian::little_int16_at bodySize = static_cast<MessageSize>(buffer.size());
+
+    std::memcpy(cursor, &bodySize, sizeof(bodySize));
+    std::memcpy(cursor + sizeof(bodySize), buffer.data(), buffer.size());
+
+    return bodySize + sizeof(bodySize);
+  }
+
   void readHandler(BoostErrorRef ec, size_t bytesRead) {
     if (ec) {
       mHead = mTail = 0;
@@ -132,9 +139,13 @@ private:
     mTail += bytesRead;
     while (mHead + sizeof(MessageSize) < mTail) {
       uint8_t *cursor = mBuffer.data() + mHead;
-      boost::endian::little_int16_at littleBodySize;
+      boost::endian::little_int16_at littleBodySize = 0;
       std::memcpy(&littleBodySize, cursor, sizeof(littleBodySize));
       MessageSize bodySize = littleBodySize.value();
+      if (mHead + sizeof(MessageSize) + bodySize > mBuffer.size()) {
+        rotateBuffer();
+        break;
+      }
       if (mHead + sizeof(MessageSize) + bodySize > mTail) {
         // continue reading;
         break;
@@ -145,21 +156,19 @@ private:
         mHead = mTail = 0;
         break;
       }
-      mMessageBuffer.emplace_back(result.value());
+      mReadMsgBuffer.emplace_back(result.value());
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
-        mMessageBuffer.back().traderId = getTraderId();
+        mReadMsgBuffer.back().traderId = getTraderId();
       }
       mHead += bodySize + sizeof(MessageSize);
     }
     if (mBuffer.size() - mTail < 256) {
-      std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
-      mTail = mTail - mHead;
-      mHead = 0;
+      rotateBuffer();
     }
-    if (!mMessageBuffer.empty()) {
-      mSink.dataSink.post(Span<MessageIn>(mMessageBuffer));
+    if (!mReadMsgBuffer.empty()) {
+      mSink.dataSink.post(Span<MessageIn>(mReadMsgBuffer));
     }
-    mMessageBuffer.clear();
+    mReadMsgBuffer.clear();
     asyncRead();
   }
 
@@ -178,6 +187,35 @@ private:
     }
   }
 
+  void setSockOpts() {
+    auto handle = mSocket.native_handle();
+    int us = 50;
+    if (setsockopt(handle, SOL_SOCKET, SO_BUSY_POLL, &us, sizeof(us)) < 0) {
+      spdlog::error("Failed to set polling for socket");
+    }
+    int bufferSize = 1024 * 1024;
+    if (setsockopt(handle, SOL_SOCKET, SO_SNDBUF, &bufferSize, sizeof(bufferSize)) < 0) {
+      spdlog::error("Failed to set socket buffer size");
+    }
+  }
+
+  void printBuffer() {
+    std::ostringstream oss;
+    for (int i = mHead; i < mTail; ++i) {
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(mBuffer[i]) << " ";
+      if ((i + 1) % 16 == 0) {
+        oss << std::endl;
+      }
+    }
+    spdlog::critical(oss.str());
+  }
+
+  void rotateBuffer() {
+    std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
+    mTail = mTail - mHead;
+    mHead = 0;
+  }
+
 private:
   Sink &mSink;
   Socket mSocket;
@@ -186,7 +224,8 @@ private:
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mBuffer;
-  std::vector<MessageIn> mMessageBuffer;
+
+  std::vector<MessageIn> mReadMsgBuffer;
 
   TraderId mId{};
 };

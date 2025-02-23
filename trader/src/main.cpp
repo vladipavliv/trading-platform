@@ -7,23 +7,26 @@
 #include "config/config_reader.hpp"
 #include "event_fd.hpp"
 #include "hft_trader.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
 #include "utils/string_utils.hpp"
 
 int main(int argc, char *argv[]) {
+  using namespace hft;
+  std::unique_ptr<trader::HftTrader> trader;
   try {
-    using namespace hft;
-    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::debug);
+    Logger::initialize(spdlog::level::trace, "trader_log.txt");
     ConfigReader::readConfig("trader_config.ini");
 
-    spdlog::info("Trader configuration:");
+    Logger::monitorLogger->info("Trader configuration:");
     Config::cfg.logConfig();
-    spdlog::info("LogLevel:{}", utils::toString(spdlog::get_level()));
+    Logger::monitorLogger->info("LogLevel:{}", utils::toString(spdlog::get_level()));
 
-    trader::HftTrader trader;
-    trader.start();
+    trader = std::make_unique<trader::HftTrader>();
+    trader->start();
   } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
+    spdlog::critical("Exception caught in main {}", e.what());
+    spdlog::default_logger()->flush();
+    trader->stop();
   }
   return 0;
 }

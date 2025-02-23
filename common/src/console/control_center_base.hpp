@@ -14,7 +14,7 @@
 #include "boost_types.hpp"
 #include "config/config.hpp"
 #include "console_input_parser.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
 #include "market_types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -34,9 +34,7 @@ public:
   using ConsoleParser = ConsoleInputParser<Command>;
 
   ControlCenterBase(Sink &sink, std::map<std::string, Command> &&cmdMap)
-      : mSink{sink}, mConsoleParser{std::move(cmdMap)}, mTimer{mSink.ctx()},
-        mMonitorRate{Config::cfg.monitorRateS},
-        mMonitorTimestamp{std::chrono::system_clock::now()} {
+      : mSink{sink}, mConsoleParser{std::move(cmdMap)}, mTimer{mSink.ctx()} {
     scheduleTimer();
   }
 
@@ -47,7 +45,6 @@ private:
       if (ec) {
         return;
       }
-      monitorMode();
       processCommands();
       scheduleTimer();
     });
@@ -57,64 +54,29 @@ private:
     auto cmdRes = mConsoleParser.getCommand();
     while (cmdRes.ok()) {
       auto cmd = cmdRes.value();
-      spdlog::info(utils::toString(cmd));
-      mSink.controlSink.onCommand(cmd);
       switch (cmd) {
-      case Command::MonitorModeStart:
-        Config::cfg.monitorStats = true;
-        switchMode(true);
-        break;
-      case Command::MonitorModeStop:
-        Config::cfg.monitorStats = false;
-        switchMode(false);
-        break;
-      case Command::MonitorModeSwitch:
-        Config::cfg.monitorStats = !mMonitorMode;
-        switchMode(!mMonitorMode);
-        break;
       case Command::LogLevelUp:
-        LoggerManager::switchLogLevel(true);
+        Logger::switchLogLevel(true);
+        Logger::monitorLogger->info("log level {}", utils::toString(spdlog::get_level()));
         break;
       case Command::LogLevelDown:
-        LoggerManager::switchLogLevel(false);
+        Logger::switchLogLevel(false);
+        Logger::monitorLogger->info("log level {}", utils::toString(spdlog::get_level()));
         break;
       default:
+        Logger::monitorLogger->info(utils::toString(cmd));
+        mSink.controlSink.onCommand(cmd);
         break;
       }
       cmdRes = mConsoleParser.getCommand();
     }
   }
 
-  void monitorMode() {
-    if (!mMonitorMode) {
-      return;
-    }
-    // Trigger stats collecting if needed
-    auto now = std::chrono::system_clock::now();
-    if (std::chrono::duration_cast<Seconds>(now - mMonitorTimestamp) < mMonitorRate) {
-      return;
-    }
-    mMonitorTimestamp = now;
-    mSink.controlSink.onCommand(Command::CollectStats);
-  }
-
-  void switchMode(bool monitorMode) {
-    mMonitorMode = monitorMode;
-    if (monitorMode) {
-      LoggerManager::toMonitorMode();
-    } else {
-      LoggerManager::toNormalMode();
-    }
-  }
-
 private:
   Sink &mSink;
   ConsoleParser mConsoleParser;
-  SteadyTimer mTimer;
 
-  Seconds mMonitorRate;
-  bool mMonitorMode{false};
-  Timestamp mMonitorTimestamp;
+  SteadyTimer mTimer;
 };
 
 } // namespace hft

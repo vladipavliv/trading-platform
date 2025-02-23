@@ -6,23 +6,27 @@
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "hft_server.hpp"
-#include "logger_manager.hpp"
+#include "logger.hpp"
+#include "template_types.hpp"
 #include "utils/string_utils.hpp"
 
 int main() {
+  using namespace hft;
+  std::unique_ptr<server::HftServer> server;
   try {
-    using namespace hft;
-    LoggerManager::initialize(LoggerManager::LoggerMode::Console, spdlog::level::debug);
+    Logger::initialize(spdlog::level::trace, "server_log.txt");
     ConfigReader::readConfig("server_config.ini");
 
-    spdlog::info("Server configuration:");
+    Logger::monitorLogger->info("Server configuration:");
     Config::cfg.logConfig();
-    spdlog::info("LogLevel:{}", utils::toString(spdlog::get_level()));
+    Logger::monitorLogger->info("LogLevel:{}", utils::toString(spdlog::get_level()));
 
-    server::HftServer server;
-    server.start();
+    server = std::make_unique<server::HftServer>();
+    server->start();
   } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
+    spdlog::critical("Exception caught in main {}", e.what());
+    spdlog::default_logger()->flush();
+    server->stop();
   }
   return 0;
 }

@@ -15,9 +15,11 @@
 namespace hft {
 
 /**
- * @brief Sink for Io operations. Events are being posted not on the IoContext
- * directly to minimize overhead, but rather dispatchers register for events
- * to process. Runs Io context on a number of threads
+ * @brief Objects that perform network operations subscribe for events via this sink
+ * Last performance check:
+ * [20:10:34.002] [I] RTT [1us|100us|1ms]  94.86% avg:26us  0.17% avg:352us  4.96% avg:25ms
+ * [20:10:46.468] [I] [open|total]: 306256|479623 RPS:9551
+ * Performs slightly better then BufferIoSink
  */
 template <typename... EventTypes>
 class IoSink {
@@ -42,21 +44,25 @@ public:
           mCtx.run();
           spdlog::debug("Finished Io thread {}", i);
         } catch (const std::exception &e) {
-          spdlog::error(e.what());
+          spdlog::critical("Exception in Io thread {}", e.what());
         }
       });
     }
-    mCtx.run();
+    try {
+      mCtx.run();
+    } catch (const std::exception &e) {
+      spdlog::critical("Exception in Io thread {}", e.what());
+    }
   }
 
   template <typename EventType>
-  void setHandler(CRefHandler<EventType> &&handler) {
+  void setHandler(SpanHandler<EventType> &&handler) {
     constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers) = std::move(handler);
   }
 
   template <typename EventType>
-  void post(const EventType &event) {
+  void post(Span<EventType> event) {
     constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     std::get<index>(mHandlers)(event);
   }
@@ -66,7 +72,7 @@ public:
 
 private:
   template <typename EventType>
-  CRefHandler<EventType> &getHandler() {
+  SpanHandler<EventType> &getHandler() {
     constexpr auto index = getTypeIndex<EventType, EventTypes...>();
     return std::get<index>(mHandlers);
   }
@@ -75,7 +81,7 @@ private:
   IoContext mCtx;
   ContextGuard mCtxGuard;
 
-  std::tuple<std::function<void(const EventTypes &)>...> mHandlers;
+  std::tuple<SpanHandler<EventTypes>...> mHandlers;
   std::vector<std::thread> mThreads;
 };
 

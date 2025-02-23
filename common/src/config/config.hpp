@@ -11,6 +11,7 @@
 #include <sstream>
 #include <vector>
 
+#include "logger.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -32,12 +33,14 @@ struct Config {
 
   static Config cfg;
   static void logConfig() {
-    spdlog::info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn, cfg.portTcpOut,
-                 cfg.portUdp);
-    spdlog::info("IoCoreIDs:{} AppCoreIDs:{}", utils::toString(cfg.coresIo),
-                 utils::toString(cfg.coresApp), cfg.tradeRateUs, cfg.priceFeedRateUs);
-    spdlog::info("Trade rate:{} Pricefeed rate:{} monitor:{}s", utils::getScaleUs(cfg.tradeRateUs),
-                 utils::getScaleUs(cfg.priceFeedRateUs), cfg.monitorRateS);
+    Logger::monitorLogger->info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn,
+                                cfg.portTcpOut, cfg.portUdp);
+    Logger::monitorLogger->info("IoCoreIDs:{} AppCoreIDs:{}", utils::toString(cfg.coresIo),
+                                utils::toString(cfg.coresApp), cfg.tradeRateUs,
+                                cfg.priceFeedRateUs);
+    Logger::monitorLogger->info("Trade rate:{} Pricefeed rate:{} monitor:{}s",
+                                utils::getScaleUs(cfg.tradeRateUs),
+                                utils::getScaleUs(cfg.priceFeedRateUs), cfg.monitorRateS);
   }
 };
 

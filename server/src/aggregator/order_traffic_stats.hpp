@@ -15,6 +15,10 @@ struct OrderTrafficStats {
   size_t currentOrders{0};
   size_t processedOrders{0};
   Timestamp timestamp{std::chrono::system_clock::now()};
+
+  bool operator==(const OrderTrafficStats &other) const {
+    return currentOrders == other.currentOrders && processedOrders == other.processedOrders;
+  }
 };
 
 } // namespace hft::server

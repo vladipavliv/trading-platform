@@ -38,12 +38,16 @@ public:
     mThreads.reserve(Config::cfg.coresApp.size());
     for (size_t i = 0; i < Config::cfg.coresApp.size(); ++i) {
       mThreads.emplace_back([this, i] {
-        spdlog::debug("Started worker thread {} on the core: {}", i, Config::cfg.coresApp[i]);
-        utils::pinThreadToCore(Config::cfg.coresApp[i]);
-        utils::setTheadRealTime();
-        processEvents();
-        mEFd.notify(true);
-        spdlog::debug("Finished worker thread {}", i);
+        try {
+          spdlog::debug("Started worker thread {} on the core: {}", i, Config::cfg.coresApp[i]);
+          utils::pinThreadToCore(Config::cfg.coresApp[i]);
+          utils::setTheadRealTime();
+          processEvents();
+          mEFd.notify(true);
+          spdlog::debug("Finished worker thread {}", i);
+        } catch (const std::exception &e) {
+          spdlog::critical("Exception in worker thread {}", e.what());
+        }
       });
     }
   }
