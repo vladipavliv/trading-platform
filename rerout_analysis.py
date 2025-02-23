@@ -13,7 +13,7 @@ def convertRtt(value):
         return int(value)
 
 def extractReroutedOrders():
-    reroutingPattern = re.compile(r"Rerouting (\d+)  to a buffer")
+    reroutingPattern = re.compile(r"Rerouting (\d+)")
     orders = set()
 
     serverLogFiles = glob.glob("server_log.txt") + glob.glob("server_log.[0-9]*.txt")
@@ -70,7 +70,7 @@ def main():
     orders = extractReroutedOrders()
     rtts = analyzeReroutedRtt(orders)
     minRtt, maxRtt, avgRtt = getRttStats(rtts)
-    print(f"Rtt for rerouted orders min:{convertToScale(minRtt)} max:{convertToScale(maxRtt)} avg:{convertToScale(avgRtt)}")
+    print(f"Rerouted orders {len(rtts)} Rtt min:{convertToScale(minRtt)} max:{convertToScale(maxRtt)} avg:{convertToScale(avgRtt)}")
 
 if __name__ == "__main__":
     main()

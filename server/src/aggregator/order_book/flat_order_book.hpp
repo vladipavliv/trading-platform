@@ -37,8 +37,8 @@ public:
   }
   ~FlatOrderBook() = default;
 
-  inline bool acquire() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
-  inline void release() { mBusy.clear(std::memory_order_acq_rel); }
+  inline bool lock() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
+  inline void unlock() { mBusy.clear(std::memory_order_acq_rel); }
   inline size_t ordersCount() const { return mOrdersCurrent.load(std::memory_order_relaxed); }
 
   void add(Span<Order> orders) {

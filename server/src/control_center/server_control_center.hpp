@@ -68,15 +68,15 @@ private:
       return;
     }
 
-    std::string log = std::format("[open|total]: {:L}|{:L} ", mStats.front().currentOrders,
-                                  mStats.front().processedOrders);
+    std::string log = std::format("[closed|total]: {:L}|{:L} ", mStats.front().ordersClosed,
+                                  mStats.front().ordersTotal);
     if (mStats.size() > 1) {
       // Get time difference between last collected stats and now to calculate rps
       const uint32_t factor =
           std::chrono::duration_cast<Seconds>(mStats.front().timestamp - mStats.back().timestamp)
               .count();
-      auto pRps = (mStats.front().processedOrders - mStats.back().processedOrders) / factor;
-      log += std::format("RPS:{}", pRps);
+      auto ops = (mStats.front().ordersTotal - mStats.back().ordersTotal) / factor;
+      log += std::format("RPS:{}", ops);
     }
     Logger::monitorLogger->info(log);
   }
