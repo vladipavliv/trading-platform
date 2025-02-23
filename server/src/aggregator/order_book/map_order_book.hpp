@@ -7,6 +7,7 @@
 #define HFT_SERVER_MAPORDERBOOK_HPP
 
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <set>
 #include <string>

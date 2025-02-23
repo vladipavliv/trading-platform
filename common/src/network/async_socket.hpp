@@ -81,7 +81,7 @@ public:
       return;
     }
 
-    size_t allocSize = msgVec.size() * MAX_MESSAGE_SIZE;
+    size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
     auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
 
     size_t totalSize{0};

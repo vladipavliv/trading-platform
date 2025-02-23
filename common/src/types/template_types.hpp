@@ -73,6 +73,8 @@ template <typename EventType>
 using LFQueue = boost::lockfree::queue<EventType>;
 template <typename EventType>
 using UPtrLFQueue = std::unique_ptr<LFQueue<EventType>>;
+template <typename EventType>
+using SPtrLFQueue = std::shared_ptr<LFQueue<EventType>>;
 
 template <typename EventType>
 static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
@@ -102,6 +104,18 @@ struct Padding {
 
   std::array<char, PaddingSize> padding{};
 };
+
+/**
+ * Generic template helpers
+ */
+template <typename Type>
+struct is_smart_ptr : std::false_type {};
+
+template <typename Type>
+struct is_smart_ptr<std::shared_ptr<Type>> : std::true_type {};
+
+template <typename Type>
+struct is_smart_ptr<std::unique_ptr<Type>> : std::true_type {};
 
 } // namespace hft
 

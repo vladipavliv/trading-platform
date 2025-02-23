@@ -43,6 +43,7 @@ public:
 
   void add(Span<Order> orders) {
     for (auto &order : orders) {
+      spdlog::debug("Add order {}", order.id);
       mOrdersCurrent.fetch_add(1);
       if (order.action == OrderAction::Buy) {
         mBids.push_back(order);

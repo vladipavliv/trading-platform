@@ -25,6 +25,7 @@ constexpr size_t LFQ_POP_LIMIT = 20;
 constexpr size_t BUSY_WAIT_CYCLES = 1000000;
 constexpr size_t ORDER_BOOK_LIMIT = 1000;
 constexpr size_t CACHE_LINE_SIZE = 64;
+constexpr size_t MAX_SERIALIZED_MESSAGE_SIZE = 128; // TODO() get more precise number
 
 } // namespace hft
 

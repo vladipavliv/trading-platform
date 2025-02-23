@@ -17,11 +17,7 @@ struct AcquiRer {
       releaseHandler = [&acquiree]() { acquiree.release(); };
     }
   }
-  ~AcquiRer() {
-    if (releaseHandler) {
-      releaseHandler();
-    }
-  }
+  ~AcquiRer() { release(); }
   void release() {
     if (releaseHandler) {
       releaseHandler();

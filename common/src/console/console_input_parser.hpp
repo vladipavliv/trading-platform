@@ -23,7 +23,7 @@
 namespace hft {
 
 /**
- * @brief Reads and parses commands from console in non blocking way
+ * @brief Reads and parses commands from console in a non blocking way
  */
 template <typename CommandType>
 class ConsoleInputParser {
@@ -48,9 +48,7 @@ public:
     std::getline(std::cin, mInput);
     auto cmdIt = mCommandMap.find(mInput);
     mInput.clear();
-    if (cmdIt == mCommandMap.end()) {
-      return StatusCode::Empty;
-    } else {
+    if (cmdIt != mCommandMap.end()) {
       return cmdIt->second;
     }
     return StatusCode::Empty;

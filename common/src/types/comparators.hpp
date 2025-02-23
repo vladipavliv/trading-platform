@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "market_types.hpp"
+#include "template_types.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -21,6 +22,20 @@ struct TickerCmp {
 template <typename Type>
 struct TraderIdCmp {
   bool operator()(const Type &left, const Type &right) { return left.traderId < right.traderId; }
+};
+
+template <typename Type>
+struct SizeCmp {
+  bool operator()(const Type &left, const Type &right) { return getSize(left) < getSize(right); }
+
+private:
+  static size_t getSize(const Type &item) {
+    if constexpr (std::is_pointer_v<Type> || is_smart_ptr<Type>::value) {
+      return item->size();
+    } else {
+      return item.size();
+    }
+  }
 };
 
 } // namespace hft

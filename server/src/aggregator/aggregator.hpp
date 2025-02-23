@@ -19,6 +19,7 @@
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
 #include "order_traffic_stats.hpp"
+#include "pool/lfq_pool.hpp"
 #include "price_feed.hpp"
 #include "result.hpp"
 #include "server_types.hpp"
@@ -39,7 +40,8 @@ namespace hft::server {
 class Aggregator {
 public:
   Aggregator(ServerSink &sink)
-      : mSink{sink}, mPriceFeed{mSink, getPricesView()}, mLoadBalanceTimer{mSink.ctx()} {
+      : mSink{sink}, mPriceFeed{mSink, getPricesView()}, mLfqPool(10),
+        mLoadBalanceTimer{mSink.ctx()} {
     mSink.dataSink.setConsumer(this);
     mSink.controlSink.addCommandHandler({ServerCommand::CollectStats},
                                         [this](ServerCommand command) {
@@ -47,7 +49,9 @@ public:
                                             getTrafficStats();
                                           }
                                         });
-    scheduleLoadBalancing();
+    // This rerouting approach is quite bad: Rtt for rerouted orders min:19ms max:561ms avg:119.0ms
+    // For rerouted orders we need to directly move them from old worker queue to a new worker queue
+    // scheduleLoadBalancing();
   }
 
   void onEvent(ThreadId threadId, Span<Order> orders) {
@@ -62,27 +66,37 @@ public:
       AcquiRer<OrderBook> ack(*data.orderBook);
       if (data.getThreadId() == threadId && ack.success) {
         data.orderBook->add(subSpan);
-        if (!data.rerouteQueue.empty()) {
+        // Steal the current queue to avoid hanging buffers, if its currently in use we will just
+        // pop all elements, if not, the previous thread will get a brand new queue from the pool
+        auto activeLfq = std::atomic_exchange(&data.rerouteQueue, nullptr);
+        if (activeLfq != nullptr && !activeLfq->empty()) {
           spdlog::info("Processing buffer after rerouting");
-          std::vector<Order> rerouted;
+          std::vector<Order> reroutedOrders;
           Order order;
-          while (data.rerouteQueue.pop(order)) {
-            rerouted.emplace_back(std::move(order));
+          while (activeLfq->pop(order)) {
+            reroutedOrders.emplace_back(std::move(order));
           }
-          data.orderBook->add(Span<Order>(rerouted));
+          data.orderBook->add(Span<Order>(reroutedOrders));
         }
         auto matches = data.orderBook->match();
-        data.orderBook->release();
         if (!matches.empty()) {
           mSink.ioSink.post(Span<OrderStatus>(matches));
         }
       } else {
-        spdlog::info("Rerouting {} orders to a buffer", subSpan.size());
+        std::stringstream ss;
+        for (auto &order : subSpan) {
+          spdlog::info("Rerouting {} to a buffer", order.id);
+        }
         // Either previous thread revisits the rerouted order book cause it still
         // has some orders in its queue, or new thread cannot yet take over cause previous
         // thread was caught for reorder in the midst of operation. Cache the orders
+        LFQPool<Order>::SPtrLFQueueType existingLfq = nullptr;
+        auto activeLfq = mLfqPool.getLFQueue();
+        if (!std::atomic_compare_exchange_strong(&data.rerouteQueue, &existingLfq, activeLfq)) {
+          activeLfq = existingLfq;
+        }
         for (auto &order : subSpan) {
-          while (!data.rerouteQueue.push(order)) {
+          while (!activeLfq->push(order)) {
             std::this_thread::yield();
           }
         }
@@ -130,7 +144,7 @@ private:
   }
 
   void scheduleLoadBalancing() {
-    mLoadBalanceTimer.expires_after(Seconds(1)); // Milliseconds(1)
+    mLoadBalanceTimer.expires_after(MilliSeconds(1)); // Milliseconds(1)
     mLoadBalanceTimer.async_wait([this](BoostErrorRef ec) {
       if (!ec) {
         balanceLoad();
@@ -147,6 +161,11 @@ private:
     auto iter = skData.begin();
     std::advance(iter, utils::RNG::rng<size_t>(skData.size() - 1));
 
+    auto rerouted = iter->second.rerouteQueue.load();
+    if (rerouted != nullptr) {
+      return;
+    }
+
     ThreadId prevWorker = iter->second.getThreadId();
     ThreadId newWorker = (prevWorker == workers - 1) ? 0 : prevWorker + 1;
     iter->second.setThreadId(newWorker);
@@ -159,6 +178,7 @@ private:
   ServerSink &mSink;
   static AggregatorData skData;
   PriceFeed mPriceFeed;
+  LFQPool<Order> mLfqPool;
 
   SteadyTimer mLoadBalanceTimer;
 };

@@ -33,7 +33,7 @@ struct RttStats {
 class RttTracker {
   struct alignas(64) GlobalSample {
     std::atomic_uint64_t sum;
-    Padding<size_t> p;
+    Padding<size_t> p; // TODO() i can lan a helicopter here
     std::atomic_uint64_t size;
   };
   struct GlobalStats {
@@ -52,8 +52,8 @@ public:
     stats.samples[scale].size++;
     if (current - lastFlushed > FLUSH_TIMEOUT_NS) {
       for (int i = 0; i < SAMPLES_SIZE; ++i) {
-        sGlobalStats.samples[i].sum.fetch_add(stats.samples[i].sum);
-        sGlobalStats.samples[i].size.fetch_add(stats.samples[i].size);
+        sGlobalStats.samples[i].sum.fetch_add(stats.samples[i].sum, std::memory_order_relaxed);
+        sGlobalStats.samples[i].size.fetch_add(stats.samples[i].size, std::memory_order_relaxed);
         stats.samples[i].sum = 0;
         stats.samples[i].size = 0;
       }
@@ -65,8 +65,8 @@ public:
   static RttStats getStats() {
     RttStats stats;
     for (int i = 0; i < SAMPLES_SIZE; ++i) {
-      stats.samples[i].sum = sGlobalStats.samples[i].sum.load();
-      stats.samples[i].size = sGlobalStats.samples[i].size.load();
+      stats.samples[i].sum = sGlobalStats.samples[i].sum.load(std::memory_order_relaxed);
+      stats.samples[i].size = sGlobalStats.samples[i].size.load(std::memory_order_relaxed);
     }
     return stats;
   }

@@ -22,9 +22,7 @@
 namespace hft {
 
 /**
- * @brief Base for control center class that periodically checks console for input commands,
- * posts them to a command sink, and processes service commands like switching log level
- * and switch to monitoring mode that turns default logger off and wites stats to a console
+ * @brief Base for control center class to periodically check for commands from console
  */
 template <typename CommandType, typename SinkType>
 class ControlCenterBase {

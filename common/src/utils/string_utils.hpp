@@ -74,8 +74,8 @@ std::string toString<OrderStatus>(const OrderStatus &order) {
   } else {
     state += "filled ";
   }
-  return std::format("{} {} {} at {}", state, order.quantity, toStrView(order.ticker),
-                     order.fillPrice);
+  return std::format("{} {} {} {} at {}", state, order.id, toString(order.action), order.quantity,
+                     toStrView(order.ticker), order.fillPrice);
 }
 
 template <>

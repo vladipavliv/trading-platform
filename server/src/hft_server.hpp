@@ -28,7 +28,6 @@ public:
     mSink.dataSink.start();
     mSink.controlSink.start();
     mNetwork.start();
-    // Run io context along with other threads
     mSink.ioSink.start();
   }
 
