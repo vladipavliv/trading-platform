@@ -35,8 +35,8 @@ public:
   using UPtr = std::unique_ptr<Type>;
 
   AsyncSocket(Sink &sink, Socket &&socket)
-      : mSink{sink}, mSocket{std::move(socket)}, mBuffer(BUFFER_SIZE),
-        mId{utils::getTraderId(mSocket)} {
+      : mSink{sink}, mSocket{std::move(socket)}, mWritePool{WRITE_BUFFER_POOL_SIZE},
+        mReadBuffer(BUFFER_SIZE), mId{utils::getTraderId(mSocket)} {
     mReadMsgBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
@@ -45,7 +45,7 @@ public:
 
   AsyncSocket(Sink &sink, Socket &&socket, Endpoint endpoint)
       : mSink{sink}, mSocket{std::move(socket)}, mEndpoint{std::move(endpoint)},
-        mBuffer(BUFFER_SIZE) {
+        mWritePool{WRITE_BUFFER_POOL_SIZE}, mReadBuffer(BUFFER_SIZE) {
     mReadMsgBuffer.reserve(100);
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.set_option(boost::asio::socket_base::reuse_address{true});
@@ -61,8 +61,8 @@ public:
   }
 
   void asyncRead() {
-    size_t writable = mBuffer.size() - mTail;
-    uint8_t *writePtr = mBuffer.data() + mTail;
+    size_t writable = mReadBuffer.size() - mTail;
+    uint8_t *writePtr = mReadBuffer.data() + mTail;
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       mSocket.async_read_some(
@@ -83,7 +83,7 @@ public:
     }
 
     size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
-    auto dataPtr = mWritePool.acquire(allocSize);
+    auto dataPtr = mWritePool.acquire(allocSize); // std::make_shared<ByteBuffer>(allocSize);
 
     size_t totalSize{0};
     uint8_t *cursor = dataPtr;
@@ -96,13 +96,13 @@ public:
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr, totalSize),
                                [this, allocSize](BoostErrorRef ec, size_t size) {
-                                 BufferGuard(mWritePool, allocSize);
+                                 BufferGuard guard(mWritePool, allocSize);
                                  writeHandler(ec, size);
                                });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mSocket.async_send_to(boost::asio::buffer(dataPtr, totalSize), mEndpoint,
                             [this, allocSize](BoostErrorRef ec, size_t size) {
-                              BufferGuard(mWritePool, allocSize);
+                              BufferGuard guard(mWritePool, allocSize);
                               writeHandler(ec, size);
                             });
     }
@@ -116,9 +116,7 @@ public:
     }
   }
 
-  /**
-   * @brief Just a quick way to distinguish between clients
-   */
+  // Just a quick way to distinguish between clients
   inline TraderId getTraderId() const { return mId; }
 
 private:
@@ -143,11 +141,11 @@ private:
     }
     mTail += bytesRead;
     while (mHead + sizeof(MessageSize) < mTail) {
-      uint8_t *cursor = mBuffer.data() + mHead;
+      uint8_t *cursor = mReadBuffer.data() + mHead;
       boost::endian::little_int16_at littleBodySize = 0;
       std::memcpy(&littleBodySize, cursor, sizeof(littleBodySize));
       MessageSize bodySize = littleBodySize.value();
-      if (mHead + sizeof(MessageSize) + bodySize > mBuffer.size()) {
+      if (mHead + sizeof(MessageSize) + bodySize > mReadBuffer.size()) {
         rotateBuffer();
         break;
       }
@@ -167,7 +165,7 @@ private:
       }
       mHead += bodySize + sizeof(MessageSize);
     }
-    if (mBuffer.size() - mTail < 256) {
+    if (mReadBuffer.size() - mTail < 256) {
       rotateBuffer();
     }
     if (!mReadMsgBuffer.empty()) {
@@ -193,7 +191,7 @@ private:
   }
 
   void rotateBuffer() {
-    std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
+    std::memmove(mReadBuffer.data(), mReadBuffer.data() + mHead, mTail - mHead);
     mTail = mTail - mHead;
     mHead = 0;
   }
@@ -205,17 +203,13 @@ private:
 
   size_t mHead{0};
   size_t mTail{0};
-  ByteBuffer mBuffer;
+  ByteBuffer mReadBuffer;
 
-  static thread_local BufferPool mWritePool;
+  BufferPool mWritePool;
   std::vector<MessageIn> mReadMsgBuffer;
 
   TraderId mId{};
 };
-
-template <typename SinkType, typename SerializerType, typename SocketType, typename MessageTypeIn>
-thread_local BufferPool AsyncSocket<SinkType, SerializerType, SocketType,
-                                    MessageTypeIn>::mWritePool{WRITE_BUFFER_POOL_SIZE};
 
 } // namespace hft
 

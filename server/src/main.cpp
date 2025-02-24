@@ -24,6 +24,7 @@ int main() {
     server = std::make_unique<server::HftServer>();
     server->start();
   } catch (const std::exception &e) {
+    Logger::monitorLogger->critical("Exception caught in main {}", e.what());
     spdlog::critical("Exception caught in main {}", e.what());
     spdlog::default_logger()->flush();
     server->stop();

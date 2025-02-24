@@ -32,8 +32,7 @@ public:
 
   void start() {
     if (Config::cfg.coresApp.empty()) {
-      spdlog::error("No cores provided");
-      return;
+      throw std::runtime_error("No cores provided");
     }
     mThreads.reserve(Config::cfg.coresApp.size());
     for (size_t i = 0; i < Config::cfg.coresApp.size(); ++i) {

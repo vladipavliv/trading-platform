@@ -7,6 +7,7 @@
 #define HFT_COMMON_BUFFERPOOL_HPP
 
 #include <atomic>
+#include <spdlog/spdlog.h>
 #include <thread>
 #include <vector>
 
@@ -17,20 +18,29 @@ namespace hft {
 struct BufferPool {
   BufferPool(size_t size) : data(size) {}
 
+  // TODO() align the pointer so threads wont cause cache misses
   uint8_t *acquire(size_t size) {
     auto currHead = head.load(std::memory_order_acquire);
     auto newHead = currHead + size > data.size() ? 0 : currHead + size;
 
     auto currTail = tail.load(std::memory_order_acquire);
+    size_t retries = 0;
     while ((newHead > currHead) ? (currHead < currTail && currTail < newHead)
                                 : (currHead < currTail || currTail < newHead)) {
+      if (retries++ > 100) {
+        throw std::runtime_error("Failed to acquire memory buffer, no space in the pool");
+      }
+      // Wait for some async write operation to free up the space
       currTail = tail.load(std::memory_order_acquire);
       std::this_thread::yield();
     }
-
+    retries = 0;
     auto expectedHead = currHead;
-    while (!head.compare_exchange_weak(currHead, newHead, std::memory_order_release,
+    while (!head.compare_exchange_weak(expectedHead, newHead, std::memory_order_release,
                                        std::memory_order_acquire)) {
+      if (retries++ > 100) {
+        throw std::runtime_error("Failed to acquire memory buffer too much contention");
+      }
       currHead = expectedHead;
       newHead = currHead + size > data.size() ? 0 : currHead + size;
     }
@@ -42,8 +52,12 @@ struct BufferPool {
     auto nextTail = currentTail + size > data.size() ? 0 : currentTail + size;
 
     auto expectedTail = currentTail;
-    while (!tail.compare_exchange_weak(currentTail, nextTail, std::memory_order_release,
+    size_t retries = 0;
+    while (!tail.compare_exchange_weak(expectedTail, nextTail, std::memory_order_release,
                                        std::memory_order_acquire)) {
+      if (retries++ > 100) {
+        throw std::runtime_error("Failed to release memory buffer");
+      }
       currentTail = expectedTail;
       nextTail = currentTail + size > data.size() ? 0 : currentTail + size;
     }
