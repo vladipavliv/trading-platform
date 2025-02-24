@@ -34,11 +34,9 @@ public:
 
   inline bool acquire() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
   inline void release() { mBusy.clear(std::memory_order_acq_rel); }
-  inline size_t ordersCount() const { return mOrdersCurrent.load(std::memory_order_relaxed); }
 
   void add(Span<Order> orders) {
     for (auto &order : orders) {
-      mOrdersCurrent.fetch_add(1);
       if (order.action == OrderAction::Buy) {
         if (mBids.size() > ORDER_BOOK_LIMIT) {
           spdlog::error("Limit reached {}", [&order] { return utils::toStrView(order.ticker); }());
@@ -118,24 +116,17 @@ private:
     status.traderId = order.traderId;
     status.ticker = order.ticker;
     spdlog::info([&status] { return utils::toString(status); }());
-    if (order.quantity == 0) {
-      mOrdersCurrent.fetch_sub(1);
-    }
     return status;
   }
 
 private:
-  // TODO try flat_map
   std::map<uint32_t, std::vector<Order>, std::greater<uint32_t>> mBids;
   std::map<uint32_t, std::vector<Order>> mAsks;
   /* Randomizator: orders that have been added get placed in the set until match() is called
   then upon matching only the last added orders get notification sent to the client
   this way we simulate lots of traders for the sake of testing */
   std::set<OrderId> mLastAdded;
-
   std::atomic_flag mBusy = ATOMIC_FLAG_INIT;
-
-  alignas(CACHE_LINE_SIZE) std::atomic<size_t> mOrdersCurrent;
 };
 
 } // namespace hft::server

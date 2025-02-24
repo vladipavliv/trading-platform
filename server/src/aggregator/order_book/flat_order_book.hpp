@@ -39,12 +39,9 @@ public:
 
   inline bool lock() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
   inline void unlock() { mBusy.clear(std::memory_order_acq_rel); }
-  inline size_t ordersCount() const { return mOrdersCurrent.load(std::memory_order_relaxed); }
 
   void add(Span<Order> orders) {
     for (auto &order : orders) {
-      spdlog::debug("Add order {}", order.id);
-      mOrdersCurrent.fetch_add(1);
       if (order.action == OrderAction::Buy) {
         mBids.push_back(order);
         std::push_heap(mBids.begin(), mBids.end(), compareBids);
@@ -101,9 +98,6 @@ private:
     status.traderId = order.traderId;
     status.ticker = order.ticker;
     spdlog::trace(utils::toString(status));
-    if (order.quantity == 0) {
-      mOrdersCurrent.fetch_sub(1);
-    }
     return status;
   }
 
@@ -113,8 +107,6 @@ private:
 
   std::set<OrderId> mLastAdded;
   std::atomic_flag mBusy = ATOMIC_FLAG_INIT;
-
-  alignas(CACHE_LINE_SIZE) std::atomic<size_t> mOrdersCurrent;
 };
 
 } // namespace hft::server

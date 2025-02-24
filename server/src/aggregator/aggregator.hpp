@@ -32,7 +32,7 @@ namespace hft::server {
  * Current load balancing approach does not perform very well though, for orders that get caught in
  * some threads queue in the midst of rerouting rtt spikes at least up to 3ms, from 30us
  * Current reroute approach is the following: OrderBook gets locked so no thread works on it right
- * now, and if thread finds orders in its queue that should no more handled by it - they are just
+ * now, and if thread finds orders in its queue that should no more be handled by it - they are just
  * get posted in the sink again. Previous attempt with caching orders right in the order book so new
  * thread could pick them faster, worked even worse. Need more efficient orders injecting mechanism
  */
@@ -60,15 +60,15 @@ public:
         break;
       }
       auto &data = skData[order.ticker];
-      Lock<OrderBook> lock{*data.orderBook};
+      Lock<OrderBook> lock{data.orderBook};
       if (!lock.success || data.getThreadId() != threadId) {
         for (auto &order : subSpan) {
           spdlog::info("Rerouting {}", order.id);
         }
         mSink.dataSink.post(subSpan);
       } else {
-        data.orderBook->add(subSpan);
-        auto matches = data.orderBook->match();
+        data.orderBook.add(subSpan);
+        auto matches = data.orderBook.match();
         if (!matches.empty()) {
           for (auto &status : matches) {
             if (status.state == OrderState::Full) {
@@ -136,7 +136,7 @@ private:
     auto iter = skData.begin();
     std::advance(iter, utils::RNG::rng<size_t>(skData.size() - 1));
 
-    Lock<OrderBook> lock{*(iter->second.orderBook)};
+    Lock<OrderBook> lock{iter->second.orderBook};
     if (!lock.success) {
       return;
     }

@@ -19,12 +19,10 @@
 namespace hft::server {
 
 struct alignas(CACHE_LINE_SIZE) TickerData {
-  TickerData() : orderBook{std::make_unique<OrderBook>()} {}
-
   inline void setThreadId(ThreadId id) { threadId.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId.load(std::memory_order_acquire); }
 
-  OrderBook::UPtr orderBook;
+  OrderBook orderBook;
   std::atomic<ThreadId> threadId;
   alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> currentPrice;
 
