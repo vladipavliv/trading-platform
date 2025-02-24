@@ -14,6 +14,7 @@
 
 #include "constants.hpp"
 #include "network_types.hpp"
+#include "pool/buffer_pool.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -82,10 +83,10 @@ public:
     }
 
     size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
-    auto dataPtr = std::make_shared<ByteBuffer>(allocSize);
+    auto dataPtr = mWritePool.acquire(allocSize);
 
     size_t totalSize{0};
-    uint8_t *cursor = dataPtr->data();
+    uint8_t *cursor = dataPtr;
     for (auto &msg : msgVec) {
       auto msgSize = serializeMessage(msg, cursor);
       cursor += msgSize;
@@ -93,13 +94,17 @@ public:
     }
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      boost::asio::async_write(
-          mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
-          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+      boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr, totalSize),
+                               [this, allocSize](BoostErrorRef ec, size_t size) {
+                                 BufferGuard(mWritePool, allocSize);
+                                 writeHandler(ec, size);
+                               });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      mSocket.async_send_to(
-          boost::asio::buffer(dataPtr->data(), totalSize), mEndpoint,
-          [this, dataPtr](BoostErrorRef ec, size_t size) { writeHandler(ec, size); });
+      mSocket.async_send_to(boost::asio::buffer(dataPtr, totalSize), mEndpoint,
+                            [this, allocSize](BoostErrorRef ec, size_t size) {
+                              BufferGuard(mWritePool, allocSize);
+                              writeHandler(ec, size);
+                            });
     }
   }
 
@@ -187,29 +192,6 @@ private:
     }
   }
 
-  void setSockOpts() {
-    auto handle = mSocket.native_handle();
-    int us = 50;
-    if (setsockopt(handle, SOL_SOCKET, SO_BUSY_POLL, &us, sizeof(us)) < 0) {
-      spdlog::error("Failed to set polling for socket");
-    }
-    int bufferSize = 1024 * 1024;
-    if (setsockopt(handle, SOL_SOCKET, SO_SNDBUF, &bufferSize, sizeof(bufferSize)) < 0) {
-      spdlog::error("Failed to set socket buffer size");
-    }
-  }
-
-  void printBuffer() {
-    std::ostringstream oss;
-    for (int i = mHead; i < mTail; ++i) {
-      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(mBuffer[i]) << " ";
-      if ((i + 1) % 16 == 0) {
-        oss << std::endl;
-      }
-    }
-    spdlog::critical(oss.str());
-  }
-
   void rotateBuffer() {
     std::memmove(mBuffer.data(), mBuffer.data() + mHead, mTail - mHead);
     mTail = mTail - mHead;
@@ -225,10 +207,15 @@ private:
   size_t mTail{0};
   ByteBuffer mBuffer;
 
+  static thread_local BufferPool mWritePool;
   std::vector<MessageIn> mReadMsgBuffer;
 
   TraderId mId{};
 };
+
+template <typename SinkType, typename SerializerType, typename SocketType, typename MessageTypeIn>
+thread_local BufferPool AsyncSocket<SinkType, SerializerType, SocketType,
+                                    MessageTypeIn>::mWritePool{WRITE_BUFFER_POOL_SIZE};
 
 } // namespace hft
 

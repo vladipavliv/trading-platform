@@ -31,7 +31,7 @@ inline size_t generateOrderId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 };
 
-Order createOrder(TraderId trId, Ticker tkr, OrderAction act, Quantity quan, Price price);
+Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act);
 Ticker generateTicker();
 Order generateOrder(Ticker ticker);
 TickerPrice generateTickerPrice();
