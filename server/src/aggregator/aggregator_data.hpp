@@ -18,12 +18,6 @@
 
 namespace hft::server {
 
-/**
- * @brief Need alignment cause when rebalancing would happen one thread could
- * increment the counter while another thread changes the threadId,
- * also price changes from separate thread
- * @todo Review later for improvement/reuse of empty space and data access patterns
- */
 struct alignas(CACHE_LINE_SIZE) TickerData {
   TickerData() : orderBook{std::make_unique<OrderBook>()} {}
 

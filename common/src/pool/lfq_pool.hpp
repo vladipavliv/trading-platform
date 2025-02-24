@@ -40,9 +40,6 @@ public:
     Lock<Type> lock{*this};
     if (!lock.success) {
       auto newLfq = std::make_shared<LFQueueType>(LFQ_SIZE);
-      // Wanted to use lock free buffer here to add newly created lfq to a pool later but shared_ptr
-      // aint trivially destructible. Not a big deal i think as this right here is quite a tight
-      // window to squeeze in, and its just one lfq that wont be reused
       return newLfq;
     }
     auto lfqIter = std::find_if(mPool.begin(), mPool.end(),
@@ -55,8 +52,8 @@ public:
     return newLfq;
   }
 
-  inline bool acquire() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
-  inline void release() { mBusy.clear(std::memory_order_acq_rel); }
+  inline bool lock() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
+  inline void unlock() { mBusy.clear(std::memory_order_acq_rel); }
 
 private:
   std::atomic_flag mBusy = ATOMIC_FLAG_INIT;

@@ -28,14 +28,13 @@
 namespace hft::server {
 
 /**
- * @brief Handles OrderBooks, balances tickers between worker threads. Does not provide
- * any synchronozation, instead relies on scheduling worker threads to work with specific
- * tickers synchronously. Amount of tickers would always be higher then amount of worker threads
- * Tickers are also well known, so we can have lock-free mapping Ticker -> ThreadId
- * When rebalancing would be needed, orderbook can be marked untill previous thread finishes
- * processing its messages, and then next thread takes over. Next thread meanwhile works on other
- * ticker orders, and previous requests for this ticker are still being processed by previous thread
- * Not sure if thats a viable idea or if thats truly lock-free stuff
+ * @brief Handles OrderBooks, distributes tickers between threads and performs load balancing
+ * Current load balancing approach does not perform very well though, for orders that get caught in
+ * some threads queue in the midst of rerouting rtt spikes at least up to 3ms, from 30us
+ * Current reroute approach is the following: OrderBook gets locked so no thread works on it right
+ * now, and if thread finds orders in its queue that should no more handled by it - they are just
+ * get posted in the sink again. Previous attempt with caching orders right in the order book so new
+ * thread could pick them faster, worked even worse. Need more efficient orders injecting mechanism
  */
 class Aggregator {
 public:
@@ -49,7 +48,7 @@ public:
                                             getTrafficStats();
                                           }
                                         });
-    scheduleLoadBalancing();
+    // scheduleLoadBalancing();
   }
 
   void onEvent(ThreadId threadId, Span<Order> orders) {
@@ -63,10 +62,6 @@ public:
       auto &data = skData[order.ticker];
       Lock<OrderBook> lock{*data.orderBook};
       if (!lock.success || data.getThreadId() != threadId) {
-        // When rerouting happens OrderBook gets locked first and then ThreadId gets switched
-        // So Thread wont get caught in the middle of the work with the book.
-        // So if we fail to lock the book here that means other thread took over.
-        // Push the orders back to the sink so they get handled by the new thread
         for (auto &order : subSpan) {
           spdlog::info("Rerouting {}", order.id);
         }
@@ -133,7 +128,7 @@ private:
     });
   }
 
-  void balanceLoad() {
+  void balanceLoad() { // Just a randomizer for testing
     auto workers = mSink.dataSink.workers();
     if (workers < 2) {
       return;

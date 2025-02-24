@@ -33,7 +33,7 @@ struct RttStats {
 class RttTracker {
   struct alignas(64) GlobalSample {
     std::atomic_uint64_t sum;
-    Padding<size_t> p; // TODO() i can lan a helicopter here
+    Padding<size_t> p;
     std::atomic_uint64_t size;
   };
   struct GlobalStats {
