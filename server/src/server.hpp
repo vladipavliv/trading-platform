@@ -37,6 +37,9 @@ class Server {
 
 public:
   Server() : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx}, mTimer{mCtx} {
+    if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
 
@@ -54,7 +57,10 @@ public:
     }
   }
 
-  void start() { mCtx.run(); }
+  void start() {
+    utils::setTheadRealTime();
+    mCtx.run();
+  }
   void stop() { mCtx.stop(); }
 
 private:
@@ -115,6 +121,8 @@ private:
           std::make_unique<ContextGuard>(boost::asio::make_work_guard(*mWorkerContexts.back())));
       mWorkerThreads.emplace_back([this, i]() {
         try {
+          utils::setTheadRealTime();
+          utils::pinThreadToCore(Config::cfg.coreIds[i]);
           mWorkerContexts[i]->run();
         } catch (const std::exception &e) {
           Logger::monitorLogger->error("Exception in worker thread {}", e.what());

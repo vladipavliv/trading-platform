@@ -55,7 +55,10 @@ public:
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
   }
 
-  void start() { mCtx.run(); }
+  void start() {
+    utils::setTheadRealTime();
+    mCtx.run();
+  }
   void stop() { mCtx.stop(); }
 
 private:
@@ -144,8 +147,10 @@ private:
         mTradeTimer.cancel();
       } else if (cmd == "ts-") {
         mTradeRate *= 2;
+        Logger::monitorLogger->info(std::format("Trade rate: {}us", mTradeRate));
       } else if (cmd == "ts+" && mTradeRate > Microseconds(10)) {
         mTradeRate /= 2;
+        Logger::monitorLogger->info(std::format("Trade rate: {}us", mTradeRate));
       }
     }
   }

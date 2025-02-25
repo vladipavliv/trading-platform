@@ -13,7 +13,7 @@ int main() {
   using namespace hft;
   std::unique_ptr<server::Server> hftServer;
   try {
-    Logger::initialize(spdlog::level::trace, "server_log.txt");
+    Logger::initialize(spdlog::level::err, "server_log.txt");
     ConfigReader::readConfig("server_config.ini");
 
     Logger::monitorLogger->info("Server configuration:");

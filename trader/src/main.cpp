@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   std::unique_ptr<trader::Trader> trader;
   try {
-    Logger::initialize(spdlog::level::trace, "trader_log.txt");
+    Logger::initialize(spdlog::level::err, "trader_log.txt");
     ConfigReader::readConfig("trader_config.ini");
 
     Logger::monitorLogger->info("Trader configuration:");
