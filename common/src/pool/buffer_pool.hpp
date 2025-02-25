@@ -27,7 +27,7 @@ struct BufferPool {
     size_t retries = 0;
     while ((newHead > currHead) ? (currHead < currTail && currTail < newHead)
                                 : (currHead < currTail || currTail < newHead)) {
-      if (retries++ > 100) {
+      if (retries++ > 1000) {
         throw std::runtime_error("Failed to acquire memory buffer, no space in the pool");
       }
       // Wait for some async write operation to free up the space
@@ -55,7 +55,7 @@ struct BufferPool {
     size_t retries = 0;
     while (!tail.compare_exchange_weak(expectedTail, nextTail, std::memory_order_release,
                                        std::memory_order_acquire)) {
-      if (retries++ > 100) {
+      if (retries++ > 1000) {
         throw std::runtime_error("Failed to release memory buffer");
       }
       currentTail = expectedTail;

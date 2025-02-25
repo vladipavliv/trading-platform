@@ -14,7 +14,10 @@ ulimit -c unlimited
 if [ "$1" == "s" ]; then
     rm -f server_log.*.txt
     sudo ./hft_server
-else [ "$1" == "t" ] || [ "$1" == "trader" ];
+elif [ "$1" == "t" ]; then
     rm -f trader_log.*.txt
     sudo ./hft_trader
+else [ "$1" == "s2" ];
+    rm -f server_log.*.txt
+    sudo ./hft_server_v2
 fi

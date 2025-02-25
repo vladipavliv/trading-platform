@@ -51,7 +51,7 @@ private:
   void processCommands() {
     auto cmdRes = mConsoleParser.getCommand();
     while (cmdRes.ok()) {
-      auto cmd = cmdRes.value();
+      auto cmd = cmdRes.value;
       switch (cmd) {
       case Command::LogLevelUp:
         Logger::switchLogLevel(true);

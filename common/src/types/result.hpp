@@ -14,19 +14,15 @@
 namespace hft {
 
 template <typename ValueType>
-class Result {
-public:
-  Result() : mValue{ValueType{}, StatusCode::Empty} {}
-  Result(ValueType value) : mValue{std::move(value), StatusCode::Ok} {}
-  Result(StatusCode error) : mValue{ValueType{}, error} {}
+struct Result {
+  Result() : code{StatusCode::Empty} {}
+  Result(ValueType value) : value{std::move(value)}, code{StatusCode::Ok} {}
+  Result(StatusCode error) : code{error} {}
 
-  bool ok() const { return mValue.second == StatusCode::Ok; }
-  operator bool() const { return ok(); }
-  const ValueType &value() const { return mValue.first; }
-  StatusCode error() const { return mValue.second; }
+  bool ok() const { return code == StatusCode::Ok; }
 
-private:
-  std::pair<ValueType, StatusCode> mValue;
+  ValueType value;
+  StatusCode code;
 };
 
 } // namespace hft
