@@ -159,7 +159,7 @@ private:
         mHead = mTail = 0;
         break;
       }
-      mReadMsgBuffer.emplace_back(result.value());
+      mReadMsgBuffer.emplace_back(result.value);
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
         mReadMsgBuffer.back().traderId = getTraderId();
       }
