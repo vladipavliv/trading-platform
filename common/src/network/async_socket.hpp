@@ -15,6 +15,7 @@
 #include "constants.hpp"
 #include "network_types.hpp"
 #include "pool/buffer_pool.hpp"
+#include "rtt_tracker.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -162,6 +163,7 @@ private:
       mReadMsgBuffer.emplace_back(result.value);
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
         mReadMsgBuffer.back().traderId = getTraderId();
+        RttTracker::logRtt(result.value.id);
       }
       mHead += bodySize + sizeof(MessageSize);
     }

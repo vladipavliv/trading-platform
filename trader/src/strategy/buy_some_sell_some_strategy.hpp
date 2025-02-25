@@ -54,10 +54,6 @@ private:
   void orderUpdates(Span<OrderStatus> statuses) {
     mStats.ordersClosed.fetch_add(statuses.size());
     for (auto &status : statuses) {
-      auto rtt = RttTracker::logRtt(status.id);
-      spdlog::trace(
-          "{} RTT {}", [&status] { return utils::toString(status); }(),
-          [&rtt] { return utils::getScaleUs(rtt); }());
       (status.action == OrderAction::Buy)
           ? mStats.balance.fetch_add(status.fillPrice * status.quantity)
           : mStats.balance.fetch_sub(status.fillPrice * status.quantity);
@@ -76,7 +72,6 @@ private:
   void tradeSomething() {
     auto tickerPrice = mPrices[utils::RNG::rng(mPrices.size() - 1)];
     Order order;
-    order.id = utils::getLinuxTimestamp();
     order.ticker = tickerPrice.ticker;
     order.price = utils::RNG::rng<uint32_t>(tickerPrice.price * 2);
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
