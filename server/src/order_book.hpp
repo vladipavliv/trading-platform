@@ -37,20 +37,15 @@ public:
   }
   ~FlatOrderBook() = default;
 
-  inline bool lock() { return !mBusy.test_and_set(std::memory_order_acq_rel); }
-  inline void unlock() { mBusy.clear(std::memory_order_acq_rel); }
-
-  void add(Span<Order> orders) {
-    for (auto &order : orders) {
-      if (order.action == OrderAction::Buy) {
-        mBids.push_back(order);
-        std::push_heap(mBids.begin(), mBids.end(), compareBids);
-      } else {
-        mAsks.push_back(order);
-        std::push_heap(mAsks.begin(), mAsks.end(), compareAsks);
-      }
-      mLastAdded.insert(order.id); // Randomizator
+  void add(const Order &order) {
+    if (order.action == OrderAction::Buy) {
+      mBids.push_back(order);
+      std::push_heap(mBids.begin(), mBids.end(), compareBids);
+    } else {
+      mAsks.push_back(order);
+      std::push_heap(mAsks.begin(), mAsks.end(), compareAsks);
     }
+    mLastAdded.insert(order.id); // Randomizator
   }
 
   std::vector<OrderStatus> match() {
@@ -97,16 +92,14 @@ private:
     status.action = order.action;
     status.traderId = order.traderId;
     status.ticker = order.ticker;
-    spdlog::trace(utils::toString(status));
+    spdlog::trace([&status] { return utils::toString(status); }());
     return status;
   }
 
 private:
   std::vector<Order> mBids;
   std::vector<Order> mAsks;
-
   std::set<OrderId> mLastAdded;
-  std::atomic_flag mBusy = ATOMIC_FLAG_INIT;
 };
 
 } // namespace hft::server

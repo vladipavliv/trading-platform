@@ -23,16 +23,32 @@
 namespace hft {
 
 template <typename MessageTypeIn>
-class ServerTcpSocket {
+class AsyncTcpSocket {
 public:
-  using Type = ServerTcpSocket<MessageTypeIn>;
+  using Type = AsyncTcpSocket<MessageTypeIn>;
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
   using Serializer = serialization::FlatBuffersSerializer;
 
-  ServerTcpSocket(TcpSocket &&socket, TraderId id, CRefHandler<MessageIn> handler)
+  AsyncTcpSocket(TcpSocket &&socket, TraderId id, CRefHandler<MessageIn> handler)
       : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)}, mReadBuffer(BUFFER_SIZE),
         mWritePool{WRITE_BUFFER_POOL_SIZE} {}
+
+  AsyncTcpSocket(TcpSocket &&socket, TcpEndpoint endpoint, CRefHandler<MessageIn> handler)
+      : AsyncTcpSocket(std::move(socket), 0, handler) {
+    mEndpoint = std::move(endpoint);
+  }
+
+  void asyncConnect(Callback callback) {
+    mSocket.async_connect(mEndpoint, [this, callback](BoostErrorRef ec) {
+      if (ec) {
+        spdlog::error("Failed to connect socket:{}", ec.message());
+        return;
+      }
+      mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
+      callback();
+    });
+  }
 
   void asyncRead() {
     size_t writable = mReadBuffer.size() - mTail;
@@ -46,19 +62,18 @@ public:
   template <typename MessageTypeOut>
   void asyncWrite(Span<MessageTypeOut> msgVec) {
     size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
-    auto dataPtr = mWritePool.acquire(allocSize); // std::make_shared<ByteBuffer>(allocSize);
+    auto dataPtr = std::make_shared<ByteBuffer>(allocSize); // mWritePool.acquire(allocSize); //
 
     size_t totalSize{0};
-    uint8_t *cursor = dataPtr;
+    uint8_t *cursor = dataPtr->data();
     for (auto &msg : msgVec) {
       auto msgSize = serializeMessage(msg, cursor);
       cursor += msgSize;
       totalSize += msgSize;
     }
-
-    boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr, totalSize),
+    boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
                              [this, allocSize](BoostErrorRef ec, size_t size) {
-                               BufferGuard guard(mWritePool, allocSize);
+                               // BufferGuard guard(mWritePool, allocSize);
                                if (ec) {
                                  spdlog::error("Write failed: {}", ec.message());
                                }
@@ -123,6 +138,7 @@ private:
 
 private:
   TcpSocket mSocket;
+  TcpEndpoint mEndpoint;
   CRefHandler<MessageIn> mHandler;
 
   size_t mHead{0};

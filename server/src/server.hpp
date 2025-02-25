@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_HFTSERVER_HPP
-#define HFT_SERVER_HFTSERVER_HPP
+#ifndef HFT_SERVER_SERVER_HPP
+#define HFT_SERVER_SERVER_HPP
 
 #include <fcntl.h>
 #include <format>
@@ -17,23 +17,22 @@
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
+#include "network/async_tcp_socket.hpp"
 #include "network_types.hpp"
 #include "order_book.hpp"
-#include "server_tcp_socket.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
-namespace hft {
+namespace hft::server {
 
 class Server {
-  using Socket = ServerTcpSocket<Order>;
-  using UPtrSocket = std::unique_ptr<Socket>;
+  using ServerTcpSocket = AsyncTcpSocket<Order>;
   using UPtrOrderBook = std::unique_ptr<FlatOrderBook>;
 
   struct Session {
-    UPtrSocket ingress;
-    UPtrSocket egress;
+    ServerTcpSocket::UPtr ingress;
+    ServerTcpSocket::UPtr egress;
   };
 
 public:
@@ -76,7 +75,7 @@ private:
       }
       auto traderId = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected", traderId);
-      mSessions[traderId].ingress = std::make_unique<Socket>(
+      mSessions[traderId].ingress = std::make_unique<ServerTcpSocket>(
           std::move(socket), traderId,
           [this, traderId](const Order &order) { dispatchOrder(traderId, order); });
       mSessions[traderId].ingress->asyncRead();
@@ -101,15 +100,16 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto id = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected", id);
-      mSessions[id].egress = std::make_unique<Socket>(std::move(socket), id, [](const Order &) {});
+      mSessions[id].egress =
+          std::make_unique<ServerTcpSocket>(std::move(socket), id, [](const Order &) {});
       acceptEgress();
     });
   }
 
   void startWorkers() {
-    mWorkerContexts.reserve(Config::cfg.coresApp.size());
-    mWorkerGuards.reserve(Config::cfg.coresApp.size());
-    for (int i = 0; i < Config::cfg.coresApp.size(); ++i) {
+    mWorkerContexts.reserve(Config::cfg.coreIds.size());
+    mWorkerGuards.reserve(Config::cfg.coreIds.size());
+    for (int i = 0; i < Config::cfg.coreIds.size(); ++i) {
       mWorkerContexts.emplace_back(std::make_unique<IoContext>());
       mWorkerGuards.emplace_back(
           std::make_unique<ContextGuard>(boost::asio::make_work_guard(*mWorkerContexts.back())));
@@ -128,11 +128,13 @@ private:
   }
 
   ThreadId getWorkerId(const Ticker &ticker) {
-    return getTicketHash(ticker) % Config::cfg.coresApp.size();
+    return getTicketHash(ticker) % Config::cfg.coreIds.size();
   }
 
   void dispatchOrder(TraderId traderId, const Order &order) {
+    spdlog::debug([&order] { return utils::toString(order); }());
     mOrdersTotal.fetch_add(1, std::memory_order_relaxed);
+    mRpsCounter.fetch_add(1, std::memory_order_relaxed);
     ThreadId workerId = getWorkerId(order.ticker);
     boost::asio::post(*mWorkerContexts[workerId], [this, order, traderId]() {
       size_t tickerId = getTicketHash(order.ticker);
@@ -148,6 +150,7 @@ private:
     for (auto &item : tickers) {
       mOrderBooks[getTicketHash(item.ticker)] = std::make_unique<FlatOrderBook>();
     }
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", tickers.size()));
   }
 
   void scheduleTimer() {
@@ -157,9 +160,13 @@ private:
         return;
       }
       checkInput();
-      Logger::monitorLogger->info("Orders [matched|total] {} {}",
-                                  mOrdersClosed.load(std::memory_order_relaxed),
-                                  mOrdersTotal.load(std::memory_order_relaxed));
+      auto rps = mRpsCounter.load(std::memory_order_relaxed);
+      mRpsCounter.fetch_add(-rps, std::memory_order_relaxed);
+      if (rps != 0) {
+        Logger::monitorLogger->info("Orders [matched|total] {} {} rps:{}",
+                                    mOrdersClosed.load(std::memory_order_relaxed),
+                                    mOrdersTotal.load(std::memory_order_relaxed), rps);
+      }
       scheduleTimer();
     });
   }
@@ -194,8 +201,9 @@ private:
 
   std::atomic_size_t mOrdersTotal;
   std::atomic_size_t mOrdersClosed;
+  std::atomic_size_t mRpsCounter;
 };
 
-} // namespace hft
+} // namespace hft::server
 
-#endif // HFT_SERVER_HFTSERVER_HPP
+#endif // HFT_SERVER_SERVER_HPP

@@ -35,8 +35,7 @@ struct ConfigReader {
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cpu
-    Config::cfg.coresIo = parseCores(pt.get<std::string>("cpu.cores_io"));
-    Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
+    Config::cfg.coreIds = parseCores(pt.get<std::string>("cpu.core_ids"));
     Config::cfg.tradeRateUs = pt.get<int>("rates.trade_rate");
     Config::cfg.priceFeedRateUs = pt.get<int>("rates.price_feed_rate");
     Config::cfg.monitorRateS = pt.get<int>("rates.monitor_rate");

@@ -60,20 +60,12 @@ target_compile_definitions(hft_server PRIVATE)
 target_link_libraries(hft_server PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_server PRIVATE  common/src server/src server/src/types)
 
-# Server v2 Target
-file(GLOB_RECURSE SERVER_V2_SOURCES "server_v2/src/*.cpp" "server_v2/src/**/*.cpp" "server_v2/src/*.hpp" "server_v2/src/**/*.hpp")
-add_executable(hft_server_v2 ${SERVER_V2_SOURCES})
-target_compile_definitions(hft_server_v2 PRIVATE)
-target_link_libraries(hft_server_v2 PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
-target_include_directories(hft_server_v2 PRIVATE common/src server_v2/src)
-
 # Trader Target
 file(GLOB_RECURSE TRADER_SOURCES "trader/src/*.cpp" "trader/src/**/*.cpp" "trader/src/*.hpp" "trader/src/**/*.hpp")
 add_executable(hft_trader ${TRADER_SOURCES})
 target_compile_definitions(hft_trader PRIVATE)
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
 target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
-
 
 # mimalloc
 if(USE_MIMALLOC)
@@ -83,7 +75,6 @@ if(USE_MIMALLOC)
 endif()
 
 add_dependencies(hft_server code_generator)
-add_dependencies(hft_server_v2 code_generator)
 add_dependencies(hft_trader code_generator)
 
 add_custom_command(
