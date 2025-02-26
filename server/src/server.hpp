@@ -131,12 +131,12 @@ private:
     }
   }
 
-  size_t getTicketHash(const Ticker &ticker) {
+  size_t getTickerHash(const Ticker &ticker) {
     return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
   }
 
   ThreadId getWorkerId(const Ticker &ticker) {
-    return getTicketHash(ticker) % Config::cfg.coreIds.size();
+    return getTickerHash(ticker) % Config::cfg.coreIds.size();
   }
 
   void dispatchOrder(TraderId traderId, const Order &order) {
@@ -145,7 +145,7 @@ private:
     mRpsCounter.fetch_add(1, std::memory_order_relaxed);
     ThreadId workerId = getWorkerId(order.ticker);
     boost::asio::post(*mWorkerContexts[workerId], [this, order, traderId]() {
-      size_t tickerId = getTicketHash(order.ticker);
+      size_t tickerId = getTickerHash(order.ticker);
       mOrderBooks[tickerId]->add(order);
       auto matches = mOrderBooks[tickerId]->match();
       mSessions[traderId].egress->asyncWrite(Span<OrderStatus>(matches));
@@ -156,7 +156,7 @@ private:
   void initMarketData() {
     auto tickers = db::PostgresAdapter::readTickers();
     for (auto &item : tickers) {
-      mOrderBooks[getTicketHash(item.ticker)] = std::make_unique<FlatOrderBook>();
+      mOrderBooks[getTickerHash(item.ticker)] = std::make_unique<FlatOrderBook>();
     }
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", tickers.size()));
   }
@@ -169,7 +169,7 @@ private:
       }
       checkInput();
       auto rps = mRpsCounter.load(std::memory_order_relaxed);
-      mRpsCounter.fetch_add(-rps, std::memory_order_relaxed);
+      mRpsCounter.fetch_sub(rps, std::memory_order_relaxed);
       if (rps != 0) {
         Logger::monitorLogger->info("Orders [matched|total] {} {} rps:{}",
                                     mOrdersClosed.load(std::memory_order_relaxed),

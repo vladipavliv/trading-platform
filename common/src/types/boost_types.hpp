@@ -21,7 +21,7 @@ using BoostErrorRef = const BoostError &;
 
 using SteadyTimer = boost::asio::steady_timer;
 using Seconds = boost::asio::chrono::seconds;
-using MilliSeconds = boost::asio::chrono::milliseconds;
+using Milliseconds = boost::asio::chrono::milliseconds;
 using Microseconds = boost::asio::chrono::microseconds;
 using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
 

@@ -117,6 +117,15 @@ struct is_smart_ptr<std::shared_ptr<Type>> : std::true_type {};
 template <typename Type>
 struct is_smart_ptr<std::unique_ptr<Type>> : std::true_type {};
 
+template <size_t First, size_t Second, size_t... Rest>
+constexpr bool is_ascending() {
+  if constexpr (sizeof...(Rest) == 0) {
+    return First <= Second;
+  } else {
+    return (First <= Second) && is_ascending<Second, Rest...>();
+  }
+}
+
 } // namespace hft
 
 #endif // HFT_COMMON_TEMPLATETYPES_HPP

@@ -29,6 +29,7 @@ namespace hft::trader {
 
 class Trader {
   using TraderTcpSocket = AsyncTcpSocket<OrderStatus>;
+  using Tracker = RttTracker<50, 200>;
 
 public:
   Trader()
@@ -40,7 +41,8 @@ public:
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
                       [this](const OrderStatus &status) { onOrderStatus(status); }},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
-        mTradeRate{Config::cfg.tradeRateUs}, mMonitorRate{Config::cfg.monitorRateS} {
+        mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
+        mMonitorRate{Config::cfg.monitorRateS} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
 
@@ -50,9 +52,9 @@ public:
     });
     mEgressSocket.asyncConnect(
         [this]() { Logger::monitorLogger->info("Egress socket connected"); });
-    scheduleMonitorTimer();
-
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
+
+    scheduleInputTimer();
   }
 
   void start() {
@@ -72,7 +74,17 @@ private:
 
   void onOrderStatus(const OrderStatus &status) {
     spdlog::debug("Order status {}", [&status] { return utils::toString(status); }());
-    RttTracker::logRtt(status.id);
+    Tracker::logRtt(status.id);
+  }
+
+  void tradeStart() {
+    scheduleTradeTimer();
+    scheduleMonitorTimer();
+  }
+
+  void tradeStop() {
+    mTradeTimer.cancel();
+    mMonitorTimer.cancel();
   }
 
   void scheduleTradeTimer() {
@@ -92,34 +104,20 @@ private:
       if (ec) {
         return;
       }
-      checkInput();
-      showStats();
+      Tracker::printStats();
       scheduleMonitorTimer();
     });
   }
 
-  void showStats() {
-    using namespace utils;
-    auto rtt = RttTracker::getStats().samples;
-    auto sampleSize = rtt[0].size + rtt[1].size + rtt[2].size;
-    auto s0Rate = ((float)rtt[0].size / sampleSize) * 100;
-    auto s1Rate = ((float)rtt[1].size / sampleSize) * 100;
-    auto s2Rate = ((float)rtt[2].size / sampleSize) * 100;
-
-    if (sampleSize == 0) {
-      return;
-    }
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(2);
-    ss << "RTT [1us|100us|1ms]  " << s0Rate << "% avg:";
-    ss << ((rtt[0].size != 0) ? (rtt[0].sum / rtt[0].size) : 0);
-    ss << "us  " << s1Rate << "% avg:";
-    ss << ((rtt[1].size != 0) ? (rtt[1].sum / rtt[1].size) : 0);
-    ss << "us  " << s2Rate << "% avg:";
-    ss << ((rtt[2].size != 0) ? ((rtt[2].sum / rtt[2].size) / 1000) : 0);
-    ss << "ms";
-
-    Logger::monitorLogger->info(ss.str());
+  void scheduleInputTimer() {
+    mInputTimer.expires_after(Milliseconds(200));
+    mInputTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      checkInput();
+      scheduleInputTimer();
+    });
   }
 
   void tradeSomething() {
@@ -142,15 +140,15 @@ private:
       if (cmd == "q") {
         stop();
       } else if (cmd == "t+") {
-        scheduleTradeTimer();
+        tradeStart();
       } else if (cmd == "t-") {
-        mTradeTimer.cancel();
+        tradeStop();
       } else if (cmd == "ts-") {
         mTradeRate *= 2;
-        Logger::monitorLogger->info(std::format("Trade rate: {}us", mTradeRate));
+        Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
       } else if (cmd == "ts+" && mTradeRate > Microseconds(10)) {
         mTradeRate /= 2;
-        Logger::monitorLogger->info(std::format("Trade rate: {}us", mTradeRate));
+        Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
       }
     }
   }
@@ -165,6 +163,7 @@ private:
   std::vector<TickerPrice> mPrices;
   SteadyTimer mTradeTimer;
   SteadyTimer mMonitorTimer;
+  SteadyTimer mInputTimer;
 
   Microseconds mTradeRate;
   Seconds mMonitorRate;

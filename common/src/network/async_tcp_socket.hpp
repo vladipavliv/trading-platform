@@ -31,8 +31,8 @@ public:
   using Serializer = serialization::FlatBuffersSerializer;
 
   AsyncTcpSocket(TcpSocket &&socket, TraderId id, CRefHandler<MessageIn> handler)
-      : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)}, mReadBuffer(BUFFER_SIZE),
-        mWritePool{WRITE_BUFFER_POOL_SIZE} {}
+      : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)},
+        mReadBuffer(BUFFER_SIZE) {}
 
   AsyncTcpSocket(TcpSocket &&socket, TcpEndpoint endpoint, CRefHandler<MessageIn> handler)
       : AsyncTcpSocket(std::move(socket), 0, handler) {
@@ -62,7 +62,7 @@ public:
   template <typename MessageTypeOut>
   void asyncWrite(Span<MessageTypeOut> msgVec) {
     size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
-    auto dataPtr = std::make_shared<ByteBuffer>(allocSize); // mWritePool.acquire(allocSize); //
+    auto dataPtr = std::make_unique<ByteBuffer>(allocSize);
 
     size_t totalSize{0};
     uint8_t *cursor = dataPtr->data();
@@ -72,8 +72,7 @@ public:
       totalSize += msgSize;
     }
     boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
-                             [this, allocSize](BoostErrorRef ec, size_t size) {
-                               // BufferGuard guard(mWritePool, allocSize);
+                             [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                                if (ec) {
                                  spdlog::error("Write failed: {}", ec.message());
                                }
@@ -144,8 +143,6 @@ private:
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mReadBuffer;
-  BufferPool mWritePool;
-
   TraderId mId{};
 };
 
