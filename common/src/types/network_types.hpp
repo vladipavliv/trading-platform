@@ -25,6 +25,10 @@ using UdpEndpoint = boost::asio::ip::udp::endpoint;
 using MessageSize = uint16_t;
 using FullHeader = uint32_t;
 
+enum class SocketType : uint8_t { Ingress = 0U, Egress = 1U, Broadcast = 2U };
+
+enum class SocketStatus : uint8_t { Connected = 0U, Disconnected = 1U };
+
 } // namespace hft
 
 #endif // HFT_COMMON_NETWORK_TYPES_HPP

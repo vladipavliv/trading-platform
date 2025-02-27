@@ -40,7 +40,8 @@ public:
   Server()
       : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx},
         mPricesSocket{utils::createUdpSocket(mCtx),
-                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
+                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp},
+                      [](const TickerPrice &) {}, [](SocketStatus status) {}},
         mInputTimer{mCtx}, mStatsTimer{mCtx}, mPriceTimer{mCtx},
         mStatsRateS{Config::cfg.monitorRateS}, mPriceRateUs{Config::cfg.priceFeedRateUs} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
@@ -50,17 +51,21 @@ public:
     std::cout << std::unitbuf;
 
     initMarketData();
-    startWorkers();
     startIngress();
     startEgress();
+    startWorkers();
     scheduleInputTimer();
     scheduleStatsTimer();
   }
   ~Server() {
-    for (auto &thread : mWorkerThreads) {
-      if (thread.joinable()) {
-        thread.join();
+    try {
+      for (auto &thread : mWorkerThreads) {
+        if (thread.joinable()) {
+          thread.join();
+        }
       }
+    } catch (const std::exception &e) {
+      Logger::monitorLogger->critical("Exception in Server dtor {}", e.what());
     }
   }
 
@@ -68,12 +73,17 @@ public:
     utils::setTheadRealTime();
     mCtx.run();
   }
-  void stop() { mCtx.stop(); }
+  void stop() {
+    mIngressAcceptor.close();
+    mEgressAcceptor.close();
+    mCtx.stop();
+  }
 
 private:
   void startIngress() {
     TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpIn);
     mIngressAcceptor.open(endpoint.protocol());
+    mIngressAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
     mIngressAcceptor.bind(endpoint);
     mIngressAcceptor.listen();
     acceptIngress();
@@ -81,16 +91,17 @@ private:
 
   void acceptIngress() {
     mIngressAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
-      socket.set_option(TcpSocket::protocol_type::no_delay(true));
       if (ec) {
         spdlog::error("Failed to accept connection {}", ec.message());
         return;
       }
+      socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected", traderId);
       mSessions[traderId].ingress = std::make_unique<ServerTcpSocket>(
-          std::move(socket), traderId,
-          [this, traderId](const Order &order) { dispatchOrder(traderId, order); });
+          std::move(socket),
+          [this, traderId](const Order &order) { dispatchOrder(traderId, order); },
+          [this, traderId](SocketStatus status) { onSocketStatus(traderId, status); }, traderId);
       mSessions[traderId].ingress->asyncRead();
       acceptIngress();
     });
@@ -99,6 +110,7 @@ private:
   void startEgress() {
     TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpOut);
     mEgressAcceptor.open(endpoint.protocol());
+    mEgressAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
     mEgressAcceptor.bind(endpoint);
     mEgressAcceptor.listen();
     acceptEgress();
@@ -111,10 +123,11 @@ private:
         return;
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
-      auto id = utils::getTraderId(socket);
-      Logger::monitorLogger->info("{} connected", id);
-      mSessions[id].egress =
-          std::make_unique<ServerTcpSocket>(std::move(socket), id, [](const Order &) {});
+      auto traderId = utils::getTraderId(socket);
+      Logger::monitorLogger->info("{} connected", traderId);
+      mSessions[traderId].egress = std::make_unique<ServerTcpSocket>(
+          std::move(socket), [](const Order &) {},
+          [this, traderId](SocketStatus status) { onSocketStatus(traderId, status); }, traderId);
       acceptEgress();
     });
   }
@@ -154,6 +167,17 @@ private:
       mSessions[traderId].egress->asyncWrite(Span<OrderStatus>(matches));
       mOrdersClosed.fetch_add(matches.size(), std::memory_order_relaxed);
     });
+  }
+
+  void onSocketStatus(TraderId id, SocketStatus status) {
+    switch (status) {
+    case SocketStatus::Disconnected:
+      Logger::monitorLogger->info("Trader {} disconnected", id);
+      mSessions.erase(id);
+      break;
+    default:
+      break;
+    }
   }
 
   void initMarketData() {

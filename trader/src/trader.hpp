@@ -35,29 +35,31 @@ class Trader {
 public:
   Trader()
       : mGuard{boost::asio::make_work_guard(mCtx)},
-        mIngressSocket{TcpSocket{mCtx},
-                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
-                       [this](const OrderStatus &status) { onOrderStatus(status); }},
+        mIngressSocket{
+            TcpSocket{mCtx}, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
+            [this](const OrderStatus &status) { onOrderStatus(status); },
+            [this](SocketStatus status) { onSocketStatus(SocketType::Ingress, status); }},
         mEgressSocket{TcpSocket{mCtx},
-                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
-        mPricesSocket{createUdpSocket(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
-                      [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); }},
+                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
+                      [](const OrderStatus &) {},
+                      [this](SocketStatus status) { onSocketStatus(SocketType::Egress, status); }},
+        mPricesSocket{
+            createUdpSocket(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
+            [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); },
+            [this](SocketStatus status) { onSocketStatus(SocketType::Broadcast, status); }},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
         mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
         mMonitorRate{Config::cfg.monitorRateS} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
 
-    mIngressSocket.asyncConnect([this]() {
-      Logger::monitorLogger->info("Ingress socket connected");
-      mIngressSocket.asyncRead();
-    });
-    mEgressSocket.asyncConnect(
-        [this]() { Logger::monitorLogger->info("Egress socket connected"); });
+    mIngressSocket.asyncConnect();
+    mEgressSocket.asyncConnect();
     mPricesSocket.asyncConnect();
 
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
     scheduleInputTimer();
+    scheduleMonitorTimer();
   }
 
   void start() {
@@ -76,17 +78,47 @@ private:
     spdlog::debug([&price] { return utils::toString(price); }());
   }
 
+  void onSocketStatus(SocketType socketType, SocketStatus status) {
+    switch (socketType) {
+    case SocketType::Ingress:
+      if (status == SocketStatus::Connected) {
+        Logger::monitorLogger->info("Ingress socket connected");
+        mIngressSocket.asyncRead();
+      } else {
+        tradeStop();
+      }
+      break;
+    case SocketType::Egress:
+      if (status == SocketStatus::Connected) {
+        Logger::monitorLogger->info("Egress socket connected");
+      } else {
+        tradeStop();
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
   void tradeStart() {
+    if (mIngressSocket.status() != SocketStatus::Connected ||
+        mEgressSocket.status() != SocketStatus::Connected) {
+      Logger::monitorLogger->error("Not connected to the server");
+      return;
+    }
+    mTrading.test_and_set();
     scheduleTradeTimer();
-    scheduleMonitorTimer();
   }
 
   void tradeStop() {
+    mTrading.clear();
     mTradeTimer.cancel();
-    mMonitorTimer.cancel();
   }
 
   void scheduleTradeTimer() {
+    if (!mTrading.test()) {
+      return;
+    }
     mTradeTimer.expires_after(mTradeRate);
     mTradeTimer.async_wait([this](BoostErrorRef ec) {
       if (ec) {
@@ -103,7 +135,18 @@ private:
       if (ec) {
         return;
       }
-      Tracker::printStats();
+      const bool ingressOn = mIngressSocket.status() == SocketStatus::Connected;
+      const bool egressOn = mEgressSocket.status() == SocketStatus::Connected;
+      if (!ingressOn || !egressOn) {
+        Logger::monitorLogger->critical("Server is down, reconnecting...");
+        if (!ingressOn) {
+          mIngressSocket.reconnect();
+        }
+        // Egress socket won't passively notify about disconnect
+        mEgressSocket.reconnect();
+      } else if (mTrading.test()) {
+        Tracker::printStats();
+      }
       scheduleMonitorTimer();
     });
   }
@@ -178,6 +221,7 @@ private:
 
   Microseconds mTradeRate;
   Seconds mMonitorRate;
+  std::atomic_flag mTrading = ATOMIC_FLAG_INIT;
 };
 
 } // namespace hft::trader

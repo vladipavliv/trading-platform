@@ -12,6 +12,7 @@
 #include <string>
 
 #include "market_types.hpp"
+#include "network_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
@@ -143,6 +144,19 @@ String toString(spdlog::level::level_enum logLvl) {
     return "critical";
   default:
     return "debug";
+  }
+}
+
+String toString(SocketType socketType) {
+  switch (socketType) {
+  case SocketType::Ingress:
+    return "Ingress";
+  case SocketType::Egress:
+    return "Egress";
+  case SocketType::Broadcast:
+    return "Broadcast";
+  default:
+    return "Broadcast";
   }
 }
 

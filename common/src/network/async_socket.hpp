@@ -31,36 +31,42 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
   using Serializer = serialization::FlatBuffersSerializer;
-  using MsgHandler = CRefHandler<MessageIn>;
 
-  AsyncSocket(Socket &&socket, TraderId id = 0, MsgHandler handler = MsgHandler{})
-      : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)},
-        mReadBuffer(BUFFER_SIZE) {
+  using MsgHandler = CRefHandler<MessageIn>;
+  using StatusHandler = CRefHandler<SocketStatus>;
+
+  AsyncSocket(Socket &&socket, MsgHandler msgHndlr, StatusHandler statusHndlr, TraderId id = 0)
+      : mSocket{std::move(socket)}, mId{id}, mMessageHandler{std::move(msgHndlr)},
+        mStatusHandler{std::move(statusHndlr)}, mReadBuffer(BUFFER_SIZE) {
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      mSocket.set_option(boost::asio::socket_base::reuse_address{true});
+      mStatus.store(SocketStatus::Connected, std::memory_order_release);
     }
   }
 
-  AsyncSocket(Socket &&socket, Endpoint endpoint, MsgHandler handler = MsgHandler{})
-      : AsyncSocket(std::move(socket), 0, handler) {
+  AsyncSocket(Socket &&socket, Endpoint endpoint, MsgHandler msgHndlr, StatusHandler statusHndlr)
+      : AsyncSocket(std::move(socket), std::move(msgHndlr), std::move(statusHndlr)) {
     mEndpoint = std::move(endpoint);
   }
 
-  void asyncConnect(Callback callback = Callback()) {
+  void asyncConnect() {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      mSocket.async_connect(mEndpoint, [this, callback](BoostErrorRef ec) {
+      mSocket.async_connect(mEndpoint, [this](BoostErrorRef ec) {
         if (ec) {
           spdlog::error("Failed to connect socket:{}", ec.message());
+          onDisconnected();
           return;
         }
         mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
-        if (callback) {
-          callback();
-        }
+        onConnected();
       });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       asyncRead();
     }
+  }
+
+  void reconnect() {
+    mSocket.close();
+    asyncConnect();
   }
 
   void asyncRead() {
@@ -96,6 +102,7 @@ public:
                                [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                                  if (ec) {
                                    spdlog::error("Write failed: {}", ec.message());
+                                   onDisconnected();
                                  }
                                });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
@@ -103,12 +110,24 @@ public:
                             [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                               if (ec) {
                                 spdlog::error("Write failed: {}", ec.message());
+                                onDisconnected();
                               }
                             });
     }
   }
 
+  inline SocketStatus status() const { return mStatus.load(std::memory_order_acquire); }
+
 private:
+  void onDisconnected() {
+    mStatus.store(SocketStatus::Disconnected);
+    mStatusHandler(SocketStatus::Disconnected);
+  }
+  void onConnected() {
+    mStatus.store(SocketStatus::Connected);
+    mStatusHandler(SocketStatus::Connected);
+  }
+
   template <typename Type>
   boost::endian::little_int16_at serializeMessage(Type &msg, uint8_t *cursor) {
     auto buffer = Serializer::serialize(msg);
@@ -126,6 +145,7 @@ private:
       if (ec != boost::asio::error::eof) {
         spdlog::error(ec.message());
       }
+      onDisconnected();
       return;
     }
     mTail += bytesRead;
@@ -151,7 +171,7 @@ private:
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
         result.value.traderId = mId;
       }
-      mHandler(result.value);
+      mMessageHandler(result.value);
       mHead += bodySize + sizeof(MessageSize);
     }
     if (mReadBuffer.size() - mTail < 256) {
@@ -169,12 +189,16 @@ private:
 private:
   Socket mSocket;
   Endpoint mEndpoint;
-  MsgHandler mHandler;
+
+  MsgHandler mMessageHandler;
+  StatusHandler mStatusHandler;
 
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mReadBuffer;
   TraderId mId{};
+
+  std::atomic<SocketStatus> mStatus{SocketStatus::Disconnected};
 };
 
 } // namespace hft
