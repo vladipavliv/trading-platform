@@ -38,7 +38,9 @@ class Server {
 
 public:
   Server()
-      : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx}, mPricesSocket{utils::createUdpSocket(mCtx)},
+      : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx},
+        mPricesSocket{utils::createUdpSocket(mCtx),
+                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
         mInputTimer{mCtx}, mStatsTimer{mCtx}, mPriceTimer{mCtx},
         mStatsRateS{Config::cfg.monitorRateS}, mPriceRateUs{Config::cfg.priceFeedRateUs} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
@@ -155,11 +157,11 @@ private:
   }
 
   void initMarketData() {
-    auto tickers = db::PostgresAdapter::readTickers();
-    for (auto &item : tickers) {
+    mPrices = db::PostgresAdapter::readTickers();
+    for (auto &item : mPrices) {
       mOrderBooks.insert({utils::getTickerHash(item.ticker), OrderBook{}});
     }
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", tickers.size()));
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
   }
 
   void scheduleInputTimer() {
@@ -198,8 +200,26 @@ private:
       if (ec) {
         return;
       }
+      updatePrices();
       schedulePriceTimer();
     });
+  }
+
+  void updatePrices() {
+    static auto cursor = mPrices.begin();
+    const auto pricesPerUpdate = 5;
+    std::vector<TickerPrice> priceUpdates;
+    priceUpdates.reserve(pricesPerUpdate);
+    for (int i = 0; i < pricesPerUpdate; ++i) {
+      if (cursor == mPrices.end()) {
+        cursor = mPrices.begin();
+      }
+      auto tickerPrice = *cursor++;
+      tickerPrice.price = utils::getLinuxTimestamp() % 777;
+      priceUpdates.emplace_back(std::move(tickerPrice));
+      spdlog::trace([&tickerPrice] { return utils::toString(tickerPrice); }());
+    }
+    mPricesSocket.asyncWrite(Span<TickerPrice>(priceUpdates));
   }
 
   void checkInput() {
@@ -212,6 +232,12 @@ private:
         for (auto &ctx : mWorkerContexts) {
           ctx->stop();
         }
+      } else if (cmd == "p+") {
+        schedulePriceTimer();
+        Logger::monitorLogger->info("Price feed start");
+      } else if (cmd == "p-") {
+        mPriceTimer.cancel();
+        Logger::monitorLogger->info("Price feed stop");
       }
     }
   }
@@ -236,6 +262,7 @@ private:
 
   std::unordered_map<size_t, Session> mSessions;
   std::unordered_map<size_t, OrderBook> mOrderBooks;
+  std::vector<TickerPrice> mPrices;
 
   std::atomic_size_t mOrdersTotal;
   std::atomic_size_t mOrdersClosed;

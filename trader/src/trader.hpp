@@ -39,8 +39,9 @@ public:
                        TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
                        [this](const OrderStatus &status) { onOrderStatus(status); }},
         mEgressSocket{TcpSocket{mCtx},
-                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
-                      [this](const OrderStatus &status) { onOrderStatus(status); }},
+                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
+        mPricesSocket{createUdpSocket(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
+                      [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); }},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
         mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
         mMonitorRate{Config::cfg.monitorRateS} {
@@ -53,8 +54,9 @@ public:
     });
     mEgressSocket.asyncConnect(
         [this]() { Logger::monitorLogger->info("Egress socket connected"); });
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
+    mPricesSocket.asyncConnect();
 
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
     scheduleInputTimer();
   }
 
@@ -66,8 +68,12 @@ public:
 
 private:
   void onOrderStatus(const OrderStatus &status) {
-    spdlog::debug("Order status {}", [&status] { return utils::toString(status); }());
+    spdlog::debug("OrderStatus {}", [&status] { return utils::toString(status); }());
     Tracker::logRtt(status.id);
+  }
+
+  void onPriceUpdate(const TickerPrice &price) {
+    spdlog::debug([&price] { return utils::toString(price); }());
   }
 
   void tradeStart() {
@@ -114,7 +120,11 @@ private:
   }
 
   void tradeSomething() {
-    auto tickerPrice = mPrices[utils::RNG::rng(mPrices.size() - 1)];
+    static auto cursor = mPrices.begin();
+    if (cursor == mPrices.end()) {
+      cursor = mPrices.begin();
+    }
+    auto tickerPrice = *cursor++;
     Order order;
     order.id = utils::getLinuxTimestamp();
     order.ticker = tickerPrice.ticker;
@@ -146,12 +156,20 @@ private:
     }
   }
 
+  UdpSocket createUdpSocket() {
+    UdpSocket socket(mCtx, Udp::v4());
+    socket.set_option(boost::asio::socket_base::reuse_address{true});
+    socket.bind(UdpEndpoint(Udp::v4(), Config::cfg.portUdp));
+    return socket;
+  }
+
 private:
   IoContext mCtx;
   ContextGuard mGuard;
 
   TraderTcpSocket mIngressSocket;
   TraderTcpSocket mEgressSocket;
+  TraderUdpSocket mPricesSocket;
 
   std::vector<TickerPrice> mPrices;
   SteadyTimer mTradeTimer;

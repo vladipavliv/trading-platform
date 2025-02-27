@@ -31,9 +31,9 @@ public:
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
   using Serializer = serialization::FlatBuffersSerializer;
+  using MsgHandler = CRefHandler<MessageIn>;
 
-  AsyncSocket(Socket &&socket, TraderId id = 0,
-              CRefHandler<MessageIn> handler = CRefHandler<MessageIn>{})
+  AsyncSocket(Socket &&socket, TraderId id = 0, MsgHandler handler = MsgHandler{})
       : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)},
         mReadBuffer(BUFFER_SIZE) {
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
@@ -41,12 +41,12 @@ public:
     }
   }
 
-  AsyncSocket(Socket &&socket, Endpoint endpoint, CRefHandler<MessageIn> handler)
+  AsyncSocket(Socket &&socket, Endpoint endpoint, MsgHandler handler = MsgHandler{})
       : AsyncSocket(std::move(socket), 0, handler) {
     mEndpoint = std::move(endpoint);
   }
 
-  void asyncConnect(Callback callback) {
+  void asyncConnect(Callback callback = Callback()) {
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       mSocket.async_connect(mEndpoint, [this, callback](BoostErrorRef ec) {
         if (ec) {
@@ -54,7 +54,9 @@ public:
           return;
         }
         mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
-        callback();
+        if (callback) {
+          callback();
+        }
       });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
       asyncRead();
@@ -146,7 +148,9 @@ private:
         mHead = mTail = 0;
         break;
       }
-      result.value.traderId = mId;
+      if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
+        result.value.traderId = mId;
+      }
       mHandler(result.value);
       mHead += bodySize + sizeof(MessageSize);
     }
@@ -165,7 +169,7 @@ private:
 private:
   Socket mSocket;
   Endpoint mEndpoint;
-  CRefHandler<MessageIn> mHandler;
+  MsgHandler mHandler;
 
   size_t mHead{0};
   size_t mTail{0};
