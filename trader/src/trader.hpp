@@ -17,7 +17,7 @@
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
-#include "network/async_tcp_socket.hpp"
+#include "network/async_socket.hpp"
 #include "network_types.hpp"
 #include "rtt_tracker.hpp"
 #include "template_types.hpp"
@@ -28,7 +28,8 @@
 namespace hft::trader {
 
 class Trader {
-  using TraderTcpSocket = AsyncTcpSocket<OrderStatus>;
+  using TraderTcpSocket = AsyncSocket<TcpSocket, OrderStatus>;
+  using TraderUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
   using Tracker = RttTracker<50, 200>;
 
 public:
@@ -64,14 +65,6 @@ public:
   void stop() { mCtx.stop(); }
 
 private:
-  size_t getTicketHash(const Ticker &ticker) {
-    return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
-  }
-
-  ThreadId getWorkerId(const Ticker &ticker) {
-    return getTicketHash(ticker) % Config::cfg.coreIds.size();
-  }
-
   void onOrderStatus(const OrderStatus &status) {
     spdlog::debug("Order status {}", [&status] { return utils::toString(status); }());
     Tracker::logRtt(status.id);

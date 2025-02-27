@@ -22,41 +22,58 @@
 
 namespace hft {
 
-template <typename MessageTypeIn>
-class AsyncTcpSocket {
+template <typename SocketType, typename MessageTypeIn>
+class AsyncSocket {
 public:
-  using Type = AsyncTcpSocket<MessageTypeIn>;
+  using Type = AsyncSocket<SocketType, MessageTypeIn>;
+  using Socket = SocketType;
+  using Endpoint = Socket::endpoint_type;
   using MessageIn = MessageTypeIn;
   using UPtr = std::unique_ptr<Type>;
   using Serializer = serialization::FlatBuffersSerializer;
 
-  AsyncTcpSocket(TcpSocket &&socket, TraderId id, CRefHandler<MessageIn> handler)
+  AsyncSocket(Socket &&socket, TraderId id = 0,
+              CRefHandler<MessageIn> handler = CRefHandler<MessageIn>{})
       : mSocket{std::move(socket)}, mId{id}, mHandler{std::move(handler)},
-        mReadBuffer(BUFFER_SIZE) {}
+        mReadBuffer(BUFFER_SIZE) {
+    if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.set_option(boost::asio::socket_base::reuse_address{true});
+    }
+  }
 
-  AsyncTcpSocket(TcpSocket &&socket, TcpEndpoint endpoint, CRefHandler<MessageIn> handler)
-      : AsyncTcpSocket(std::move(socket), 0, handler) {
+  AsyncSocket(Socket &&socket, Endpoint endpoint, CRefHandler<MessageIn> handler)
+      : AsyncSocket(std::move(socket), 0, handler) {
     mEndpoint = std::move(endpoint);
   }
 
   void asyncConnect(Callback callback) {
-    mSocket.async_connect(mEndpoint, [this, callback](BoostErrorRef ec) {
-      if (ec) {
-        spdlog::error("Failed to connect socket:{}", ec.message());
-        return;
-      }
-      mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
-      callback();
-    });
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      mSocket.async_connect(mEndpoint, [this, callback](BoostErrorRef ec) {
+        if (ec) {
+          spdlog::error("Failed to connect socket:{}", ec.message());
+          return;
+        }
+        mSocket.set_option(TcpSocket::protocol_type::no_delay(true));
+        callback();
+      });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      asyncRead();
+    }
   }
 
   void asyncRead() {
     size_t writable = mReadBuffer.size() - mTail;
     uint8_t *writePtr = mReadBuffer.data() + mTail;
 
-    mSocket.async_read_some(
-        boost::asio::buffer(writePtr, writable),
-        [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      mSocket.async_read_some(
+          boost::asio::buffer(writePtr, writable),
+          [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.async_receive_from(
+          boost::asio::buffer(writePtr, writable), mEndpoint,
+          [this](BoostErrorRef code, size_t bytesRead) { readHandler(code, bytesRead); });
+    }
   }
 
   template <typename MessageTypeOut>
@@ -71,12 +88,22 @@ public:
       cursor += msgSize;
       totalSize += msgSize;
     }
-    boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
-                             [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
-                               if (ec) {
-                                 spdlog::error("Write failed: {}", ec.message());
-                               }
-                             });
+
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      boost::asio::async_write(mSocket, boost::asio::buffer(dataPtr->data(), totalSize),
+                               [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
+                                 if (ec) {
+                                   spdlog::error("Write failed: {}", ec.message());
+                                 }
+                               });
+    } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
+      mSocket.async_send_to(boost::asio::buffer(dataPtr->data(), totalSize), mEndpoint,
+                            [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
+                              if (ec) {
+                                spdlog::error("Write failed: {}", ec.message());
+                              }
+                            });
+    }
   }
 
 private:
@@ -136,8 +163,8 @@ private:
   }
 
 private:
-  TcpSocket mSocket;
-  TcpEndpoint mEndpoint;
+  Socket mSocket;
+  Endpoint mEndpoint;
   CRefHandler<MessageIn> mHandler;
 
   size_t mHead{0};

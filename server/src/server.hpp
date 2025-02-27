@@ -17,7 +17,7 @@
 #include "config/config.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
-#include "network/async_tcp_socket.hpp"
+#include "network/async_socket.hpp"
 #include "network_types.hpp"
 #include "order_book.hpp"
 #include "template_types.hpp"
@@ -27,8 +27,9 @@
 namespace hft::server {
 
 class Server {
-  using ServerTcpSocket = AsyncTcpSocket<Order>;
-  using UPtrOrderBook = std::unique_ptr<FlatOrderBook>;
+  using ServerTcpSocket = AsyncSocket<TcpSocket, Order>;
+  using ServerUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using OrderBook = FlatOrderBook;
 
   struct Session {
     ServerTcpSocket::UPtr ingress;
@@ -36,7 +37,10 @@ class Server {
   };
 
 public:
-  Server() : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx}, mTimer{mCtx} {
+  Server()
+      : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx}, mPricesSocket{utils::createUdpSocket(mCtx)},
+        mInputTimer{mCtx}, mStatsTimer{mCtx}, mPriceTimer{mCtx},
+        mStatsRateS{Config::cfg.monitorRateS}, mPriceRateUs{Config::cfg.priceFeedRateUs} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
@@ -47,7 +51,8 @@ public:
     startWorkers();
     startIngress();
     startEgress();
-    scheduleTimer();
+    scheduleInputTimer();
+    scheduleStatsTimer();
   }
   ~Server() {
     for (auto &thread : mWorkerThreads) {
@@ -131,23 +136,19 @@ private:
     }
   }
 
-  size_t getTickerHash(const Ticker &ticker) {
-    return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
-  }
-
   ThreadId getWorkerId(const Ticker &ticker) {
-    return getTickerHash(ticker) % Config::cfg.coreIds.size();
+    return utils::getTickerHash(ticker) % Config::cfg.coreIds.size();
   }
 
   void dispatchOrder(TraderId traderId, const Order &order) {
     spdlog::debug([&order] { return utils::toString(order); }());
     mOrdersTotal.fetch_add(1, std::memory_order_relaxed);
-    mRpsCounter.fetch_add(1, std::memory_order_relaxed);
+
     ThreadId workerId = getWorkerId(order.ticker);
     boost::asio::post(*mWorkerContexts[workerId], [this, order, traderId]() {
-      size_t tickerId = getTickerHash(order.ticker);
-      mOrderBooks[tickerId]->add(order);
-      auto matches = mOrderBooks[tickerId]->match();
+      size_t tickerId = utils::getTickerHash(order.ticker);
+      mOrderBooks[tickerId].add(order);
+      auto matches = mOrderBooks[tickerId].match();
       mSessions[traderId].egress->asyncWrite(Span<OrderStatus>(matches));
       mOrdersClosed.fetch_add(matches.size(), std::memory_order_relaxed);
     });
@@ -156,26 +157,48 @@ private:
   void initMarketData() {
     auto tickers = db::PostgresAdapter::readTickers();
     for (auto &item : tickers) {
-      mOrderBooks[getTickerHash(item.ticker)] = std::make_unique<FlatOrderBook>();
+      mOrderBooks.insert({utils::getTickerHash(item.ticker), OrderBook{}});
     }
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", tickers.size()));
   }
 
-  void scheduleTimer() {
-    mTimer.expires_after(Seconds(1));
-    mTimer.async_wait([this](BoostErrorRef ec) {
+  void scheduleInputTimer() {
+    mInputTimer.expires_after(Milliseconds(200));
+    mInputTimer.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
       checkInput();
-      auto rps = mRpsCounter.load(std::memory_order_relaxed);
-      mRpsCounter.fetch_sub(rps, std::memory_order_relaxed);
+      scheduleInputTimer();
+    });
+  }
+
+  void scheduleStatsTimer() {
+    mStatsTimer.expires_after(Seconds(mStatsRateS));
+    mStatsTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      static size_t lastOrderCount = 0;
+      size_t ordersCurrent = mOrdersTotal.load(std::memory_order_relaxed);
+      auto rps = (ordersCurrent - lastOrderCount) / mStatsRateS;
       if (rps != 0) {
         Logger::monitorLogger->info("Orders [matched|total] {} {} rps:{}",
                                     mOrdersClosed.load(std::memory_order_relaxed),
                                     mOrdersTotal.load(std::memory_order_relaxed), rps);
       }
-      scheduleTimer();
+      lastOrderCount = ordersCurrent;
+      scheduleStatsTimer();
+    });
+  }
+
+  void schedulePriceTimer() {
+    mPriceTimer.expires_after(Microseconds(mPriceRateUs));
+    mPriceTimer.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      schedulePriceTimer();
     });
   }
 
@@ -198,18 +221,24 @@ private:
 
   TcpAcceptor mIngressAcceptor;
   TcpAcceptor mEgressAcceptor;
-  SteadyTimer mTimer;
+  ServerUdpSocket mPricesSocket;
+
+  SteadyTimer mInputTimer;
+  SteadyTimer mStatsTimer;
+  SteadyTimer mPriceTimer;
+
+  size_t mStatsRateS;
+  size_t mPriceRateUs;
 
   std::vector<UPtrIoContext> mWorkerContexts;
   std::vector<UPtrContextGuard> mWorkerGuards;
   std::vector<std::thread> mWorkerThreads;
 
   std::unordered_map<size_t, Session> mSessions;
-  std::unordered_map<size_t, UPtrOrderBook> mOrderBooks;
+  std::unordered_map<size_t, OrderBook> mOrderBooks;
 
   std::atomic_size_t mOrdersTotal;
   std::atomic_size_t mOrdersClosed;
-  std::atomic_size_t mRpsCounter;
 };
 
 } // namespace hft::server

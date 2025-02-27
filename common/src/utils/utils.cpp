@@ -39,6 +39,10 @@ void setTheadRealTime() {
   }
 }
 
+size_t getTickerHash(const Ticker &ticker) {
+  return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
+}
+
 TraderId getTraderId(const TcpSocket &sock) {
   auto endpoint = sock.remote_endpoint();
   std::string idString = endpoint.address().to_string();
@@ -76,19 +80,13 @@ TickerPrice generatePriceUpdate() {
   return price;
 }
 
-uint64_t timeStampWeak() {
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(
-             std::chrono::high_resolution_clock::now().time_since_epoch())
-      .count();
-}
-
 uint32_t getLinuxTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return static_cast<uint32_t>(ts.tv_sec * 1'000'000'000 + ts.tv_nsec);
 }
 
-void printRawPuffer(const uint8_t *buffer, size_t size) {
+void printRawBuffer(const uint8_t *buffer, size_t size) {
   for (size_t i = 0; i < size; ++i) {
     std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(buffer[i])
               << " ";
@@ -123,6 +121,12 @@ std::string getScaleNs(size_t nanoSec) {
     return std::to_string(nanoSec) + "ns";
   }
   return getScaleUs(nanoSec / 1000);
+}
+
+UdpSocket createUdpSocket(IoContext &ctx) {
+  UdpSocket socket(ctx, Udp::v4());
+  socket.set_option(boost::asio::socket_base::broadcast(true));
+  return socket;
 }
 
 } // namespace hft::utils
