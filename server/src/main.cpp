@@ -13,19 +13,20 @@ int main() {
   using namespace hft;
   std::unique_ptr<server::Server> hftServer;
   try {
-    Logger::initialize(spdlog::level::err, "server_log.txt");
     ConfigReader::readConfig("server_config.ini");
+    Logger::initialize(Config::cfg.logLevel, Config::cfg.logOutput);
 
     Logger::monitorLogger->info("Server configuration:");
     Config::cfg.logConfig();
-    Logger::monitorLogger->info("LogLevel:{}", utils::toString(spdlog::get_level()));
+    Logger::monitorLogger->info("Commands:");
+    Logger::monitorLogger->info("> {:7} => start/stop price feed", "p+/p-");
+    Logger::monitorLogger->info("> {:7} => quit", "q");
 
     hftServer = std::make_unique<server::Server>();
     hftServer->start();
   } catch (const std::exception &e) {
     Logger::monitorLogger->critical("Exception caught in main {}", e.what());
     spdlog::critical("Exception caught in main {}", e.what());
-    spdlog::default_logger()->flush();
     hftServer->stop();
   }
   return 0;

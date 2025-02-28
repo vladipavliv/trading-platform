@@ -22,6 +22,7 @@ using ByteBuffer = std::vector<uint8_t>;
 using SPtrByteBuffer = std::shared_ptr<ByteBuffer>;
 using ThreadId = uint8_t;
 using TimestampRaw = uint32_t;
+using LogLevel = spdlog::level::level_enum;
 
 } // namespace hft
 

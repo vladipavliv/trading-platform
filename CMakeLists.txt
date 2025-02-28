@@ -79,10 +79,10 @@ add_dependencies(hft_trader code_generator)
 
 add_custom_command(
     TARGET hft_trader POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/server_config.ini ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/server/server_config.ini ${CMAKE_BINARY_DIR}
 )
 
 add_custom_command(
     TARGET hft_trader POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/common/config/trader_config.ini ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/trader/trader_config.ini ${CMAKE_BINARY_DIR}
 )

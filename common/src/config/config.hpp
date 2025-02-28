@@ -24,10 +24,15 @@ struct Config {
   Port portTcpIn;
   Port portTcpOut;
   Port portUdp;
+
   std::vector<uint8_t> coreIds;
+
   size_t tradeRateUs;
   size_t priceFeedRateUs;
   uint16_t monitorRateS;
+
+  LogLevel logLevel;
+  std::string logOutput;
 
   static Config cfg;
   static void logConfig() {
@@ -35,10 +40,14 @@ struct Config {
                                 cfg.portTcpOut, cfg.portUdp);
     Logger::monitorLogger->info("IoCoreIDs:{} TradeRate:{}us PriceFeedRate:{}us",
                                 utils::toString(cfg.coreIds), cfg.tradeRateUs, cfg.priceFeedRateUs);
+    Logger::monitorLogger->info("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel),
+                                cfg.logOutput);
   }
 };
 
-Config Config::cfg;
+struct
+
+    Config Config::cfg;
 
 } // namespace hft
 

@@ -147,6 +147,35 @@ String toString(spdlog::level::level_enum logLvl) {
   }
 }
 
+template <typename Value>
+LogLevel fromString(const String &input);
+
+template <>
+LogLevel fromString<LogLevel>(const String &input) {
+  if (input == "trace") {
+    return LogLevel::trace;
+  }
+  if (input == "debug") {
+    return LogLevel::debug;
+  }
+  if (input == "info") {
+    return LogLevel::info;
+  }
+  if (input == "warn") {
+    return LogLevel::warn;
+  }
+  if (input == "err") {
+    return LogLevel::err;
+  }
+  if (input == "critical") {
+    return LogLevel::critical;
+  }
+  if (input == "trace") {
+    return LogLevel::trace;
+  }
+  return LogLevel::trace;
+}
+
 String toString(SocketType socketType) {
   switch (socketType) {
   case SocketType::Ingress:

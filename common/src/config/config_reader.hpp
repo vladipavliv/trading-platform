@@ -39,6 +39,10 @@ struct ConfigReader {
     Config::cfg.tradeRateUs = pt.get<int>("rates.trade_rate");
     Config::cfg.priceFeedRateUs = pt.get<int>("rates.price_feed_rate");
     Config::cfg.monitorRateS = pt.get<int>("rates.monitor_rate");
+
+    // Logging
+    Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
+    Config::cfg.logOutput = pt.get<std::string>("log.output");
   }
 #else
   static void readConfig() {
