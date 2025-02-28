@@ -39,6 +39,20 @@ void setTheadRealTime() {
   }
 }
 
+void unblockConsole() {
+  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+  std::cout << std::unitbuf;
+}
+
+std::string getConsoleInput() {
+  std::string cmd;
+  struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
+  if (poll(&fds, 1, 0) == 1) {
+    std::getline(std::cin, cmd);
+  }
+  return cmd;
+}
+
 size_t getTickerHash(const Ticker &ticker) {
   return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
 }

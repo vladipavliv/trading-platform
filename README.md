@@ -13,7 +13,7 @@ Simplified to send random order at a given rate, receive the status, track rtt, 
 Main logs are written to `server_log.x.txt` and `trader_log.x.txt`, status logs are written to the console.
 
 ### Configuration
-The client and server use separate config files to specify url, ports, core IDs, log level and other settings.
+Client and server use separate config files to specify url, ports, core IDs, log level and other settings.
 
 ## Installation
 

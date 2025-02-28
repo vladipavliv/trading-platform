@@ -47,8 +47,7 @@ public:
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-    std::cout << std::unitbuf;
+    utils::unblockConsole();
 
     initMarketData();
     startIngress();
@@ -247,22 +246,20 @@ private:
   }
 
   void checkInput() {
-    struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
-    if (poll(&fds, 1, 0) == 1) {
-      std::string cmd;
-      std::getline(std::cin, cmd);
-      if (cmd == "q") {
-        mCtx.stop();
-        for (auto &ctx : mWorkerContexts) {
-          ctx->stop();
-        }
-      } else if (cmd == "p+") {
-        schedulePriceTimer();
-        Logger::monitorLogger->info("Price feed start");
-      } else if (cmd == "p-") {
-        mPriceTimer.cancel();
-        Logger::monitorLogger->info("Price feed stop");
+    auto cmd = utils::getConsoleInput();
+    if (cmd.empty()) {
+      return;
+    } else if (cmd == "q") {
+      mCtx.stop();
+      for (auto &ctx : mWorkerContexts) {
+        ctx->stop();
       }
+    } else if (cmd == "p+") {
+      schedulePriceTimer();
+      Logger::monitorLogger->info("Price feed start");
+    } else if (cmd == "p-") {
+      mPriceTimer.cancel();
+      Logger::monitorLogger->info("Price feed stop");
     }
   }
 

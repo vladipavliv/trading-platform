@@ -22,7 +22,8 @@ namespace hft {
  */
 template <size_t... Ranges>
 class RttTracker {
-  static_assert(sizeof...(Ranges) == 0 || is_ascending<Ranges...>(), "Ranges should be ascending");
+  static_assert(sizeof...(Ranges) > 0, "Need at least one range");
+  static_assert(sizeof...(Ranges) < 2 || is_ascending<Ranges...>(), "Ranges should be ascending");
 
   static constexpr std::array<size_t, sizeof...(Ranges)> rangeValues = {Ranges...};
   static constexpr size_t RangeCount = sizeof...(Ranges) + 1;

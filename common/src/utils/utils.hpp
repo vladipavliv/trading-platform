@@ -25,6 +25,9 @@ namespace hft::utils {
 void pinThreadToCore(int core_id);
 void setTheadRealTime();
 
+void unblockConsole();
+std::string getConsoleInput();
+
 TraderId getTraderId(const TcpSocket &sock);
 
 inline size_t generateOrderId() {

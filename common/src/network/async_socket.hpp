@@ -15,7 +15,6 @@
 #include "boost_types.hpp"
 #include "constants.hpp"
 #include "network_types.hpp"
-#include "pool/buffer_pool.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
