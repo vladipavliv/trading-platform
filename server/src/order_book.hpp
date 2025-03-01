@@ -35,21 +35,24 @@ public:
     mBids.reserve(500);
     mAsks.reserve(500);
   }
+  FlatOrderBook(FlatOrderBook &&) noexcept = default;
+  FlatOrderBook &operator=(FlatOrderBook &&) noexcept = default;
+
   ~FlatOrderBook() = default;
 
-  void add(const Order &order) {
-    if (order.action == OrderAction::Buy) {
-      mBids.push_back(order);
+  void add(const PoolPtr<Order> &order) {
+    if (order->action == OrderAction::Buy) {
+      mBids.push_back(*order);
       std::push_heap(mBids.begin(), mBids.end(), compareBids);
     } else {
-      mAsks.push_back(order);
+      mAsks.push_back(*order);
       std::push_heap(mAsks.begin(), mAsks.end(), compareAsks);
     }
-    mLastAdded.insert(order.id); // Randomizator
+    mLastAdded.insert(order->id); // Randomizator
   }
 
-  std::vector<OrderStatus> match() {
-    std::vector<OrderStatus> matches;
+  std::vector<PoolPtr<OrderStatus>> match() {
+    std::vector<PoolPtr<OrderStatus>> matches;
     matches.reserve(10);
 
     while (!mBids.empty() && !mAsks.empty()) {
@@ -83,16 +86,16 @@ public:
   }
 
 private:
-  OrderStatus handleMatch(const Order &order, Quantity quantity, Price price) {
-    OrderStatus status;
-    status.id = order.id;
-    status.state = (order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-    status.quantity = quantity;
-    status.fillPrice = price;
-    status.action = order.action;
-    status.traderId = order.traderId;
-    status.ticker = order.ticker;
-    spdlog::trace([&status] { return utils::toString(status); }());
+  PoolPtr<OrderStatus> handleMatch(const Order &order, Quantity quantity, Price price) {
+    auto status = PoolPtr<OrderStatus>::create();
+    status->id = order.id;
+    status->state = (order.quantity == 0) ? OrderState::Full : OrderState::Partial;
+    status->quantity = quantity;
+    status->fillPrice = price;
+    status->action = order.action;
+    status->traderId = order.traderId;
+    status->ticker = order.ticker;
+    spdlog::trace([&status] { return utils::toString(*status); }());
     return status;
   }
 

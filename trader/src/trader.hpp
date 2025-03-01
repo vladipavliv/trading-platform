@@ -28,8 +28,8 @@
 namespace hft::trader {
 
 class Trader {
-  using TraderTcpSocket = AsyncSocket<TcpSocket, OrderStatus>;
-  using TraderUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using TraderTcpSocket = AsyncSocket<TcpSocket, PoolPtr<OrderStatus>>;
+  using TraderUdpSocket = AsyncSocket<UdpSocket, PoolPtr<TickerPrice>>;
   using Tracker = RttTracker<50, 200>;
 
 public:
@@ -37,20 +37,24 @@ public:
       : mGuard{boost::asio::make_work_guard(mCtx)},
         mIngressSocket{
             TcpSocket{mCtx}, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
-            [this](const OrderStatus &status) { onOrderStatus(status); },
+            [this](PoolPtr<OrderStatus> &&status) { onOrderStatus(std::move(status)); },
             [this](SocketStatus status) { onSocketStatus(SocketType::Ingress, status); }},
         mEgressSocket{TcpSocket{mCtx},
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
-                      [](const OrderStatus &) {},
+                      [](PoolPtr<OrderStatus> &&) {},
                       [this](SocketStatus status) { onSocketStatus(SocketType::Egress, status); }},
         mPricesSocket{
             createUdpSocket(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
-            [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); },
+            [this](PoolPtr<TickerPrice> &&priceUpdate) { onPriceUpdate(std::move(priceUpdate)); },
             [this](SocketStatus status) { onSocketStatus(SocketType::Broadcast, status); }},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
         mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
         mMonitorRate{Config::cfg.monitorRateS} {
     utils::unblockConsole();
+
+    PoolPtr<Order>::PoolType::ordered_malloc(100000);
+    PoolPtr<OrderStatus>::PoolType::ordered_malloc(100000);
+    PoolPtr<TickerPrice>::PoolType::ordered_malloc(100000);
 
     mIngressSocket.asyncConnect();
     mEgressSocket.asyncConnect();
@@ -68,13 +72,13 @@ public:
   void stop() { mCtx.stop(); }
 
 private:
-  void onOrderStatus(const OrderStatus &status) {
-    spdlog::debug("OrderStatus {}", [&status] { return utils::toString(status); }());
-    Tracker::logRtt(status.id);
+  void onOrderStatus(PoolPtr<OrderStatus> &&status) {
+    spdlog::debug("OrderStatus {}", [&status] { return utils::toString(*status); }());
+    Tracker::logRtt(status->id);
   }
 
-  void onPriceUpdate(const TickerPrice &price) {
-    spdlog::debug([&price] { return utils::toString(price); }());
+  void onPriceUpdate(PoolPtr<TickerPrice> &&price) {
+    spdlog::debug([&price] { return utils::toString(*price); }());
   }
 
   void onSocketStatus(SocketType socketType, SocketStatus status) {
@@ -167,14 +171,14 @@ private:
       cursor = mPrices.begin();
     }
     auto tickerPrice = *cursor++;
-    Order order;
-    order.id = utils::getLinuxTimestamp();
-    order.ticker = tickerPrice.ticker;
-    order.price = utils::RNG::rng<uint32_t>(tickerPrice.price * 2);
-    order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    order.quantity = utils::RNG::rng(1000);
-    spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
-    mEgressSocket.asyncWrite(Span<Order>{&order, 1});
+    auto orderPtr = PoolPtr<Order>::create();
+    orderPtr->id = utils::getLinuxTimestamp();
+    orderPtr->ticker = tickerPrice.ticker;
+    orderPtr->price = utils::RNG::rng<uint32_t>(tickerPrice.price * 2);
+    orderPtr->action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
+    orderPtr->quantity = utils::RNG::rng(1000);
+    spdlog::trace("Placing order {}", [&orderPtr] { return utils::toString(*orderPtr); }());
+    mEgressSocket.asyncWrite(Span<PoolPtr<Order>>{&orderPtr, 1});
   }
 
   void checkInput() {

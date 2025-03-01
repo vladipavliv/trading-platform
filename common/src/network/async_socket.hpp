@@ -31,8 +31,8 @@ public:
   using UPtr = std::unique_ptr<Type>;
   using Serializer = serialization::FlatBuffersSerializer;
 
-  using MsgHandler = CRefHandler<MessageIn>;
-  using StatusHandler = CRefHandler<SocketStatus>;
+  using MsgHandler = MoveHandler<MessageIn>;
+  using StatusHandler = Handler<SocketStatus>;
 
   AsyncSocket(Socket &&socket, MsgHandler msgHndlr, StatusHandler statusHndlr, TraderId id = 0)
       : mSocket{std::move(socket)}, mId{id}, mMessageHandler{std::move(msgHndlr)},
@@ -122,6 +122,7 @@ private:
     mStatus.store(SocketStatus::Disconnected);
     mStatusHandler(SocketStatus::Disconnected);
   }
+
   void onConnected() {
     mStatus.store(SocketStatus::Connected);
     mStatusHandler(SocketStatus::Connected);
@@ -163,14 +164,14 @@ private:
       }
       cursor += sizeof(MessageSize);
       auto result = Serializer::template deserialize<MessageIn>(cursor, bodySize);
-      if (!result.ok()) {
+      if (!result) {
         mHead = mTail = 0;
         break;
       }
-      if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
-        result.value.traderId = mId;
+      if constexpr (!std::is_same_v<MessageTypeIn, PoolPtr<TickerPrice>>) {
+        result->traderId = mId;
       }
-      mMessageHandler(result.value);
+      mMessageHandler(std::move(result));
       mHead += bodySize + sizeof(MessageSize);
     }
     if (mReadBuffer.size() - mTail < 256) {

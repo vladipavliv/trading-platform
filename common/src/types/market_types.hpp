@@ -10,6 +10,7 @@
 #include <cstring>
 #include <string_view>
 
+#include "pool/object_pool.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -45,6 +46,7 @@ struct Order {
   Price price;
   OrderAction action;
 };
+using PtrOrder = PoolPtr<Order>;
 
 struct OrderStatus {
   TraderId traderId; // Server side
@@ -55,11 +57,13 @@ struct OrderStatus {
   OrderState state;
   OrderAction action;
 };
+using PtrOrderStatus = PoolPtr<OrderStatus>;
 
 struct TickerPrice {
   Ticker ticker{};
   Price price;
 };
+using PtrTickerPrice = PoolPtr<TickerPrice>;
 
 } // namespace hft
 

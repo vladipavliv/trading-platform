@@ -27,8 +27,8 @@
 namespace hft::server {
 
 class Server {
-  using ServerTcpSocket = AsyncSocket<TcpSocket, Order>;
-  using ServerUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using ServerTcpSocket = AsyncSocket<TcpSocket, PoolPtr<Order>>;
+  using ServerUdpSocket = AsyncSocket<UdpSocket, PoolPtr<TickerPrice>>;
   using OrderBook = FlatOrderBook;
 
   struct Session {
@@ -41,13 +41,17 @@ public:
       : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx},
         mPricesSocket{utils::createUdpSocket(mCtx),
                       UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp},
-                      [](const TickerPrice &) {}, [](SocketStatus status) {}},
+                      [](PoolPtr<TickerPrice> &&) {}, [](SocketStatus status) {}},
         mInputTimer{mCtx}, mStatsTimer{mCtx}, mPriceTimer{mCtx},
         mStatsRateS{Config::cfg.monitorRateS}, mPriceRateUs{Config::cfg.priceFeedRateUs} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
     utils::unblockConsole();
+
+    PoolPtr<Order>::PoolType::ordered_malloc(100000);
+    PoolPtr<OrderStatus>::PoolType::ordered_malloc(100000);
+    PoolPtr<TickerPrice>::PoolType::ordered_malloc(100000);
 
     initMarketData();
     startIngress();
@@ -56,6 +60,7 @@ public:
     scheduleInputTimer();
     scheduleStatsTimer();
   }
+
   ~Server() {
     try {
       for (auto &thread : mWorkerThreads) {
@@ -72,6 +77,7 @@ public:
     utils::setTheadRealTime();
     mCtx.run();
   }
+
   void stop() {
     mIngressAcceptor.close();
     mEgressAcceptor.close();
@@ -99,7 +105,7 @@ private:
       Logger::monitorLogger->info("{} connected", traderId);
       mSessions[traderId].ingress = std::make_unique<ServerTcpSocket>(
           std::move(socket),
-          [this, traderId](const Order &order) { dispatchOrder(traderId, order); },
+          [this, traderId](PoolPtr<Order> &&order) { dispatchOrder(traderId, std::move(order)); },
           [this, traderId](SocketStatus status) { onSocketStatus(traderId, status); }, traderId);
       mSessions[traderId].ingress->asyncRead();
       acceptIngress();
@@ -125,7 +131,7 @@ private:
       auto traderId = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected", traderId);
       mSessions[traderId].egress = std::make_unique<ServerTcpSocket>(
-          std::move(socket), [](const Order &) {},
+          std::move(socket), [](PoolPtr<Order> &&) {},
           [this, traderId](SocketStatus status) { onSocketStatus(traderId, status); }, traderId);
       acceptEgress();
     });
@@ -154,16 +160,18 @@ private:
     return utils::getTickerHash(ticker) % Config::cfg.coreIds.size();
   }
 
-  void dispatchOrder(TraderId traderId, const Order &order) {
-    spdlog::debug([&order] { return utils::toString(order); }());
+  void dispatchOrder(TraderId traderId, PoolPtr<Order> &&orderPtr) {
+    using namespace boost::asio;
+
+    spdlog::debug([&orderPtr] { return utils::toString(*orderPtr); }());
     mOrdersTotal.fetch_add(1, std::memory_order_relaxed);
 
-    ThreadId workerId = getWorkerId(order.ticker);
-    boost::asio::post(*mWorkerContexts[workerId], [this, order, traderId]() {
-      size_t tickerId = utils::getTickerHash(order.ticker);
-      mOrderBooks[tickerId].add(order);
+    ThreadId workerId = getWorkerId(orderPtr->ticker);
+    post(*mWorkerContexts[workerId], [this, order = std::move(orderPtr), traderId]() mutable {
+      size_t tickerId = utils::getTickerHash(order->ticker);
+      mOrderBooks[tickerId].add(std::move(order));
       auto matches = mOrderBooks[tickerId].match();
-      mSessions[traderId].egress->asyncWrite(Span<OrderStatus>(matches));
+      mSessions[traderId].egress->asyncWrite(Span<PoolPtr<OrderStatus>>(matches));
       mOrdersClosed.fetch_add(matches.size(), std::memory_order_relaxed);
     });
   }
@@ -182,7 +190,7 @@ private:
   void initMarketData() {
     mPrices = db::PostgresAdapter::readTickers();
     for (auto &item : mPrices) {
-      mOrderBooks.insert({utils::getTickerHash(item.ticker), OrderBook{}});
+      mOrderBooks.emplace(utils::getTickerHash(item.ticker), std::move(OrderBook{}));
     }
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
   }
@@ -231,18 +239,20 @@ private:
   void updatePrices() {
     static auto cursor = mPrices.begin();
     const auto pricesPerUpdate = 5;
-    std::vector<TickerPrice> priceUpdates;
+    std::vector<PoolPtr<TickerPrice>> priceUpdates;
     priceUpdates.reserve(pricesPerUpdate);
     for (int i = 0; i < pricesPerUpdate; ++i) {
       if (cursor == mPrices.end()) {
         cursor = mPrices.begin();
       }
       auto tickerPrice = *cursor++;
-      tickerPrice.price = utils::getLinuxTimestamp() % 777;
-      priceUpdates.emplace_back(std::move(tickerPrice));
-      spdlog::trace([&tickerPrice] { return utils::toString(tickerPrice); }());
+      auto pricePtr = PoolPtr<TickerPrice>::create();
+      pricePtr->ticker = tickerPrice.ticker;
+      pricePtr->price = utils::getLinuxTimestamp() % 777;
+      priceUpdates.emplace_back(std::move(pricePtr));
+      spdlog::trace([&pricePtr] { return utils::toString(*pricePtr); }());
     }
-    mPricesSocket.asyncWrite(Span<TickerPrice>(priceUpdates));
+    mPricesSocket.asyncWrite(Span<PoolPtr<TickerPrice>>(priceUpdates));
   }
 
   void checkInput() {
