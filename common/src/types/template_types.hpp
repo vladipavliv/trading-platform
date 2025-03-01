@@ -26,9 +26,13 @@ using Span = std::span<Type>;
 using Callback = std::function<void()>;
 using Predicate = std::function<bool()>;
 template <typename ArgType>
+using Handler = std::function<void(ArgType)>;
+template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
 template <typename ArgType>
 using SpanHandler = std::function<void(Span<ArgType>)>;
+template <typename ArgType>
+using MoveHandler = std::function<void(ArgType &&)>;
 
 template <typename EventType>
 using LFQueue = boost::lockfree::queue<EventType>;
