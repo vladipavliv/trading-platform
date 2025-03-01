@@ -13,8 +13,8 @@ ulimit -c unlimited
 
 if [ "$1" == "s" ]; then
     rm -f server_log.*.txt
-    sudo ./hft_server
+    sudo ./server/hft_server
 else [ "$1" == "t" ];
     rm -f trader_log.*.txt
-    sudo ./hft_trader
+    sudo ./trader/hft_trader
 fi
