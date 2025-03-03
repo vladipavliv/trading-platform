@@ -1,4 +1,4 @@
-# Trading platform simulator
+# Trading platform
 
 ## Introduction
 Simple client-server trading platform. Allows you to place an order, receive order status and price updates. Client and server communicate over a separate TCP connections for placing orders and order status notifications, and a UDP connection for price updates.
@@ -71,9 +71,9 @@ Last/Best performance check for 5us trade rate and 4 server cores:
 
 Server:
 ```bash
-22:25:08.702500 [I] Orders [matched|total] 2307286 2961784 rps:101929
+03:49:10.969197 [I] Orders [matched|total] 1743266 2242325 rps:106245
 ```
 Trader:
 ```bash
-22:25:08.677493 [I] RTT [1us|100us|1ms]  100.00% avg:18us  0.00% avg:135us  0.00% avg:0ms
+03:49:09.807950 [I] RTT [<50us|<200us|>200us]  99.79% avg:16us  0.21% avg:68us  -
 ```
