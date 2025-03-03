@@ -57,14 +57,10 @@ public:
     scheduleStatsTimer();
   }
   ~Server() {
-    try {
-      for (auto &thread : mWorkerThreads) {
-        if (thread.joinable()) {
-          thread.join();
-        }
+    for (auto &thread : mWorkerThreads) {
+      if (thread.joinable()) {
+        thread.join();
       }
-    } catch (const std::exception &e) {
-      Logger::monitorLogger->critical("Exception in Server dtor {}", e.what());
     }
   }
 

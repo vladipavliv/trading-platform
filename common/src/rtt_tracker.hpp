@@ -101,7 +101,7 @@ public:
     for (int i = 0; i < RangeCount; ++i) {
       auto avg = ((rtt[i].size != 0) ? (rtt[i].sum / rtt[i].size) : 0);
       if (avg == 0) {
-        ss << "-  ";
+        ss << "0%  ";
       } else {
         ss << ((float)rtt[i].size / sizeTotal) * 100 << "% avg:";
         ss << toScale(avg);

@@ -71,9 +71,9 @@ Last/Best performance check for 5us trade rate and 4 server cores:
 
 Server:
 ```bash
-03:49:10.969197 [I] Orders [matched|total] 1743266 2242325 rps:106245
+08:09:25.105148 [I] Orders [matched|total] 3422248 4384662 rps:107131
 ```
 Trader:
 ```bash
-03:49:09.807950 [I] RTT [<50us|<200us|>200us]  99.79% avg:16us  0.21% avg:68us  -
+08:09:25.533695 [I] RTT [<50us|<200us|>200us]  99.75% avg:15us  0.25% avg:66us  0%
 ```

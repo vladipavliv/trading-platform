@@ -56,20 +56,6 @@ std::pair<Span<Type>, Span<Type>> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}
 }
 
 /**
- * @brief Constructs the vector around the elements from the input span.
- * Avoids additional allocation when elements need to be transferred to an event loop.
- * When several orders arrive at the same time, we sort them by the assigned worker id, build
- * separate vector around each chunk of orders and post them into a respective io_context.
- * @details Leaves the initial container in unspecified state
- */
-template <typename ElementType>
-std::vector<ElementType> createOwningVector(Span<ElementType> elements) {
-  std::vector<ElementType> result(std::make_move_iterator(elements.begin()),
-                                  std::make_move_iterator(elements.end()));
-  return result;
-}
-
-/**
  * @brief lock-free helpers
  */
 template <typename EventType>
