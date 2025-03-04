@@ -6,9 +6,7 @@
 #ifndef HFT_SERVER_SERVER_HPP
 #define HFT_SERVER_SERVER_HPP
 
-#include <fcntl.h>
 #include <format>
-#include <iostream>
 #include <memory>
 #include <unordered_map>
 
@@ -23,6 +21,7 @@
 #include "template_types.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
+#include "worker.hpp"
 
 namespace hft::server {
 
@@ -56,22 +55,20 @@ public:
     scheduleInputTimer();
     scheduleStatsTimer();
   }
-  ~Server() {
-    for (auto &thread : mWorkerThreads) {
-      if (thread.joinable()) {
-        thread.join();
-      }
-    }
-  }
+  ~Server() { stop(); }
 
   void start() {
     utils::setTheadRealTime();
     mCtx.run();
   }
+
   void stop() {
     mIngressAcceptor.close();
     mEgressAcceptor.close();
     mCtx.stop();
+    for (auto &worker : mWorkers) {
+      worker->stop();
+    }
   }
 
 private:
@@ -128,21 +125,9 @@ private:
   }
 
   void startWorkers() {
-    mWorkerContexts.reserve(Config::cfg.coreIds.size());
-    mWorkerGuards.reserve(Config::cfg.coreIds.size());
+    mWorkers.reserve(Config::cfg.coreIds.size());
     for (int i = 0; i < Config::cfg.coreIds.size(); ++i) {
-      mWorkerContexts.emplace_back(std::make_unique<IoContext>());
-      mWorkerGuards.emplace_back(
-          std::make_unique<ContextGuard>(boost::asio::make_work_guard(*mWorkerContexts.back())));
-      mWorkerThreads.emplace_back([this, i]() {
-        try {
-          utils::setTheadRealTime();
-          utils::pinThreadToCore(Config::cfg.coreIds[i]);
-          mWorkerContexts[i]->run();
-        } catch (const std::exception &e) {
-          Logger::monitorLogger->error("Exception in worker thread {}", e.what());
-        }
-      });
+      mWorkers.emplace_back(std::make_unique<Worker>(i));
     }
   }
 
@@ -155,7 +140,7 @@ private:
     mOrdersTotal.fetch_add(1, std::memory_order_relaxed);
 
     ThreadId workerId = getWorkerId(order.ticker);
-    boost::asio::post(*mWorkerContexts[workerId], [this, order, traderId]() {
+    mWorkers[workerId]->post([this, order, traderId]() {
       size_t tickerId = utils::getTickerHash(order.ticker);
       mOrderBooks[tickerId].add(order);
       auto matches = mOrderBooks[tickerId].match();
@@ -246,10 +231,7 @@ private:
     if (cmd.empty()) {
       return;
     } else if (cmd == "q") {
-      mCtx.stop();
-      for (auto &ctx : mWorkerContexts) {
-        ctx->stop();
-      }
+      stop();
     } else if (cmd == "p+") {
       schedulePriceTimer();
       Logger::monitorLogger->info("Price feed start");
@@ -273,9 +255,7 @@ private:
   size_t mStatsRateS;
   size_t mPriceRateUs;
 
-  std::vector<UPtrIoContext> mWorkerContexts;
-  std::vector<UPtrContextGuard> mWorkerGuards;
-  std::vector<std::thread> mWorkerThreads;
+  std::vector<Worker::UPtr> mWorkers;
 
   std::unordered_map<size_t, Session> mSessions;
   std::unordered_map<size_t, OrderBook> mOrderBooks;
