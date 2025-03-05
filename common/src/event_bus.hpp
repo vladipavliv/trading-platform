@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <map>
+#include <typeinfo>
 
 #include "template_types.hpp"
 #include "types.hpp"
@@ -28,12 +29,18 @@ public:
 
   template <typename EventType>
   void subscribe(SpanHandler<EventType> handler) {
+    spdlog::debug("Registered handler for {}", typeid(EventType).name());
     getHandlers<EventType>().emplace_back(std::move(handler));
   }
 
   template <typename EventType>
   void publish(Span<EventType> event) {
-    for (auto &handler : getHandlers<EventType>()) {
+    auto &handlers = getHandlers<EventType>();
+    if (handlers.empty()) {
+      spdlog::error("No handlers registered for {}", typeid(EventType).name());
+      return;
+    }
+    for (auto &handler : handlers) {
       handler(event);
     }
   }

@@ -173,7 +173,7 @@ private:
       mHead += bodySize + sizeof(MessageSize);
     }
     if (!msgBuffer.empty()) {
-      EventBus::bus().publish(Span<MessageIn>(msgBuffer));
+      EventBus::bus().publish<MessageIn>(Span<MessageIn>(msgBuffer));
     }
     if (mTail + MAX_SERIALIZED_MESSAGE_SIZE * 5 > BUFFER_SIZE) {
       rotateBuffer();
