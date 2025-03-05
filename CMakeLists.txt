@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fno-omit-frame-pointer")
 
 # add_definitions(-DBOOST_NO_EXCEPTIONS)
 
-find_package(Boost 1.83 REQUIRED COMPONENTS thread fiber)
+find_package(Boost 1.83 REQUIRED COMPONENTS thread)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)

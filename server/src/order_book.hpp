@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "constants.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
@@ -20,6 +21,13 @@
 
 namespace hft::server {
 
+/**
+ * @brief Flat order book
+ * @details since testing is done via single trader, all the orders have the same trader id
+ * so every match would come with two notifications, about recent order and a previous one
+ * To avoid this the last added order ids are saved to a set and only for those notifications
+ * about match are sent
+ */
 class OrderBook {
   static bool compareBids(const Order &left, const Order &right) {
     return left.price < right.price;
@@ -32,8 +40,8 @@ public:
   using UPtr = std::unique_ptr<OrderBook>;
 
   OrderBook() {
-    mBids.reserve(500);
-    mAsks.reserve(500);
+    mBids.reserve(ORDER_BOOK_LIMIT);
+    mAsks.reserve(ORDER_BOOK_LIMIT);
   }
   ~OrderBook() = default;
 

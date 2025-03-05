@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     trader = std::make_unique<trader::Trader>();
     trader->start();
   } catch (const std::exception &e) {
-    Logger::monitorLogger->critical("Exception caught in main {}", e.what());
+    std::cerr << "Exception caught in main" << e.what();
     spdlog::critical("Exception caught in main {}", e.what());
     trader->stop();
   }

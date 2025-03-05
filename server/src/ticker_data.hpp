@@ -7,8 +7,8 @@
 #define HFT_SERVER_TICKERDATA_HPP
 
 #include <atomic>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <map>
-// TODO #include <boost/container/unordered_flat_map.hpp>
 
 #include "market_types.hpp"
 #include "order_book.hpp"
@@ -40,7 +40,7 @@ private:
   alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price;
 };
 
-using MarketData = std::unordered_map<Ticker, TickerData::UPtr, TickerHash>;
+using MarketData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
 
 } // namespace hft::server
 

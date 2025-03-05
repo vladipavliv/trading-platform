@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <map>
+#include <typeinfo>
 
 #include "template_types.hpp"
 #include "types.hpp"
@@ -16,7 +17,9 @@
 namespace hft {
 
 /**
- * @brief Bus for synchronous message exchange
+ * @brief Event bus to establish direct event flow between objects
+ * @details Simpler implementation without tuple so any object can access bus via static singleton
+ * slightly less cache friendly then strict type management with tuple, but slightly more convenient
  * @todo Try captureless function pointers instead of std::function
  */
 class EventBus {
@@ -28,12 +31,18 @@ public:
 
   template <typename EventType>
   void subscribe(SpanHandler<EventType> handler) {
+    spdlog::debug("Registered handler for {}", typeid(EventType).name());
     getHandlers<EventType>().emplace_back(std::move(handler));
   }
 
   template <typename EventType>
   void publish(Span<EventType> event) {
-    for (auto &handler : getHandlers<EventType>()) {
+    auto &handlers = getHandlers<EventType>();
+    if (handlers.empty()) {
+      spdlog::error("No handlers registered for {}", typeid(EventType).name());
+      return;
+    }
+    for (auto &handler : handlers) {
       handler(event);
     }
   }

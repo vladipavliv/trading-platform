@@ -57,9 +57,9 @@ public:
       }
     });
 
-    EventBus::bus().subscribe<OrderStatus>([this](Span<OrderStatus> statuses) {
+    EventBus::bus().subscribe<OrderStatus>([this](Span<OrderStatus> events) {
       TraderIdCmp<OrderStatus> cmp;
-      auto [subSpan, leftover] = utils::frontSubspan(statuses, cmp);
+      auto [subSpan, leftover] = utils::frontSubspan(events, cmp);
       while (!subSpan.empty()) {
         mSessions[subSpan.front().traderId].egress->asyncWrite(subSpan);
         std::tie(subSpan, leftover) = utils::frontSubspan(leftover, cmp);
@@ -168,7 +168,7 @@ private:
   Engine mEngine;
   SteadyTimer mInputTimer;
 
-  std::unordered_map<size_t, Session> mSessions;
+  std::unordered_map<TraderId, Session> mSessions;
 };
 
 } // namespace hft::server

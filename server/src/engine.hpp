@@ -24,6 +24,7 @@ public:
     EventBus::bus().subscribe<Order>([this](Span<Order> orders) { processOrders(orders); });
     initMarketData();
     scheduleStatsTimer();
+    startWorkers();
   }
 
   void stop() {
@@ -61,7 +62,7 @@ private:
         data->orderBook.add(order);
         auto matches = data->orderBook.match();
         if (!matches.empty()) {
-          EventBus::bus().publish(matches);
+          EventBus::bus().publish(Span<OrderStatus>(matches));
         }
         mOrdersClosed.fetch_add(matches.size(), std::memory_order_relaxed);
       });
