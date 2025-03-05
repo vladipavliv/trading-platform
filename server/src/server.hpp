@@ -89,7 +89,7 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      Logger::monitorLogger->info("{} connected", traderId);
+      Logger::monitorLogger->info("{} connected ingress", traderId);
       mSessions[traderId].ingress = std::make_unique<ServerTcpSocket>(
           std::move(socket),
           [this, traderId](const Order &order) { dispatchOrder(traderId, order); },
@@ -116,7 +116,7 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      Logger::monitorLogger->info("{} connected", traderId);
+      Logger::monitorLogger->info("{} connected egress", traderId);
       mSessions[traderId].egress = std::make_unique<ServerTcpSocket>(
           std::move(socket), [](const Order &) {},
           [this, traderId](SocketStatus status) { onSocketStatus(traderId, status); }, traderId);
@@ -152,7 +152,7 @@ private:
   void onSocketStatus(TraderId id, SocketStatus status) {
     switch (status) {
     case SocketStatus::Disconnected:
-      Logger::monitorLogger->info("Trader {} disconnected", id);
+      Logger::monitorLogger->info("{} disconnected", id);
       mSessions.erase(id);
       break;
     default:

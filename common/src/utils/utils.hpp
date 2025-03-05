@@ -30,11 +30,6 @@ std::string getConsoleInput();
 
 TraderId getTraderId(const TcpSocket &sock);
 
-inline size_t generateOrderId() {
-  static std::atomic<size_t> counter{0};
-  return counter.fetch_add(1, std::memory_order_relaxed);
-};
-
 size_t getTickerHash(const Ticker &ticker);
 Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act);
 Ticker generateTicker();
@@ -46,10 +41,9 @@ std::string getScaleMs(size_t);
 std::string getScaleUs(size_t);
 std::string getScaleNs(size_t);
 
-size_t getId();
 void printRawBuffer(const uint8_t *buffer, size_t size);
 
-UdpSocket createUdpSocket(IoContext &ctx);
+UdpSocket createUdpSocket(IoContext &ctx, bool broadcast = true, Port port = 0);
 
 } // namespace hft::utils
 

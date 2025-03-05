@@ -122,6 +122,7 @@ private:
     mStatus.store(SocketStatus::Disconnected);
     mStatusHandler(SocketStatus::Disconnected);
   }
+
   void onConnected() {
     mStatus.store(SocketStatus::Connected);
     mStatusHandler(SocketStatus::Connected);
@@ -150,15 +151,11 @@ private:
     mTail += bytesRead;
     while (mHead + sizeof(MessageSize) < mTail) {
       uint8_t *cursor = mReadBuffer.data() + mHead;
-      boost::endian::little_int16_at littleBodySize = 0;
-      std::memcpy(&littleBodySize, cursor, sizeof(littleBodySize));
+      auto littleBodySize = *reinterpret_cast<const boost::endian::little_int16_at *>(cursor);
       MessageSize bodySize = littleBodySize.value();
-      if (mHead + sizeof(MessageSize) + bodySize > mReadBuffer.size()) {
-        rotateBuffer();
-        break;
-      }
-      if (mHead + sizeof(MessageSize) + bodySize > mTail) {
-        // continue reading;
+
+      size_t msgEnd = mHead + sizeof(MessageSize) + bodySize;
+      if (msgEnd > std::min(BUFFER_SIZE, mTail)) {
         break;
       }
       cursor += sizeof(MessageSize);
@@ -173,7 +170,7 @@ private:
       mMessageHandler(result.value);
       mHead += bodySize + sizeof(MessageSize);
     }
-    if (mReadBuffer.size() - mTail < 256) {
+    if (mTail + MAX_SERIALIZED_MESSAGE_SIZE * 5 > BUFFER_SIZE) {
       rotateBuffer();
     }
     asyncRead();

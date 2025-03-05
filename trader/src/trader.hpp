@@ -44,7 +44,8 @@ public:
                       [](const OrderStatus &) {},
                       [this](SocketStatus status) { onSocketStatus(SocketType::Egress, status); }},
         mPricesSocket{
-            createUdpSocket(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
+            utils::createUdpSocket(mCtx, false, Config::cfg.portUdp),
+            UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
             [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); },
             [this](SocketStatus status) { onSocketStatus(SocketType::Broadcast, status); }},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
@@ -190,17 +191,10 @@ private:
     } else if (cmd == "ts-") {
       mTradeRate *= 2;
       Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
-    } else if (cmd == "ts+" && mTradeRate > Microseconds(10)) {
+    } else if (cmd == "ts+" && mTradeRate > Microseconds(1)) {
       mTradeRate /= 2;
       Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
     }
-  }
-
-  UdpSocket createUdpSocket() {
-    UdpSocket socket(mCtx, Udp::v4());
-    socket.set_option(boost::asio::socket_base::reuse_address{true});
-    socket.bind(UdpEndpoint(Udp::v4(), Config::cfg.portUdp));
-    return socket;
   }
 
 private:

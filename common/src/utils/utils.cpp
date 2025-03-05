@@ -137,9 +137,14 @@ std::string getScaleNs(size_t nanoSec) {
   return getScaleUs(nanoSec / 1000);
 }
 
-UdpSocket createUdpSocket(IoContext &ctx) {
+UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
   UdpSocket socket(ctx, Udp::v4());
-  socket.set_option(boost::asio::socket_base::broadcast(true));
+  socket.set_option(boost::asio::socket_base::reuse_address{true});
+  if (broadcast) {
+    socket.set_option(boost::asio::socket_base::broadcast(true));
+  } else {
+    socket.bind(UdpEndpoint(Udp::v4(), port));
+  }
   return socket;
 }
 
