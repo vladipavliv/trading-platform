@@ -31,7 +31,7 @@ struct SizeCmp {
 
 private:
   static size_t getSize(const Type &item) {
-    if constexpr (std::is_pointer_v<Type> || is_smart_ptr<Type>::value) {
+    if constexpr (std::is_pointer_v<Type> || utils::is_smart_ptr<Type>::value) {
       return item->size();
     } else {
       return item.size();

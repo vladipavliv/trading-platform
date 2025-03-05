@@ -3,6 +3,8 @@
  * @date 2025-02-13
  */
 
+#include <iostream>
+
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "logger.hpp"
@@ -25,7 +27,7 @@ int main() {
     hftServer = std::make_unique<server::Server>();
     hftServer->start();
   } catch (const std::exception &e) {
-    Logger::monitorLogger->critical("Exception caught in main {}", e.what());
+    std::cerr << "Exception caught in main " << e.what();
     spdlog::critical("Exception caught in main {}", e.what());
     hftServer->stop();
   }

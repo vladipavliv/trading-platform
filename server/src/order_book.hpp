@@ -3,8 +3,8 @@
  * @date 2025-02-20
  */
 
-#ifndef HFT_SERVER_FLATORDERBOOK_HPP
-#define HFT_SERVER_FLATORDERBOOK_HPP
+#ifndef HFT_SERVER_ORDERBOOK_HPP
+#define HFT_SERVER_ORDERBOOK_HPP
 
 #include <algorithm>
 #include <map>
@@ -20,7 +20,7 @@
 
 namespace hft::server {
 
-class FlatOrderBook {
+class OrderBook {
   static bool compareBids(const Order &left, const Order &right) {
     return left.price < right.price;
   }
@@ -29,13 +29,13 @@ class FlatOrderBook {
   }
 
 public:
-  using UPtr = std::unique_ptr<FlatOrderBook>;
+  using UPtr = std::unique_ptr<OrderBook>;
 
-  FlatOrderBook() {
+  OrderBook() {
     mBids.reserve(500);
     mAsks.reserve(500);
   }
-  ~FlatOrderBook() = default;
+  ~OrderBook() = default;
 
   void add(const Order &order) {
     if (order.action == OrderAction::Buy) {
