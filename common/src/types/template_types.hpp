@@ -23,8 +23,13 @@ namespace hft {
 template <typename Type>
 using Span = std::span<Type>;
 
+template <typename Type>
+using CRef = const Type &;
+
 using Callback = std::function<void()>;
 using Predicate = std::function<bool()>;
+template <typename ArgType>
+using Handler = std::function<void(ArgType)>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
 template <typename ArgType>

@@ -35,19 +35,12 @@ class Trader {
 public:
   Trader()
       : mGuard{boost::asio::make_work_guard(mCtx)},
-        mIngressSocket{
-            TcpSocket{mCtx}, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
-            [this](const OrderStatus &status) { onOrderStatus(status); },
-            [this](SocketStatus status) { onSocketStatus(SocketType::Ingress, status); }},
+        mIngressSocket{TcpSocket{mCtx},
+                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
         mEgressSocket{TcpSocket{mCtx},
-                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
-                      [](const OrderStatus &) {},
-                      [this](SocketStatus status) { onSocketStatus(SocketType::Egress, status); }},
-        mPricesSocket{
-            utils::createUdpSocket(mCtx, false, Config::cfg.portUdp),
-            UdpEndpoint(Udp::v4(), Config::cfg.portUdp),
-            [this](const TickerPrice &priceUpdate) { onPriceUpdate(priceUpdate); },
-            [this](SocketStatus status) { onSocketStatus(SocketType::Broadcast, status); }},
+                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
+        mPricesSocket{utils::createUdpSocket(mCtx, false, Config::cfg.portUdp),
+                      UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
         mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
         mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
         mMonitorRate{Config::cfg.monitorRateS} {

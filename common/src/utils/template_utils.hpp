@@ -18,7 +18,7 @@
 #include "template_types.hpp"
 #include "types.hpp"
 
-namespace hft {
+namespace hft::utils {
 
 /**
  * @brief Generic helpers
@@ -101,6 +101,6 @@ constexpr bool is_ascending() {
   }
 }
 
-} // namespace hft
+} // namespace hft::utils
 
 #endif // HFT_COMMON_TEMPLATEUTILS_HPP
