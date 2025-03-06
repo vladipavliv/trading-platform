@@ -8,7 +8,7 @@
 
 #include "boost_types.hpp"
 #include "config/config.hpp"
-#include "event_bus.hpp"
+#include "server_bus.hpp"
 #include "server_command.hpp"
 #include "ticker_data.hpp"
 #include "utils/market_utils.hpp"
@@ -19,17 +19,9 @@ class PriceFeed {
 public:
   PriceFeed(const MarketData &data, IoContext &ctx)
       : data_{data}, timer_{ctx}, rate_{Config::cfg.priceFeedRateUs} {
-    EventBus::bus().subscribe<ServerCommand>([this](Span<ServerCommand> commands) {
-      switch (commands.front()) {
-      case ServerCommand::PriceFeedStart:
-        start();
-        break;
-      case ServerCommand::PriceFeedStop:
-        stop();
-      default:
-        break;
-      }
-    });
+
+    ServerBus::commandBus().subscribe(ServerCommand::PriceFeedStart, [this]() { start(); });
+    ServerBus::commandBus().subscribe(ServerCommand::PriceFeedStop, [this]() { stop(); });
   }
 
   void start() {
@@ -60,7 +52,7 @@ private:
       priceUpdates.emplace_back(TickerPrice{tickerData.first, newPrice});
     }
     spdlog::trace([&priceUpdates] { return utils::toString(priceUpdates); }());
-    EventBus::bus().publish(Span<TickerPrice>(priceUpdates));
+    ServerBus::eventBus().publish(Span<TickerPrice>(priceUpdates));
   }
 
 private:

@@ -10,6 +10,7 @@
 #include <array>
 #include <boost/lockfree/queue.hpp>
 #include <functional>
+#include <map>
 #include <memory>
 #include <span>
 #include <string>
@@ -25,6 +26,9 @@ using Span = std::span<Type>;
 
 template <typename Type>
 using CRef = const Type &;
+
+template <typename K, typename V>
+using HashMap = std::unordered_map<K, V>;
 
 using Callback = std::function<void()>;
 using Predicate = std::function<bool()>;

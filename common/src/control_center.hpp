@@ -9,7 +9,7 @@
 #include <map>
 
 #include "boost_types.hpp"
-#include "event_bus.hpp"
+#include "bus/command_bus.hpp"
 #include "logger.hpp"
 #include "types.hpp"
 
@@ -22,8 +22,9 @@ template <typename CommandType>
 class ControlCenter {
 public:
   using Command = CommandType;
+  using BusType = CommandBus<Command>;
 
-  ControlCenter(IoContext &ctx) : timer_{ctx} { commands_.reserve(20); }
+  ControlCenter(IoContext &ctx, BusType &bus) : bus_{bus}, timer_{ctx} { commands_.reserve(20); }
 
   void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
 
@@ -52,7 +53,7 @@ private:
     if (iterator == commands_.end()) {
       return;
     }
-    EventBus::bus().publish<CommandType>(iterator->second);
+    bus_.publish(iterator->second);
   }
 
   void printCommands() {
@@ -63,6 +64,7 @@ private:
   }
 
 private:
+  BusType &bus_;
   SteadyTimer timer_;
   std::unordered_map<std::string, CommandType> commands_;
 };
