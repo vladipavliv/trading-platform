@@ -40,29 +40,29 @@ public:
   using UPtr = std::unique_ptr<OrderBook>;
 
   OrderBook() {
-    mBids.reserve(ORDER_BOOK_LIMIT);
-    mAsks.reserve(ORDER_BOOK_LIMIT);
+    bids_.reserve(ORDER_BOOK_LIMIT);
+    asks_.reserve(ORDER_BOOK_LIMIT);
   }
   ~OrderBook() = default;
 
   void add(const Order &order) {
     if (order.action == OrderAction::Buy) {
-      mBids.push_back(order);
-      std::push_heap(mBids.begin(), mBids.end(), compareBids);
+      bids_.push_back(order);
+      std::push_heap(bids_.begin(), bids_.end(), compareBids);
     } else {
-      mAsks.push_back(order);
-      std::push_heap(mAsks.begin(), mAsks.end(), compareAsks);
+      asks_.push_back(order);
+      std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    mLastAdded.insert(order.id); // Randomizator
+    lastAdded_.insert(order.id); // Randomizator
   }
 
   std::vector<OrderStatus> match() {
     std::vector<OrderStatus> matches;
     matches.reserve(10);
 
-    while (!mBids.empty() && !mAsks.empty()) {
-      Order &bestBid = mBids.front();
-      Order &bestAsk = mAsks.front();
+    while (!bids_.empty() && !asks_.empty()) {
+      Order &bestBid = bids_.front();
+      Order &bestAsk = asks_.front();
       if (bestBid.price < bestAsk.price) {
         break;
       }
@@ -70,23 +70,23 @@ public:
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      if (mLastAdded.contains(bestBid.id)) {
+      if (lastAdded_.contains(bestBid.id)) {
         matches.emplace_back(handleMatch(bestBid, quantity, bestAsk.price));
       }
-      if (mLastAdded.contains(bestAsk.id)) {
+      if (lastAdded_.contains(bestAsk.id)) {
         matches.emplace_back(handleMatch(bestAsk, quantity, bestAsk.price));
       }
 
       if (bestBid.quantity == 0) {
-        std::pop_heap(mBids.begin(), mBids.end(), compareBids);
-        mBids.pop_back();
+        std::pop_heap(bids_.begin(), bids_.end(), compareBids);
+        bids_.pop_back();
       }
       if (bestAsk.quantity == 0) {
-        std::pop_heap(mAsks.begin(), mAsks.end(), compareAsks);
-        mAsks.pop_back();
+        std::pop_heap(asks_.begin(), asks_.end(), compareAsks);
+        asks_.pop_back();
       }
     }
-    mLastAdded.clear();
+    lastAdded_.clear();
     return matches;
   }
 
@@ -105,9 +105,9 @@ private:
   }
 
 private:
-  std::vector<Order> mBids;
-  std::vector<Order> mAsks;
-  std::set<OrderId> mLastAdded;
+  std::vector<Order> bids_;
+  std::vector<Order> asks_;
+  std::set<OrderId> lastAdded_;
 };
 
 } // namespace hft::server

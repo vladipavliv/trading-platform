@@ -18,7 +18,8 @@
 namespace hft {
 
 /**
- * @brief HdrHistogram at home
+ * @brief Tracks rtt values in the specified ranges
+ * @details HdrHistogram at home
  */
 template <size_t... Ranges>
 class RttTracker {
@@ -31,7 +32,7 @@ class RttTracker {
 
   struct alignas(64) AtomicRttSample {
     std::atomic_uint64_t sum{0};
-    Padding<size_t> p;
+    Padding<std::atomic_uint64_t> p;
     std::atomic_uint64_t size{0};
   };
   struct AtomicRttStats {

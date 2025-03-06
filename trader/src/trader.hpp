@@ -34,16 +34,16 @@ class Trader {
 
 public:
   Trader()
-      : mGuard{boost::asio::make_work_guard(mCtx)},
-        mIngressSocket{TcpSocket{mCtx},
+      : ioCtxGuard_{boost::asio::make_work_guard(ioCtx_)},
+        ingressSocket_{TcpSocket{ioCtx_},
                        TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
-        mEgressSocket{TcpSocket{mCtx},
+        egressSocket_{TcpSocket{ioCtx_},
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
-        mPricesSocket{utils::createUdpSocket(mCtx, false, Config::cfg.portUdp),
+        pricesSocket_{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
                       UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
-        mPrices{db::PostgresAdapter::readTickers()}, mTradeTimer{mCtx}, mMonitorTimer{mCtx},
-        mInputTimer{mCtx}, mTradeRate{Config::cfg.tradeRateUs},
-        mMonitorRate{Config::cfg.monitorRateS} {
+        prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_}, monitorTimer_{ioCtx_},
+        inputTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
+        monitorRate_{Config::cfg.monitorRateS} {
     utils::unblockConsole();
 
     EventBus::bus().subscribe<SocketStatusEvent>(
@@ -62,30 +62,30 @@ public:
       }
     });
 
-    mIngressSocket.asyncConnect();
-    mEgressSocket.asyncConnect();
-    mPricesSocket.asyncConnect();
+    ingressSocket_.asyncConnect();
+    egressSocket_.asyncConnect();
+    pricesSocket_.asyncConnect();
 
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mPrices.size()));
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
     scheduleInputTimer();
     scheduleMonitorTimer();
   }
 
   void start() {
     utils::setTheadRealTime();
-    mCtx.run();
+    ioCtx_.run();
   }
 
-  void stop() { mCtx.stop(); }
+  void stop() { ioCtx_.stop(); }
 
 private:
   void onSocketStatus(SocketStatusEvent event) {
     switch (event.status) {
     case SocketStatus::Connected:
-      if (mIngressSocket.status() == SocketStatus::Connected &&
-          mEgressSocket.status() == SocketStatus::Connected) {
+      if (ingressSocket_.status() == SocketStatus::Connected &&
+          egressSocket_.status() == SocketStatus::Connected) {
         Logger::monitorLogger->info("Connected to the server");
-        mIngressSocket.asyncRead();
+        ingressSocket_.asyncRead();
       }
       break;
     case SocketStatus::Disconnected:
@@ -97,19 +97,19 @@ private:
   }
 
   void tradeStart() {
-    if (mIngressSocket.status() != SocketStatus::Connected ||
-        mEgressSocket.status() != SocketStatus::Connected) {
+    if (ingressSocket_.status() != SocketStatus::Connected ||
+        egressSocket_.status() != SocketStatus::Connected) {
       Logger::monitorLogger->error("Not connected to the server");
       return;
     }
     scheduleTradeTimer();
   }
 
-  void tradeStop() { mTradeTimer.cancel(); }
+  void tradeStop() { tradeTimer_.cancel(); }
 
   void scheduleTradeTimer() {
-    mTradeTimer.expires_after(mTradeRate);
-    mTradeTimer.async_wait([this](BoostErrorRef ec) {
+    tradeTimer_.expires_after(tradeRate_);
+    tradeTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
@@ -119,20 +119,20 @@ private:
   }
 
   void scheduleMonitorTimer() {
-    mMonitorTimer.expires_after(mMonitorRate);
-    mMonitorTimer.async_wait([this](BoostErrorRef ec) {
+    monitorTimer_.expires_after(monitorRate_);
+    monitorTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
-      const bool ingressOn = mIngressSocket.status() == SocketStatus::Connected;
-      const bool egressOn = mEgressSocket.status() == SocketStatus::Connected;
+      const bool ingressOn = ingressSocket_.status() == SocketStatus::Connected;
+      const bool egressOn = egressSocket_.status() == SocketStatus::Connected;
       if (!ingressOn || !egressOn) {
         Logger::monitorLogger->critical("Server is down, reconnecting...");
         if (!ingressOn) {
-          mIngressSocket.reconnect();
+          ingressSocket_.reconnect();
         }
         // Egress socket won't passively notify about disconnect
-        mEgressSocket.reconnect();
+        egressSocket_.reconnect();
       } else {
         Tracker::printStats();
       }
@@ -141,8 +141,8 @@ private:
   }
 
   void scheduleInputTimer() {
-    mInputTimer.expires_after(Milliseconds(200));
-    mInputTimer.async_wait([this](BoostErrorRef ec) {
+    inputTimer_.expires_after(Milliseconds(200));
+    inputTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
@@ -152,9 +152,9 @@ private:
   }
 
   void tradeSomething() {
-    static auto cursor = mPrices.begin();
-    if (cursor == mPrices.end()) {
-      cursor = mPrices.begin();
+    static auto cursor = prices_.begin();
+    if (cursor == prices_.end()) {
+      cursor = prices_.begin();
     }
     auto tickerPrice = *cursor++;
     Order order;
@@ -164,7 +164,7 @@ private:
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     order.quantity = utils::RNG::rng(1000);
     spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
-    mEgressSocket.asyncWrite(Span<Order>{&order, 1});
+    egressSocket_.asyncWrite(Span<Order>{&order, 1});
   }
 
   void checkInput() {
@@ -178,29 +178,29 @@ private:
     } else if (cmd == "t-") {
       tradeStop();
     } else if (cmd == "ts-") {
-      mTradeRate *= 2;
-      Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
-    } else if (cmd == "ts+" && mTradeRate > Microseconds(1)) {
-      mTradeRate /= 2;
-      Logger::monitorLogger->info(std::format("Trade rate: {}", mTradeRate));
+      tradeRate_ *= 2;
+      Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
+    } else if (cmd == "ts+" && tradeRate_ > Microseconds(1)) {
+      tradeRate_ /= 2;
+      Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
     }
   }
 
 private:
-  IoContext mCtx;
-  ContextGuard mGuard;
+  IoContext ioCtx_;
+  ContextGuard ioCtxGuard_;
 
-  TraderTcpSocket mIngressSocket;
-  TraderTcpSocket mEgressSocket;
-  TraderUdpSocket mPricesSocket;
+  TraderTcpSocket ingressSocket_;
+  TraderTcpSocket egressSocket_;
+  TraderUdpSocket pricesSocket_;
 
-  std::vector<TickerPrice> mPrices;
-  SteadyTimer mTradeTimer;
-  SteadyTimer mMonitorTimer;
-  SteadyTimer mInputTimer;
+  std::vector<TickerPrice> prices_;
+  SteadyTimer tradeTimer_;
+  SteadyTimer monitorTimer_;
+  SteadyTimer inputTimer_;
 
-  Microseconds mTradeRate;
-  Seconds mMonitorRate;
+  Microseconds tradeRate_;
+  Seconds monitorRate_;
 };
 
 } // namespace hft::trader

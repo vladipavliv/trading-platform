@@ -18,6 +18,7 @@
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
+#include "server_command.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 #include "utils/template_utils.hpp"
@@ -36,10 +37,10 @@ class Server {
 
 public:
   Server()
-      : mIngressAcceptor{mCtx}, mEgressAcceptor{mCtx},
-        mPricesSocket{utils::createUdpSocket(mCtx),
+      : ingressAcceptor_{ioCtx_}, egressAcceptor_{ioCtx_},
+        pricesSocket_{utils::createUdpSocket(ioCtx_),
                       UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
-        mEngine{mCtx}, mInputTimer{mCtx} {
+        engine_{ioCtx_}, inputTimer_{ioCtx_} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
@@ -50,7 +51,7 @@ public:
       switch (event.status) {
       case SocketStatus::Disconnected:
         Logger::monitorLogger->info("{} disconnected", event.traderId);
-        mSessions.erase(event.traderId);
+        sessions_.erase(event.traderId);
         break;
       default:
         break;
@@ -61,7 +62,7 @@ public:
       TraderIdCmp<OrderStatus> cmp;
       auto [subSpan, leftover] = utils::frontSubspan(events, cmp);
       while (!subSpan.empty()) {
-        mSessions[subSpan.front().traderId].egress->asyncWrite(subSpan);
+        sessions_[subSpan.front().traderId].egress->asyncWrite(subSpan);
         std::tie(subSpan, leftover) = utils::frontSubspan(leftover, cmp);
       }
     });
@@ -74,28 +75,28 @@ public:
 
   void start() {
     utils::setTheadRealTime();
-    mCtx.run();
+    ioCtx_.run();
   }
 
   void stop() {
-    mIngressAcceptor.close();
-    mEgressAcceptor.close();
-    mCtx.stop();
-    mEngine.stop();
+    ingressAcceptor_.close();
+    egressAcceptor_.close();
+    ioCtx_.stop();
+    engine_.stop();
   }
 
 private:
   void startIngress() {
     TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpIn);
-    mIngressAcceptor.open(endpoint.protocol());
-    mIngressAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
-    mIngressAcceptor.bind(endpoint);
-    mIngressAcceptor.listen();
+    ingressAcceptor_.open(endpoint.protocol());
+    ingressAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
+    ingressAcceptor_.bind(endpoint);
+    ingressAcceptor_.listen();
     acceptIngress();
   }
 
   void acceptIngress() {
-    mIngressAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
+    ingressAcceptor_.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
       if (ec) {
         spdlog::error("Failed to accept connection {}", ec.message());
         return;
@@ -103,23 +104,23 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected ingress", traderId);
-      mSessions[traderId].ingress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
-      mSessions[traderId].ingress->asyncRead();
+      sessions_[traderId].ingress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
+      sessions_[traderId].ingress->asyncRead();
       acceptIngress();
     });
   }
 
   void startEgress() {
     TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpOut);
-    mEgressAcceptor.open(endpoint.protocol());
-    mEgressAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
-    mEgressAcceptor.bind(endpoint);
-    mEgressAcceptor.listen();
+    egressAcceptor_.open(endpoint.protocol());
+    egressAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
+    egressAcceptor_.bind(endpoint);
+    egressAcceptor_.listen();
     acceptEgress();
   }
 
   void acceptEgress() {
-    mEgressAcceptor.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
+    egressAcceptor_.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
       if (ec) {
         spdlog::error("Failed to accept connection: {}", ec.message());
         return;
@@ -127,14 +128,14 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
       Logger::monitorLogger->info("{} connected egress", traderId);
-      mSessions[traderId].egress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
+      sessions_[traderId].egress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
       acceptEgress();
     });
   }
 
   void scheduleInputTimer() {
-    mInputTimer.expires_after(Milliseconds(200));
-    mInputTimer.async_wait([this](BoostErrorRef ec) {
+    inputTimer_.expires_after(Milliseconds(200));
+    inputTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
@@ -144,31 +145,31 @@ private:
   }
 
   void checkInput() {
-    auto cmd = utils::getConsoleInput();
-    if (cmd.empty()) {
+    auto input = utils::getConsoleInput();
+    if (input.empty()) {
       return;
-    } else if (cmd == "q") {
+    } else if (input == "q") {
       stop();
-    } else if (cmd == "p+") {
-      //
+    } else if (input == "p+") {
+      EventBus::bus().publish(ServerCommand::PriceFeedStart);
       Logger::monitorLogger->info("Price feed start");
-    } else if (cmd == "p-") {
-      //
+    } else if (input == "p-") {
+      EventBus::bus().publish(ServerCommand::PriceFeedStop);
       Logger::monitorLogger->info("Price feed stop");
     }
   }
 
 private:
-  IoContext mCtx;
+  IoContext ioCtx_;
 
-  TcpAcceptor mIngressAcceptor;
-  TcpAcceptor mEgressAcceptor;
-  ServerUdpSocket mPricesSocket;
+  TcpAcceptor ingressAcceptor_;
+  TcpAcceptor egressAcceptor_;
+  ServerUdpSocket pricesSocket_;
 
-  Engine mEngine;
-  SteadyTimer mInputTimer;
+  Engine engine_;
+  SteadyTimer inputTimer_;
 
-  std::unordered_map<TraderId, Session> mSessions;
+  std::unordered_map<TraderId, Session> sessions_;
 };
 
 } // namespace hft::server

@@ -19,7 +19,7 @@ namespace hft::server {
 struct TickerData {
   using UPtr = std::unique_ptr<TickerData>;
 
-  TickerData(ThreadId id, Price currentPrice) : threadId{id}, price{currentPrice} {}
+  TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
 
   TickerData() = delete;
   TickerData(const TickerData &) = delete;
@@ -27,17 +27,17 @@ struct TickerData {
   TickerData(TickerData &&) = delete;
   TickerData &operator=(TickerData &&other) = delete;
 
-  inline void setThreadId(ThreadId id) { threadId.store(id, std::memory_order_release); }
-  inline ThreadId getThreadId() const { return threadId.load(std::memory_order_acquire); }
+  inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
+  inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }
 
-  inline void setPrice(Price currentPrice) { price.store(currentPrice, std::memory_order_release); }
-  inline Price getPrice() const { return price.load(std::memory_order_acquire); }
+  inline void setPrice(Price price) { price_.store(price, std::memory_order_release); }
+  inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
 
   OrderBook orderBook;
 
 private:
-  alignas(CACHE_LINE_SIZE) std::atomic<ThreadId> threadId;
-  alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price;
+  alignas(CACHE_LINE_SIZE) std::atomic<ThreadId> threadId_;
+  alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price_;
 };
 
 using MarketData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;

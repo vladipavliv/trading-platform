@@ -13,6 +13,7 @@
 #include "event_bus.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
+#include "price_feed.hpp"
 #include "ticker_data.hpp"
 #include "worker.hpp"
 
@@ -20,68 +21,69 @@ namespace hft::server {
 
 class Engine {
 public:
-  Engine(IoContext &ctx) : mStatsTimer{ctx}, mStatsRate{Seconds{Config::cfg.monitorRateS}} {
+  Engine(IoContext &ctx)
+      : data_{readMarketData()}, priceFeed_{data_, ctx}, statsTimer_{ctx},
+        statsRate_{Seconds{Config::cfg.monitorRateS}} {
     EventBus::bus().subscribe<Order>([this](Span<Order> orders) { processOrders(orders); });
-    initMarketData();
     scheduleStatsTimer();
     startWorkers();
   }
 
   void stop() {
-    for (auto &worker : mWorkers) {
+    for (auto &worker : workers_) {
       worker->stop();
     }
   }
 
 private:
-  void initMarketData() {
+  MarketData readMarketData() {
+    MarketData data;
     auto prices = db::PostgresAdapter::readTickers();
     ThreadId roundRobin = 0;
     for (auto &item : prices) {
-      mData.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
-      if (++roundRobin >= Config::cfg.coreIds.size()) {
-        roundRobin = 0;
-      }
+      data.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
+      roundRobin = (++roundRobin < Config::cfg.coreIds.size()) ? roundRobin : 0;
     }
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", mData.size()));
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", data_.size()));
+    return data;
   }
 
   void startWorkers() {
-    mWorkers.reserve(Config::cfg.coreIds.size());
+    workers_.reserve(Config::cfg.coreIds.size());
     for (int i = 0; i < Config::cfg.coreIds.size(); ++i) {
-      mWorkers.emplace_back(std::make_unique<Worker>(i));
+      workers_.emplace_back(std::make_unique<Worker>(i));
     }
   }
 
   void processOrders(Span<Order> orders) {
-    mOrdersTotal.fetch_add(1, std::memory_order_relaxed);
+    ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     // TODO() process in chunks
     for (auto &order : orders) {
-      auto &data = mData[order.ticker];
-      mWorkers[data->getThreadId()]->post([this, order, &data]() {
+      auto &data = data_[order.ticker];
+      workers_[data->getThreadId()]->post([this, order, &data]() {
         data->orderBook.add(order);
         auto matches = data->orderBook.match();
         if (!matches.empty()) {
           EventBus::bus().publish(Span<OrderStatus>(matches));
         }
-        mOrdersClosed.fetch_add(matches.size(), std::memory_order_relaxed);
+        ordersClosed_.fetch_add(matches.size(), std::memory_order_relaxed);
       });
     }
   }
 
   void scheduleStatsTimer() {
-    mStatsTimer.expires_after(mStatsRate);
-    mStatsTimer.async_wait([this](BoostErrorRef ec) {
+    statsTimer_.expires_after(statsRate_);
+    statsTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
       static size_t lastOrderCount = 0;
-      size_t ordersCurrent = mOrdersTotal.load(std::memory_order_relaxed);
-      auto rps = (ordersCurrent - lastOrderCount) / mStatsRate.count();
+      size_t ordersCurrent = ordersTotal_.load(std::memory_order_relaxed);
+      auto rps = (ordersCurrent - lastOrderCount) / statsRate_.count();
       if (rps != 0) {
         Logger::monitorLogger->info("Orders [matched|total] {} {} rps:{}",
-                                    mOrdersClosed.load(std::memory_order_relaxed),
-                                    mOrdersTotal.load(std::memory_order_relaxed), rps);
+                                    ordersClosed_.load(std::memory_order_relaxed),
+                                    ordersTotal_.load(std::memory_order_relaxed), rps);
       }
       lastOrderCount = ordersCurrent;
       scheduleStatsTimer();
@@ -89,14 +91,15 @@ private:
   }
 
 private:
-  std::vector<Worker::UPtr> mWorkers;
-  MarketData mData;
+  std::vector<Worker::UPtr> workers_;
+  MarketData data_;
+  PriceFeed priceFeed_;
 
-  SteadyTimer mStatsTimer;
-  Seconds mStatsRate;
+  SteadyTimer statsTimer_;
+  Seconds statsRate_;
 
-  std::atomic_size_t mOrdersTotal;
-  std::atomic_size_t mOrdersClosed;
+  std::atomic_size_t ordersTotal_;
+  std::atomic_size_t ordersClosed_;
 };
 
 } // namespace hft::server
