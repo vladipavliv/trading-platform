@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
     Logger::monitorLogger->info(std::string(55, '~'));
 
     trader->start();
+    Logger::monitorLogger->info("stonk");
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main" << e.what();
     spdlog::critical("Exception caught in main {}", e.what());

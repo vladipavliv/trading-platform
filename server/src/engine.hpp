@@ -36,7 +36,7 @@ public:
 
   void stop() {
     for (auto &worker : workers_) {
-      worker->stop();
+      worker->ioCtx.stop();
     }
   }
 
@@ -70,7 +70,7 @@ private:
 
   void processOrder(CRef<Order> order) {
     auto &data = data_[order.ticker];
-    workers_[data->getThreadId()]->post([this, order, &data]() {
+    workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       data->orderBook.add(order);
       auto matches = data->orderBook.match();
       if (!matches.empty()) {

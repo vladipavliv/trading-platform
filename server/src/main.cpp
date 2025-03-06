@@ -27,6 +27,7 @@ int main() {
     Logger::monitorLogger->info(std::string(55, '~'));
 
     hftServer->start();
+    Logger::monitorLogger->info("stonk");
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what();
     spdlog::critical("Exception caught in main {}", e.what());

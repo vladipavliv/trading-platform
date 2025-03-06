@@ -20,28 +20,26 @@ public:
   using UPtr = std::unique_ptr<Worker>;
 
   Worker(ThreadId id)
-      : guard_{boost::asio::make_work_guard(ioCtx_)}, thread_{[this, id]() {
+      : guard_{boost::asio::make_work_guard(ioCtx)}, thread_{[this, id]() {
           try {
             utils::setTheadRealTime();
             utils::pinThreadToCore(Config::cfg.coreIds[id]);
-            ioCtx_.run();
+            ioCtx.run();
           } catch (const std::exception &e) {
             Logger::monitorLogger->error("Exception in worker thread {}", e.what());
           }
         }} {}
 
   ~Worker() {
-    stop();
+    ioCtx.stop();
     if (thread_.joinable()) {
       thread_.join();
     }
   }
 
-  void stop() { ioCtx_.stop(); }
-  void post(Callback job) { ioCtx_.post(std::move(job)); }
+  IoContext ioCtx;
 
 private:
-  IoContext ioCtx_;
   ContextGuard guard_;
   Thread thread_;
 };
