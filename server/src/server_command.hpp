@@ -12,13 +12,10 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
-
 enum class ServerCommand : uint8_t { PriceFeedStart, PriceFeedStop, Shutdown };
-
 }
 
 namespace hft::utils {
-
 template <>
 std::string toString<server::ServerCommand>(const server::ServerCommand &command) {
   using namespace server;
@@ -33,7 +30,6 @@ std::string toString<server::ServerCommand>(const server::ServerCommand &command
     return std::format("unknown command {}", static_cast<uint8_t>(command));
   }
 }
-
 } // namespace hft::utils
 
 #endif // HFT_SERVER_SERVERCOMMAND_HPP

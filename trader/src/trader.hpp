@@ -22,6 +22,7 @@
 #include "network_types.hpp"
 #include "rtt_tracker.hpp"
 #include "template_types.hpp"
+#include "trader_bus.hpp"
 #include "trader_command.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
@@ -30,67 +31,64 @@
 namespace hft::trader {
 
 class Trader {
-  using TraderTcpSocket = AsyncSocket<TcpSocket, OrderStatus>;
-  using TraderUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus::TraderEventBus, OrderStatus>;
+  using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus::TraderEventBus, TickerPrice>;
   using TraderControlCenter = ControlCenter<TraderCommand>;
   using Tracker = RttTracker<50, 200>;
 
 public:
   Trader()
       : ioCtxGuard_{boost::asio::make_work_guard(ioCtx_)},
-        ingressSocket_{TcpSocket{ioCtx_},
+        ingressSocket_{TcpSocket{ioCtx_}, TraderBus::eventBus(),
                        TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
-        egressSocket_{TcpSocket{ioCtx_},
+        egressSocket_{TcpSocket{ioCtx_}, TraderBus::eventBus(),
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
         pricesSocket_{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
-                      UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
-        controlCenter_{ioCtx_}, prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_},
-        monitorTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
+                      TraderBus::eventBus(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
+        controlCenter_{ioCtx_, TraderBus::commandBus()},
+        prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_}, statsTimer_{ioCtx_},
+        connectionTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
         monitorRate_{Config::cfg.monitorRateS} {
     utils::unblockConsole();
 
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
 
-    EventBus::bus().subscribe<SocketStatusEvent>(
-        [this](Span<SocketStatusEvent> events) { onSocketStatus(events.front()); });
+    TraderBus::eventBus().setHandler<SocketStatusEvent>(
+        [this](CRef<SocketStatusEvent> event) { onSocketStatus(event); });
 
-    EventBus::bus().subscribe<OrderStatus>([this](Span<OrderStatus> events) {
+    // Subscribe to OrderStatus events
+    TraderBus::eventBus().setHandler<OrderStatus>(
+        [this](CRef<OrderStatus> event) { onOrderStatus(event); });
+
+    TraderBus::eventBus().setHandler<OrderStatus>([this](Span<OrderStatus> events) {
       for (auto &status : events) {
-        spdlog::debug("OrderStatus {}", [&status] { return utils::toString(status); }());
-        Tracker::logRtt(status.id);
+        onOrderStatus(status);
       }
     });
 
-    EventBus::bus().subscribe<TickerPrice>([this](Span<TickerPrice> prices) {
+    // Subscribe to TickerPrice events
+    TraderBus::eventBus().setHandler<TickerPrice>(
+        [this](CRef<TickerPrice> price) { onPriceUpdate(price); });
+
+    TraderBus::eventBus().setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
       for (auto &price : prices) {
-        spdlog::debug([&price] { return utils::toString(price); }());
+        onPriceUpdate(price);
       }
     });
 
-    EventBus::bus().subscribe<TraderCommand>([this](Span<TraderCommand> commands) {
-      switch (commands.front()) {
-      case TraderCommand::TradeStart:
-        tradeStart();
-        break;
-      case TraderCommand::TradeStop:
-        tradeStop();
-        break;
-      case TraderCommand::TradeSpeedUp:
-        if (tradeRate_ > Microseconds(1)) {
-          tradeRate_ /= 2;
-          Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-        }
-        break;
-      case TraderCommand::TradeSpeedDown:
-        tradeRate_ *= 2;
+    // Subscribe to TraderCommands
+    TraderBus::commandBus().subscribe(TraderCommand::Shutdown, [this]() { stop(); });
+    TraderBus::commandBus().subscribe(TraderCommand::TradeStart, [this]() { tradeStart(); });
+    TraderBus::commandBus().subscribe(TraderCommand::TradeStop, [this]() { tradeStop(); });
+    TraderBus::commandBus().subscribe(TraderCommand::TradeSpeedUp, [this]() {
+      if (tradeRate_ > Microseconds(1)) {
+        tradeRate_ /= 2;
         Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-        break;
-      case TraderCommand::Shutdown:
-        stop();
-        break;
-      default:
-        break;
       }
+    });
+    TraderBus::commandBus().subscribe(TraderCommand::TradeSpeedDown, [this]() {
+      tradeRate_ *= 2;
+      Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
     });
 
     controlCenter_.addCommand("t+", TraderCommand::TradeStart);
@@ -102,7 +100,8 @@ public:
 
   void start() {
     utils::setTheadRealTime();
-    scheduleMonitorTimer();
+    scheduleConnectionTimer();
+
     controlCenter_.start();
 
     ingressSocket_.asyncConnect();
@@ -132,6 +131,15 @@ private:
     }
   }
 
+  void onOrderStatus(CRef<OrderStatus> status) {
+    spdlog::debug("OrderStatus {}", [&status] { return utils::toString(status); }());
+    Tracker::logRtt(status.id);
+  }
+
+  void onPriceUpdate(CRef<TickerPrice> price) {
+    spdlog::debug([&price] { return utils::toString(price); }());
+  }
+
   void tradeStart() {
     if (ingressSocket_.status() != SocketStatus::Connected ||
         egressSocket_.status() != SocketStatus::Connected) {
@@ -139,9 +147,13 @@ private:
       return;
     }
     scheduleTradeTimer();
+    scheduleStatsTimer();
   }
 
-  void tradeStop() { tradeTimer_.cancel(); }
+  void tradeStop() {
+    tradeTimer_.cancel();
+    statsTimer_.cancel();
+  }
 
   void scheduleTradeTimer() {
     tradeTimer_.expires_after(tradeRate_);
@@ -154,9 +166,9 @@ private:
     });
   }
 
-  void scheduleMonitorTimer() {
-    monitorTimer_.expires_after(monitorRate_);
-    monitorTimer_.async_wait([this](BoostErrorRef ec) {
+  void scheduleConnectionTimer() {
+    connectionTimer_.expires_after(monitorRate_);
+    connectionTimer_.async_wait([this](BoostErrorRef ec) {
       if (ec) {
         return;
       }
@@ -169,10 +181,19 @@ private:
         }
         // Egress socket won't passively notify about disconnect
         egressSocket_.reconnect();
-      } else {
-        Tracker::printStats();
       }
-      scheduleMonitorTimer();
+      scheduleConnectionTimer();
+    });
+  }
+
+  void scheduleStatsTimer() {
+    statsTimer_.expires_after(monitorRate_);
+    statsTimer_.async_wait([this](BoostErrorRef ec) {
+      if (ec) {
+        return;
+      }
+      Tracker::printStats();
+      scheduleStatsTimer();
     });
   }
 
@@ -204,7 +225,8 @@ private:
 
   std::vector<TickerPrice> prices_;
   SteadyTimer tradeTimer_;
-  SteadyTimer monitorTimer_;
+  SteadyTimer statsTimer_;
+  SteadyTimer connectionTimer_;
 
   Microseconds tradeRate_;
   Seconds monitorRate_;

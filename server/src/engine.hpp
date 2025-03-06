@@ -10,10 +10,10 @@
 #include <vector>
 
 #include "db/postgres_adapter.hpp"
-#include "event_bus.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
 #include "price_feed.hpp"
+#include "server_bus.hpp"
 #include "ticker_data.hpp"
 #include "worker.hpp"
 
@@ -24,7 +24,9 @@ public:
   Engine(IoContext &ctx)
       : data_{readMarketData()}, priceFeed_{data_, ctx}, statsTimer_{ctx},
         statsRate_{Seconds{Config::cfg.monitorRateS}} {
-    EventBus::bus().subscribe<Order>([this](Span<Order> orders) { processOrders(orders); });
+
+    ServerBus::eventBus().setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
+    ServerBus::eventBus().setHandler<Order>([this](CRef<Order> order) { processOrder(order); });
   }
 
   void start() {
@@ -60,18 +62,22 @@ private:
 
   void processOrders(Span<Order> orders) {
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    // TODO() process in chunks
+    // TODO() Try sorting by the worker id and processing in chunks
     for (auto &order : orders) {
-      auto &data = data_[order.ticker];
-      workers_[data->getThreadId()]->post([this, order, &data]() {
-        data->orderBook.add(order);
-        auto matches = data->orderBook.match();
-        if (!matches.empty()) {
-          EventBus::bus().publish(Span<OrderStatus>(matches));
-        }
-        ordersClosed_.fetch_add(matches.size(), std::memory_order_relaxed);
-      });
+      processOrder(order);
     }
+  }
+
+  void processOrder(CRef<Order> order) {
+    auto &data = data_[order.ticker];
+    workers_[data->getThreadId()]->post([this, order, &data]() {
+      data->orderBook.add(order);
+      auto matches = data->orderBook.match();
+      if (!matches.empty()) {
+        ServerBus::eventBus().publish(Span<OrderStatus>(matches));
+      }
+      ordersClosed_.fetch_add(matches.size(), std::memory_order_relaxed);
+    });
   }
 
   void scheduleStatsTimer() {
