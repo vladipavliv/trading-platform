@@ -37,14 +37,15 @@ public:
 
   AsyncSocket(Socket &&socket, EventBusType &bus, TraderId traderId = 0)
       : socket_{std::move(socket)}, bus_{bus}, traderId_{traderId}, readBuffer_(BUFFER_SIZE) {
-    if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      status_.store(SocketStatus::Connected, std::memory_order_release);
-    }
+    status_.store(SocketStatus::Connected, std::memory_order_release);
   }
 
   AsyncSocket(Socket &&socket, EventBusType &bus, Endpoint endpoint)
       : AsyncSocket(std::move(socket), bus) {
     endpoint_ = std::move(endpoint);
+    if constexpr (std::is_same_v<Socket, TcpSocket>) {
+      status_.store(SocketStatus::Disconnected, std::memory_order_release);
+    }
   }
 
   void asyncConnect() {

@@ -28,12 +28,16 @@ public:
 
   void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
 
-  void start() {
-    printCommands();
-    scheduleInputCheck();
-  }
+  void start() { scheduleInputCheck(); }
 
   void stop() { timer_.cancel(); }
+
+  void printCommands() {
+    Logger::monitorLogger->info("Commands:");
+    for (auto &command : commands_) {
+      Logger::monitorLogger->info("> {:3} => {}", command.first, utils::toString(command.second));
+    }
+  }
 
 private:
   void scheduleInputCheck() {
@@ -54,13 +58,6 @@ private:
       return;
     }
     bus_.publish(iterator->second);
-  }
-
-  void printCommands() {
-    Logger::monitorLogger->info("Commands:");
-    for (auto &command : commands_) {
-      Logger::monitorLogger->info("> {:5} => {}", command.first, utils::toString(command.second));
-    }
   }
 
 private:

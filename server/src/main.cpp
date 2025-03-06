@@ -19,11 +19,13 @@ int main() {
     ConfigReader::readConfig("server_config.ini");
     Logger::initialize(Config::cfg.logLevel, Config::cfg.logOutput);
 
-    Logger::monitorLogger->info("Server go stonks");
+    Logger::monitorLogger->info("Server go stonks {}", std::string(38, '~'));
     Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
 
     hftServer = std::make_unique<server::Server>();
+    Logger::monitorLogger->info(std::string(55, '~'));
+
     hftServer->start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what();

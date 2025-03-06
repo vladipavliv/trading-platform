@@ -25,6 +25,7 @@
 #include "trader_bus.hpp"
 #include "trader_command.hpp"
 #include "types.hpp"
+#include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
 
@@ -96,6 +97,8 @@ public:
     controlCenter_.addCommand("ts+", TraderCommand::TradeSpeedUp);
     controlCenter_.addCommand("ts-", TraderCommand::TradeSpeedDown);
     controlCenter_.addCommand("q", TraderCommand::Shutdown);
+
+    controlCenter_.printCommands();
   }
 
   void start() {
@@ -206,9 +209,9 @@ private:
     Order order;
     order.id = utils::getLinuxTimestamp();
     order.ticker = tickerPrice.ticker;
-    order.price = utils::RNG::rng<uint32_t>(tickerPrice.price * 2);
+    order.price = utils::fluctuateThePrice(tickerPrice.price);
     order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    order.quantity = utils::RNG::rng(1000);
+    order.quantity = utils::RNG::rng(100);
     spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
     egressSocket_.asyncWrite(Span<Order>{&order, 1});
   }

@@ -54,6 +54,11 @@ public:
         Logger::monitorLogger->info("{} disconnected", event.traderId);
         sessions_.erase(event.traderId);
         break;
+      case SocketStatus::Connected:
+        if (isConnected(event.traderId)) {
+          Logger::monitorLogger->info("{} connected", event.traderId);
+        }
+        break;
       default:
         break;
       }
@@ -79,6 +84,8 @@ public:
     controlCenter_.addCommand("q", ServerCommand::Shutdown);
     controlCenter_.addCommand("p+", ServerCommand::PriceFeedStart);
     controlCenter_.addCommand("p-", ServerCommand::PriceFeedStop);
+
+    controlCenter_.printCommands();
   }
   ~Server() { stop(); }
 
@@ -115,10 +122,12 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      Logger::monitorLogger->info("{} connected ingress", traderId);
       sessions_[traderId].ingress =
           std::make_unique<ServerTcpSocket>(std::move(socket), ServerBus::eventBus(), traderId);
       sessions_[traderId].ingress->asyncRead();
+      if (isConnected(traderId)) {
+        Logger::monitorLogger->info("{} connected", traderId);
+      }
       acceptIngress();
     });
   }
@@ -140,11 +149,21 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      Logger::monitorLogger->info("{} connected egress", traderId);
-      sessions_[traderId].egress =
+      auto &session = sessions_[traderId];
+      session.egress =
           std::make_unique<ServerTcpSocket>(std::move(socket), ServerBus::eventBus(), traderId);
+      if (isConnected(traderId)) {
+        Logger::monitorLogger->info("{} connected", traderId);
+      }
       acceptEgress();
     });
+  }
+
+  bool isConnected(TraderId traderId) {
+    auto &session = sessions_[traderId];
+    return session.egress != nullptr && session.ingress != nullptr &&
+           session.egress->status() == SocketStatus::Connected &&
+           session.ingress->status() == SocketStatus::Connected;
   }
 
 private:
