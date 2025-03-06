@@ -15,6 +15,9 @@
 
 namespace hft {
 
+/**
+ * @brief Periodically checks console input and posts commands to EventBus
+ */
 template <typename CommandType>
 class ControlCenter {
 public:

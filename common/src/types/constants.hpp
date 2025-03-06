@@ -29,6 +29,8 @@ constexpr size_t MAX_SERIALIZED_MESSAGE_SIZE = 64;
 constexpr size_t PRICE_UPDATE_CHUNK = 5;
 constexpr size_t LOG_FILE_SIZE = 5 * 1024 * 1024;
 
+constexpr float PRICE_FLUCTUATION_RATE = 5; // %
+
 } // namespace hft
 
 #endif // HFT_COMMON_TYPES_HPP

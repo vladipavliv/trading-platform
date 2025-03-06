@@ -45,9 +45,7 @@ struct Config {
   }
 };
 
-struct
-
-    Config Config::cfg;
+Config Config::cfg;
 
 } // namespace hft
 

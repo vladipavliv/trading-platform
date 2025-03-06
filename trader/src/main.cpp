@@ -7,7 +7,7 @@
 #include "config/config_reader.hpp"
 #include "logger.hpp"
 #include "trader.hpp"
-#include "trader_utils.hpp"
+#include "trader_command.hpp"
 #include "utils/string_utils.hpp"
 
 int main(int argc, char *argv[]) {
@@ -17,7 +17,8 @@ int main(int argc, char *argv[]) {
     ConfigReader::readConfig("trader_config.ini");
     Logger::initialize(Config::cfg.logLevel, Config::cfg.logOutput);
 
-    Logger::monitorLogger->info("Trader configuration:");
+    Logger::monitorLogger->info("Trader go stonks");
+    Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
 
     trader = std::make_unique<trader::Trader>();

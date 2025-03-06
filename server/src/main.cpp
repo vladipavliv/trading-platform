@@ -9,7 +9,7 @@
 #include "config/config_reader.hpp"
 #include "logger.hpp"
 #include "server.hpp"
-#include "server_utils.hpp"
+#include "server_command.hpp"
 #include "utils/string_utils.hpp"
 
 int main() {
@@ -19,7 +19,8 @@ int main() {
     ConfigReader::readConfig("server_config.ini");
     Logger::initialize(Config::cfg.logLevel, Config::cfg.logOutput);
 
-    Logger::monitorLogger->info("Server configuration:");
+    Logger::monitorLogger->info("Server go stonks");
+    Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
 
     hftServer = std::make_unique<server::Server>();

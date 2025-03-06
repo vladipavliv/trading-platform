@@ -19,12 +19,10 @@ void pinThreadToCore(int core_id) {
   CPU_ZERO(&cpuset);
   CPU_SET(core_id, &cpuset);
 
-  sched_setaffinity(core_id, sizeof(cpu_set_t), &cpuset);
-
   pthread_t thread = pthread_self();
   int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (result != 0) {
-    spdlog::error("Failed to set thread affinity");
+    spdlog::error("Failed to set thread affinity {}", result);
   }
 }
 

@@ -36,6 +36,8 @@ struct ConfigReader {
 
     // Cpu
     Config::cfg.coreIds = parseCores(pt.get<std::string>("cpu.core_ids"));
+
+    // Rates
     Config::cfg.tradeRateUs = pt.get<int>("rates.trade_rate");
     Config::cfg.priceFeedRateUs = pt.get<int>("rates.price_feed_rate");
     Config::cfg.monitorRateS = pt.get<int>("rates.monitor_rate");

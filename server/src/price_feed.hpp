@@ -11,6 +11,7 @@
 #include "event_bus.hpp"
 #include "server_command.hpp"
 #include "ticker_data.hpp"
+#include "utils/market_utils.hpp"
 
 namespace hft::server {
 
@@ -54,7 +55,7 @@ private:
         cursor = data_.begin();
       }
       const auto &tickerData = *cursor++;
-      Price newPrice = utils::getLinuxTimestamp() % 777;
+      Price newPrice = utils::fluctuateThePrice(tickerData.second->getPrice());
       tickerData.second->setPrice(newPrice);
       priceUpdates.emplace_back(TickerPrice{tickerData.first, newPrice});
     }
