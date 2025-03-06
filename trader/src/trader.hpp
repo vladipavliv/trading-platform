@@ -15,12 +15,14 @@
 #include "boost_types.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
+#include "control_center.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
 #include "rtt_tracker.hpp"
 #include "template_types.hpp"
+#include "trader_command.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
@@ -30,6 +32,7 @@ namespace hft::trader {
 class Trader {
   using TraderTcpSocket = AsyncSocket<TcpSocket, OrderStatus>;
   using TraderUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using TraderControlCenter = ControlCenter<TraderCommand>;
   using Tracker = RttTracker<50, 200>;
 
 public:
@@ -41,10 +44,12 @@ public:
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
         pricesSocket_{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
                       UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
-        prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_}, monitorTimer_{ioCtx_},
-        inputTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
+        controlCenter_{ioCtx_}, prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_},
+        monitorTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
         monitorRate_{Config::cfg.monitorRateS} {
     utils::unblockConsole();
+
+    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
 
     EventBus::bus().subscribe<SocketStatusEvent>(
         [this](Span<SocketStatusEvent> events) { onSocketStatus(events.front()); });
@@ -62,17 +67,48 @@ public:
       }
     });
 
-    ingressSocket_.asyncConnect();
-    egressSocket_.asyncConnect();
-    pricesSocket_.asyncConnect();
+    EventBus::bus().subscribe<TraderCommand>([this](Span<TraderCommand> commands) {
+      switch (commands.front()) {
+      case TraderCommand::TradeStart:
+        tradeStart();
+        break;
+      case TraderCommand::TradeStop:
+        tradeStop();
+        break;
+      case TraderCommand::TradeSpeedUp:
+        if (tradeRate_ > Microseconds(1)) {
+          tradeRate_ /= 2;
+          Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
+        }
+        break;
+      case TraderCommand::TradeSpeedDown:
+        tradeRate_ *= 2;
+        Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
+        break;
+      case TraderCommand::Shutdown:
+        stop();
+        break;
+      default:
+        break;
+      }
+    });
 
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
-    scheduleInputTimer();
-    scheduleMonitorTimer();
+    controlCenter_.addCommand("t+", TraderCommand::TradeStart);
+    controlCenter_.addCommand("t-", TraderCommand::TradeStop);
+    controlCenter_.addCommand("ts+", TraderCommand::TradeSpeedUp);
+    controlCenter_.addCommand("ts-", TraderCommand::TradeSpeedDown);
+    controlCenter_.addCommand("q", TraderCommand::Shutdown);
   }
 
   void start() {
     utils::setTheadRealTime();
+    scheduleMonitorTimer();
+    controlCenter_.start();
+
+    ingressSocket_.asyncConnect();
+    egressSocket_.asyncConnect();
+    pricesSocket_.asyncConnect();
+
     ioCtx_.run();
   }
 
@@ -140,17 +176,6 @@ private:
     });
   }
 
-  void scheduleInputTimer() {
-    inputTimer_.expires_after(Milliseconds(200));
-    inputTimer_.async_wait([this](BoostErrorRef ec) {
-      if (ec) {
-        return;
-      }
-      checkInput();
-      scheduleInputTimer();
-    });
-  }
-
   void tradeSomething() {
     static auto cursor = prices_.begin();
     if (cursor == prices_.end()) {
@@ -167,25 +192,6 @@ private:
     egressSocket_.asyncWrite(Span<Order>{&order, 1});
   }
 
-  void checkInput() {
-    auto cmd = utils::getConsoleInput();
-    if (cmd.empty()) {
-      return;
-    } else if (cmd == "q") {
-      stop();
-    } else if (cmd == "t+") {
-      tradeStart();
-    } else if (cmd == "t-") {
-      tradeStop();
-    } else if (cmd == "ts-") {
-      tradeRate_ *= 2;
-      Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-    } else if (cmd == "ts+" && tradeRate_ > Microseconds(1)) {
-      tradeRate_ /= 2;
-      Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-    }
-  }
-
 private:
   IoContext ioCtx_;
   ContextGuard ioCtxGuard_;
@@ -194,10 +200,11 @@ private:
   TraderTcpSocket egressSocket_;
   TraderUdpSocket pricesSocket_;
 
+  TraderControlCenter controlCenter_;
+
   std::vector<TickerPrice> prices_;
   SteadyTimer tradeTimer_;
   SteadyTimer monitorTimer_;
-  SteadyTimer inputTimer_;
 
   Microseconds tradeRate_;
   Seconds monitorRate_;

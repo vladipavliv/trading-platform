@@ -54,7 +54,7 @@ struct ConfigReader {
     Config::cfg.coresApp = parseCores(CORES_APP);
   }
 #endif
-  static ByteBuffer parseCores(StringRef input) {
+  static ByteBuffer parseCores(CRefString input) {
     ByteBuffer result;
     std::stringstream ss(input);
     std::string token;

@@ -13,6 +13,7 @@
 #include "boost_types.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
+#include "control_center.hpp"
 #include "engine.hpp"
 #include "event_bus.hpp"
 #include "market_types.hpp"
@@ -29,6 +30,7 @@ namespace hft::server {
 class Server {
   using ServerTcpSocket = AsyncSocket<TcpSocket, Order>;
   using ServerUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
+  using ServerControlCenter = ControlCenter<ServerCommand>;
 
   struct Session {
     ServerTcpSocket::UPtr ingress;
@@ -40,7 +42,7 @@ public:
       : ingressAcceptor_{ioCtx_}, egressAcceptor_{ioCtx_},
         pricesSocket_{utils::createUdpSocket(ioCtx_),
                       UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
-        engine_{ioCtx_}, inputTimer_{ioCtx_} {
+        engine_{ioCtx_}, controlCenter_{ioCtx_} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
@@ -69,16 +71,32 @@ public:
 
     startIngress();
     startEgress();
-    scheduleInputTimer();
+
+    EventBus::bus().subscribe<ServerCommand>([this](Span<ServerCommand> commands) {
+      switch (commands.front()) {
+      case ServerCommand::Shutdown:
+        stop();
+        break;
+      default:
+        break;
+      }
+    });
+
+    controlCenter_.addCommand("q", ServerCommand::Shutdown);
+    controlCenter_.addCommand("p+", ServerCommand::PriceFeedStart);
+    controlCenter_.addCommand("p-", ServerCommand::PriceFeedStop);
   }
   ~Server() { stop(); }
 
   void start() {
     utils::setTheadRealTime();
+    controlCenter_.start();
+    engine_.start();
     ioCtx_.run();
   }
 
   void stop() {
+    controlCenter_.stop();
     ingressAcceptor_.close();
     egressAcceptor_.close();
     ioCtx_.stop();
@@ -133,32 +151,6 @@ private:
     });
   }
 
-  void scheduleInputTimer() {
-    inputTimer_.expires_after(Milliseconds(200));
-    inputTimer_.async_wait([this](BoostErrorRef ec) {
-      if (ec) {
-        return;
-      }
-      checkInput();
-      scheduleInputTimer();
-    });
-  }
-
-  void checkInput() {
-    auto input = utils::getConsoleInput();
-    if (input.empty()) {
-      return;
-    } else if (input == "q") {
-      stop();
-    } else if (input == "p+") {
-      EventBus::bus().publish(ServerCommand::PriceFeedStart);
-      Logger::monitorLogger->info("Price feed start");
-    } else if (input == "p-") {
-      EventBus::bus().publish(ServerCommand::PriceFeedStop);
-      Logger::monitorLogger->info("Price feed stop");
-    }
-  }
-
 private:
   IoContext ioCtx_;
 
@@ -167,7 +159,7 @@ private:
   ServerUdpSocket pricesSocket_;
 
   Engine engine_;
-  SteadyTimer inputTimer_;
+  ServerControlCenter controlCenter_;
 
   std::unordered_map<TraderId, Session> sessions_;
 };

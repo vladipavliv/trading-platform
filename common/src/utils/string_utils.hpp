@@ -115,7 +115,7 @@ String toLower(String str) {
   return str;
 }
 
-Ticker toTicker(StringRef str) {
+Ticker toTicker(CRefString str) {
   Ticker ticker{};
   std::memcpy(ticker.data(), str.data(), std::min(str.size(), TICKER_SIZE));
   return ticker;

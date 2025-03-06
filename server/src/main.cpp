@@ -9,6 +9,7 @@
 #include "config/config_reader.hpp"
 #include "logger.hpp"
 #include "server.hpp"
+#include "server_utils.hpp"
 #include "utils/string_utils.hpp"
 
 int main() {
@@ -20,9 +21,6 @@ int main() {
 
     Logger::monitorLogger->info("Server configuration:");
     Config::cfg.logConfig();
-    Logger::monitorLogger->info("Commands:");
-    Logger::monitorLogger->info("> {:7} => start/stop price feed", "p+/p-");
-    Logger::monitorLogger->info("> {:7} => quit", "q");
 
     hftServer = std::make_unique<server::Server>();
     hftServer->start();

@@ -25,6 +25,9 @@ public:
       : data_{readMarketData()}, priceFeed_{data_, ctx}, statsTimer_{ctx},
         statsRate_{Seconds{Config::cfg.monitorRateS}} {
     EventBus::bus().subscribe<Order>([this](Span<Order> orders) { processOrders(orders); });
+  }
+
+  void start() {
     scheduleStatsTimer();
     startWorkers();
   }

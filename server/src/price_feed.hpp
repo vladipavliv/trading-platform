@@ -24,7 +24,6 @@ public:
         start();
         break;
       case ServerCommand::PriceFeedStop:
-      case ServerCommand::Shutdown:
         stop();
       default:
         break;

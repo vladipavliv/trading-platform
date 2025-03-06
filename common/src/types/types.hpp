@@ -15,7 +15,7 @@
 namespace hft {
 
 using String = std::string;
-using StringRef = const std::string &;
+using CRefString = const std::string &;
 using StringView = std::string_view;
 using ObjectId = uintptr_t;
 using ByteBuffer = std::vector<uint8_t>;
