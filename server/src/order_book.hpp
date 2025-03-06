@@ -3,8 +3,8 @@
  * @date 2025-02-20
  */
 
-#ifndef HFT_SERVER_FLATORDERBOOK_HPP
-#define HFT_SERVER_FLATORDERBOOK_HPP
+#ifndef HFT_SERVER_ORDERBOOK_HPP
+#define HFT_SERVER_ORDERBOOK_HPP
 
 #include <algorithm>
 #include <map>
@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "constants.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
@@ -20,7 +21,14 @@
 
 namespace hft::server {
 
-class FlatOrderBook {
+/**
+ * @brief Flat order book
+ * @details since testing is done via single trader, all the orders have the same trader id
+ * so every match would come with two notifications, about recent order and a previous one
+ * To avoid this the last added order ids are saved to a set and only for those notifications
+ * about match are sent
+ */
+class OrderBook {
   static bool compareBids(const Order &left, const Order &right) {
     return left.price < right.price;
   }
@@ -29,32 +37,32 @@ class FlatOrderBook {
   }
 
 public:
-  using UPtr = std::unique_ptr<FlatOrderBook>;
+  using UPtr = std::unique_ptr<OrderBook>;
 
-  FlatOrderBook() {
-    mBids.reserve(500);
-    mAsks.reserve(500);
+  OrderBook() {
+    bids_.reserve(ORDER_BOOK_LIMIT);
+    asks_.reserve(ORDER_BOOK_LIMIT);
   }
-  ~FlatOrderBook() = default;
+  ~OrderBook() = default;
 
   void add(const Order &order) {
     if (order.action == OrderAction::Buy) {
-      mBids.push_back(order);
-      std::push_heap(mBids.begin(), mBids.end(), compareBids);
+      bids_.push_back(order);
+      std::push_heap(bids_.begin(), bids_.end(), compareBids);
     } else {
-      mAsks.push_back(order);
-      std::push_heap(mAsks.begin(), mAsks.end(), compareAsks);
+      asks_.push_back(order);
+      std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    mLastAdded.insert(order.id); // Randomizator
+    lastAdded_.insert(order.id); // Randomizator
   }
 
   std::vector<OrderStatus> match() {
     std::vector<OrderStatus> matches;
     matches.reserve(10);
 
-    while (!mBids.empty() && !mAsks.empty()) {
-      Order &bestBid = mBids.front();
-      Order &bestAsk = mAsks.front();
+    while (!bids_.empty() && !asks_.empty()) {
+      Order &bestBid = bids_.front();
+      Order &bestAsk = asks_.front();
       if (bestBid.price < bestAsk.price) {
         break;
       }
@@ -62,23 +70,23 @@ public:
       bestBid.quantity -= quantity;
       bestAsk.quantity -= quantity;
 
-      if (mLastAdded.contains(bestBid.id)) {
+      if (lastAdded_.contains(bestBid.id)) {
         matches.emplace_back(handleMatch(bestBid, quantity, bestAsk.price));
       }
-      if (mLastAdded.contains(bestAsk.id)) {
+      if (lastAdded_.contains(bestAsk.id)) {
         matches.emplace_back(handleMatch(bestAsk, quantity, bestAsk.price));
       }
 
       if (bestBid.quantity == 0) {
-        std::pop_heap(mBids.begin(), mBids.end(), compareBids);
-        mBids.pop_back();
+        std::pop_heap(bids_.begin(), bids_.end(), compareBids);
+        bids_.pop_back();
       }
       if (bestAsk.quantity == 0) {
-        std::pop_heap(mAsks.begin(), mAsks.end(), compareAsks);
-        mAsks.pop_back();
+        std::pop_heap(asks_.begin(), asks_.end(), compareAsks);
+        asks_.pop_back();
       }
     }
-    mLastAdded.clear();
+    lastAdded_.clear();
     return matches;
   }
 
@@ -97,9 +105,9 @@ private:
   }
 
 private:
-  std::vector<Order> mBids;
-  std::vector<Order> mAsks;
-  std::set<OrderId> mLastAdded;
+  std::vector<Order> bids_;
+  std::vector<Order> asks_;
+  std::set<OrderId> lastAdded_;
 };
 
 } // namespace hft::server

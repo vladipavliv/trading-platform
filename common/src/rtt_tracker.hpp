@@ -18,12 +18,13 @@
 namespace hft {
 
 /**
- * @brief HdrHistogram at home
+ * @brief Tracks rtt values in the specified ranges
+ * @details HdrHistogram at home
  */
 template <size_t... Ranges>
 class RttTracker {
   static_assert(sizeof...(Ranges) > 0, "Need at least one range");
-  static_assert(sizeof...(Ranges) < 2 || is_ascending<Ranges...>(), "Ranges should be ascending");
+  static_assert(sizeof...(Ranges) < 2 || utils::is_ascending<Ranges...>(), "Ranges not ascending");
 
   static constexpr std::array<size_t, sizeof...(Ranges)> rangeValues = {Ranges...};
   static constexpr size_t RangeCount = sizeof...(Ranges) + 1;
@@ -31,7 +32,7 @@ class RttTracker {
 
   struct alignas(64) AtomicRttSample {
     std::atomic_uint64_t sum{0};
-    Padding<size_t> p;
+    Padding<std::atomic_uint64_t> p;
     std::atomic_uint64_t size{0};
   };
   struct AtomicRttStats {

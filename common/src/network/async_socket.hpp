@@ -14,8 +14,10 @@
 
 #include "boost_types.hpp"
 #include "constants.hpp"
+#include "event_bus.hpp"
 #include "network_types.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
+#include "socket_status.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -34,16 +36,14 @@ public:
   using MsgHandler = CRefHandler<MessageIn>;
   using StatusHandler = CRefHandler<SocketStatus>;
 
-  AsyncSocket(Socket &&socket, MsgHandler msgHndlr, StatusHandler statusHndlr, TraderId id = 0)
-      : mSocket{std::move(socket)}, mId{id}, mMessageHandler{std::move(msgHndlr)},
-        mStatusHandler{std::move(statusHndlr)}, mReadBuffer(BUFFER_SIZE) {
+  AsyncSocket(Socket &&socket, TraderId traderId = 0)
+      : mSocket{std::move(socket)}, mTraderId{traderId}, mReadBuffer(BUFFER_SIZE) {
     if constexpr (std::is_same_v<Socket, UdpSocket>) {
       mStatus.store(SocketStatus::Connected, std::memory_order_release);
     }
   }
 
-  AsyncSocket(Socket &&socket, Endpoint endpoint, MsgHandler msgHndlr, StatusHandler statusHndlr)
-      : AsyncSocket(std::move(socket), std::move(msgHndlr), std::move(statusHndlr)) {
+  AsyncSocket(Socket &&socket, Endpoint endpoint) : AsyncSocket(std::move(socket)) {
     mEndpoint = std::move(endpoint);
   }
 
@@ -120,12 +120,12 @@ public:
 private:
   void onDisconnected() {
     mStatus.store(SocketStatus::Disconnected);
-    mStatusHandler(SocketStatus::Disconnected);
+    EventBus::bus().publish(SocketStatusEvent{mTraderId, SocketStatus::Disconnected});
   }
 
   void onConnected() {
     mStatus.store(SocketStatus::Connected);
-    mStatusHandler(SocketStatus::Connected);
+    EventBus::bus().publish(SocketStatusEvent{mTraderId, SocketStatus::Connected});
   }
 
   template <typename Type>
@@ -148,6 +148,8 @@ private:
       onDisconnected();
       return;
     }
+    std::vector<MessageIn> msgBuffer;
+    msgBuffer.reserve(10); // TODO(self) improve
     mTail += bytesRead;
     while (mHead + sizeof(MessageSize) < mTail) {
       uint8_t *cursor = mReadBuffer.data() + mHead;
@@ -165,10 +167,13 @@ private:
         break;
       }
       if constexpr (!std::is_same_v<MessageTypeIn, TickerPrice>) {
-        result.value.traderId = mId;
+        result.value.traderId = mTraderId;
       }
-      mMessageHandler(result.value);
+      msgBuffer.emplace_back(result.value);
       mHead += bodySize + sizeof(MessageSize);
+    }
+    if (!msgBuffer.empty()) {
+      EventBus::bus().publish(Span<MessageIn>(msgBuffer));
     }
     if (mTail + MAX_SERIALIZED_MESSAGE_SIZE * 5 > BUFFER_SIZE) {
       rotateBuffer();
@@ -186,13 +191,10 @@ private:
   Socket mSocket;
   Endpoint mEndpoint;
 
-  MsgHandler mMessageHandler;
-  StatusHandler mStatusHandler;
-
   size_t mHead{0};
   size_t mTail{0};
   ByteBuffer mReadBuffer;
-  TraderId mId{};
+  TraderId mTraderId{};
 
   std::atomic<SocketStatus> mStatus{SocketStatus::Disconnected};
 };

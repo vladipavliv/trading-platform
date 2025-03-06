@@ -20,11 +20,11 @@ public:
   using UPtr = std::unique_ptr<Worker>;
 
   Worker(ThreadId id)
-      : mGuard{boost::asio::make_work_guard(mIoCtx)}, mThread{[this, id]() {
+      : guard_{boost::asio::make_work_guard(ioCtx_)}, thread_{[this, id]() {
           try {
             utils::setTheadRealTime();
             utils::pinThreadToCore(Config::cfg.coreIds[id]);
-            mIoCtx.run();
+            ioCtx_.run();
           } catch (const std::exception &e) {
             Logger::monitorLogger->error("Exception in worker thread {}", e.what());
           }
@@ -32,18 +32,18 @@ public:
 
   ~Worker() {
     stop();
-    if (mThread.joinable()) {
-      mThread.join();
+    if (thread_.joinable()) {
+      thread_.join();
     }
   }
 
-  void stop() { mIoCtx.stop(); }
-  void post(Callback job) { mIoCtx.post(std::move(job)); }
+  void stop() { ioCtx_.stop(); }
+  void post(Callback job) { ioCtx_.post(std::move(job)); }
 
 private:
-  IoContext mIoCtx;
-  ContextGuard mGuard;
-  Thread mThread;
+  IoContext ioCtx_;
+  ContextGuard guard_;
+  Thread thread_;
 };
 
 } // namespace hft

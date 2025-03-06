@@ -3,10 +3,13 @@
  * @date 2025-02-13
  */
 
+#include <iostream>
+
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "logger.hpp"
 #include "server.hpp"
+#include "server_utils.hpp"
 #include "utils/string_utils.hpp"
 
 int main() {
@@ -18,14 +21,11 @@ int main() {
 
     Logger::monitorLogger->info("Server configuration:");
     Config::cfg.logConfig();
-    Logger::monitorLogger->info("Commands:");
-    Logger::monitorLogger->info("> {:7} => start/stop price feed", "p+/p-");
-    Logger::monitorLogger->info("> {:7} => quit", "q");
 
     hftServer = std::make_unique<server::Server>();
     hftServer->start();
   } catch (const std::exception &e) {
-    Logger::monitorLogger->critical("Exception caught in main {}", e.what());
+    std::cerr << "Exception caught in main " << e.what();
     spdlog::critical("Exception caught in main {}", e.what());
     hftServer->stop();
   }
