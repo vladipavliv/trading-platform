@@ -6,26 +6,20 @@
 #ifndef HFT_SERVER_SERVERBUS_HPP
 #define HFT_SERVER_SERVERBUS_HPP
 
-#include "bus/command_bus.hpp"
-#include "bus/event_bus.hpp"
-#include "network/socket_status.hpp"
-#include "server_command.hpp"
+#include "bus/message_bus.hpp"
+#include "bus/system_bus.hpp"
+#include "market_types.hpp"
 
 namespace hft::server {
 struct ServerBus {
-  using ServerCommandBus = CommandBus<ServerCommand>;
-  using ServerEventBus = EventBus<Order, OrderStatus, TickerPrice, SocketStatusEvent>;
+  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
-  static inline ServerCommandBus &commandBus() {
-    static ServerCommandBus commandBus;
-    return commandBus;
-  }
-
-  static inline ServerEventBus &eventBus() {
-    static ServerEventBus eventBus;
-    return eventBus;
-  }
+  static SystemBus systemBus;
+  static MarketBus marketBus;
 };
+
+SystemBus ServerBus::systemBus;
+ServerBus::MarketBus ServerBus::marketBus;
 } // namespace hft::server
 
 #endif // HFT_SERVER_SERVERBUS_HPP

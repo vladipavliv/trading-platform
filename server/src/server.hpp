@@ -28,8 +28,8 @@
 namespace hft::server {
 
 class Server {
-  using ServerTcpSocket = AsyncSocket<TcpSocket, ServerBus::ServerEventBus, Order>;
-  using ServerUdpSocket = AsyncSocket<UdpSocket, ServerBus::ServerEventBus, TickerPrice>;
+  using ServerTcpSocket = AsyncSocket<TcpSocket, ServerBus, Order>;
+  using ServerUdpSocket = AsyncSocket<UdpSocket, ServerBus, TickerPrice>;
   using ServerControlCenter = ControlCenter<ServerCommand>;
 
   struct Session {
@@ -40,15 +40,16 @@ class Server {
 public:
   Server()
       : ingressAcceptor_{ioCtx_}, egressAcceptor_{ioCtx_},
-        pricesSocket_{utils::createUdpSocket(ioCtx_), ServerBus::eventBus(),
+        pricesSocket_{utils::createUdpSocket(ioCtx_),
                       UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
-        engine_{ioCtx_}, controlCenter_{ioCtx_, ServerBus::commandBus()} {
+        engine_{ioCtx_}, controlCenter_{ioCtx_, ServerBus::systemBus} {
     if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
       throw std::runtime_error("Invalid cores configuration");
     }
     utils::unblockConsole();
 
-    ServerBus::eventBus().setHandler<SocketStatusEvent>([this](CRef<SocketStatusEvent> event) {
+    // Socket status events
+    ServerBus::systemBus.subscribe<SocketStatusEvent>([this](CRef<SocketStatusEvent> event) {
       switch (event.status) {
       case SocketStatus::Disconnected:
         Logger::monitorLogger->info("{} disconnected", event.traderId);
@@ -64,7 +65,8 @@ public:
       }
     });
 
-    ServerBus::eventBus().setHandler<OrderStatus>([this](Span<OrderStatus> events) {
+    // OrderStatus events
+    ServerBus::marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
       TraderIdCmp<OrderStatus> cmp;
       auto [subSpan, leftover] = utils::frontSubspan(events, cmp);
       while (!subSpan.empty()) {
@@ -73,13 +75,10 @@ public:
       }
     });
 
-    ServerBus::eventBus().setHandler<OrderStatus>(
-        [this](CRef<OrderStatus> event) { sessions_[event.traderId].egress->asyncWrite(event); });
-
     startIngress();
     startEgress();
 
-    ServerBus::commandBus().subscribe(ServerCommand::Shutdown, [this]() { stop(); });
+    ServerBus::systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
 
     controlCenter_.addCommand("q", ServerCommand::Shutdown);
     controlCenter_.addCommand("p+", ServerCommand::PriceFeedStart);
@@ -122,8 +121,7 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      sessions_[traderId].ingress =
-          std::make_unique<ServerTcpSocket>(std::move(socket), ServerBus::eventBus(), traderId);
+      sessions_[traderId].ingress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
       sessions_[traderId].ingress->asyncRead();
       if (isConnected(traderId)) {
         Logger::monitorLogger->info("{} connected", traderId);
@@ -150,8 +148,7 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
       auto &session = sessions_[traderId];
-      session.egress =
-          std::make_unique<ServerTcpSocket>(std::move(socket), ServerBus::eventBus(), traderId);
+      session.egress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
       if (isConnected(traderId)) {
         Logger::monitorLogger->info("{} connected", traderId);
       }

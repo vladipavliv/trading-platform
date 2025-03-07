@@ -26,6 +26,7 @@ template <typename SocketType, typename EventBusType, typename MessageTypeIn>
 class AsyncSocket {
 public:
   using Type = AsyncSocket<SocketType, EventBusType, MessageTypeIn>;
+  using Bus = EventBusType;
   using Socket = SocketType;
   using Endpoint = Socket::endpoint_type;
   using MessageIn = MessageTypeIn;
@@ -35,13 +36,12 @@ public:
   using MsgHandler = CRefHandler<MessageIn>;
   using StatusHandler = CRefHandler<SocketStatus>;
 
-  AsyncSocket(Socket &&socket, EventBusType &bus, TraderId traderId = 0)
-      : socket_{std::move(socket)}, bus_{bus}, traderId_{traderId}, readBuffer_(BUFFER_SIZE) {
+  AsyncSocket(Socket &&socket, TraderId traderId = 0)
+      : socket_{std::move(socket)}, traderId_{traderId}, readBuffer_(BUFFER_SIZE) {
     status_.store(SocketStatus::Connected, std::memory_order_release);
   }
 
-  AsyncSocket(Socket &&socket, EventBusType &bus, Endpoint endpoint)
-      : AsyncSocket(std::move(socket), bus) {
+  AsyncSocket(Socket &&socket, Endpoint endpoint) : AsyncSocket(std::move(socket)) {
     endpoint_ = std::move(endpoint);
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       status_.store(SocketStatus::Disconnected, std::memory_order_release);
@@ -147,12 +147,12 @@ public:
 private:
   void onDisconnected() {
     status_.store(SocketStatus::Disconnected);
-    bus_.publish(SocketStatusEvent{traderId_, SocketStatus::Disconnected});
+    Bus::systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Disconnected});
   }
 
   void onConnected() {
     status_.store(SocketStatus::Connected);
-    bus_.publish(SocketStatusEvent{traderId_, SocketStatus::Connected});
+    Bus::systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Connected});
   }
 
   template <typename Type>
@@ -200,7 +200,7 @@ private:
       head_ += bodySize + sizeof(MessageSize);
     }
     if (!msgBuffer.empty()) {
-      bus_.publish(Span<MessageIn>(msgBuffer));
+      Bus::marketBus.publish(Span<MessageIn>(msgBuffer));
     }
     if (tail_ + MAX_SERIALIZED_MESSAGE_SIZE * 5 > BUFFER_SIZE) {
       rotateBuffer();
@@ -217,8 +217,6 @@ private:
 private:
   Socket socket_;
   Endpoint endpoint_;
-
-  EventBusType &bus_;
 
   size_t head_{0};
   size_t tail_{0};

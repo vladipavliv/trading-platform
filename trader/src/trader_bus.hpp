@@ -6,26 +6,19 @@
 #ifndef HFT_SERVER_TRADERBUS_HPP
 #define HFT_SERVER_TRADERBUS_HPP
 
-#include "bus/command_bus.hpp"
-#include "bus/event_bus.hpp"
-#include "network/socket_status.hpp"
-#include "trader_command.hpp"
+#include "bus/message_bus.hpp"
+#include "bus/system_bus.hpp"
+#include "market_types.hpp"
 
 namespace hft::trader {
 struct TraderBus {
-  using TraderCommandBus = CommandBus<TraderCommand>;
-  using TraderEventBus = EventBus<Order, OrderStatus, TickerPrice, SocketStatusEvent>;
+  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
-  static inline TraderCommandBus &commandBus() {
-    static TraderCommandBus commandBus;
-    return commandBus;
-  }
-
-  static inline TraderEventBus &eventBus() {
-    static TraderEventBus eventBus;
-    return eventBus;
-  }
+  static SystemBus systemBus;
+  static MarketBus marketBus;
 };
+SystemBus TraderBus::systemBus;
+TraderBus::MarketBus TraderBus::marketBus;
 } // namespace hft::trader
 
 #endif // HFT_SERVER_TRADERBUS_HPP

@@ -32,62 +32,56 @@
 namespace hft::trader {
 
 class Trader {
-  using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus::TraderEventBus, OrderStatus>;
-  using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus::TraderEventBus, TickerPrice>;
+  using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus, OrderStatus>;
+  using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus, TickerPrice>;
   using TraderControlCenter = ControlCenter<TraderCommand>;
   using Tracker = RttTracker<50, 200>;
 
 public:
   Trader()
       : ioCtxGuard_{boost::asio::make_work_guard(ioCtx_)},
-        ingressSocket_{TcpSocket{ioCtx_}, TraderBus::eventBus(),
+        ingressSocket_{TcpSocket{ioCtx_},
                        TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
-        egressSocket_{TcpSocket{ioCtx_}, TraderBus::eventBus(),
+        egressSocket_{TcpSocket{ioCtx_},
                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
         pricesSocket_{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
-                      TraderBus::eventBus(), UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
-        controlCenter_{ioCtx_, TraderBus::commandBus()},
-        prices_{db::PostgresAdapter::readTickers()}, tradeTimer_{ioCtx_}, statsTimer_{ioCtx_},
-        connectionTimer_{ioCtx_}, tradeRate_{Config::cfg.tradeRateUs},
-        monitorRate_{Config::cfg.monitorRateS} {
+                      UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
+        controlCenter_{ioCtx_, TraderBus::systemBus}, prices_{db::PostgresAdapter::readTickers()},
+        tradeTimer_{ioCtx_}, statsTimer_{ioCtx_}, connectionTimer_{ioCtx_},
+        tradeRate_{Config::cfg.tradeRate}, monitorRate_{Config::cfg.monitorRate} {
     utils::unblockConsole();
 
     Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
 
-    TraderBus::eventBus().setHandler<SocketStatusEvent>(
+    // Socket status events
+    TraderBus::systemBus.subscribe<SocketStatusEvent>(
         [this](CRef<SocketStatusEvent> event) { onSocketStatus(event); });
 
-    // Subscribe to OrderStatus events
-    TraderBus::eventBus().setHandler<OrderStatus>(
-        [this](CRef<OrderStatus> event) { onOrderStatus(event); });
-
-    TraderBus::eventBus().setHandler<OrderStatus>([this](Span<OrderStatus> events) {
+    // OrderStatus events
+    TraderBus::marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
       for (auto &status : events) {
         onOrderStatus(status);
       }
     });
 
-    // Subscribe to TickerPrice events
-    TraderBus::eventBus().setHandler<TickerPrice>(
-        [this](CRef<TickerPrice> price) { onPriceUpdate(price); });
-
-    TraderBus::eventBus().setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
+    // TickerPrice events
+    TraderBus::marketBus.setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
       for (auto &price : prices) {
         onPriceUpdate(price);
       }
     });
 
     // Subscribe to TraderCommands
-    TraderBus::commandBus().subscribe(TraderCommand::Shutdown, [this]() { stop(); });
-    TraderBus::commandBus().subscribe(TraderCommand::TradeStart, [this]() { tradeStart(); });
-    TraderBus::commandBus().subscribe(TraderCommand::TradeStop, [this]() { tradeStop(); });
-    TraderBus::commandBus().subscribe(TraderCommand::TradeSpeedUp, [this]() {
+    TraderBus::systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
+    TraderBus::systemBus.subscribe(TraderCommand::TradeStart, [this]() { tradeStart(); });
+    TraderBus::systemBus.subscribe(TraderCommand::TradeStop, [this]() { tradeStop(); });
+    TraderBus::systemBus.subscribe(TraderCommand::TradeSpeedUp, [this]() {
       if (tradeRate_ > Microseconds(1)) {
         tradeRate_ /= 2;
         Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
       }
     });
-    TraderBus::commandBus().subscribe(TraderCommand::TradeSpeedDown, [this]() {
+    TraderBus::systemBus.subscribe(TraderCommand::TradeSpeedDown, [this]() {
       tradeRate_ *= 2;
       Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
     });
