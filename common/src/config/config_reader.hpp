@@ -36,11 +36,12 @@ struct ConfigReader {
 
     // Cpu
     Config::cfg.coreIds = parseCores(pt.get<std::string>("cpu.core_ids"));
+    Config::cfg.warmUp = Seconds(pt.get<int>("cpu.warm_up"));
 
     // Rates
-    Config::cfg.tradeRateUs = pt.get<int>("rates.trade_rate");
-    Config::cfg.priceFeedRateUs = pt.get<int>("rates.price_feed_rate");
-    Config::cfg.monitorRateS = pt.get<int>("rates.monitor_rate");
+    Config::cfg.tradeRate = Microseconds(pt.get<int>("rates.trade_rate"));
+    Config::cfg.priceFeedRate = Microseconds(pt.get<int>("rates.price_feed_rate"));
+    Config::cfg.monitorRate = Seconds(pt.get<int>("rates.monitor_rate"));
 
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));

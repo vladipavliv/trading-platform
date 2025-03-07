@@ -23,10 +23,9 @@ class Engine {
 public:
   Engine(IoContext &ctx)
       : data_{readMarketData()}, priceFeed_{data_, ctx}, statsTimer_{ctx},
-        statsRate_{Seconds{Config::cfg.monitorRateS}} {
+        statsRate_{Config::cfg.monitorRate} {
 
-    ServerBus::eventBus().setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
-    ServerBus::eventBus().setHandler<Order>([this](CRef<Order> order) { processOrder(order); });
+    ServerBus::marketBus.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
   }
 
   void start() {
@@ -74,7 +73,7 @@ private:
       data->orderBook.add(order);
       auto matches = data->orderBook.match();
       if (!matches.empty()) {
-        ServerBus::eventBus().publish(Span<OrderStatus>(matches));
+        ServerBus::marketBus.publish(Span<OrderStatus>(matches));
       }
       ordersClosed_.fetch_add(matches.size(), std::memory_order_relaxed);
     });

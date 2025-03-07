@@ -101,6 +101,14 @@ constexpr bool is_ascending() {
   }
 }
 
+/**
+ * @brief Concept to check if subscribing for specific value of EventType is possible
+ */
+template <typename EventType>
+concept UnorderedMapKey = requires(EventType event) {
+  { std::hash<EventType>{}(event) } -> std::convertible_to<std::size_t>;
+} && std::equality_comparable<EventType>;
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_TEMPLATEUTILS_HPP

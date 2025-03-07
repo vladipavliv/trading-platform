@@ -26,10 +26,11 @@ struct Config {
   Port portUdp;
 
   std::vector<uint8_t> coreIds;
+  Seconds warmUp;
 
-  size_t tradeRateUs;
-  size_t priceFeedRateUs;
-  uint16_t monitorRateS;
+  Microseconds tradeRate;
+  Microseconds priceFeedRate;
+  Seconds monitorRate;
 
   LogLevel logLevel;
   std::string logOutput;
@@ -39,7 +40,8 @@ struct Config {
     Logger::monitorLogger->info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn,
                                 cfg.portTcpOut, cfg.portUdp);
     Logger::monitorLogger->info("IoCoreIDs:{} TradeRate:{}us PriceFeedRate:{}us",
-                                utils::toString(cfg.coreIds), cfg.tradeRateUs, cfg.priceFeedRateUs);
+                                utils::toString(cfg.coreIds), cfg.tradeRate.count(),
+                                cfg.priceFeedRate.count());
     Logger::monitorLogger->info("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel),
                                 cfg.logOutput);
   }
