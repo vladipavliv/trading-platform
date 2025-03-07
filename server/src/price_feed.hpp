@@ -17,11 +17,11 @@ namespace hft::server {
 
 class PriceFeed {
 public:
-  PriceFeed(const MarketData &data, IoContext &ctx)
-      : data_{data}, timer_{ctx}, rate_{Config::cfg.priceFeedRate} {
-
-    ServerBus::systemBus.subscribe(ServerCommand::PriceFeedStart, [this]() { start(); });
-    ServerBus::systemBus.subscribe(ServerCommand::PriceFeedStop, [this]() { stop(); });
+  PriceFeed(ServerBus &bus, const MarketData &data)
+      : bus_{bus}, data_{data}, timer_{bus_.systemBus.systemIoCtx},
+        rate_{Config::cfg.priceFeedRate} {
+    bus_.systemBus.subscribe(ServerCommand::PriceFeedStart, [this]() { start(); });
+    bus_.systemBus.subscribe(ServerCommand::PriceFeedStop, [this]() { stop(); });
   }
 
   void start() {
@@ -52,10 +52,11 @@ private:
       priceUpdates.emplace_back(TickerPrice{tickerData.first, newPrice});
     }
     spdlog::trace([&priceUpdates] { return utils::toString(priceUpdates); }());
-    ServerBus::marketBus.publish(Span<TickerPrice>(priceUpdates));
+    bus_.marketBus.publish(Span<TickerPrice>(priceUpdates));
   }
 
 private:
+  ServerBus &bus_;
   const MarketData &data_;
 
   SteadyTimer timer_;

@@ -10,5 +10,5 @@ config.ini
 hft_server
 hft_trader
 libhft_common.a
-server_config.ini
-trader_config.ini
+server_log.*
+trader_log.*

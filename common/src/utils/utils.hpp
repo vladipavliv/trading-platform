@@ -45,6 +45,8 @@ void printRawBuffer(const uint8_t *buffer, size_t size);
 
 UdpSocket createUdpSocket(IoContext &ctx, bool broadcast = true, Port port = 0);
 
+void coreWarmUpJob();
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_UTILITIES_HPP

@@ -3,18 +3,17 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_SERVER_HPP
-#define HFT_SERVER_SERVER_HPP
+#ifndef HFT_SERVER_NETWORKSERVER_HPP
+#define HFT_SERVER_NETWORKSERVER_HPP
 
 #include <format>
 #include <memory>
+#include <thread>
 #include <unordered_map>
 
 #include "boost_types.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
-#include "control_center.hpp"
-#include "engine.hpp"
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
@@ -27,10 +26,13 @@
 
 namespace hft::server {
 
-class Server {
+/**
+ * @brief Accepts trader connections and manages sessions
+ * @details Runs in a separate io_context on N threads
+ */
+class NetworkServer {
   using ServerTcpSocket = AsyncSocket<TcpSocket, ServerBus, Order>;
   using ServerUdpSocket = AsyncSocket<UdpSocket, ServerBus, TickerPrice>;
-  using ServerControlCenter = ControlCenter<ServerCommand>;
 
   struct Session {
     ServerTcpSocket::UPtr ingress;
@@ -38,25 +40,24 @@ class Server {
   };
 
 public:
-  Server()
-      : ingressAcceptor_{ioCtx_}, egressAcceptor_{ioCtx_},
-        pricesSocket_{utils::createUdpSocket(ioCtx_),
-                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}},
-        engine_{ioCtx_}, controlCenter_{ioCtx_, ServerBus::systemBus} {
-    if (Config::cfg.coreIds.size() == 0 || Config::cfg.coreIds.size() > 10) {
-      throw std::runtime_error("Invalid cores configuration");
-    }
+  NetworkServer(ServerBus &bus)
+      : bus_{bus}, guard_{boost::asio::make_work_guard(ioCtx_)}, ingressAcceptor_{ioCtx_},
+        egressAcceptor_{ioCtx_},
+        pricesSocket_{utils::createUdpSocket(ioCtx_), bus,
+                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
     utils::unblockConsole();
 
-    // Socket status events
-    ServerBus::systemBus.subscribe<SocketStatusEvent>([this](CRef<SocketStatusEvent> event) {
+    // System bus subscriptions
+    bus_.systemBus.subscribe<SocketStatusEvent>([this](CRef<SocketStatusEvent> event) {
       switch (event.status) {
       case SocketStatus::Disconnected:
         Logger::monitorLogger->info("{} disconnected", event.traderId);
         sessions_.erase(event.traderId);
         break;
       case SocketStatus::Connected:
+        // Trader is fully connected whan both ingress and egress sockets are connected
         if (isConnected(event.traderId)) {
+          // TODO(self) Allow trades only on fully connected sessions
           Logger::monitorLogger->info("{} connected", event.traderId);
         }
         break;
@@ -65,8 +66,8 @@ public:
       }
     });
 
-    // OrderStatus events
-    ServerBus::marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
+    // Market messages
+    bus_.marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
       TraderIdCmp<OrderStatus> cmp;
       auto [subSpan, leftover] = utils::frontSubspan(events, cmp);
       while (!subSpan.empty()) {
@@ -74,33 +75,44 @@ public:
         std::tie(subSpan, leftover) = utils::frontSubspan(leftover, cmp);
       }
     });
-
-    startIngress();
-    startEgress();
-
-    ServerBus::systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
-
-    controlCenter_.addCommand("q", ServerCommand::Shutdown);
-    controlCenter_.addCommand("p+", ServerCommand::PriceFeedStart);
-    controlCenter_.addCommand("p-", ServerCommand::PriceFeedStop);
-
-    controlCenter_.printCommands();
+    bus_.marketBus.setHandler<TickerPrice>(
+        [this](Span<TickerPrice> events) { pricesSocket_.asyncWrite(events); });
   }
-  ~Server() { stop(); }
+  ~NetworkServer() {
+    stop();
+    for (auto &thread : workerThreads_) {
+      if (thread.joinable()) {
+        thread.join();
+      }
+    }
+  }
 
   void start() {
-    utils::setTheadRealTime();
-    controlCenter_.start();
-    engine_.start();
-    ioCtx_.run();
+    const auto cores = Config::cfg.coresNetwork.size();
+    Logger::monitorLogger->info("Starting network server on {} threads", cores);
+    workerThreads_.reserve(cores);
+    for (int i = 0; i < cores; ++i) {
+      workerThreads_.emplace_back([this, i]() {
+        try {
+          utils::setTheadRealTime();
+          utils::pinThreadToCore(Config::cfg.coresNetwork[i]);
+          ioCtx_.run();
+        } catch (const std::exception &e) {
+          Logger::monitorLogger->error("Exception in network thread {}", e.what());
+        }
+      });
+    }
+    ioCtx_.post([this]() {
+      startIngress();
+      startEgress();
+      Logger::monitorLogger->info("Network server started");
+    });
   }
 
   void stop() {
-    controlCenter_.stop();
     ingressAcceptor_.close();
     egressAcceptor_.close();
     ioCtx_.stop();
-    engine_.stop();
   }
 
 private:
@@ -121,7 +133,8 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
-      sessions_[traderId].ingress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
+      sessions_[traderId].ingress =
+          std::make_unique<ServerTcpSocket>(std::move(socket), bus_, traderId);
       sessions_[traderId].ingress->asyncRead();
       if (isConnected(traderId)) {
         Logger::monitorLogger->info("{} connected", traderId);
@@ -148,7 +161,7 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto traderId = utils::getTraderId(socket);
       auto &session = sessions_[traderId];
-      session.egress = std::make_unique<ServerTcpSocket>(std::move(socket), traderId);
+      session.egress = std::make_unique<ServerTcpSocket>(std::move(socket), bus_, traderId);
       if (isConnected(traderId)) {
         Logger::monitorLogger->info("{} connected", traderId);
       }
@@ -165,17 +178,18 @@ private:
 
 private:
   IoContext ioCtx_;
+  ContextGuard guard_;
+
+  ServerBus &bus_;
 
   TcpAcceptor ingressAcceptor_;
   TcpAcceptor egressAcceptor_;
   ServerUdpSocket pricesSocket_;
 
-  Engine engine_;
-  ServerControlCenter controlCenter_;
-
   std::unordered_map<TraderId, Session> sessions_;
+  std::vector<std::thread> workerThreads_;
 };
 
 } // namespace hft::server
 
-#endif // HFT_SERVER_SERVER_HPP
+#endif // HFT_SERVER_NETWORKSERVER_HPP

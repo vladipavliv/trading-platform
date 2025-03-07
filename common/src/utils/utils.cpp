@@ -146,4 +146,14 @@ UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
   return socket;
 }
 
+void coreWarmUpJob() {
+  long long dummyCounter = 0;
+  for (int i = 0; i < 10000; ++i) {
+    dummyCounter += i * i;
+    if (i % 10 == 0) {
+      std::this_thread::sleep_for(Microseconds(100));
+    }
+  }
+}
+
 } // namespace hft::utils

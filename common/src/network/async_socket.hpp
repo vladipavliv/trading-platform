@@ -36,12 +36,12 @@ public:
   using MsgHandler = CRefHandler<MessageIn>;
   using StatusHandler = CRefHandler<SocketStatus>;
 
-  AsyncSocket(Socket &&socket, TraderId traderId = 0)
-      : socket_{std::move(socket)}, traderId_{traderId}, readBuffer_(BUFFER_SIZE) {
+  AsyncSocket(Socket &&socket, Bus &bus, TraderId traderId = 0)
+      : socket_{std::move(socket)}, bus_{bus}, traderId_{traderId}, readBuffer_(BUFFER_SIZE) {
     status_.store(SocketStatus::Connected, std::memory_order_release);
   }
 
-  AsyncSocket(Socket &&socket, Endpoint endpoint) : AsyncSocket(std::move(socket)) {
+  AsyncSocket(Socket &&socket, Bus &bus, Endpoint endpoint) : AsyncSocket(std::move(socket), bus) {
     endpoint_ = std::move(endpoint);
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
       status_.store(SocketStatus::Disconnected, std::memory_order_release);
@@ -147,12 +147,12 @@ public:
 private:
   void onDisconnected() {
     status_.store(SocketStatus::Disconnected);
-    Bus::systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Disconnected});
+    bus_.systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Disconnected});
   }
 
   void onConnected() {
     status_.store(SocketStatus::Connected);
-    Bus::systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Connected});
+    bus_.systemBus.publish(SocketStatusEvent{traderId_, SocketStatus::Connected});
   }
 
   template <typename Type>
@@ -200,7 +200,7 @@ private:
       head_ += bodySize + sizeof(MessageSize);
     }
     if (!msgBuffer.empty()) {
-      Bus::marketBus.publish(Span<MessageIn>(msgBuffer));
+      bus_.marketBus.publish(Span<MessageIn>(msgBuffer));
     }
     if (tail_ + MAX_SERIALIZED_MESSAGE_SIZE * 5 > BUFFER_SIZE) {
       rotateBuffer();
@@ -216,6 +216,7 @@ private:
 
 private:
   Socket socket_;
+  Bus &bus_;
   Endpoint endpoint_;
 
   size_t head_{0};

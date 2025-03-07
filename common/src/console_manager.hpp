@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_CONTROLCENTER_HPP
-#define HFT_COMMON_CONTROLCENTER_HPP
+#ifndef HFT_COMMON_CONSOLEMANAGER_HPP
+#define HFT_COMMON_CONSOLEMANAGER_HPP
 
 #include <map>
 
@@ -19,11 +19,11 @@ namespace hft {
  * @brief Periodically checks console input and posts commands to EventBus
  */
 template <typename CommandType>
-class ControlCenter {
+class ConsoleManager {
 public:
   using Command = CommandType;
 
-  ControlCenter(IoContext &ctx, SystemBus &bus) : bus_{bus}, timer_{ctx} { commands_.reserve(20); }
+  ConsoleManager(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} { commands_.reserve(20); }
 
   void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
 
@@ -67,4 +67,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_CONTROLCENTER_HPP
+#endif // HFT_COMMON_CONSOLEMANAGER_HPP
