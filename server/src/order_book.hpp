@@ -87,8 +87,11 @@ public:
       }
     }
     lastAdded_.clear();
+    openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return matches;
   }
+
+  inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
 private:
   OrderStatus handleMatch(const Order &order, Quantity quantity, Price price) {
@@ -108,6 +111,7 @@ private:
   std::vector<Order> bids_;
   std::vector<Order> asks_;
   std::set<OrderId> lastAdded_;
+  std::atomic_size_t openedOrders_;
 };
 
 } // namespace hft::server

@@ -6,20 +6,24 @@
 #ifndef HFT_SERVER_SERVERBUS_HPP
 #define HFT_SERVER_SERVERBUS_HPP
 
+#include "boost_types.hpp"
 #include "bus/message_bus.hpp"
 #include "bus/system_bus.hpp"
 #include "market_types.hpp"
 
 namespace hft::server {
-struct ServerBus {
-  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
-  static SystemBus systemBus;
-  static MarketBus marketBus;
+using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
+
+struct ServerBus {
+  SystemBus systemBus;
+  MarketBus marketBus;
+
+  inline IoContext &ioCtx() { return systemBus.systemIoCtx; }
+  void run() { systemBus.systemIoCtx.run(); }
+  void stop() { systemBus.systemIoCtx.stop(); }
 };
 
-SystemBus ServerBus::systemBus;
-ServerBus::MarketBus ServerBus::marketBus;
 } // namespace hft::server
 
 #endif // HFT_SERVER_SERVERBUS_HPP

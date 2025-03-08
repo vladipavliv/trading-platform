@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -101,6 +102,13 @@ constexpr bool is_ascending() {
   }
 }
 
+template <typename ValueType>
+bool hasIntersection(const std::vector<ValueType> &left, const std::vector<ValueType> &right) {
+  return std::any_of(left.begin(), left.end(), [&](const ValueType &value) {
+    return std::find(right.begin(), right.end(), value) != right.end();
+  });
+}
+
 /**
  * @brief Concept to check if subscribing for specific value of EventType is possible
  */
@@ -108,6 +116,14 @@ template <typename EventType>
 concept UnorderedMapKey = requires(EventType event) {
   { std::hash<EventType>{}(event) } -> std::convertible_to<std::size_t>;
 } && std::equality_comparable<EventType>;
+
+template <typename Number>
+std::string thousandify(Number input) {
+  std::stringstream ss;
+  ss.imbue(std::locale("en_US.UTF-8"));
+  ss << std::fixed << input;
+  return ss.str();
+}
 
 } // namespace hft::utils
 

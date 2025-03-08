@@ -3,6 +3,7 @@
  * @date 2025-02-13
  */
 
+#include <cmath>
 #include <ctime>
 #include <functional>
 #include <iostream>
@@ -144,6 +145,20 @@ UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
     socket.bind(UdpEndpoint(Udp::v4(), port));
   }
   return socket;
+}
+
+void coreWarmUpJob() {
+  /**
+   * Running this warm up for 5s does nothing
+   * Sometimes server runs stably at ~65k rps for 5us trade rate for a good minute
+   * and after a couple of restarts rps might jump to 100k and stay there.
+   * Strange stuff. But this warm up is useless.
+   */
+  long long dummyCounter = 0;
+  for (int i = 0; i < 1000000; ++i) {
+    dummyCounter += std::sin(i) * std::cos(i);
+  }
+  spdlog::trace("Warmup job dummy counter {}", dummyCounter);
 }
 
 } // namespace hft::utils

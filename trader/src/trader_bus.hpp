@@ -11,14 +11,16 @@
 #include "market_types.hpp"
 
 namespace hft::trader {
-struct TraderBus {
-  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
+using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
-  static SystemBus systemBus;
-  static MarketBus marketBus;
+struct TraderBus {
+  SystemBus systemBus;
+  MarketBus marketBus;
+
+  inline IoContext &ioCtx() { return systemBus.systemIoCtx; }
+  void run() { systemBus.systemIoCtx.run(); }
+  void stop() { systemBus.systemIoCtx.stop(); }
 };
-SystemBus TraderBus::systemBus;
-TraderBus::MarketBus TraderBus::marketBus;
 } // namespace hft::trader
 
 #endif // HFT_SERVER_TRADERBUS_HPP

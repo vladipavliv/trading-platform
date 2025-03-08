@@ -19,11 +19,13 @@ class Worker {
 public:
   using UPtr = std::unique_ptr<Worker>;
 
+  IoContext ioCtx;
+
   Worker(ThreadId id)
       : guard_{boost::asio::make_work_guard(ioCtx)}, thread_{[this, id]() {
           try {
             utils::setTheadRealTime();
-            utils::pinThreadToCore(Config::cfg.coreIds[id]);
+            utils::pinThreadToCore(Config::cfg.coresApp[id]);
             ioCtx.run();
           } catch (const std::exception &e) {
             Logger::monitorLogger->error("Exception in worker thread {}", e.what());
@@ -36,8 +38,6 @@ public:
       thread_.join();
     }
   }
-
-  IoContext ioCtx;
 
 private:
   ContextGuard guard_;

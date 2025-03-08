@@ -67,13 +67,13 @@ Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to s
 
 ## Performance
 Tested on localhost without any core isolation or other tweaking. 
-Last/Best performance check for 5us trade rate and 4 server cores:
+Last performance check for 1us trade rate:
 
 Server:
 ```bash
-08:09:25.105148 [I] Orders [matched|total] 3422248 4384662 rps:107131
+14:22:57.819075 [I] [opn|ttl] 1,428,923|8,294,443 Rps: 147,117
 ```
 Trader:
 ```bash
-08:09:25.533695 [I] RTT [<50us|<200us|>200us]  99.75% avg:15us  0.25% avg:66us  0%
+14:22:57.722984 [I] Rtt: [<50us|>50us] 99.89% avg:17us 0.11% avg:89us Rps: 147,001
 ```
