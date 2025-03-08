@@ -16,10 +16,12 @@ namespace hft::server {
 using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
 struct ServerBus {
-  ServerBus(IoContext &systemIoCtx) : systemBus{systemIoCtx} {}
-
   SystemBus systemBus;
   MarketBus marketBus;
+
+  inline IoContext &ioCtx() { return systemBus.systemIoCtx; }
+  void run() { systemBus.systemIoCtx.run(); }
+  void stop() { systemBus.systemIoCtx.stop(); }
 };
 
 } // namespace hft::server

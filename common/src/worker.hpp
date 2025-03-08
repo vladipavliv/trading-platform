@@ -39,28 +39,8 @@ public:
     }
   }
 
-  void warmUpStart() {
-    if (warmedUp_) {
-      return;
-    }
-    warmUpCycle();
-  }
-
-  void warmUpStop() { warmedUp_.store(true, std::memory_order_release); }
-
 private:
-  void warmUpCycle() {
-    if (warmedUp_.load(std::memory_order_acquire)) {
-      return;
-    }
-    ioCtx.post([this]() {
-      utils::coreWarmUpJob();
-      warmUpCycle();
-    });
-  }
-
   ContextGuard guard_;
-  std::atomic_bool warmedUp_{false};
   Thread thread_;
 };
 

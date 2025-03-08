@@ -14,10 +14,12 @@ namespace hft::trader {
 using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
 struct TraderBus {
-  TraderBus(IoContext &systemIoCtx) : systemBus{systemIoCtx} {}
-
   SystemBus systemBus;
   MarketBus marketBus;
+
+  inline IoContext &ioCtx() { return systemBus.systemIoCtx; }
+  void run() { systemBus.systemIoCtx.run(); }
+  void stop() { systemBus.systemIoCtx.stop(); }
 };
 } // namespace hft::trader
 

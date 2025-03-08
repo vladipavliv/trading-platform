@@ -22,7 +22,7 @@
 #include "template_types.hpp"
 #include "trader_bus.hpp"
 #include "trader_command.hpp"
-#include "trader_events.hpp"
+#include "trader_event.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 

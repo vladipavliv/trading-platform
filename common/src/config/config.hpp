@@ -27,7 +27,6 @@ struct Config {
 
   std::vector<uint8_t> coresNetwork;
   std::vector<uint8_t> coresApp;
-  Seconds coresWarmup;
 
   Microseconds tradeRate;
   Microseconds priceFeedRate;

@@ -16,7 +16,7 @@
 #include "price_feed.hpp"
 #include "server_bus.hpp"
 #include "server_command.hpp"
-#include "server_events.hpp"
+#include "server_event.hpp"
 
 namespace hft::server {
 
@@ -30,16 +30,15 @@ public:
   using ServerConsoleManager = ConsoleManager<ServerCommand>;
 
   ServerControlCenter()
-      : ctxGuard_{boost::asio::make_work_guard(systemIoCtx_)}, bus_{systemIoCtx_},
-        networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleManager_{bus_.systemBus},
+      : networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleManager_{bus_.systemBus},
         priceFeed_{bus_, marketData_} {
 
     // System bus subscriptions
-    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
-    bus_.systemBus.subscribe(ServerEvent::CoresWarmedUp, [this]() {
-      Logger::monitorLogger->info("Workers warmed up");
+    bus_.systemBus.subscribe(ServerEvent::Ready, [this]() {
+      Logger::monitorLogger->info("Server is ready");
       networkServer_.start();
     });
+    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
 
     // Console commands
     consoleManager_.addCommand("q", ServerCommand::Shutdown);
@@ -54,14 +53,14 @@ public:
     consoleManager_.start();
 
     utils::setTheadRealTime();
-    systemIoCtx_.run();
+    bus_.run();
   }
 
   void stop() {
     networkServer_.stop();
     coordinator_.stop();
     consoleManager_.stop();
-    systemIoCtx_.stop();
+    bus_.stop();
     Logger::monitorLogger->info("stonk");
   }
 
@@ -88,9 +87,6 @@ private:
   }
 
 private:
-  IoContext systemIoCtx_;
-  ContextGuard ctxGuard_;
-
   ServerBus bus_;
   MarketData marketData_;
 
@@ -99,6 +95,7 @@ private:
   ServerConsoleManager consoleManager_;
   PriceFeed priceFeed_;
 };
+
 } // namespace hft::server
 
 #endif // HFT_SERVER_SERVERCONTROLCENTER_HPP

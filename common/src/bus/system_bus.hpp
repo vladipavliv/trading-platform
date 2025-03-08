@@ -26,9 +26,9 @@ namespace hft {
  */
 class SystemBus {
 public:
-  IoContext &systemIoCtx;
+  IoContext systemIoCtx;
 
-  SystemBus(IoContext &ctx) : systemIoCtx{ctx} {};
+  SystemBus() : ioCtxGuard_{boost::asio::make_work_guard(systemIoCtx)} {}
 
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {
@@ -92,6 +92,8 @@ private:
     static ValueSubscribers<EventType> subscribers;
     return subscribers;
   }
+
+  ContextGuard ioCtxGuard_;
 };
 
 } // namespace hft

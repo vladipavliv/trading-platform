@@ -37,7 +37,6 @@ struct ConfigReader {
     // Cpu
     Config::cfg.coresNetwork = parseCores(pt.get<std::string>("cpu.cores_network"));
     Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
-    Config::cfg.coresWarmup = Seconds(pt.get<int>("cpu.cores_warmup"));
 
     // Rates
     Config::cfg.tradeRate = Microseconds(pt.get<int>("rates.trade_rate"));

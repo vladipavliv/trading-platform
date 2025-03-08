@@ -12,7 +12,7 @@
 #include "market_types.hpp"
 #include "order_book.hpp"
 #include "server_bus.hpp"
-#include "server_events.hpp"
+#include "server_event.hpp"
 #include "ticker_data.hpp"
 #include "worker.hpp"
 
@@ -32,11 +32,8 @@ public:
 
   void start() {
     startWorkers();
-    if (Config::cfg.coresWarmup.count() != 0) {
-      warmUpWorkers();
-    } else {
-      workersReady();
-    }
+    scheduleStatsTimer();
+    bus_.systemBus.publish(ServerEvent::Ready);
   }
 
   void stop() {
@@ -53,25 +50,6 @@ private:
     for (int i = 0; i < appCores; ++i) {
       workers_.emplace_back(std::make_unique<Worker>(i));
     }
-  }
-
-  void warmUpWorkers() {
-    Logger::monitorLogger->info("Warming up workers");
-    for (auto &worker : workers_) {
-      worker->warmUpStart();
-    }
-    timer_.expires_after(Config::cfg.coresWarmup);
-    timer_.async_wait([this](BoostErrorRef ec) {
-      for (auto &worker : workers_) {
-        worker->warmUpStop();
-      }
-      workersReady();
-    });
-  }
-
-  void workersReady() {
-    bus_.systemBus.publish(ServerEvent::CoresWarmedUp);
-    scheduleStatsTimer();
   }
 
   void processOrders(Span<Order> orders) {

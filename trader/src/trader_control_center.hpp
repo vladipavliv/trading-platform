@@ -17,7 +17,7 @@
 #include "rtt_tracker.hpp"
 #include "trader_bus.hpp"
 #include "trader_command.hpp"
-#include "trader_events.hpp"
+#include "trader_event.hpp"
 #include "types.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
@@ -31,9 +31,8 @@ public:
   using Tracker = RttTracker<50, 200>; // TODO()
 
   TraderControlCenter()
-      : ioCtxGuard_{boost::asio::make_work_guard(systemIoCtx_)}, bus_{systemIoCtx_},
-        networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{systemIoCtx_},
-        statsTimer_{systemIoCtx_}, tradeRate_{Config::cfg.tradeRate},
+      : networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
+        statsTimer_{bus_.ioCtx()}, tradeRate_{Config::cfg.tradeRate},
         monitorRate_{Config::cfg.monitorRate} {
 
     // Incoming market events
@@ -85,13 +84,13 @@ public:
     consoleManager_.start();
 
     utils::setTheadRealTime();
-    systemIoCtx_.run();
+    bus_.run();
   }
 
   void stop() {
     networkClient_.stop();
     consoleManager_.stop();
-    systemIoCtx_.stop();
+    bus_.stop();
     Logger::monitorLogger->info("stonk");
   }
 
@@ -175,9 +174,6 @@ private:
   }
 
 private:
-  IoContext systemIoCtx_;
-  ContextGuard ioCtxGuard_;
-
   TraderBus bus_;
   NetworkClient networkClient_;
   TraderConsoleManager consoleManager_;
