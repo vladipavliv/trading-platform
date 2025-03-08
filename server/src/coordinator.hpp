@@ -21,6 +21,14 @@ namespace hft::server {
 /**
  * @brief Subscribes to Orders and coordinates them between workers
  * Later on would do load balancing and adding/removing workers dynamically
+ * @details Load balancing is suggested to be done in the following way:
+ * all the tickers are known in advance, so the map <Ticker, TickerData> could be read in parallel
+ * every ticker data has atomic worker id for orders routing, but when it gets switched to a
+ * different worker, orders that already gotten to its queue would have to be dispatched to a new
+ * threads io_context. Also, worker wont have to be caught for rerouting in the middle of the work
+ * on an order book, so first the book would have to be locked with atomic flag, and then id gets
+ * switched. The impact of those two atomic operations probably won't cause any impact on the worker
+ * flow, but testing is needed. Impact of io_ctx.dispatch on rerouted orders needs testing too
  */
 class Coordinator {
 public:

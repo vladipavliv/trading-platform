@@ -12,8 +12,12 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
+/**
+ * @brief Commands for console management
+ * @todo Make commands to add/remove workers, orders rerouting
+ */
 enum class ServerCommand : uint8_t { PriceFeedStart, PriceFeedStop, Shutdown };
-}
+} // namespace hft::server
 
 namespace hft::utils {
 template <>

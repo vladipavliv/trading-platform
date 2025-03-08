@@ -25,8 +25,7 @@ namespace hft::server {
  * @brief Flat order book
  * @details since testing is done via single trader, all the orders have the same trader id
  * so every match would come with two notifications, about recent order and a previous one
- * To avoid this the last added order ids are saved to a set and only for those notifications
- * about match are sent
+ * To avoid this the last added order ids are saved to a set and only those get notifications
  */
 class OrderBook {
   static bool compareBids(const Order &left, const Order &right) {
@@ -53,7 +52,8 @@ public:
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    lastAdded_.insert(order.id); // Randomizator
+    lastAdded_.insert(order.id);
+    openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
   std::vector<OrderStatus> match() {
@@ -111,7 +111,7 @@ private:
   std::vector<Order> bids_;
   std::vector<Order> asks_;
   std::set<OrderId> lastAdded_;
-  std::atomic_size_t openedOrders_;
+  std::atomic_uint64_t openedOrders_;
 };
 
 } // namespace hft::server

@@ -22,7 +22,8 @@ namespace hft::server {
 
 /**
  * @brief Starts all the components and controls the flow
- * Runs the system io_context and performs higher level management
+ * Runs the system io_context, executes console commands, reacts to system events
+ * @todo Later on would do finer startup stage management and performance monitoring
  */
 class ServerControlCenter {
 public:

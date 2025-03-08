@@ -16,7 +16,8 @@
 namespace hft {
 
 /**
- * @brief Periodically checks console input and posts commands to EventBus
+ * @brief Periodically performs non blocking console input check
+ * and posts commands to the system bus
  */
 template <typename CommandType>
 class ConsoleManager {

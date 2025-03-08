@@ -11,7 +11,9 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::trader {
-
+/**
+ * @brief Command for console management
+ */
 enum class TraderCommand : uint8_t {
   TradeStart,
   TradeStop,
@@ -19,8 +21,7 @@ enum class TraderCommand : uint8_t {
   TradeSpeedDown,
   Shutdown
 };
-
-}
+} // namespace hft::trader
 
 namespace hft::utils {
 

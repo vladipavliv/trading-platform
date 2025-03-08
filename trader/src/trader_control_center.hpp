@@ -25,6 +25,15 @@
 
 namespace hft::trader {
 
+/**
+ * @brief Starts all the components and controls the flow
+ * Runs the system io_context, executes console commands, reacts to system events
+ * At the moment is simplified to runs trading in the system io_context which is not ideal
+ * Trading bottlenecks at 150k rps with 1us trade timer, tested additionally - verified that
+ * generating order, serializing, allocating buffer for async socket write, copying serialized
+ * data and sending it asynchronously - it all does take ~5-7us
+ * @todo Try protobuf and Cap'n Proto which might be better and more compact for smol messages
+ */
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;

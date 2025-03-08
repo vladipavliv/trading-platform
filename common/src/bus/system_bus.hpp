@@ -20,12 +20,17 @@ namespace hft {
 
 /**
  * @brief Bus for system commands and events
- * @details Executes all the callbacks in a system io context to not load the hot path
- * Allows both subscriptions for specific values with a callback, and generic
- * subscriptions to any events of a given type
+ * @details Offloads all the callbacks to a separate system io_context. Some system operations
+ * like orders rerouting (to be released) might introduce slight delays, so to keep hot paths intact
+ * its run in a single separate thread.
+ * Allows both subscriptions for specific values with a callback, and generic subscriptions
+ * to any events of a given type
  */
 class SystemBus {
 public:
+  /**
+   * @brief Exposing system io_context for any system tasks or timer needs across the system
+   */
   IoContext systemIoCtx;
 
   SystemBus() : ioCtxGuard_{MakeGuard(systemIoCtx.get_executor())} {}
@@ -33,9 +38,8 @@ public:
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {
     /**
-     * Currently all subscribers are static long living objects. However offloading subscriptions to
-     * a system io ctx ensures synchronization. Since systemn io ctx runs single-threaded -
-     * subscribing and publishing won't go in parallel
+     * Currently all system subscribers are static long living objects, but offloading all
+     * operations to a system io ctx ensures synchronization since it runs single threaded
      */
     systemIoCtx.post([handler = std::move(handler)]() {
       getEventSubscribers<EventType>().emplace_back(std::move(handler));

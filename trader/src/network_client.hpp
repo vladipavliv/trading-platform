@@ -28,6 +28,10 @@
 
 namespace hft::trader {
 
+/**
+ * @brief Manages connections to the server
+ * Runs a separate io_context on a number of threads, connects/reconnects
+ */
 class NetworkClient {
   using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus, OrderStatus>;
   using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus, TickerPrice>;
@@ -128,6 +132,9 @@ private:
     });
   }
 
+  /**
+   * @brief Ctor readability helpers
+   */
   TraderTcpSocket createIngressSocket() {
     return TraderTcpSocket{TcpSocket{ioCtx_}, bus_,
                            TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}};

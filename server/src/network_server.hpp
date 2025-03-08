@@ -28,7 +28,7 @@ namespace hft::server {
 
 /**
  * @brief Accepts trader connections and manages sessions
- * @details Runs in a separate io_context on N threads
+ * @details Runs in a separate io_context on a number of threads
  */
 class NetworkServer {
   using ServerTcpSocket = AsyncSocket<TcpSocket, ServerBus, Order>;
@@ -53,9 +53,8 @@ public:
         sessions_.erase(event.traderId);
         break;
       case SocketStatus::Connected:
-        // Trader is fully connected whan both ingress and egress sockets are connected
         if (isConnected(event.traderId)) {
-          // TODO(self) Allow trades only on fully connected sessions
+          // TODO(self) Allow traffic only on fully connected sessions
           Logger::monitorLogger->info("{} connected", event.traderId);
         }
         break;

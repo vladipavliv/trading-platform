@@ -22,6 +22,13 @@
 
 namespace hft {
 
+/**
+ * @brief Socket wrapper that operates synchronously over a given socket type
+ * Publishes received messages over the market bus, publishes status notifications about
+ * connect/disconnect over a system bus
+ * @details MessageTypeIn is specified for deserializing incoming messages,
+ * while any type of the message could be sent if serializer supports it
+ */
 template <typename SocketType, typename EventBusType, typename MessageTypeIn>
 class AsyncSocket {
 public:

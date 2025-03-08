@@ -18,13 +18,11 @@ namespace hft {
 
 /**
  * @brief Message bus for fast, direct message flow between objects
- * Designed for hot market data paths, enforces only one consumer for a given type of message
+ * @details Designed for hot market data paths, with only one consumer for a given message type
  * Message types are predefined to keep all handlers close together and cache friendly
  * Passes messages around via std::span, its lightweight enough to not introduce
- * much performance impact. Single values are wrapped in a Span(&value, 1), it does introduce
- * additional indirection but since the value is most likely located on the stack -> its still in L1
- * so the impact is also negligible.
- * But interface unification is significant.
+ * much performance impact. Single values are wrapped in a Span(&value, 1) with additional
+ * indirection but the value is most likely on the stack so the impact is also negligible.
  */
 template <typename... EventTypes>
 class MessageBus {

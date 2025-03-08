@@ -20,8 +20,8 @@
 namespace hft {
 
 /**
- * @brief Logger wrapper to have separate spd logger for main logs and monitor logs
- * main logs go into a file, monitor logs go into a console
+ * @brief Logger wrapper with a separate spd logger for main logs and monitor logs
+ * main logs are written to a file asynchronously, monitor logs are written to a console
  * @details for a non-trivial log messages like toString(OrderStatus) or typeid(EventType).name()
  * logging is done via lambda so that arguments are not evaluated unnecesserily
  * spdlog::debug([](){ return typeid(EventType).name(); }());
@@ -66,8 +66,6 @@ public:
       spdlog::set_level(goUp ? level_enum::err : level_enum::critical);
       break;
     case level_enum::off:
-      // monitor mode
-      return;
     default:
       break;
     }

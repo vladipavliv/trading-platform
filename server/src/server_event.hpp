@@ -12,8 +12,12 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
+/**
+ * @brief Events to control the startup flow and other stuff
+ * @details For now not really needed, but is needed in general
+ */
 enum class ServerEvent : uint8_t { Ready };
-}
+} // namespace hft::server
 
 namespace hft::utils {
 template <>

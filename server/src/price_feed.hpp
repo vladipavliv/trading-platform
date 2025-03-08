@@ -15,6 +15,12 @@
 
 namespace hft::server {
 
+/**
+ * @brief Simple price fluctuator that iterates over the prices at a given rate,
+ * changes the price within a given delta, and posts the price update over a market bus
+ * @details Accepts a const reference to a market data, which has the price as a mutable atomic
+ * so it can be changed. Saves memory having one global market data storage.
+ */
 class PriceFeed {
 public:
   PriceFeed(ServerBus &bus, const MarketData &data)

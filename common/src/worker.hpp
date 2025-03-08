@@ -15,6 +15,10 @@
 
 namespace hft {
 
+/**
+ * @brief Worker thread with an io_context.
+ * Performs significantly better then a manual lock free queue
+ */
 class Worker {
 public:
   using UPtr = std::unique_ptr<Worker>;

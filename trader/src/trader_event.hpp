@@ -11,8 +11,11 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::trader {
+/**
+ * @brief System events
+ */
 enum class TraderEvent : uint8_t { Initialized, ConnectedToTheServer, DisconnectedFromTheServer };
-}
+} // namespace hft::trader
 
 namespace hft::utils {
 template <>

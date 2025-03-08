@@ -19,6 +19,7 @@ namespace hft {
 
 /**
  * @brief Tracks rtt values in the specified ranges
+ * calculates the number of hits and the average values
  * @details HdrHistogram at home
  */
 template <size_t... Ranges>
@@ -30,6 +31,9 @@ class RttTracker {
   static constexpr size_t RangeCount = sizeof...(Ranges) + 1;
   static constexpr size_t FlushTimeoutMs = 1000;
 
+  /**
+   * @brief Rtt values are logged from a several threads and flushed periodically
+   */
   struct alignas(64) AtomicRttSample {
     std::atomic_uint64_t sum{0};
     Padding<std::atomic_uint64_t> p;

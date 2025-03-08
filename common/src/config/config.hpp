@@ -19,6 +19,10 @@
 
 namespace hft {
 
+/**
+ * @brief Commonb config for both server and trader.
+ * Gets loaded from a separate ini files
+ */
 struct Config {
   String url;
   Port portTcpIn;

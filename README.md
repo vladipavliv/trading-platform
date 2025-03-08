@@ -1,13 +1,13 @@
 # Trading platform
 
 ## Introduction
-Simple client-server trading platform. Allows you to place an order, receive order status and price updates. Client and server communicate over a separate TCP connections for placing orders and order status notifications, and a UDP connection for price updates.
+C++ client-server trading platform. Communication is done via separate TCP connections for placing orders and order status notifications, and a UDP connection for price updates.
 
 ### Server
-Uses separate io_context for network io operations, and N additional threads to process orders. Each worker thread runs a separate io_context, tickers are divided between threads and orders are processed synchronously.
+Runs an io_context with multiple threads for network operations, a set of worker threads each with dedicated io_context for orders processing, and a system io_context for handling system events and commands.
 
 ### Trader
-Simplified to send random order at a given rate, receive the status, track rtt, and log price updates.
+Runs an io_context with multiple threads for network operations, and a system io_context. Simplified to send random order at a given rate, receive the status, track rtt, and log the price updates.
 
 ### Logging
 Main logs are written to `server_log.x.txt` and `trader_log.x.txt`, status logs are written to the console.
@@ -66,8 +66,7 @@ Run the trader:
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
 
 ## Performance
-Tested on localhost without any core isolation or other tweaking. 
-Last performance check for 1us trade rate:
+With 1us delay between orders sent from trader performance is the following
 
 Server:
 ```bash
