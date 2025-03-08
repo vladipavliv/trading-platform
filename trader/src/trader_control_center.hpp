@@ -35,7 +35,7 @@ public:
       : networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
         statsTimer_{bus_.ioCtx()}, tradeRate_{Config::cfg.tradeRate},
         monitorRate_{Config::cfg.monitorRate} {
-
+    // TODO() improve trader, add workers to run trading loop, save prices, run some real strategy
     // Incoming market events
     bus_.marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
       for (auto &status : events) {
@@ -157,7 +157,7 @@ private:
       static size_t requestsLast = 0;
       size_t requestsCurrent = requestCounter_.load(std::memory_order_relaxed);
       size_t rps = (requestsCurrent - requestsLast) / monitorRate_.count();
-      Logger::monitorLogger->info("Rtt: {} Rps: {}", Tracker::getRttStats(), thousandify(rps));
+      Logger::monitorLogger->info("Rtt: {} | Rps: {}", Tracker::getRttStats(), thousandify(rps));
       requestsLast = requestsCurrent;
       scheduleStatsTimer();
     });

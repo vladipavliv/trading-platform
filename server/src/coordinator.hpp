@@ -85,7 +85,7 @@ private:
       auto opnStr = utils::thousandify(countOpenedOrders());
       auto ttlStr = utils::thousandify(currentTtl);
       if (rps != 0) {
-        Logger::monitorLogger->info("[opn|ttl] {}|{} Rps: {}", opnStr, ttlStr, rpsStr);
+        Logger::monitorLogger->info("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
       }
       lastTtl = currentTtl;
       scheduleStatsTimer();

@@ -26,6 +26,8 @@ using Milliseconds = boost::asio::chrono::milliseconds;
 using Microseconds = boost::asio::chrono::microseconds;
 using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
 
+using MakeGuard = decltype(boost::asio::make_work_guard(std::declval<boost::asio::io_context &>()));
+
 } // namespace hft
 
 #endif // HFT_COMMON_BOOST_TYPES_HPP

@@ -28,7 +28,7 @@ class SystemBus {
 public:
   IoContext systemIoCtx;
 
-  SystemBus() : ioCtxGuard_{boost::asio::make_work_guard(systemIoCtx)} {}
+  SystemBus() : ioCtxGuard_{MakeGuard(systemIoCtx.get_executor())} {}
 
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {

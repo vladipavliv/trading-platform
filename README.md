@@ -71,9 +71,9 @@ Last performance check for 1us trade rate:
 
 Server:
 ```bash
-14:22:57.819075 [I] [opn|ttl] 1,428,923|8,294,443 Rps: 147,117
+14:22:57.819075 [I] Orders: [opn|ttl] 1,428,923|8,294,443 | Rps: 147,117
 ```
 Trader:
 ```bash
-14:22:57.722984 [I] Rtt: [<50us|>50us] 99.89% avg:17us 0.11% avg:89us Rps: 147,001
+14:22:57.722984 [I] Rtt: [<50us|>50us] 99.89% avg:17us 0.11% avg:89us | Rps: 147,001
 ```

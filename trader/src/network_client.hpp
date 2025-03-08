@@ -34,14 +34,10 @@ class NetworkClient {
 
 public:
   NetworkClient(TraderBus &bus)
-      : ioCtxGuard_{boost::asio::make_work_guard(ioCtx_)}, bus_{bus},
-        ingressSocket_{TcpSocket{ioCtx_}, bus_,
-                       TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}},
-        egressSocket_{TcpSocket{ioCtx_}, bus_,
-                      TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}},
-        pricesSocket_{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp), bus_,
-                      UdpEndpoint(Udp::v4(), Config::cfg.portUdp)},
-        connectionTimer_{ioCtx_}, monitorRate_{Config::cfg.monitorRate} {
+      : ioCtxGuard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus},
+        ingressSocket_{createIngressSocket()}, egressSocket_{createEgressSocket()},
+        pricesSocket_{createPricesSocket()}, connectionTimer_{ioCtx_},
+        monitorRate_{Config::cfg.monitorRate} {
     utils::unblockConsole();
 
     bus_.marketBus.setHandler<Order>(
@@ -130,6 +126,21 @@ private:
       }
       scheduleConnectionTimer();
     });
+  }
+
+  TraderTcpSocket createIngressSocket() {
+    return TraderTcpSocket{TcpSocket{ioCtx_}, bus_,
+                           TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}};
+  }
+
+  TraderTcpSocket createEgressSocket() {
+    return TraderTcpSocket{TcpSocket{ioCtx_}, bus_,
+                           TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn}};
+  }
+
+  TraderUdpSocket createPricesSocket() {
+    return TraderUdpSocket{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp), bus_,
+                           UdpEndpoint(Udp::v4(), Config::cfg.portUdp)};
   }
 
 private:

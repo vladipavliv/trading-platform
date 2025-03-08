@@ -22,7 +22,7 @@ public:
   IoContext ioCtx;
 
   Worker(ThreadId id)
-      : guard_{boost::asio::make_work_guard(ioCtx)}, thread_{[this, id]() {
+      : guard_{MakeGuard(ioCtx.get_executor())}, thread_{[this, id]() {
           try {
             utils::setTheadRealTime();
             utils::pinThreadToCore(Config::cfg.coresApp[id]);

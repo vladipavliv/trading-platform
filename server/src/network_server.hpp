@@ -41,10 +41,8 @@ class NetworkServer {
 
 public:
   NetworkServer(ServerBus &bus)
-      : bus_{bus}, guard_{boost::asio::make_work_guard(ioCtx_)}, ingressAcceptor_{ioCtx_},
-        egressAcceptor_{ioCtx_},
-        pricesSocket_{utils::createUdpSocket(ioCtx_), bus,
-                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}} {
+      : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())}, ingressAcceptor_{ioCtx_},
+        egressAcceptor_{ioCtx_}, pricesSocket_{createPricesSocket()} {
     utils::unblockConsole();
 
     // System bus subscriptions
@@ -174,6 +172,11 @@ private:
     return session.egress != nullptr && session.ingress != nullptr &&
            session.egress->status() == SocketStatus::Connected &&
            session.ingress->status() == SocketStatus::Connected;
+  }
+
+  ServerUdpSocket createPricesSocket() {
+    return ServerUdpSocket{utils::createUdpSocket(ioCtx_), bus_,
+                           UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}};
   }
 
 private:
