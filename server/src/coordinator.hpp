@@ -25,8 +25,7 @@ namespace hft::server {
 class Coordinator {
 public:
   Coordinator(ServerBus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus.systemBus.systemIoCtx},
-        statsRate_{Config::cfg.monitorRate} {
+      : bus_{bus}, data_{data}, timer_{bus_.ioCtx()}, statsRate_{Config::cfg.monitorRate} {
     bus_.marketBus.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
   }
 
@@ -54,20 +53,19 @@ private:
 
   void processOrders(Span<Order> orders) {
     // TODO() Try sorting by the worker id and processing in chunks
+    ordersTotal_.fetch_add(orders.size(), std::memory_order_relaxed);
     for (auto &order : orders) {
       processOrder(order);
     }
   }
 
   void processOrder(CRef<Order> order) {
-    ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       data->orderBook.add(order);
       auto matches = data->orderBook.match();
       if (!matches.empty()) {
         bus_.marketBus.publish(Span<OrderStatus>(matches));
-        ordersMatched_.fetch_add(matches.size(), std::memory_order_relaxed);
       }
     });
   }
@@ -79,17 +77,27 @@ private:
         Logger::monitorLogger->error("Error {}", ec.message());
         return;
       }
-      static size_t lastOrderCount = 0;
-      size_t ordersCurrent = ordersTotal_.load(std::memory_order_relaxed);
-      auto rps = (ordersCurrent - lastOrderCount) / statsRate_.count();
+      static uint64_t lastTtl = 0;
+      uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
+      uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
+
+      auto rpsStr = utils::thousandify(rps);
+      auto opnStr = utils::thousandify(countOpenedOrders());
+      auto ttlStr = utils::thousandify(currentTtl);
       if (rps != 0) {
-        Logger::monitorLogger->info("Orders [matched|total] {} {} rps:{}",
-                                    ordersMatched_.load(std::memory_order_relaxed),
-                                    ordersTotal_.load(std::memory_order_relaxed), rps);
+        Logger::monitorLogger->info("[opn|ttl] {}|{} Rps: {}", opnStr, ttlStr, rpsStr);
       }
-      lastOrderCount = ordersCurrent;
+      lastTtl = currentTtl;
       scheduleStatsTimer();
     });
+  }
+
+  size_t countOpenedOrders() {
+    size_t orders = 0;
+    for (auto &tickerData : data_) {
+      orders += tickerData.second->orderBook.openedOrders();
+    }
+    return orders;
   }
 
 private:
@@ -99,8 +107,8 @@ private:
   SteadyTimer timer_;
   Seconds statsRate_;
 
-  std::atomic_size_t ordersTotal_;
-  std::atomic_size_t ordersMatched_;
+  std::atomic_uint64_t ordersTotal_;
+  std::atomic_uint64_t ordersOpened_;
 
   std::vector<Worker::UPtr> workers_;
 };

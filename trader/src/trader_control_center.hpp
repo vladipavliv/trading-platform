@@ -21,6 +21,7 @@
 #include "types.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
+#include "utils/template_utils.hpp"
 
 namespace hft::trader {
 
@@ -28,7 +29,7 @@ class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
   using TraderConsoleManager = ConsoleManager<TraderCommand>;
-  using Tracker = RttTracker<50, 200>; // TODO()
+  using Tracker = RttTracker<50>;
 
   TraderControlCenter()
       : networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
@@ -84,6 +85,7 @@ public:
     consoleManager_.start();
 
     utils::setTheadRealTime();
+    utils::pinThreadToCore(Config::cfg.coreSystem);
     bus_.run();
   }
 
@@ -151,7 +153,12 @@ private:
       if (ec) {
         return;
       }
-      Tracker::printStats();
+      using namespace utils;
+      static size_t requestsLast = 0;
+      size_t requestsCurrent = requestCounter_.load(std::memory_order_relaxed);
+      size_t rps = (requestsCurrent - requestsLast) / monitorRate_.count();
+      Logger::monitorLogger->info("Rtt: {} Rps: {}", Tracker::getRttStats(), thousandify(rps));
+      requestsLast = requestsCurrent;
       scheduleStatsTimer();
     });
   }
@@ -171,6 +178,7 @@ private:
     spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
 
     bus_.marketBus.publish(Span<Order>{&order, 1});
+    requestCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
 private:
@@ -184,6 +192,8 @@ private:
 
   Microseconds tradeRate_;
   Seconds monitorRate_;
+
+  std::atomic_size_t requestCounter_{0};
 };
 } // namespace hft::trader
 

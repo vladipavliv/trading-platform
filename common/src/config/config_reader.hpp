@@ -18,6 +18,7 @@
 #include "config.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
+#include "utils/template_utils.hpp"
 
 namespace hft {
 
@@ -35,6 +36,7 @@ struct ConfigReader {
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cpu
+    Config::cfg.coreSystem = pt.get<int>("cpu.core_system");
     Config::cfg.coresNetwork = parseCores(pt.get<std::string>("cpu.cores_network"));
     Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
 
@@ -46,6 +48,31 @@ struct ConfigReader {
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
     Config::cfg.logOutput = pt.get<std::string>("log.output");
+
+    verifyConfig(Config::cfg);
+  }
+
+  static void verifyConfig(CRef<Config> cfg) {
+    if (cfg.url.empty() || cfg.portTcpIn == 0 || cfg.portTcpOut == 0 || cfg.portUdp == 0) {
+      throw std::runtime_error("Invalid network configuration");
+    }
+    if (utils::hasIntersection(cfg.coresApp, cfg.coresNetwork)) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+    if (std::find(cfg.coresApp.begin(), cfg.coresApp.end(), cfg.coreSystem) != cfg.coresApp.end()) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+    if (std::find(cfg.coresNetwork.begin(), cfg.coresNetwork.end(), cfg.coreSystem) !=
+        cfg.coresNetwork.end()) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+    if (cfg.tradeRate.count() == 0 || cfg.priceFeedRate.count() == 0 ||
+        cfg.monitorRate.count() == 0) {
+      throw std::runtime_error("Invalid rates configuration");
+    }
+    if (cfg.logOutput.empty()) {
+      throw std::runtime_error("Invalid log file");
+    }
   }
 #else
   static void readConfig() {

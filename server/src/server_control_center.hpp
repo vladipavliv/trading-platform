@@ -53,6 +53,7 @@ public:
     consoleManager_.start();
 
     utils::setTheadRealTime();
+    utils::pinThreadToCore(Config::cfg.coreSystem);
     bus_.run();
   }
 
@@ -82,8 +83,7 @@ private:
       marketData_.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
       roundRobin = (++roundRobin < workers) ? roundRobin : 0;
     }
-    Logger::monitorLogger->info(
-        std::format("Market data loaded for {} tickers", marketData_.size()));
+    Logger::monitorLogger->info("Market data loaded for {} tickers", marketData_.size());
   }
 
 private:

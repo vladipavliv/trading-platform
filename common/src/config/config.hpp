@@ -25,6 +25,7 @@ struct Config {
   Port portTcpOut;
   Port portUdp;
 
+  uint8_t coreSystem;
   std::vector<uint8_t> coresNetwork;
   std::vector<uint8_t> coresApp;
 
@@ -39,9 +40,10 @@ struct Config {
   static void logConfig() {
     Logger::monitorLogger->info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn,
                                 cfg.portTcpOut, cfg.portUdp);
-    Logger::monitorLogger->info("NetworkCores:{} AppCores:{} TradeRate:{}us PriceFeedRate:{}us",
-                                utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
-                                cfg.tradeRate.count(), cfg.priceFeedRate.count());
+    Logger::monitorLogger->info(
+        "SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us PriceFeedRate:{}us",
+        cfg.coreSystem, utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
+        cfg.tradeRate.count(), cfg.priceFeedRate.count());
     Logger::monitorLogger->info("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel),
                                 cfg.logOutput);
   }

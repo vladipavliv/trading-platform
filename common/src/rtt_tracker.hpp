@@ -78,7 +78,7 @@ public:
     return stats;
   }
 
-  static void printStats() {
+  static std::string getRttStats() {
     auto rttStats = getStats();
     auto &rtt = rttStats.samples;
     auto sizeTotal = 0;
@@ -86,11 +86,11 @@ public:
       sizeTotal += rtt[i].size;
     }
     if (sizeTotal == 0) {
-      return;
+      return "";
     }
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2);
-    ss << "RTT [";
+    ss << "[";
     for (int i = 0; i < RangeCount; ++i) {
       if (i < RangeCount - 1) {
         ss << "<" << toScale(rangeValues[i]) << "|";
@@ -98,28 +98,30 @@ public:
         ss << ">" << toScale(rangeValues[i - 1]) << "]";
       }
     }
-    ss << "  ";
+    ss << " ";
     for (int i = 0; i < RangeCount; ++i) {
       auto avg = ((rtt[i].size != 0) ? (rtt[i].sum / rtt[i].size) : 0);
       if (avg == 0) {
-        ss << "0%  ";
+        ss << "0%";
       } else {
         ss << ((float)rtt[i].size / sizeTotal) * 100 << "% avg:";
         ss << toScale(avg);
-        ss << "  ";
+      }
+      if (i < RangeCount - 1) {
+        ss << " ";
       }
     }
-    Logger::monitorLogger->info(ss.str());
+    return ss.str();
   }
 
 private:
   static constexpr inline uint8_t getRange(TimestampRaw value) {
-    for (int i = 0; i < RangeCount; ++i) {
+    for (int i = 0; i < RangeCount - 1; ++i) {
       if (value < rangeValues[i]) {
         return i;
       }
     }
-    return RangeCount;
+    return RangeCount - 1;
   }
   static inline std::string toScale(TimestampRaw value) {
     bool us = value < 1000;

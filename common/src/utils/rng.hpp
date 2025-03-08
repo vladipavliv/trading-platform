@@ -15,14 +15,16 @@ class RNG {
 public:
   template <typename Type>
   static typename std::enable_if<std::is_integral<Type>::value, Type>::type rng(Type number) {
-    std::uniform_int_distribution<Type> dis(0, number);
-    return dis(kRandomAlgo);
+    static std::uniform_int_distribution<Type> distribution(0, 0);
+    distribution.param(typename std::uniform_int_distribution<Type>::param_type(0, number));
+    return distribution(kRandomAlgo);
   }
 
   template <typename Type>
   static typename std::enable_if<std::is_floating_point<Type>::value, Type>::type rng(Type number) {
-    std::uniform_real_distribution<Type> dis(0.0, number);
-    return dis(kRandomAlgo);
+    static std::uniform_real_distribution<Type> distribution(0.0, 0.0);
+    distribution.param(typename std::uniform_int_distribution<Type>::param_type(0.0, number));
+    return distribution(kRandomAlgo);
   }
 
 private:

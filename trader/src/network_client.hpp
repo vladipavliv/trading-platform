@@ -8,6 +8,7 @@
 
 #include <format>
 #include <memory>
+#include <spdlog/spdlog.h>
 #include <thread>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
-#include "rtt_tracker.hpp"
 #include "template_types.hpp"
 #include "trader_bus.hpp"
 #include "trader_command.hpp"
@@ -31,7 +31,6 @@ namespace hft::trader {
 class NetworkClient {
   using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus, OrderStatus>;
   using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus, TickerPrice>;
-  using Tracker = RttTracker<50, 200>;
 
 public:
   NetworkClient(TraderBus &bus)
