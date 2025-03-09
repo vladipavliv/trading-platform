@@ -23,7 +23,7 @@
 namespace hft {
 
 /**
- * @brief Socket wrapper that operates synchronously over a given socket type
+ * @brief Socket wrapper that operates asynchronously over a given socket type
  * Publishes received messages over the market bus, publishes status notifications about
  * connect/disconnect over a system bus
  * @details MessageTypeIn is specified for deserializing incoming messages,

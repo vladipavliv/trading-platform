@@ -16,6 +16,11 @@
 
 namespace hft::serialization {
 
+/**
+ * @brief Serializer via flat buffers
+ * @todo Use SBE instead as its better and faster and more lighweight, can use its generated types
+ * locally instead of doing conversions
+ */
 class FlatBuffersSerializer {
 public:
   using DetachedBuffer = flatbuffers::DetachedBuffer;
@@ -67,6 +72,9 @@ public:
     return TickerPrice{fbStringToTicker(orderMsg->ticker()), orderMsg->price()};
   }
 
+  /**
+   * @todo Could serialize the message directly into allocated for async send buffer
+   */
   static DetachedBuffer serialize(const Order &order) {
     flatbuffers::FlatBufferBuilder builder;
     auto msg = gen::fbs::CreateOrder(builder, order.id,
