@@ -94,10 +94,10 @@ public:
   template <typename MessageTypeOut>
   void asyncWrite(Span<MessageTypeOut> msgVec) {
     size_t allocSize = msgVec.size() * MAX_SERIALIZED_MESSAGE_SIZE;
-    auto dataPtr = std::make_unique<ByteBuffer>(allocSize);
+    auto dataPtr = ByteBuffer(allocSize);
 
     size_t totalSize{0};
-    uint8_t *cursor = dataPtr->data();
+    uint8_t *cursor = dataPtr.data();
     for (auto &msg : msgVec) {
       auto msgSize = serializeMessage(msg, cursor);
       cursor += msgSize;
@@ -105,7 +105,7 @@ public:
     }
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      boost::asio::async_write(socket_, boost::asio::buffer(dataPtr->data(), totalSize),
+      boost::asio::async_write(socket_, boost::asio::buffer(dataPtr.data(), totalSize),
                                [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                                  if (ec) {
                                    spdlog::error("Write failed: {}", ec.message());
@@ -113,7 +113,7 @@ public:
                                  }
                                });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      socket_.async_send_to(boost::asio::buffer(dataPtr->data(), totalSize), endpoint_,
+      socket_.async_send_to(boost::asio::buffer(dataPtr.data(), totalSize), endpoint_,
                             [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                               if (ec) {
                                 spdlog::error("Write failed: {}", ec.message());
@@ -125,13 +125,13 @@ public:
 
   template <typename MessageTypeOut>
   void asyncWrite(CRef<MessageTypeOut> msg) {
-    auto dataPtr = std::make_unique<ByteBuffer>(MAX_SERIALIZED_MESSAGE_SIZE);
+    auto dataPtr = ByteBuffer(MAX_SERIALIZED_MESSAGE_SIZE);
 
-    uint8_t *cursor = dataPtr->data();
+    uint8_t *cursor = dataPtr.data();
     auto msgSize = serializeMessage(msg, cursor);
 
     if constexpr (std::is_same_v<Socket, TcpSocket>) {
-      boost::asio::async_write(socket_, boost::asio::buffer(dataPtr->data(), msgSize),
+      boost::asio::async_write(socket_, boost::asio::buffer(dataPtr.data(), msgSize),
                                [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                                  if (ec) {
                                    spdlog::error("Write failed: {}", ec.message());
@@ -139,7 +139,7 @@ public:
                                  }
                                });
     } else if constexpr (std::is_same_v<Socket, UdpSocket>) {
-      socket_.async_send_to(boost::asio::buffer(dataPtr->data(), msgSize), endpoint_,
+      socket_.async_send_to(boost::asio::buffer(dataPtr.data(), msgSize), endpoint_,
                             [this, data = std::move(dataPtr)](BoostErrorRef ec, size_t size) {
                               if (ec) {
                                 spdlog::error("Write failed: {}", ec.message());

@@ -87,27 +87,3 @@ Trader:
 ```bash
 14:22:57.722984 [I] Rtt: [<50us|>50us] 99.89% avg:17us 0.11% avg:89us | Rps: 147,001
 ```
-
-Pushing the system further to its limits have not been tried, but additional benchmarks showed that random order generation, serialization, buffer allocation and sending the order asynchronously does take ~3-7us so there is some room for optimization
-
-## Potential future roadmap
-- [ ] **Implement SBE serialization**  
-Replace local market types with SBE generated ones, serialize to allocated buffer in-place
-
-- [ ] **Implement ticker rerouting**  
-Dynamically rerout the tickers to a different worker, add/remove workers, load balancing
-
-- [ ] **Persist the market data on shutdown/startup**  
-Create persistent db for trader info, save/load all the current orders
-
-- [ ] **Develop proper trading strategy**  
-Implement a proper strategy based on the real data, add separate workers for order generation
-
-- [ ] **Add encryption**  
-Investigate encryption methods and implement a proper login mechanism
-
-- [ ] **Push testing to the limits**  
-Try generationg and sending orders from multiple worker threads, testing with multiple traders and no-delay orders flow
-
-- [ ] **Profile**  
-Cache misses and branch mispredicitons
