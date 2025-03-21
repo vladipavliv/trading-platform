@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "boost_types.hpp"
+#include "bus/bus.hpp"
 #include "config/config.hpp"
 #include "console_manager.hpp"
 #include "db/postgres_adapter.hpp"
 #include "network_client.hpp"
 #include "rtt_tracker.hpp"
-#include "trader_bus.hpp"
 #include "trader_command.hpp"
 #include "trader_event.hpp"
 #include "types.hpp"
@@ -191,7 +191,7 @@ private:
   }
 
 private:
-  TraderBus bus_;
+  Bus bus_;
   NetworkClient networkClient_;
   TraderConsoleManager consoleManager_;
   std::vector<TickerPrice> prices_;

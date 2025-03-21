@@ -9,9 +9,9 @@
 #include <map>
 #include <vector>
 
+#include "bus/bus.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
-#include "server_bus.hpp"
 #include "server_event.hpp"
 #include "ticker_data.hpp"
 #include "worker.hpp"
@@ -32,7 +32,7 @@ namespace hft::server {
  */
 class Coordinator {
 public:
-  Coordinator(ServerBus &bus, const MarketData &data)
+  Coordinator(Bus &bus, const MarketData &data)
       : bus_{bus}, data_{data}, timer_{bus_.ioCtx()}, statsRate_{Config::cfg.monitorRate} {
     bus_.marketBus.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
   }
@@ -109,7 +109,7 @@ private:
   }
 
 private:
-  ServerBus &bus_;
+  Bus &bus_;
   const MarketData &data_;
 
   SteadyTimer timer_;

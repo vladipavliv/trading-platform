@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "boost_types.hpp"
+#include "bus/bus.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
 #include "logger.hpp"
@@ -20,7 +21,6 @@
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
 #include "template_types.hpp"
-#include "trader_bus.hpp"
 #include "trader_command.hpp"
 #include "trader_event.hpp"
 #include "types.hpp"
@@ -33,11 +33,11 @@ namespace hft::trader {
  * Runs a separate io_context on a number of threads, connects/reconnects
  */
 class NetworkClient {
-  using TraderTcpSocket = AsyncSocket<TcpSocket, TraderBus, OrderStatus>;
-  using TraderUdpSocket = AsyncSocket<UdpSocket, TraderBus, TickerPrice>;
+  using TraderTcpSocket = AsyncSocket<TcpSocket, OrderStatus>;
+  using TraderUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
 
 public:
-  NetworkClient(TraderBus &bus)
+  NetworkClient(Bus &bus)
       : ioCtxGuard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus},
         ingressSocket_{createIngressSocket()}, egressSocket_{createEgressSocket()},
         pricesSocket_{createPricesSocket()}, connectionTimer_{ioCtx_},
@@ -154,7 +154,7 @@ private:
   IoContext ioCtx_;
   ContextGuard ioCtxGuard_;
 
-  TraderBus &bus_;
+  Bus &bus_;
 
   TraderTcpSocket ingressSocket_;
   TraderTcpSocket egressSocket_;

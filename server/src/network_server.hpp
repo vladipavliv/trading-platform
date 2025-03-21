@@ -12,12 +12,12 @@
 #include <unordered_map>
 
 #include "boost_types.hpp"
+#include "bus/bus.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
 #include "market_types.hpp"
 #include "network/async_socket.hpp"
 #include "network_types.hpp"
-#include "server_bus.hpp"
 #include "server_command.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
@@ -31,8 +31,8 @@ namespace hft::server {
  * @details Runs in a separate io_context on a number of threads
  */
 class NetworkServer {
-  using ServerTcpSocket = AsyncSocket<TcpSocket, ServerBus, Order>;
-  using ServerUdpSocket = AsyncSocket<UdpSocket, ServerBus, TickerPrice>;
+  using ServerTcpSocket = AsyncSocket<TcpSocket, Order>;
+  using ServerUdpSocket = AsyncSocket<UdpSocket, TickerPrice>;
 
   struct Session {
     ServerTcpSocket::UPtr ingress;
@@ -40,7 +40,7 @@ class NetworkServer {
   };
 
 public:
-  NetworkServer(ServerBus &bus)
+  NetworkServer(Bus &bus)
       : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())}, ingressAcceptor_{ioCtx_},
         egressAcceptor_{ioCtx_}, pricesSocket_{createPricesSocket()} {
     utils::unblockConsole();
@@ -182,7 +182,7 @@ private:
   IoContext ioCtx_;
   ContextGuard guard_;
 
-  ServerBus &bus_;
+  Bus &bus_;
 
   TcpAcceptor ingressAcceptor_;
   TcpAcceptor egressAcceptor_;

@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_SERVERCONTROLCENTER_HPP
 #define HFT_SERVER_SERVERCONTROLCENTER_HPP
 
+#include "bus/bus.hpp"
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "console_manager.hpp"
@@ -14,7 +15,6 @@
 #include "market_types.hpp"
 #include "network_server.hpp"
 #include "price_feed.hpp"
-#include "server_bus.hpp"
 #include "server_command.hpp"
 #include "server_event.hpp"
 
@@ -88,7 +88,7 @@ private:
   }
 
 private:
-  ServerBus bus_;
+  Bus bus_;
   MarketData marketData_;
 
   NetworkServer networkServer_;

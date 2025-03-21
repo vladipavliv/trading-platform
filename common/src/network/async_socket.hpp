@@ -26,14 +26,26 @@ namespace hft {
  * @brief Socket wrapper that operates asynchronously over a given socket type
  * Publishes received messages over the market bus, publishes status notifications about
  * connect/disconnect over a system bus
- * @details MessageTypeIn is specified for deserializing incoming messages,
- * while any type of the message could be sent if serializer supports it
+ *
+ * @todo Refactor this:
+ * - split to separate TCP and UDP sockets, no reason having it templated with so many
+ *   'if constexprs' all over the place
+ * - remove MessageTypeIn parameter, and delegate protocol specific parsing to a Serializer
+ *   and instead of writing size of the message as the first paramete, write a message type
+ *   then read sizeof(ThatMessage), basically handling the serialization manually
+ *   but even with flatbuffers we can define a union with all the possible messages and not have to
+ *   specify the type for deserialization explicitly
+ * - Make separate ReadBuffer class, with all the ring buffer functionality from the socket,
+ *   providing boost::asio::buffer for async read, and a byte buffer with the data for Serializar to
+ *   try to parse, and reuse it in Tcp and Udp async socket wrappers
+ * - Not really great having here a TraderId, maybe try avoid passing both Bus and TraderId here
+ *   having some middle man accepting template messages from socket, substituting them with
+ *   TraderId and posting them to a Bus
  */
-template <typename SocketType, typename EventBusType, typename MessageTypeIn>
+template <typename SocketType, typename MessageTypeIn>
 class AsyncSocket {
 public:
-  using Type = AsyncSocket<SocketType, EventBusType, MessageTypeIn>;
-  using Bus = EventBusType;
+  using Type = AsyncSocket<SocketType, MessageTypeIn>;
   using Socket = SocketType;
   using Endpoint = Socket::endpoint_type;
   using MessageIn = MessageTypeIn;

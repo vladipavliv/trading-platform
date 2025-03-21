@@ -1,19 +1,19 @@
 /**
  * @author Vladimir Pavliv
- * @date 2025-03-06
+ * @date 2025-03-21
  */
 
-#ifndef HFT_SERVER_TRADERBUS_HPP
-#define HFT_SERVER_TRADERBUS_HPP
+#ifndef HFT_COMMON_BUS_HPP
+#define HFT_COMMON_BUS_HPP
 
-#include "bus/message_bus.hpp"
-#include "bus/system_bus.hpp"
 #include "market_types.hpp"
+#include "message_bus.hpp"
+#include "system_bus.hpp"
 
-namespace hft::trader {
+namespace hft {
 using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
-struct TraderBus {
+struct Bus {
   SystemBus systemBus;
   MarketBus marketBus;
 
@@ -21,6 +21,6 @@ struct TraderBus {
   void run() { systemBus.systemIoCtx.run(); }
   void stop() { systemBus.systemIoCtx.stop(); }
 };
-} // namespace hft::trader
+} // namespace hft
 
-#endif // HFT_SERVER_TRADERBUS_HPP
+#endif // HFT_COMMON_BUS_HPP
