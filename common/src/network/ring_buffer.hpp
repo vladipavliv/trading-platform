@@ -3,8 +3,8 @@
  * @date 2025-03-22
  */
 
-#ifndef HFT_COMMON_RINBBUFFER_HPP
-#define HFT_COMMON_RINBBUFFER_HPP
+#ifndef HFT_COMMON_RINGBUFFER_HPP
+#define HFT_COMMON_RINGBUFFER_HPP
 
 #include <memory>
 
@@ -80,4 +80,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_RINBBUFFER_HPP
+#endif // HFT_COMMON_RINGBUFFER_HPP

@@ -13,7 +13,6 @@
 #include "constants.hpp"
 #include "logger.hpp"
 #include "ring_buffer.hpp"
-#include "routed_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -28,6 +27,7 @@ public:
 
   template <typename Type>
   static ByteBuffer frame(Span<Type> messages) {
+    spdlog::trace("frame {} messages", messages.size());
     std::vector<typename Serializer::BufferType> serializedMessages(messages.size());
 
     size_t allocSize{0};
@@ -47,15 +47,18 @@ public:
     return writeBuffer;
   }
 
-  static void unframe(RingBuffer &buffer, Bus &bus) {
+  static void unframe(RingBuffer &buffer, BusWrapper &bus) {
     // TODO(self) Try some buckets here automatically sorting messages by type and workerId
     auto readBuffer = buffer.data();
     auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
     auto cursor{0};
 
-    while (cursor + HEADER_SIZE < readBuffer.size()) {
+    spdlog::trace("unframe buffer size {} ", readBuffer.size());
+
+    while (cursor + HEADER_SIZE <= readBuffer.size()) {
       auto littleBodySize = *reinterpret_cast<const LittleEndianUInt16 *>(dataPtr + cursor);
       MessageSize bodySize = littleBodySize.value();
+
       if (cursor + HEADER_SIZE + bodySize > readBuffer.size()) {
         break;
       }

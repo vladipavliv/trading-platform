@@ -48,10 +48,6 @@ template <typename... TupleTypes>
 static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
   return std::make_tuple(createLFQueue<TupleTypes>(size)...);
 }
-template <typename Type, typename... Types>
-static constexpr bool contains() {
-  return (std::is_same<Type, Types>::value || ...);
-}
 template <typename... Type>
 bool isTupleEmpty(const std::tuple<UPtrLFQueue<Type>...> &tupl) {
   return std::apply([](const auto &...lfqs) { return (... && lfqs->empty()); }, tupl);
@@ -75,6 +71,8 @@ template <typename EventType, typename... Types>
 constexpr size_t getTypeIndex() {
   return indexOf<EventType, Types...>();
 }
+template <typename Type, typename... Types>
+static constexpr bool contains = (std::is_same_v<Type, Types> || ...);
 
 template <typename Type>
 struct is_smart_ptr : std::false_type {};

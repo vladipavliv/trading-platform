@@ -31,19 +31,32 @@ public:
   }
 
   void start() {
+    Logger::monitorLogger->info("Start broadcasting price changes");
+    broadcasting_ = true;
+    schedulePriceChange();
+  }
+
+  void stop() {
+    Logger::monitorLogger->info("Stop broadcasting price changes");
+    timer_.cancel();
+    broadcasting_ = false;
+  }
+
+private:
+  void schedulePriceChange() {
+    if (!broadcasting_) {
+      return;
+    }
     timer_.expires_after(rate_);
     timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
       adjustPrices();
-      start();
+      schedulePriceChange();
     });
   }
 
-  void stop() { timer_.cancel(); }
-
-private:
   void adjustPrices() {
     static auto cursor = data_.begin();
     std::vector<TickerPrice> priceUpdates;
@@ -67,6 +80,8 @@ private:
 
   SteadyTimer timer_;
   Microseconds rate_;
+
+  std::atomic_bool broadcasting_{false};
 };
 
 } // namespace hft::server

@@ -12,6 +12,7 @@
 
 #include "template_types.hpp"
 #include "types.hpp"
+#include "utils/template_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft {
@@ -30,6 +31,10 @@ public:
   MessageBus() : spanHandlers_{std::make_tuple(SpanHandler<EventTypes>{}...)} {}
 
   template <typename EventType>
+  static constexpr bool RoutedType = utils::contains<EventType, EventTypes...>;
+
+  template <typename EventType>
+    requires RoutedType<EventType>
   void setHandler(SpanHandler<EventType> handler) {
     auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
     if (handlerRef != nullptr) {
@@ -41,6 +46,7 @@ public:
   }
 
   template <typename EventType>
+    requires RoutedType<EventType>
   void post(Span<EventType> event) {
     auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
     assert(handlerRef != nullptr && "Handler not registered for event type");

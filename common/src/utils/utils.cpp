@@ -15,26 +15,25 @@
 
 namespace hft::utils {
 
-void pinThreadToCore(int core_id) {
+void pinThreadToCore(size_t coreId) {
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
-  CPU_SET(core_id, &cpuset);
+  CPU_SET(coreId, &cpuset);
 
-  pthread_t thread = pthread_self();
-  int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+  int result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   if (result != 0) {
-    spdlog::error("Failed to set thread affinity {}", result);
+    spdlog::error("Failed to pin thread to core: {}, error: {}", coreId, result);
   }
 }
 
-void setTheadRealTime() {
+void setTheadRealTime(size_t coreId) {
   struct sched_param param;
   param.sched_priority = 99;
   sched_setscheduler(0, SCHED_FIFO, &param);
 
   auto code = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (code != 0) {
-    spdlog::error("Failed to set real-time priority: {}", code);
+    spdlog::error("Failed to set real-time priority on the core: {}, error: {}", coreId, code);
   }
 }
 

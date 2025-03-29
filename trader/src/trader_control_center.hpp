@@ -58,9 +58,9 @@ public:
     });
 
     // System events
-    bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer,
+    bus_.systemBus.subscribe(TraderEvent::Connected,
                              [this]() { Logger::monitorLogger->info("Connected to the server"); });
-    bus_.systemBus.subscribe(TraderEvent::DisconnectedFromTheServer, [this]() {
+    bus_.systemBus.subscribe(TraderEvent::Disconnected, [this]() {
       Logger::monitorLogger->error("Disconnected from the server");
       tradeStop();
     });
@@ -93,8 +93,10 @@ public:
     networkClient_.start();
     consoleReader_.start();
 
-    utils::setTheadRealTime();
+    utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
+
+    scheduleStatsTimer();
     bus_.run();
   }
 
@@ -123,17 +125,19 @@ private:
   }
 
   void tradeStart() {
+    Logger::monitorLogger->info("Trade start");
     if (!networkClient_.connected()) {
       Logger::monitorLogger->error("Not connected to the server");
       return;
     }
+    trading_ = true;
     scheduleTradeTimer();
-    scheduleStatsTimer();
   }
 
   void tradeStop() {
+    Logger::monitorLogger->info("Trade stop");
     tradeTimer_.cancel();
-    statsTimer_.cancel();
+    trading_ = false;
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
@@ -143,9 +147,13 @@ private:
 
   void onPriceUpdate(CRef<TickerPrice> price) {
     spdlog::debug([&price] { return utils::toString(price); }());
+    pricesCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void scheduleTradeTimer() {
+    if (!trading_) {
+      return;
+    }
     tradeTimer_.expires_after(tradeRate_);
     tradeTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
@@ -157,6 +165,9 @@ private:
   }
 
   void scheduleStatsTimer() {
+    if (monitorRate_.count() == 0) {
+      return;
+    }
     statsTimer_.expires_after(monitorRate_);
     statsTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
@@ -164,10 +175,30 @@ private:
       }
       using namespace utils;
       static size_t requestsLast = 0;
+      static size_t pricesCounterLast = 0;
+
       size_t requestsCurrent = requestCounter_.load(std::memory_order_relaxed);
       size_t rps = (requestsCurrent - requestsLast) / monitorRate_.count();
-      Logger::monitorLogger->info("Rtt: {} | Rps: {}", Tracker::getRttStats(), thousandify(rps));
-      requestsLast = requestsCurrent;
+
+      size_t pricesCounterCurrent = pricesCounter_.load(std::memory_order_relaxed);
+      size_t prps = (pricesCounterCurrent - pricesCounterLast) / monitorRate_.count();
+
+      std::string output;
+      if (rps != 0) {
+        output += std::format("Rtt: {} | Trade rps: {}", Tracker::getRttStats(), thousandify(rps));
+      }
+      if (prps != 0) {
+        if (!output.empty()) {
+          output += " | ";
+        }
+        output += std::format("Prices rps: {}", thousandify(prps));
+      }
+      if (!output.empty()) {
+        Logger::monitorLogger->info(output);
+
+        requestsLast = requestsCurrent;
+        pricesCounterLast = pricesCounterCurrent;
+      }
       scheduleStatsTimer();
     });
   }
@@ -200,9 +231,11 @@ private:
   SteadyTimer statsTimer_;
 
   Microseconds tradeRate_;
-  Seconds monitorRate_;
+  const Seconds monitorRate_;
 
   std::atomic_size_t requestCounter_{0};
+  std::atomic_size_t pricesCounter_{0};
+  std::atomic_bool trading_{false};
 };
 } // namespace hft::trader
 

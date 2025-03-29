@@ -64,10 +64,16 @@ public:
         break;
       }
     });
-    bus_.systemBus.subscribe<UdpConnectionStatus>([this](CRef<UdpConnectionStatus> event) {});
+    bus_.systemBus.subscribe<UdpConnectionStatus>([this](CRef<UdpConnectionStatus> event) {
+      if (event.status == ConnectionStatus::Error) {
+        Logger::monitorLogger->error("Udp connection error");
+        udpTransport_.close();
+      }
+    });
 
     // Market messages
     bus_.marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
+      spdlog::debug("sending {} order statuses", events.size());
       TraderIdCmp<OrderStatus> cmp;
       std::ranges::sort(events, cmp);
       auto [subSpan, leftover] = utils::frontSubspan(events, cmp);
@@ -75,6 +81,8 @@ public:
         auto traderId = subSpan.front().traderId;
         if (sessions_.count(traderId) > 0) {
           sessions_[traderId].egress->write(subSpan);
+        } else {
+          spdlog::debug("trader {} is disconnected", traderId);
         }
         std::tie(subSpan, leftover) = utils::frontSubspan(leftover, cmp);
       }
@@ -92,8 +100,9 @@ public:
     for (int i = 0; i < cores; ++i) {
       workerThreads_.emplace_back([this, i]() {
         try {
-          utils::setTheadRealTime();
-          utils::pinThreadToCore(Config::cfg.coresNetwork[i]);
+          auto coreId = Config::cfg.coresNetwork[i];
+          utils::setTheadRealTime(coreId);
+          utils::pinThreadToCore(coreId);
           ioCtx_.run();
         } catch (const std::exception &e) {
           Logger::monitorLogger->error("Exception in network thread {}", e.what());
@@ -131,7 +140,8 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto id = utils::getTraderId(socket);
-      sessions_[id].ingress = std::make_unique<ServerTcpTransport>(std::move(socket), bus_, id);
+      sessions_[id].ingress =
+          std::make_unique<ServerTcpTransport>(std::move(socket), BusWrapper{bus_, id});
       sessions_[id].ingress->read();
       Logger::monitorLogger->info("{} connected ingress", id);
       acceptIngress();
@@ -155,13 +165,17 @@ private:
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
       auto id = utils::getTraderId(socket);
-      sessions_[id].egress = std::make_unique<ServerTcpTransport>(std::move(socket), bus_, id);
+      sessions_[id].egress =
+          std::make_unique<ServerTcpTransport>(std::move(socket), BusWrapper{bus_, id});
       Logger::monitorLogger->info("{} connected egress", id);
       acceptEgress();
     });
   }
 
   bool isConnected(TraderId traderId) {
+    if (sessions_.count(traderId) == 0) {
+      return false;
+    }
     auto &session = sessions_[traderId];
     return session.egress != nullptr && session.ingress != nullptr &&
            session.egress->status() == ConnectionStatus::Connected &&
@@ -170,7 +184,8 @@ private:
 
   ServerUdpTransport createUdpTransport() {
     return ServerUdpTransport{utils::createUdpSocket(ioCtx_),
-                              UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}, bus_};
+                              UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp},
+                              BusWrapper(bus_)};
   }
 
 private:

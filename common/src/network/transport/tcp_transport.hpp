@@ -11,7 +11,6 @@
 #include "market_types.hpp"
 #include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
-#include "network/routed_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
@@ -26,11 +25,11 @@ public:
   using Framer = FramerType;
   using UPtr = std::unique_ptr<TcpTransport>;
 
-  TcpTransport(TcpSocket socket, Bus &bus, TraderId traderId)
-      : socket_{std::move(socket)}, bus_{bus}, traderId_{traderId} {}
+  TcpTransport(TcpSocket socket, BusWrapper bus)
+      : socket_{std::move(socket)}, bus_{std::move(bus)} {}
 
-  TcpTransport(TcpSocket socket, TcpEndpoint endpoint, Bus &bus)
-      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{bus} {}
+  TcpTransport(TcpSocket socket, TcpEndpoint endpoint, BusWrapper bus)
+      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{std::move(bus)} {}
 
   void connect() {
     socket_.async_connect(endpoint_, [this](CRef<BoostError> code) {
@@ -38,10 +37,10 @@ public:
         socket_.set_option(TcpSocket::protocol_type::no_delay(true));
         onConnected();
       } else {
-        Logger::monitorLogger->error("TcpTransport error {} {}", traderId_, code.message());
+        spdlog::error("TcpTransport error {} {}", bus_.traderId(), code.message());
         onError();
       }
-      bus_.systemBus.post(TcpConnectionStatus{traderId_, status_});
+      bus_.post(TcpConnectionStatus{bus_.traderId(), status_});
     });
   }
 
@@ -56,22 +55,18 @@ public:
     });
   }
 
-  template <RoutedType Type>
+  template <typename Type>
+    requires(Bus::MarketBus::RoutedType<Type>)
   void write(Span<Type> messages) {
-    ByteBuffer data = Framer::frame(messages);
+    auto data = std::make_shared<ByteBuffer>(Framer::frame(messages));
     boost::asio::async_write(
-        socket_, boost::asio::buffer(data.data(), data.size()),
-        [this, data = std::move(data)](CRef<BoostError> code, size_t bytes) {
-          if (code) {
-            Logger::monitorLogger->error("Tcp transport error {} {}", traderId_, code.message());
-          }
-          if (bytes != data.size()) {
-            Logger::monitorLogger->error("Failed to write {}bytes, written {}", data.size(), bytes);
-          }
-        });
+        socket_, boost::asio::buffer(data->data(), data->size()),
+        [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
   }
 
   inline auto status() const -> ConnectionStatus { return status_; }
+
+  inline void close() { socket_.close(); }
 
 private:
   void readHandler(CRef<BoostError> code, size_t bytes) {
@@ -88,28 +83,34 @@ private:
     read();
   }
 
+  void writeHandler(CRef<BoostError> code, size_t bytes) {
+    if (code) {
+      spdlog::error("Tcp error {} {}", bus_.traderId(), code.message());
+      onError();
+    }
+  }
+
   void onConnected() {
     status_.store(ConnectionStatus::Connected);
-    bus_.systemBus.post(TcpConnectionStatus{traderId_, ConnectionStatus::Connected});
+    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Connected});
   }
 
   void onDisconnected() {
     status_.store(ConnectionStatus::Disconnected);
-    bus_.systemBus.post(TcpConnectionStatus{traderId_, ConnectionStatus::Disconnected});
+    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Disconnected});
   }
 
   void onError() {
     status_.store(ConnectionStatus::Error);
-    bus_.systemBus.post(TcpConnectionStatus{traderId_, ConnectionStatus::Error});
+    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Error});
   }
 
 private:
   TcpSocket socket_;
   TcpEndpoint endpoint_;
 
-  Bus &bus_;
+  BusWrapper bus_;
   RingBuffer buffer_;
-  TraderId traderId_{0};
 
   Atomic<ConnectionStatus> status_{ConnectionStatus::Disconnected};
 };

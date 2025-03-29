@@ -71,8 +71,9 @@ public:
     for (int i = 0; i < cores; ++i) {
       workerThreads_.emplace_back([this, i]() {
         try {
-          utils::setTheadRealTime();
-          utils::pinThreadToCore(Config::cfg.coresNetwork[i]);
+          auto coreId = Config::cfg.coresNetwork[i];
+          utils::setTheadRealTime(coreId);
+          utils::pinThreadToCore(coreId);
           ioCtx_.run();
         } catch (const std::exception &e) {
           Logger::monitorLogger->error("Exception in network thread {}", e.what());
@@ -90,7 +91,7 @@ public:
 
   void stop() { ioCtx_.stop(); }
 
-  bool connected() const { return connected_.load(); }
+  inline bool connected() const { return connected_.load(); }
 
 private:
   void onTcpStatus(CRef<TcpConnectionStatus> event) {
@@ -101,23 +102,25 @@ private:
         if (!connected_) {
           connected_ = true;
           ingressTransport_.read();
-          bus_.systemBus.post(TraderEvent::ConnectedToTheServer);
+          bus_.systemBus.post(TraderEvent::Connected);
         }
       }
       break;
-    case ConnectionStatus::Disconnected:
+    default:
       if (connected_) {
         connected_ = false;
-        bus_.systemBus.post(TraderEvent::DisconnectedFromTheServer);
+        bus_.systemBus.post(TraderEvent::Disconnected);
       }
-      break;
-    default:
+      scheduleConnectionTimer();
       break;
     }
   }
 
   void onUdpStatus(CRef<UdpConnectionStatus> event) {
-    // TODO(do)
+    if (event.status == ConnectionStatus::Error) {
+      Logger::monitorLogger->error("Udp connection error");
+      pricesTransport_.close();
+    }
   }
 
   void scheduleConnectionTimer() {
@@ -131,12 +134,12 @@ private:
       if (!ingressOn || !egressOn) {
         Logger::monitorLogger->critical("Server is down, reconnecting...");
         if (!ingressOn) {
-          egressTransport_.reconnect();
+          ingressTransport_.reconnect();
         }
-        // Egress socket won't passively notify about disconnect
+        // Egress socket won't passively notify about disconnect, force reconnect
         egressTransport_.reconnect();
+        scheduleConnectionTimer();
       }
-      scheduleConnectionTimer();
     });
   }
 
@@ -146,18 +149,18 @@ private:
   TraderTcpTransport createIngressTransport() {
     return TraderTcpTransport{
         TcpSocket{ioCtx_}, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
-        bus_};
+        BusWrapper{bus_}};
   }
 
   TraderTcpTransport createEgressTransport() {
     return TraderTcpTransport{TcpSocket{ioCtx_},
                               TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
-                              bus_};
+                              BusWrapper{bus_}};
   }
 
   TraderUdpTransport createPricesTransport() {
     return TraderUdpTransport{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
-                              UdpEndpoint(Udp::v4(), Config::cfg.portUdp), bus_};
+                              UdpEndpoint(Udp::v4(), Config::cfg.portUdp), BusWrapper{bus_}};
   }
 
 private:

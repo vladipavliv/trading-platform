@@ -53,7 +53,7 @@ public:
     coordinator_.start();
     consoleReader_.start();
 
-    utils::setTheadRealTime();
+    utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
     bus_.run();
   }

@@ -22,8 +22,8 @@
 
 namespace hft::utils {
 
-void pinThreadToCore(int core_id);
-void setTheadRealTime();
+void pinThreadToCore(size_t coreId);
+void setTheadRealTime(size_t coreId);
 
 void unblockConsole();
 std::string getConsoleInput();

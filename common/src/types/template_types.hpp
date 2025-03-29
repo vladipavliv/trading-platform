@@ -33,6 +33,9 @@ template <typename Type>
 using CRef = const Type &;
 
 template <typename Type>
+using Ref = Type &;
+
+template <typename Type>
 using CPtr = const Type *;
 
 template <typename K, typename V>
