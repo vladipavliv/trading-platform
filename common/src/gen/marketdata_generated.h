@@ -30,6 +30,10 @@ struct TickerPrice;
 struct TickerPriceBuilder;
 struct TickerPriceT;
 
+struct Message;
+struct MessageBuilder;
+struct MessageT;
+
 enum OrderAction : int8_t {
   OrderAction_BUY = 0,
   OrderAction_SELL = 1,
@@ -64,38 +68,161 @@ enum OrderState : int32_t {
   OrderState_Accepted = 0,
   OrderState_Partial = 1,
   OrderState_Full = 2,
-  OrderState_Instant = 4,
   OrderState_MIN = OrderState_Accepted,
-  OrderState_MAX = OrderState_Instant
+  OrderState_MAX = OrderState_Full
 };
 
-inline const OrderState (&EnumValuesOrderState())[4] {
+inline const OrderState (&EnumValuesOrderState())[3] {
   static const OrderState values[] = {
     OrderState_Accepted,
     OrderState_Partial,
-    OrderState_Full,
-    OrderState_Instant
+    OrderState_Full
   };
   return values;
 }
 
 inline const char * const *EnumNamesOrderState() {
-  static const char * const names[6] = {
+  static const char * const names[4] = {
     "Accepted",
     "Partial",
     "Full",
-    "",
-    "Instant",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameOrderState(OrderState e) {
-  if (flatbuffers::IsOutRange(e, OrderState_Accepted, OrderState_Instant)) return "";
+  if (flatbuffers::IsOutRange(e, OrderState_Accepted, OrderState_Full)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesOrderState()[index];
 }
+
+enum MessageUnion : uint8_t {
+  MessageUnion_NONE = 0,
+  MessageUnion_Order = 1,
+  MessageUnion_OrderStatus = 2,
+  MessageUnion_TickerPrice = 3,
+  MessageUnion_MIN = MessageUnion_NONE,
+  MessageUnion_MAX = MessageUnion_TickerPrice
+};
+
+inline const MessageUnion (&EnumValuesMessageUnion())[4] {
+  static const MessageUnion values[] = {
+    MessageUnion_NONE,
+    MessageUnion_Order,
+    MessageUnion_OrderStatus,
+    MessageUnion_TickerPrice
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesMessageUnion() {
+  static const char * const names[5] = {
+    "NONE",
+    "Order",
+    "OrderStatus",
+    "TickerPrice",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameMessageUnion(MessageUnion e) {
+  if (flatbuffers::IsOutRange(e, MessageUnion_NONE, MessageUnion_TickerPrice)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesMessageUnion()[index];
+}
+
+template<typename T> struct MessageUnionTraits {
+  static const MessageUnion enum_value = MessageUnion_NONE;
+};
+
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::Order> {
+  static const MessageUnion enum_value = MessageUnion_Order;
+};
+
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::OrderStatus> {
+  static const MessageUnion enum_value = MessageUnion_OrderStatus;
+};
+
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::TickerPrice> {
+  static const MessageUnion enum_value = MessageUnion_TickerPrice;
+};
+
+template<typename T> struct MessageUnionUnionTraits {
+  static const MessageUnion enum_value = MessageUnion_NONE;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::OrderT> {
+  static const MessageUnion enum_value = MessageUnion_Order;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::OrderStatusT> {
+  static const MessageUnion enum_value = MessageUnion_OrderStatus;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::TickerPriceT> {
+  static const MessageUnion enum_value = MessageUnion_TickerPrice;
+};
+
+struct MessageUnionUnion {
+  MessageUnion type;
+  void *value;
+
+  MessageUnionUnion() : type(MessageUnion_NONE), value(nullptr) {}
+  MessageUnionUnion(MessageUnionUnion&& u) FLATBUFFERS_NOEXCEPT :
+    type(MessageUnion_NONE), value(nullptr)
+    { std::swap(type, u.type); std::swap(value, u.value); }
+  MessageUnionUnion(const MessageUnionUnion &);
+  MessageUnionUnion &operator=(const MessageUnionUnion &u)
+    { MessageUnionUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
+  MessageUnionUnion &operator=(MessageUnionUnion &&u) FLATBUFFERS_NOEXCEPT
+    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
+  ~MessageUnionUnion() { Reset(); }
+
+  void Reset();
+
+  template <typename T>
+  void Set(T&& val) {
+    typedef typename std::remove_reference<T>::type RT;
+    Reset();
+    type = MessageUnionUnionTraits<RT>::enum_value;
+    if (type != MessageUnion_NONE) {
+      value = new RT(std::forward<T>(val));
+    }
+  }
+
+  static void *UnPack(const void *obj, MessageUnion type, const flatbuffers::resolver_function_t *resolver);
+  flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
+
+  hft::serialization::gen::fbs::OrderT *AsOrder() {
+    return type == MessageUnion_Order ?
+      reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::OrderT *AsOrder() const {
+    return type == MessageUnion_Order ?
+      reinterpret_cast<const hft::serialization::gen::fbs::OrderT *>(value) : nullptr;
+  }
+  hft::serialization::gen::fbs::OrderStatusT *AsOrderStatus() {
+    return type == MessageUnion_OrderStatus ?
+      reinterpret_cast<hft::serialization::gen::fbs::OrderStatusT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::OrderStatusT *AsOrderStatus() const {
+    return type == MessageUnion_OrderStatus ?
+      reinterpret_cast<const hft::serialization::gen::fbs::OrderStatusT *>(value) : nullptr;
+  }
+  hft::serialization::gen::fbs::TickerPriceT *AsTickerPrice() {
+    return type == MessageUnion_TickerPrice ?
+      reinterpret_cast<hft::serialization::gen::fbs::TickerPriceT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::TickerPriceT *AsTickerPrice() const {
+    return type == MessageUnion_TickerPrice ?
+      reinterpret_cast<const hft::serialization::gen::fbs::TickerPriceT *>(value) : nullptr;
+  }
+};
+
+bool VerifyMessageUnion(flatbuffers::Verifier &verifier, const void *obj, MessageUnion type);
+bool VerifyMessageUnionVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
 
 struct OrderT : public flatbuffers::NativeTable {
   typedef Order TableType;
@@ -413,6 +540,91 @@ inline flatbuffers::Offset<TickerPrice> CreateTickerPriceDirect(
 
 flatbuffers::Offset<TickerPrice> CreateTickerPrice(flatbuffers::FlatBufferBuilder &_fbb, const TickerPriceT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct MessageT : public flatbuffers::NativeTable {
+  typedef Message TableType;
+  hft::serialization::gen::fbs::MessageUnionUnion message{};
+};
+
+struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef MessageT NativeTableType;
+  typedef MessageBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_MESSAGE_TYPE = 4,
+    VT_MESSAGE = 6
+  };
+  hft::serialization::gen::fbs::MessageUnion message_type() const {
+    return static_cast<hft::serialization::gen::fbs::MessageUnion>(GetField<uint8_t>(VT_MESSAGE_TYPE, 0));
+  }
+  const void *message() const {
+    return GetPointer<const void *>(VT_MESSAGE);
+  }
+  template<typename T> const T *message_as() const;
+  const hft::serialization::gen::fbs::Order *message_as_Order() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_Order ? static_cast<const hft::serialization::gen::fbs::Order *>(message()) : nullptr;
+  }
+  const hft::serialization::gen::fbs::OrderStatus *message_as_OrderStatus() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_OrderStatus ? static_cast<const hft::serialization::gen::fbs::OrderStatus *>(message()) : nullptr;
+  }
+  const hft::serialization::gen::fbs::TickerPrice *message_as_TickerPrice() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_TickerPrice ? static_cast<const hft::serialization::gen::fbs::TickerPrice *>(message()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_MESSAGE_TYPE, 1) &&
+           VerifyOffset(verifier, VT_MESSAGE) &&
+           VerifyMessageUnion(verifier, message(), message_type()) &&
+           verifier.EndTable();
+  }
+  MessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(MessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Message> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const hft::serialization::gen::fbs::Order *Message::message_as<hft::serialization::gen::fbs::Order>() const {
+  return message_as_Order();
+}
+
+template<> inline const hft::serialization::gen::fbs::OrderStatus *Message::message_as<hft::serialization::gen::fbs::OrderStatus>() const {
+  return message_as_OrderStatus();
+}
+
+template<> inline const hft::serialization::gen::fbs::TickerPrice *Message::message_as<hft::serialization::gen::fbs::TickerPrice>() const {
+  return message_as_TickerPrice();
+}
+
+struct MessageBuilder {
+  typedef Message Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_message_type(hft::serialization::gen::fbs::MessageUnion message_type) {
+    fbb_.AddElement<uint8_t>(Message::VT_MESSAGE_TYPE, static_cast<uint8_t>(message_type), 0);
+  }
+  void add_message(flatbuffers::Offset<void> message) {
+    fbb_.AddOffset(Message::VT_MESSAGE, message);
+  }
+  explicit MessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<Message> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<Message>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<Message> CreateMessage(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    hft::serialization::gen::fbs::MessageUnion message_type = hft::serialization::gen::fbs::MessageUnion_NONE,
+    flatbuffers::Offset<void> message = 0) {
+  MessageBuilder builder_(_fbb);
+  builder_.add_message(message);
+  builder_.add_message_type(message_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 inline OrderT *Order::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<OrderT>(new OrderT());
   UnPackTo(_o.get(), _resolver);
@@ -519,6 +731,190 @@ inline flatbuffers::Offset<TickerPrice> CreateTickerPrice(flatbuffers::FlatBuffe
       _fbb,
       _ticker,
       _price);
+}
+
+inline MessageT *Message::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<MessageT>(new MessageT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void Message::UnPackTo(MessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = message_type(); _o->message.type = _e; }
+  { auto _e = message(); if (_e) _o->message.value = hft::serialization::gen::fbs::MessageUnionUnion::UnPack(_e, message_type(), _resolver); }
+}
+
+inline flatbuffers::Offset<Message> Message::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateMessage(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const MessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _message_type = _o->message.type;
+  auto _message = _o->message.Pack(_fbb);
+  return hft::serialization::gen::fbs::CreateMessage(
+      _fbb,
+      _message_type,
+      _message);
+}
+
+inline bool VerifyMessageUnion(flatbuffers::Verifier &verifier, const void *obj, MessageUnion type) {
+  switch (type) {
+    case MessageUnion_NONE: {
+      return true;
+    }
+    case MessageUnion_Order: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::Order *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case MessageUnion_OrderStatus: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::OrderStatus *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case MessageUnion_TickerPrice: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TickerPrice *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return true;
+  }
+}
+
+inline bool VerifyMessageUnionVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyMessageUnion(
+        verifier,  values->Get(i), types->GetEnum<MessageUnion>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline void *MessageUnionUnion::UnPack(const void *obj, MessageUnion type, const flatbuffers::resolver_function_t *resolver) {
+  (void)resolver;
+  switch (type) {
+    case MessageUnion_Order: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::Order *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case MessageUnion_OrderStatus: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::OrderStatus *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case MessageUnion_TickerPrice: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TickerPrice *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    default: return nullptr;
+  }
+}
+
+inline flatbuffers::Offset<void> MessageUnionUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
+  (void)_rehasher;
+  switch (type) {
+    case MessageUnion_Order: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::OrderT *>(value);
+      return CreateOrder(_fbb, ptr, _rehasher).Union();
+    }
+    case MessageUnion_OrderStatus: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::OrderStatusT *>(value);
+      return CreateOrderStatus(_fbb, ptr, _rehasher).Union();
+    }
+    case MessageUnion_TickerPrice: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TickerPriceT *>(value);
+      return CreateTickerPrice(_fbb, ptr, _rehasher).Union();
+    }
+    default: return 0;
+  }
+}
+
+inline MessageUnionUnion::MessageUnionUnion(const MessageUnionUnion &u) : type(u.type), value(nullptr) {
+  switch (type) {
+    case MessageUnion_Order: {
+      value = new hft::serialization::gen::fbs::OrderT(*reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(u.value));
+      break;
+    }
+    case MessageUnion_OrderStatus: {
+      value = new hft::serialization::gen::fbs::OrderStatusT(*reinterpret_cast<hft::serialization::gen::fbs::OrderStatusT *>(u.value));
+      break;
+    }
+    case MessageUnion_TickerPrice: {
+      value = new hft::serialization::gen::fbs::TickerPriceT(*reinterpret_cast<hft::serialization::gen::fbs::TickerPriceT *>(u.value));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+inline void MessageUnionUnion::Reset() {
+  switch (type) {
+    case MessageUnion_Order: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(value);
+      delete ptr;
+      break;
+    }
+    case MessageUnion_OrderStatus: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::OrderStatusT *>(value);
+      delete ptr;
+      break;
+    }
+    case MessageUnion_TickerPrice: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::TickerPriceT *>(value);
+      delete ptr;
+      break;
+    }
+    default: break;
+  }
+  value = nullptr;
+  type = MessageUnion_NONE;
+}
+
+inline const hft::serialization::gen::fbs::Message *GetMessage(const void *buf) {
+  return flatbuffers::GetRoot<hft::serialization::gen::fbs::Message>(buf);
+}
+
+inline const hft::serialization::gen::fbs::Message *GetSizePrefixedMessage(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<hft::serialization::gen::fbs::Message>(buf);
+}
+
+inline bool VerifyMessageBuffer(
+    flatbuffers::Verifier &verifier) {
+  return verifier.VerifyBuffer<hft::serialization::gen::fbs::Message>(nullptr);
+}
+
+inline bool VerifySizePrefixedMessageBuffer(
+    flatbuffers::Verifier &verifier) {
+  return verifier.VerifySizePrefixedBuffer<hft::serialization::gen::fbs::Message>(nullptr);
+}
+
+inline void FinishMessageBuffer(
+    flatbuffers::FlatBufferBuilder &fbb,
+    flatbuffers::Offset<hft::serialization::gen::fbs::Message> root) {
+  fbb.Finish(root);
+}
+
+inline void FinishSizePrefixedMessageBuffer(
+    flatbuffers::FlatBufferBuilder &fbb,
+    flatbuffers::Offset<hft::serialization::gen::fbs::Message> root) {
+  fbb.FinishSizePrefixed(root);
+}
+
+inline std::unique_ptr<hft::serialization::gen::fbs::MessageT> UnPackMessage(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<hft::serialization::gen::fbs::MessageT>(GetMessage(buf)->UnPack(res));
+}
+
+inline std::unique_ptr<hft::serialization::gen::fbs::MessageT> UnPackSizePrefixedMessage(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<hft::serialization::gen::fbs::MessageT>(GetSizePrefixedMessage(buf)->UnPack(res));
 }
 
 }  // namespace fbs

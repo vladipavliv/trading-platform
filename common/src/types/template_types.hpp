@@ -10,6 +10,7 @@
 #include <array>
 #include <boost/lockfree/queue.hpp>
 #include <concepts>
+#include <expected>
 #include <functional>
 #include <map>
 #include <memory>
@@ -31,11 +32,17 @@ using Span = std::span<Type>;
 template <typename Type>
 using CRef = const Type &;
 
+template <typename Type>
+using CPtr = const Type *;
+
 template <typename K, typename V>
 using HashMap = std::unordered_map<K, V>;
 
 template <typename Type>
 using Atomic = std::atomic<Type>;
+
+template <typename Type>
+using Expected = std::expected<Type, std::string>;
 
 /**
  * Function types

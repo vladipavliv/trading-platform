@@ -5,12 +5,10 @@ enum OrderAction: byte {
     SELL = 1
 }
 
-// Bitmask
 enum OrderState: int {
     Accepted = 0,
     Partial = 1,
-    Full = 2,
-    Instant = 4
+    Full = 2
 }
 
 table Order {
@@ -34,3 +32,15 @@ table TickerPrice {
     ticker: string;
     price: uint;
 }
+
+union MessageUnion {
+    Order,
+    OrderStatus,
+    TickerPrice
+}
+
+table Message {
+    message: MessageUnion;
+}
+
+root_type Message;

@@ -29,13 +29,8 @@ struct TickerHash {
   }
 };
 
-enum class OrderAction : uint8_t { Buy = 0U, Sell = 1U };
-enum class OrderState : uint8_t {
-  Accepted = 0U,
-  Partial = 1U << 0,
-  Full = 1U << 1,
-  Instant = 1U << 2
-};
+enum class OrderAction : uint8_t { Buy, Sell };
+enum class OrderState : uint8_t { Accepted, Partial, Full };
 
 struct Order {
   TraderId traderId; // Server side

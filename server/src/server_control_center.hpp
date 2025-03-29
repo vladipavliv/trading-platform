@@ -9,7 +9,7 @@
 #include "bus/bus.hpp"
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
-#include "console_manager.hpp"
+#include "console_reader.hpp"
 #include "coordinator.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"

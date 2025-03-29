@@ -12,7 +12,7 @@
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
-#include "console_manager.hpp"
+#include "console_reader.hpp"
 #include "db/postgres_adapter.hpp"
 #include "network_client.hpp"
 #include "rtt_tracker.hpp"

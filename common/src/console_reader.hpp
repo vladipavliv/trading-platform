@@ -24,7 +24,10 @@ class ConsoleReader {
 public:
   using Command = CommandType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} { commands_.reserve(20); }
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} {
+    utils::unblockConsole();
+    commands_.reserve(20);
+  }
 
   void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
 

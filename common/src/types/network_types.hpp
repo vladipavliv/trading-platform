@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_NETWORK_TYPES_HPP
 #define HFT_COMMON_NETWORK_TYPES_HPP
 
-#include <boost/asio.hpp>
+#include "boost_types.hpp"
 
 namespace hft {
 
@@ -26,6 +26,8 @@ enum class SocketType : uint8_t { Ingress = 0U, Egress = 1U, Broadcast = 2U };
 
 using SocketCallback = std::function<void(const BoostError &, size_t)>;
 using SocketStatusCallback = std::function<void(const BoostError &)>;
+
+using MessageSize = uint16_t;
 
 } // namespace hft
 

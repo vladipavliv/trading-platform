@@ -19,7 +19,7 @@ using UPtrIoContext = std::unique_ptr<boost::asio::io_context>;
 using ContextGuard = boost::asio::executor_work_guard<IoContext::executor_type>;
 using UPtrContextGuard = std::unique_ptr<ContextGuard>;
 
-using BoostError = boost::system::error_code;
+using BoostError = boost::system::error_code; // TODO
 
 using SteadyTimer = boost::asio::steady_timer;
 using Seconds = boost::asio::chrono::seconds;
@@ -33,6 +33,7 @@ using MutableBuffer = boost::asio::mutable_buffer;
 using MakeGuard = decltype(boost::asio::make_work_guard(std::declval<boost::asio::io_context &>()));
 
 using LittleEndianByte = boost::endian::little_uint8_at;
+using LittleEndianUInt16 = boost::endian::little_uint16_at;
 
 } // namespace hft
 
