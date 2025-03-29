@@ -37,11 +37,11 @@ namespace hft::trader {
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
-  using TraderConsoleManager = ConsoleManager<TraderCommand>;
+  using TraderConsoleReader = ConsoleReader<TraderCommand>;
   using Tracker = RttTracker<50>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
+      : networkClient_{bus_}, consoleReader_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
         statsTimer_{bus_.ioCtx()}, tradeRate_{Config::cfg.tradeRate},
         monitorRate_{Config::cfg.monitorRate} {
     // TODO() improve trader, add workers to run trading loop, save prices, run some real strategy
@@ -80,18 +80,18 @@ public:
       Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
     });
 
-    consoleManager_.addCommand("t+", TraderCommand::TradeStart);
-    consoleManager_.addCommand("t-", TraderCommand::TradeStop);
-    consoleManager_.addCommand("ts+", TraderCommand::TradeSpeedUp);
-    consoleManager_.addCommand("ts-", TraderCommand::TradeSpeedDown);
-    consoleManager_.addCommand("q", TraderCommand::Shutdown);
+    consoleReader_.addCommand("t+", TraderCommand::TradeStart);
+    consoleReader_.addCommand("t-", TraderCommand::TradeStop);
+    consoleReader_.addCommand("ts+", TraderCommand::TradeSpeedUp);
+    consoleReader_.addCommand("ts-", TraderCommand::TradeSpeedDown);
+    consoleReader_.addCommand("q", TraderCommand::Shutdown);
   }
 
   void start() {
     greetings();
     loadMarketData();
     networkClient_.start();
-    consoleManager_.start();
+    consoleReader_.start();
 
     utils::setTheadRealTime();
     utils::pinThreadToCore(Config::cfg.coreSystem);
@@ -100,7 +100,7 @@ public:
 
   void stop() {
     networkClient_.stop();
-    consoleManager_.stop();
+    consoleReader_.stop();
     bus_.stop();
     Logger::monitorLogger->info("stonk");
   }
@@ -110,7 +110,7 @@ private:
     Logger::monitorLogger->info("Trader go stonks {}", std::string(38, '~'));
     Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
-    consoleManager_.printCommands();
+    consoleReader_.printCommands();
     Logger::monitorLogger->info(std::string(55, '~'));
   }
 
@@ -147,7 +147,7 @@ private:
 
   void scheduleTradeTimer() {
     tradeTimer_.expires_after(tradeRate_);
-    tradeTimer_.async_wait([this](BoostErrorRef ec) {
+    tradeTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
@@ -158,7 +158,7 @@ private:
 
   void scheduleStatsTimer() {
     statsTimer_.expires_after(monitorRate_);
-    statsTimer_.async_wait([this](BoostErrorRef ec) {
+    statsTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
@@ -186,14 +186,14 @@ private:
     order.quantity = utils::RNG::rng(100);
     spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
 
-    bus_.marketBus.publish(Span<Order>{&order, 1});
+    bus_.marketBus.post(Span<Order>{&order, 1});
     requestCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
 private:
   Bus bus_;
   NetworkClient networkClient_;
-  TraderConsoleManager consoleManager_;
+  TraderConsoleReader consoleReader_;
   std::vector<TickerPrice> prices_;
 
   SteadyTimer tradeTimer_;

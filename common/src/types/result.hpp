@@ -13,6 +13,9 @@
 
 namespace hft {
 
+/**
+ * @todo Remove this, use expected
+ */
 template <typename ValueType>
 struct Result {
   Result() : code{StatusCode::Empty} {}

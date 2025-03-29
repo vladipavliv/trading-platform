@@ -40,7 +40,7 @@ public:
   void start() {
     startWorkers();
     scheduleStatsTimer();
-    bus_.systemBus.publish(ServerEvent::Ready);
+    bus_.systemBus.post(ServerEvent::Ready);
   }
 
   void stop() {
@@ -73,14 +73,14 @@ private:
       data->orderBook.add(order);
       auto matches = data->orderBook.match();
       if (!matches.empty()) {
-        bus_.marketBus.publish(Span<OrderStatus>(matches));
+        bus_.marketBus.post(Span<OrderStatus>(matches));
       }
     });
   }
 
   void scheduleStatsTimer() {
     timer_.expires_after(statsRate_);
-    timer_.async_wait([this](BoostErrorRef ec) {
+    timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         Logger::monitorLogger->error("Error {}", ec.message());
         return;

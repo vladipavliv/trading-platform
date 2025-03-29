@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <boost/lockfree/queue.hpp>
+#include <concepts>
 #include <functional>
 #include <map>
 #include <memory>
@@ -21,6 +22,9 @@
 
 namespace hft {
 
+/**
+ * General template types
+ */
 template <typename Type>
 using Span = std::span<Type>;
 
@@ -30,6 +34,12 @@ using CRef = const Type &;
 template <typename K, typename V>
 using HashMap = std::unordered_map<K, V>;
 
+template <typename Type>
+using Atomic = std::atomic<Type>;
+
+/**
+ * Function types
+ */
 using Callback = std::function<void()>;
 using Predicate = std::function<bool()>;
 template <typename ArgType>
@@ -39,6 +49,24 @@ using CRefHandler = std::function<void(const ArgType &)>;
 template <typename ArgType>
 using SpanHandler = std::function<void(Span<ArgType>)>;
 
+/**
+ * Concepts
+ */
+template <typename EventType>
+concept UnorderedMapKey = requires(EventType event) {
+  { std::hash<EventType>{}(event) } -> std::convertible_to<std::size_t>;
+} && std::equality_comparable<EventType>;
+
+template <typename Type, typename Tuple>
+concept IsTypeInTuple = requires {
+  []<typename... Types>(std::tuple<Types...>) {
+    return (std::is_same_v<Type, Types> || ...);
+  }(std::declval<Tuple>());
+};
+
+/**
+ * Lock free queue types
+ */
 template <typename EventType>
 using LFQueue = boost::lockfree::queue<EventType>;
 template <typename EventType>
@@ -46,6 +74,9 @@ using UPtrLFQueue = std::unique_ptr<LFQueue<EventType>>;
 template <typename EventType>
 using SPtrLFQueue = std::shared_ptr<LFQueue<EventType>>;
 
+/**
+ * Padding type
+ */
 template <typename... ValueTypes>
 struct Padding {
   static constexpr size_t DataSize = (sizeof(ValueTypes) + ... + 0);

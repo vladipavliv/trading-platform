@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_CONSOLEMANAGER_HPP
-#define HFT_COMMON_CONSOLEMANAGER_HPP
+#ifndef HFT_COMMON_CONSOLEREADER_HPP
+#define HFT_COMMON_CONSOLEREADER_HPP
 
 #include <map>
 
@@ -20,11 +20,11 @@ namespace hft {
  * and posts commands to the system bus
  */
 template <typename CommandType>
-class ConsoleManager {
+class ConsoleReader {
 public:
   using Command = CommandType;
 
-  ConsoleManager(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} { commands_.reserve(20); }
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} { commands_.reserve(20); }
 
   void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
 
@@ -42,7 +42,7 @@ public:
 private:
   void scheduleInputCheck() {
     timer_.expires_after(Milliseconds(200));
-    timer_.async_wait([this](BoostErrorRef ec) {
+    timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
@@ -57,7 +57,7 @@ private:
     if (iterator == commands_.end()) {
       return;
     }
-    bus_.publish(iterator->second);
+    bus_.post(iterator->second);
   }
 
 private:
@@ -68,4 +68,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_CONSOLEMANAGER_HPP
+#endif // HFT_COMMON_CONSOLEREADER_HPP

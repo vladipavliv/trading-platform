@@ -32,7 +32,7 @@ public:
 
   void start() {
     timer_.expires_after(rate_);
-    timer_.async_wait([this](BoostErrorRef ec) {
+    timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
@@ -58,7 +58,7 @@ private:
       priceUpdates.emplace_back(TickerPrice{tickerData.first, newPrice});
     }
     spdlog::trace([&priceUpdates] { return utils::toString(priceUpdates); }());
-    bus_.marketBus.publish(Span<TickerPrice>(priceUpdates));
+    bus_.marketBus.post(Span<TickerPrice>(priceUpdates));
   }
 
 private:

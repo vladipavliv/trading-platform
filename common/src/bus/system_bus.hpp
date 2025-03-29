@@ -38,31 +38,30 @@ public:
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {
     /**
-     * Currently all system subscribers are static long living objects, but offloading all
-     * operations to a system io ctx ensures synchronization since it runs single threaded
+     * Offloading everything on a system ctx to ensure synchronization
+     * and prevent any microdelays from happening in a hot market path
      */
     systemIoCtx.post([handler = std::move(handler)]() {
       getEventSubscribers<EventType>().emplace_back(std::move(handler));
     });
   }
 
-  template <typename EventType>
+  template <UnorderedMapKey EventType>
   void subscribe(EventType event, Callback callback) {
-    static_assert(utils::UnorderedMapKey<EventType> && "Type not suitable for value subscriptions");
     systemIoCtx.post([event, callback = std::move(callback)]() {
       getValueSubscribers<EventType>()[event].emplace_back(std::move(callback));
     });
   }
 
   template <typename EventType>
-  void publish(CRef<EventType> event) {
+  void post(CRef<EventType> event) {
     systemIoCtx.post([event]() {
       // First notify generic subscribers for EventType
       for (auto &handler : getEventSubscribers<EventType>()) {
         handler(event);
       }
       // Now try to notify value subscribers if possible
-      if constexpr (utils::UnorderedMapKey<EventType>) {
+      if constexpr (UnorderedMapKey<EventType>) {
         auto &valueSubscribers = getValueSubscribers<EventType>();
         if (valueSubscribers.count(event) > 0) {
           for (auto &callback : valueSubscribers[event]) {

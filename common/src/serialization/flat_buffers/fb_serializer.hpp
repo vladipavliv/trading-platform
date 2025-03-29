@@ -18,8 +18,7 @@ namespace hft::serialization {
 
 /**
  * @brief Serializer via flat buffers
- * @todo Use SBE instead as its better and faster and more lighweight, can use its generated types
- * locally instead of doing conversions
+ * @todo Try SBE or Cap'N'Proto
  */
 class FlatBuffersSerializer {
 public:

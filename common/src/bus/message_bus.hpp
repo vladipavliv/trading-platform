@@ -41,7 +41,7 @@ public:
   }
 
   template <typename EventType>
-  void publish(Span<EventType> event) {
+  void post(Span<EventType> event) {
     auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
     assert(handlerRef != nullptr && "Handler not registered for event type");
     handlerRef(event);

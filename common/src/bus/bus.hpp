@@ -13,6 +13,9 @@
 namespace hft {
 using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
+/**
+ * @todo Try combine system and market buses and specify special market types via variadics
+ */
 struct Bus {
   SystemBus systemBus;
   MarketBus marketBus;

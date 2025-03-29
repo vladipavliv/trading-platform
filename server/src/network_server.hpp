@@ -123,7 +123,7 @@ private:
   }
 
   void acceptIngress() {
-    ingressAcceptor_.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
+    ingressAcceptor_.async_accept([this](CRef<BoostError> ec, TcpSocket socket) {
       if (ec) {
         spdlog::error("Failed to accept connection {}", ec.message());
         return;
@@ -150,7 +150,7 @@ private:
   }
 
   void acceptEgress() {
-    egressAcceptor_.async_accept([this](BoostErrorRef ec, TcpSocket socket) {
+    egressAcceptor_.async_accept([this](CRef<BoostError> ec, TcpSocket socket) {
       if (ec) {
         spdlog::error("Failed to accept connection: {}", ec.message());
         return;

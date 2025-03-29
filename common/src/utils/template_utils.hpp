@@ -22,25 +22,6 @@
 namespace hft::utils {
 
 /**
- * @brief Generic helpers
- */
-template <typename EventType, typename First, typename... Rest>
-constexpr size_t indexOf() {
-  if constexpr (std::is_same_v<EventType, First>) {
-    return 0;
-  } else if constexpr (sizeof...(Rest) > 0) {
-    return 1 + indexOf<EventType, Rest...>();
-  } else {
-    static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
-    return -1;
-  }
-}
-template <typename EventType, typename... Types>
-constexpr size_t getTypeIndex() {
-  return indexOf<EventType, Types...>();
-}
-
-/**
  * @brief Returns subspan of the same elements for the given comparator
  */
 template <typename Type, typename Cmp>
@@ -79,6 +60,22 @@ bool isTupleEmpty(const std::tuple<UPtrLFQueue<Type>...> &tupl) {
 /**
  * @brief Generic template helpers
  */
+template <typename EventType, typename First, typename... Rest>
+constexpr size_t indexOf() {
+  if constexpr (std::is_same_v<EventType, First>) {
+    return 0;
+  } else if constexpr (sizeof...(Rest) > 0) {
+    return 1 + indexOf<EventType, Rest...>();
+  } else {
+    static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
+    return -1;
+  }
+}
+template <typename EventType, typename... Types>
+constexpr size_t getTypeIndex() {
+  return indexOf<EventType, Types...>();
+}
+
 template <typename Type>
 struct is_smart_ptr : std::false_type {};
 
@@ -108,14 +105,6 @@ bool hasIntersection(const std::vector<ValueType> &left, const std::vector<Value
     return std::find(right.begin(), right.end(), value) != right.end();
   });
 }
-
-/**
- * @brief Concept to check if subscribing for specific value of EventType is possible
- */
-template <typename EventType>
-concept UnorderedMapKey = requires(EventType event) {
-  { std::hash<EventType>{}(event) } -> std::convertible_to<std::size_t>;
-} && std::equality_comparable<EventType>;
 
 template <typename Number>
 std::string thousandify(Number input) {
