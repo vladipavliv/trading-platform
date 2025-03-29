@@ -9,7 +9,7 @@
 #include "bus/bus.hpp"
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
-#include "console_manager.hpp"
+#include "console_reader.hpp"
 #include "coordinator.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
@@ -28,10 +28,10 @@ namespace hft::server {
 class ServerControlCenter {
 public:
   using UPtr = std::unique_ptr<ServerControlCenter>;
-  using ServerConsoleManager = ConsoleManager<ServerCommand>;
+  using ServerConsoleReader = ConsoleReader<ServerCommand>;
 
   ServerControlCenter()
-      : networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleManager_{bus_.systemBus},
+      : networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
         priceFeed_{bus_, marketData_} {
 
     // System bus subscriptions
@@ -42,18 +42,18 @@ public:
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
 
     // Console commands
-    consoleManager_.addCommand("q", ServerCommand::Shutdown);
-    consoleManager_.addCommand("p+", ServerCommand::PriceFeedStart);
-    consoleManager_.addCommand("p-", ServerCommand::PriceFeedStop);
+    consoleReader_.addCommand("q", ServerCommand::Shutdown);
+    consoleReader_.addCommand("p+", ServerCommand::PriceFeedStart);
+    consoleReader_.addCommand("p-", ServerCommand::PriceFeedStop);
   }
 
   void start() {
     greetings();
     readMarketData();
     coordinator_.start();
-    consoleManager_.start();
+    consoleReader_.start();
 
-    utils::setTheadRealTime();
+    utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
     bus_.run();
   }
@@ -61,7 +61,7 @@ public:
   void stop() {
     networkServer_.stop();
     coordinator_.stop();
-    consoleManager_.stop();
+    consoleReader_.stop();
     bus_.stop();
     Logger::monitorLogger->info("stonk");
   }
@@ -71,7 +71,7 @@ private:
     Logger::monitorLogger->info("Server go stonks {}", std::string(38, '~'));
     Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
-    consoleManager_.printCommands();
+    consoleReader_.printCommands();
     Logger::monitorLogger->info(std::string(55, '~'));
   }
 
@@ -93,7 +93,7 @@ private:
 
   NetworkServer networkServer_;
   Coordinator coordinator_;
-  ServerConsoleManager consoleManager_;
+  ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
 };
 

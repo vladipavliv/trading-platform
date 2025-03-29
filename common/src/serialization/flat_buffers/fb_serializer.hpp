@@ -6,98 +6,125 @@
 #ifndef HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 #define HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 
+#include <expected>
+
 #include <spdlog/spdlog.h>
 
+#include "bus/bus.hpp"
+#include "constants.hpp"
 #include "converter.hpp"
 #include "gen/marketdata_generated.h"
 #include "types/market_types.hpp"
-#include "types/result.hpp"
 #include "types/types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::serialization {
 
 /**
- * @brief Serializer via flat buffers
- * @todo Use SBE instead as its better and faster and more lighweight, can use its generated types
- * locally instead of doing conversions
+ * @brief Flat buffers serializer
+ * @details For simplicity posts deserialized messages directly to a bus
+ * saves the trouble of type extraction, and performs slightly better
+ * @todo improve later
  */
 class FlatBuffersSerializer {
 public:
-  using DetachedBuffer = flatbuffers::DetachedBuffer;
+  using Message = gen::fbs::Message;
+  using MessageType = gen::fbs::MessageUnion;
 
-  template <typename MessageType>
-  static std::enable_if_t<std::is_same<MessageType, Order>::value, Result<Order>>
-  deserialize(const uint8_t *buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer, size);
-    if (!verifier.VerifyBuffer<gen::fbs::Order>()) {
-      spdlog::error("Order verification failed");
-      return StatusCode::Error;
+  using BufferType = flatbuffers::DetachedBuffer;
+
+  static bool deserialize(const uint8_t *data, size_t size, BusWrapper &bus) {
+    if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
+      spdlog::error("Failed to verify Buffer");
+      return false;
     }
-    auto msg = flatbuffers::GetRoot<gen::fbs::Order>(buffer);
-    return Order{0,
-                 msg->id(),
-                 fbStringToTicker(msg->ticker()),
-                 msg->quantity(),
-                 msg->price(),
-                 convert(msg->action())};
+    auto message = flatbuffers::GetRoot<Message>(data);
+    if (message == nullptr) {
+      spdlog::error("Failed to extract Message");
+      return false;
+    }
+    const auto type = message->message_type();
+    switch (type) {
+    case MessageType::MessageUnion_Order: {
+      auto orderMsg = message->message_as_Order();
+      if (orderMsg == nullptr) {
+        spdlog::error("Failed to extract Order");
+        return false;
+      }
+      Order order{0,
+                  orderMsg->id(),
+                  fbStringToTicker(orderMsg->ticker()),
+                  orderMsg->quantity(),
+                  orderMsg->price(),
+                  convert(orderMsg->action())};
+      spdlog::trace("Deserialized {}", [&order]() { return utils::toString(order); }());
+      bus.post(order);
+      return true;
+    }
+    case MessageType::MessageUnion_OrderStatus: {
+      auto statusMsg = message->message_as_OrderStatus();
+      if (statusMsg == nullptr) {
+        spdlog::error("Failed to extract OrderStatus");
+        return false;
+      }
+      OrderStatus status{0,
+                         statusMsg->id(),
+                         fbStringToTicker(statusMsg->ticker()),
+                         statusMsg->quantity(),
+                         statusMsg->fill_price(),
+                         convert(statusMsg->state()),
+                         convert(statusMsg->action())};
+      spdlog::trace("Deserialized {}", [&status]() { return utils::toString(status); }());
+      bus.post(status);
+      return true;
+    }
+    case MessageType::MessageUnion_TickerPrice: {
+      auto priceMsg = message->message_as_TickerPrice();
+      if (priceMsg == nullptr) {
+        spdlog::error("Failed to extract TickerPrice");
+        return false;
+      }
+      TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
+      spdlog::trace("Deserialized {}", [&price]() { return utils::toString(price); }());
+      bus.post(price);
+      return true;
+    }
+    default:
+      break;
+    }
+    spdlog::error("Unknown message type {}", static_cast<uint8_t>(type));
+    return false;
   }
 
-  template <typename MessageType>
-  static std::enable_if_t<std::is_same<MessageType, OrderStatus>::value, Result<OrderStatus>>
-  deserialize(const uint8_t *buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer, size);
-    if (!verifier.VerifyBuffer<gen::fbs::OrderStatus>()) {
-      spdlog::error("OrderStatus verification failed");
-      return StatusCode::Error;
-    }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::OrderStatus>(buffer);
-    return OrderStatus{0,
-                       orderMsg->id(),
-                       fbStringToTicker(orderMsg->ticker()),
-                       orderMsg->quantity(),
-                       orderMsg->fill_price(),
-                       convert(orderMsg->state()),
-                       convert(orderMsg->action())};
-  }
-
-  template <typename MessageType>
-  static std::enable_if_t<std::is_same<MessageType, TickerPrice>::value, Result<TickerPrice>>
-  deserialize(const uint8_t *buffer, size_t size) {
-    flatbuffers::Verifier verifier(buffer, size);
-    if (!verifier.VerifyBuffer<gen::fbs::TickerPrice>()) {
-      spdlog::error("TickerPrice verification failed");
-      return StatusCode::Error;
-    }
-    auto orderMsg = flatbuffers::GetRoot<gen::fbs::TickerPrice>(buffer);
-    return TickerPrice{fbStringToTicker(orderMsg->ticker()), orderMsg->price()};
-  }
-
-  /**
-   * @todo Could serialize the message directly into allocated for async send buffer
-   */
-  static DetachedBuffer serialize(const Order &order) {
+  static BufferType serialize(const Order &order) {
+    spdlog::trace("Serializing {}", [&order]() { return utils::toString(order); }());
+    using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = gen::fbs::CreateOrder(builder, order.id,
-                                     builder.CreateString(order.ticker.data(), TICKER_SIZE),
-                                     order.quantity, order.price, convert(order.action));
-    builder.Finish(msg);
+    auto msg =
+        CreateOrder(builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE),
+                    order.quantity, order.price, convert(order.action));
+    builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     return builder.Release();
   }
 
-  static DetachedBuffer serialize(const OrderStatus &order) {
+  static BufferType serialize(const OrderStatus &order) {
+    spdlog::trace("Serializing {}", [&order]() { return utils::toString(order); }());
+    using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = gen::fbs::CreateOrderStatus(
+    auto msg = CreateOrderStatus(
         builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE), order.quantity,
         order.fillPrice, convert(order.state), convert(order.action));
-    builder.Finish(msg);
+    builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     return builder.Release();
   }
 
-  static DetachedBuffer serialize(const TickerPrice &price) {
+  static BufferType serialize(const TickerPrice &price) {
+    spdlog::trace("Serializing {}", [&price]() { return utils::toString(price); }());
+    using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
     auto msg = gen::fbs::CreateTickerPrice(
         builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);
-    builder.Finish(msg);
+    builder.Finish(CreateMessage(builder, MessageUnion_TickerPrice, msg.Union()));
     return builder.Release();
   }
 };

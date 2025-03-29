@@ -103,7 +103,7 @@ private:
     status.action = order.action;
     status.traderId = order.traderId;
     status.ticker = order.ticker;
-    spdlog::trace([&status] { return utils::toString(status); }());
+    spdlog::debug([&status] { return utils::toString(status); }());
     return status;
   }
 

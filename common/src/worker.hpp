@@ -28,8 +28,9 @@ public:
   Worker(ThreadId id)
       : guard_{MakeGuard(ioCtx.get_executor())}, thread_{[this, id]() {
           try {
-            utils::setTheadRealTime();
-            utils::pinThreadToCore(Config::cfg.coresApp[id]);
+            auto coreId = Config::cfg.coresApp[id];
+            utils::setTheadRealTime(coreId);
+            utils::pinThreadToCore(coreId);
             ioCtx.run();
           } catch (const std::exception &e) {
             Logger::monitorLogger->error("Exception in worker thread {}", e.what());

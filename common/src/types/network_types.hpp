@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_NETWORK_TYPES_HPP
 #define HFT_COMMON_NETWORK_TYPES_HPP
 
-#include <boost/asio.hpp>
+#include "boost_types.hpp"
 
 namespace hft {
 
@@ -22,10 +22,12 @@ using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
 
-using MessageSize = uint16_t;
-using FullHeader = uint32_t;
-
 enum class SocketType : uint8_t { Ingress = 0U, Egress = 1U, Broadcast = 2U };
+
+using SocketCallback = std::function<void(const BoostError &, size_t)>;
+using SocketStatusCallback = std::function<void(const BoostError &)>;
+
+using MessageSize = uint16_t;
 
 } // namespace hft
 

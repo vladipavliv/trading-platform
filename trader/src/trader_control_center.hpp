@@ -12,7 +12,7 @@
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
-#include "console_manager.hpp"
+#include "console_reader.hpp"
 #include "db/postgres_adapter.hpp"
 #include "network_client.hpp"
 #include "rtt_tracker.hpp"
@@ -37,11 +37,11 @@ namespace hft::trader {
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
-  using TraderConsoleManager = ConsoleManager<TraderCommand>;
+  using TraderConsoleReader = ConsoleReader<TraderCommand>;
   using Tracker = RttTracker<50>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, consoleManager_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
+      : networkClient_{bus_}, consoleReader_{bus_.systemBus}, tradeTimer_{bus_.ioCtx()},
         statsTimer_{bus_.ioCtx()}, tradeRate_{Config::cfg.tradeRate},
         monitorRate_{Config::cfg.monitorRate} {
     // TODO() improve trader, add workers to run trading loop, save prices, run some real strategy
@@ -58,9 +58,9 @@ public:
     });
 
     // System events
-    bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer,
+    bus_.systemBus.subscribe(TraderEvent::Connected,
                              [this]() { Logger::monitorLogger->info("Connected to the server"); });
-    bus_.systemBus.subscribe(TraderEvent::DisconnectedFromTheServer, [this]() {
+    bus_.systemBus.subscribe(TraderEvent::Disconnected, [this]() {
       Logger::monitorLogger->error("Disconnected from the server");
       tradeStop();
     });
@@ -80,27 +80,29 @@ public:
       Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
     });
 
-    consoleManager_.addCommand("t+", TraderCommand::TradeStart);
-    consoleManager_.addCommand("t-", TraderCommand::TradeStop);
-    consoleManager_.addCommand("ts+", TraderCommand::TradeSpeedUp);
-    consoleManager_.addCommand("ts-", TraderCommand::TradeSpeedDown);
-    consoleManager_.addCommand("q", TraderCommand::Shutdown);
+    consoleReader_.addCommand("t+", TraderCommand::TradeStart);
+    consoleReader_.addCommand("t-", TraderCommand::TradeStop);
+    consoleReader_.addCommand("ts+", TraderCommand::TradeSpeedUp);
+    consoleReader_.addCommand("ts-", TraderCommand::TradeSpeedDown);
+    consoleReader_.addCommand("q", TraderCommand::Shutdown);
   }
 
   void start() {
     greetings();
     loadMarketData();
     networkClient_.start();
-    consoleManager_.start();
+    consoleReader_.start();
 
-    utils::setTheadRealTime();
+    utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
+
+    scheduleStatsTimer();
     bus_.run();
   }
 
   void stop() {
     networkClient_.stop();
-    consoleManager_.stop();
+    consoleReader_.stop();
     bus_.stop();
     Logger::monitorLogger->info("stonk");
   }
@@ -110,7 +112,7 @@ private:
     Logger::monitorLogger->info("Trader go stonks {}", std::string(38, '~'));
     Logger::monitorLogger->info("Configuration:");
     Config::cfg.logConfig();
-    consoleManager_.printCommands();
+    consoleReader_.printCommands();
     Logger::monitorLogger->info(std::string(55, '~'));
   }
 
@@ -123,17 +125,19 @@ private:
   }
 
   void tradeStart() {
+    Logger::monitorLogger->info("Trade start");
     if (!networkClient_.connected()) {
       Logger::monitorLogger->error("Not connected to the server");
       return;
     }
+    trading_ = true;
     scheduleTradeTimer();
-    scheduleStatsTimer();
   }
 
   void tradeStop() {
+    Logger::monitorLogger->info("Trade stop");
     tradeTimer_.cancel();
-    statsTimer_.cancel();
+    trading_ = false;
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
@@ -143,11 +147,15 @@ private:
 
   void onPriceUpdate(CRef<TickerPrice> price) {
     spdlog::debug([&price] { return utils::toString(price); }());
+    pricesCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void scheduleTradeTimer() {
+    if (!trading_) {
+      return;
+    }
     tradeTimer_.expires_after(tradeRate_);
-    tradeTimer_.async_wait([this](BoostErrorRef ec) {
+    tradeTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
@@ -157,17 +165,40 @@ private:
   }
 
   void scheduleStatsTimer() {
+    if (monitorRate_.count() == 0) {
+      return;
+    }
     statsTimer_.expires_after(monitorRate_);
-    statsTimer_.async_wait([this](BoostErrorRef ec) {
+    statsTimer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         return;
       }
       using namespace utils;
       static size_t requestsLast = 0;
+      static size_t pricesCounterLast = 0;
+
       size_t requestsCurrent = requestCounter_.load(std::memory_order_relaxed);
       size_t rps = (requestsCurrent - requestsLast) / monitorRate_.count();
-      Logger::monitorLogger->info("Rtt: {} | Rps: {}", Tracker::getRttStats(), thousandify(rps));
-      requestsLast = requestsCurrent;
+
+      size_t pricesCounterCurrent = pricesCounter_.load(std::memory_order_relaxed);
+      size_t prps = (pricesCounterCurrent - pricesCounterLast) / monitorRate_.count();
+
+      std::string output;
+      if (rps != 0) {
+        output += std::format("Rtt: {} | Trade rps: {}", Tracker::getRttStats(), thousandify(rps));
+      }
+      if (prps != 0) {
+        if (!output.empty()) {
+          output += " | ";
+        }
+        output += std::format("Prices rps: {}", thousandify(prps));
+      }
+      if (!output.empty()) {
+        Logger::monitorLogger->info(output);
+
+        requestsLast = requestsCurrent;
+        pricesCounterLast = pricesCounterCurrent;
+      }
       scheduleStatsTimer();
     });
   }
@@ -186,23 +217,25 @@ private:
     order.quantity = utils::RNG::rng(100);
     spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
 
-    bus_.marketBus.publish(Span<Order>{&order, 1});
+    bus_.marketBus.post(Span<Order>{&order, 1});
     requestCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
 private:
   Bus bus_;
   NetworkClient networkClient_;
-  TraderConsoleManager consoleManager_;
+  TraderConsoleReader consoleReader_;
   std::vector<TickerPrice> prices_;
 
   SteadyTimer tradeTimer_;
   SteadyTimer statsTimer_;
 
   Microseconds tradeRate_;
-  Seconds monitorRate_;
+  const Seconds monitorRate_;
 
   std::atomic_size_t requestCounter_{0};
+  std::atomic_size_t pricesCounter_{0};
+  std::atomic_bool trading_{false};
 };
 } // namespace hft::trader
 
