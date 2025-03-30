@@ -9,9 +9,9 @@
 #include "bus/bus.hpp"
 #include "logger.hpp"
 #include "market_types.hpp"
-#include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
 #include "network/size_framer.hpp"
+#include "network/socket_status.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
@@ -45,11 +45,11 @@ public:
         [this, data](CRef<BoostError> code, size_t bytes) {
           if (code) {
             Logger::monitorLogger->error("Udp transport error {}", code.message());
-            bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
+            bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
           }
           if (bytes != data->size()) {
             Logger::monitorLogger->error("Failed to write {}, written {}", data->size(), bytes);
-            bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
+            bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
           }
         });
   }
@@ -63,7 +63,7 @@ private:
       if (code != boost::asio::error::eof) {
         spdlog::error(code.message());
       }
-      bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
+      bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
       return;
     }
     buffer_.commitWrite(bytes);

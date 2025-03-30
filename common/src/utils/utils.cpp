@@ -148,9 +148,9 @@ ObjectId getId() {
   return counter++;
 }
 
-Token generateToken() {
+String generateToken() {
   boost::uuids::random_generator generator;
-  return generator();
+  return boost::uuids::to_string(generator());
 }
 
 } // namespace hft::utils

@@ -48,10 +48,6 @@ template <typename... TupleTypes>
 static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
   return std::make_tuple(createLFQueue<TupleTypes>(size)...);
 }
-template <typename... Type>
-bool isTupleEmpty(const std::tuple<UPtrLFQueue<Type>...> &tupl) {
-  return std::apply([](const auto &...lfqs) { return (... && lfqs->empty()); }, tupl);
-}
 
 template <typename MessageType, typename = void>
 struct HasTraderId : std::false_type {};

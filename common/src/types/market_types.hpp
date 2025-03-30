@@ -38,13 +38,13 @@ struct LoginRequest {
 };
 
 struct LoginResponse {
-  bool success;
   String token;
+  bool success{false};
 };
 
 struct Order {
-  OrderId id;
   TraderId traderId; // Server side
+  OrderId id;
   Ticker ticker{};
   Quantity quantity;
   Price price;
@@ -52,8 +52,8 @@ struct Order {
 };
 
 struct OrderStatus {
-  OrderId id;
   TraderId traderId; // Server side
+  OrderId id;
   Ticker ticker{};
   Quantity quantity;
   Price fillPrice;

@@ -23,6 +23,9 @@ class SizeFramer {
 public:
   using Serializer = SerializerType;
 
+  template <typename EventType>
+  static constexpr bool Framable = Serializer::template Serializable<EventType>;
+
   static constexpr size_t HEADER_SIZE = sizeof(MessageSize);
 
   template <typename Type>
@@ -47,28 +50,12 @@ public:
     return writeBuffer;
   }
 
-  template <typename Type>
-  static SPtr<ByteBuffer> frame(CRef<Type> message) {
-    spdlog::trace("frame 1 message");
-
-    auto serialized = Serializer::serialize(message);
-    SPtr<ByteBuffer> buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serialized.size());
-    LittleEndianUInt16 bodySize = static_cast<MessageSize>(serialized.size());
-
-    std::memcpy(buffer->data(), &bodySize, sizeof(bodySize));
-    std::memcpy(buffer->data() + sizeof(bodySize), serialized.data(), serialized.size());
-
-    return buffer;
-  }
-
   template <typename Cunsumer>
   static void unframe(RingBuffer &buffer, Cunsumer &consumer) {
     // TODO(self) Try some buckets here automatically sorting messages by type and workerId
     auto readBuffer = buffer.data();
     auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
     auto cursor{0};
-
-    spdlog::trace("unframe buffer size {} ", readBuffer.size());
 
     while (cursor + HEADER_SIZE <= readBuffer.size()) {
       auto littleBodySize = *reinterpret_cast<const LittleEndianUInt16 *>(dataPtr + cursor);

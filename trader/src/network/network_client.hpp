@@ -20,7 +20,7 @@
 #include "io_ctx.hpp"
 #include "logger.hpp"
 #include "market_types.hpp"
-#include "network/connection_status.hpp"
+#include "network/socket_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
 #include "network_types.hpp"
@@ -57,17 +57,9 @@ public:
         id_, subs_.add<CRefHandler<LoginRequestEvent>>(
                  [this](CRef<LoginRequestEvent> event) { onLoginRequest(event); }));
 
-    bus_.systemBus.subscribe<LoginResultEvent>(
-        id_, subs_.add<CRefHandler<LoginResultEvent>>(
-                 [this](CRef<LoginResultEvent> event) { onLoginResult(event); }));
-
-    bus_.systemBus.subscribe<TcpStatusEvent>(
-        id_, subs_.add<CRefHandler<TcpStatusEvent>>(
-                 [this](CRef<TcpStatusEvent> event) { onTcpStatus(event); }));
-
-    bus_.systemBus.subscribe<UdpStatusEvent>(
-        id_, subs_.add<CRefHandler<UdpStatusEvent>>(
-                 [this](CRef<UdpStatusEvent> event) { onUdpStatus(event); }));
+    bus_.systemBus.subscribe<LoginResponseEvent>(
+        id_, subs_.add<CRefHandler<LoginResponseEvent>>(
+                 [this](CRef<LoginResponseEvent> event) { onLoginResponse(event); }));
   }
 
   ~NetworkClient() { stop(); }
@@ -103,43 +95,22 @@ public:
 
 private:
   void onLoginRequest(CRef<LoginRequestEvent> event) {
+    LoginRequest request = event.request;
     if (event.connectionId == ingressTransport_.id()) {
-      ingressTransport_.write(event.request);
+      ingressTransport_.write(Span<LoginRequest>(&request, 1));
     } else if (event.connectionId == egressTransport_.id()) {
-      egressTransport_.write(event.request);
+      egressTransport_.write(Span<LoginRequest>(&request, 1));
+    } else {
+      Logger::monitorLogger->error("Invalid connection id {}", event.connectionId);
     }
   }
 
-  void onLoginResult(CRef<LoginResultEvent> event) {
-    Logger::monitorLogger->info("Login result {}", event.result.success ? "success" : "failure");
-  }
-
-  void onTcpStatus(CRef<TcpStatusEvent> event) {
-    switch (event.status) {
-    case ConnectionStatus::Connected:
-      if (ingressTransport_.status() == ConnectionStatus::Connected &&
-          egressTransport_.status() == ConnectionStatus::Connected) {
-        if (!connected_) {
-          connected_ = true;
-          ingressTransport_.read();
-          bus_.systemBus.post(TraderEvent::Connected);
-        }
-      }
-      break;
-    default:
-      if (connected_) {
-        connected_ = false;
-        bus_.systemBus.post(TraderEvent::Disconnected);
-      }
-      scheduleConnectionTimer();
-      break;
-    }
-  }
-
-  void onUdpStatus(CRef<UdpStatusEvent> event) {
-    if (event.status == ConnectionStatus::Error) {
-      Logger::monitorLogger->error("Udp connection error");
-      pricesTransport_.close();
+  void onLoginResponse(CRef<LoginResponseEvent> event) {
+    if (!event.response.success) {
+      Logger::monitorLogger->error("Login failed");
+      return;
+    } else {
+      Logger::monitorLogger->error("Logged in {} {}", event.connectionId, event.response.token);
     }
   }
 
@@ -149,8 +120,8 @@ private:
       if (ec) {
         return;
       }
-      const bool ingressOn = ingressTransport_.status() == ConnectionStatus::Connected;
-      const bool egressOn = egressTransport_.status() == ConnectionStatus::Connected;
+      const bool ingressOn = ingressTransport_.status() == SocketStatus::Connected;
+      const bool egressOn = egressTransport_.status() == SocketStatus::Connected;
       if (!ingressOn || !egressOn) {
         Logger::monitorLogger->critical("Server is down, reconnecting...");
         if (!ingressOn) {
@@ -163,9 +134,6 @@ private:
     });
   }
 
-  /**
-   * @brief Ctor readability helpers
-   */
   TraderTcpTransport createIngressTransport() {
     return TraderTcpTransport{
         TcpSocket{ioCtx_.ctx},

@@ -10,8 +10,8 @@
 #include "bus/subscription_holder.hpp"
 #include "logger.hpp"
 #include "market_types.hpp"
-#include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
+#include "network/socket_status.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
@@ -29,23 +29,25 @@ public:
   using UPtr = std::unique_ptr<TcpTransport>;
 
   TcpTransport(TcpSocket socket, Gateway gateway, TcpConnectionType type)
-      : socket_{std::move(socket)}, gateway_{std::move(gateway)}, type_{type} {}
+      : socket_{std::move(socket)}, gateway_{std::move(gateway)}, type_{type} {
+    onStatus(SocketStatus::Connected);
+  }
 
   TcpTransport(TcpSocket socket, TcpEndpoint endpoint, Gateway gateway, TcpConnectionType type)
-      : TcpTransport(std::move(socket), std::move(gateway), type) {
-    endpoint_ = std::move(endpoint);
-  }
+      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, gateway_{std::move(gateway)},
+        type_{type} {}
 
   void connect() {
     socket_.async_connect(endpoint_, [this](CRef<BoostError> code) {
       if (!code) {
         socket_.set_option(TcpSocket::protocol_type::no_delay(true));
-        onConnected();
+        spdlog::debug("TcpTransport connected");
+        onStatus(SocketStatus::Connected);
+        read();
       } else {
         spdlog::error("TcpTransport error {} {}", id(), code.message());
-        onError();
+        onStatus(SocketStatus::Error);
       }
-      gateway_.post(TcpStatusEvent{id_, 0, status_});
     });
   }
 
@@ -55,30 +57,23 @@ public:
   }
 
   void read() {
+    spdlog::debug("TcpTransport read");
     socket_.async_read_some(buffer_.buffer(), [this](CRef<BoostError> code, size_t bytes) {
       readHandler(code, bytes);
     });
   }
 
   template <typename Type>
-    requires(Bus::MarketBus::RoutedType<Type>)
+    requires(Framer::template Framable<Type>)
   void write(Span<Type> messages) {
+    spdlog::debug("TcpTransport write");
     auto data = Framer::frame(messages);
     boost::asio::async_write(
         socket_, boost::asio::buffer(data->data(), data->size()),
         [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
   }
 
-  template <typename Type>
-    requires(Bus::MarketBus::RoutedType<Type>)
-  void write(CRef<Type> message) {
-    auto data = Framer::frame(message);
-    boost::asio::async_write(
-        socket_, boost::asio::buffer(data->data(), data->size()),
-        [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
-  }
-
-  inline auto status() const -> ConnectionStatus { return status_; }
+  inline auto status() const -> SocketStatus { return status_; }
 
   inline void close() { socket_.close(); }
 
@@ -89,11 +84,12 @@ public:
 private:
   void readHandler(CRef<BoostError> code, size_t bytes) {
     if (code) {
+      spdlog::error("TcpTransport readHandler error {}", code.message());
       buffer_.reset();
       if (code != boost::asio::error::eof) {
         Logger::monitorLogger->error(code.message());
       }
-      onError();
+      onStatus(SocketStatus::Error);
       return;
     }
     buffer_.commitWrite(bytes);
@@ -104,23 +100,13 @@ private:
   void writeHandler(CRef<BoostError> code, size_t bytes) {
     if (code) {
       spdlog::error("TcpTransport error {} {}", id(), code.message());
-      onError();
+      onStatus(SocketStatus::Error);
     }
   }
 
-  void onConnected() {
-    status_.store(ConnectionStatus::Connected);
-    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Connected});
-  }
-
-  void onDisconnected() {
-    status_.store(ConnectionStatus::Disconnected);
-    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Disconnected});
-  }
-
-  void onError() {
-    status_.store(ConnectionStatus::Error);
-    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Error});
+  void onStatus(SocketStatus status) {
+    status_.store(status);
+    gateway_.post(SocketStatusEvent{id_, status});
   }
 
 private:
@@ -133,7 +119,7 @@ private:
   RingBuffer buffer_;
 
   const TcpConnectionType type_;
-  Atomic<ConnectionStatus> status_{ConnectionStatus::Disconnected};
+  Atomic<SocketStatus> status_{SocketStatus::Disconnected};
 };
 
 } // namespace hft

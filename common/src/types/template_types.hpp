@@ -83,8 +83,8 @@ concept UnorderedMapKey = requires(EventType event) {
 
 template <typename Type, typename Tuple>
 concept IsTypeInTuple = requires {
-  []<typename... Types>(std::tuple<Types...>) {
-    return (std::is_same_v<Type, Types> || ...);
+  []<typename... Types>(
+      std::tuple<Types...>) -> std::bool_constant<(std::is_same_v<Type, Types> || ...)> {
   }(std::declval<Tuple>());
 };
 

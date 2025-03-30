@@ -47,15 +47,6 @@ public:
 
   template <typename EventType>
     requires RoutedType<EventType>
-  void post(CRef<EventType> event) {
-    auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
-    assert(handlerRef != nullptr && "Handler not registered for event type");
-    EventType mutableEvent = event; // TODO
-    handlerRef(Span<EventType>(&mutableEvent, 1));
-  }
-
-  template <typename EventType>
-    requires RoutedType<EventType>
   void post(Span<EventType> event) {
     auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
     assert(handlerRef != nullptr && "Handler not registered for event type");

@@ -9,7 +9,8 @@
 #include "bus/bus.hpp"
 #include "bus/subscription_holder.hpp"
 #include "logger.hpp"
-#include "network/connection_status.hpp"
+#include "network/socket_status.hpp"
+#include "server_events.hpp"
 #include "template_types.hpp"
 #include "utils/template_utils.hpp"
 
@@ -26,30 +27,11 @@ public:
   ServerGateway(Bus &bus) : bus_{bus}, subs_{id_, bus_.systemBus} {}
 
   template <typename MessageType>
-  void post(Ref<MessageType> message) {
-    if (!authenticated()) {
-      Logger::monitorLogger->error("401");
-      return;
-    }
-    if constexpr (utils::HasTraderId<MessageType>::value) {
-      message.traderId = traderId_.value();
-    }
-    bus_.post(message);
-  }
-
-  template <typename MessageType>
-  void post(CRef<MessageType> message) {
-    if (!authenticated()) {
-      Logger::monitorLogger->error("401");
-      return;
-    }
-    bus_.post(message);
-  }
-
-  template <typename MessageType>
+    requires Bus::MarketBus::RoutedType<MessageType>
   void post(Span<MessageType> messages) {
+    spdlog::error("ServerGateway {}", [&messages] { return utils::toString(messages); }());
     if (!authenticated()) {
-      Logger::monitorLogger->error("401");
+      spdlog::error("401 unauthenticated");
       return;
     }
     if constexpr (utils::HasTraderId<MessageType>::value) {
@@ -60,18 +42,36 @@ public:
     bus_.post(messages);
   }
 
+  template <typename MessageType>
+    requires(!Bus::MarketBus::RoutedType<MessageType>)
+  void post(CRef<MessageType> message) {
+    spdlog::debug(
+        "ServerGateway {} {}", [] { return typeid(MessageType).name(); }(),
+        [&message] { return utils::toString(message); }());
+    if (!authenticated()) {
+      spdlog::error("401 unauthenticated");
+      return;
+    }
+    bus_.post(message);
+  }
+
   inline ObjectId id() const { return id_; }
 
-private:
-  inline bool authenticated() const { return traderId_.has_value(); }
+  inline bool authenticated() const {
+    return traderId_.has_value() && status_ == SessionStatus::Authenticated;
+  }
 
-  void onLoginResult(CRef<LoginResultEvent> event) {
+private:
+  void onLoginResponse(CRef<LoginResponseEvent> event) {
     if (authenticated()) {
       Logger::monitorLogger->error("Gateway is already authenticated for {}", traderId_.value());
       return;
     }
-    if (event.success) {
+    if (event.response.success) {
+      Logger::monitorLogger->info("Login succeeded for {}", traderId_.value());
       traderId_ = event.traderId;
+    } else {
+      Logger::monitorLogger->info("Login failed");
     }
   }
 
@@ -79,50 +79,58 @@ private:
   const ObjectId id_{utils::getId()};
 
   Bus &bus_;
-  SubscriptionHolder subs_;
+  SessionStatus status_{SessionStatus::Disconnected};
 
   std::optional<ObjectId> connectionId_;
   std::optional<TraderId> traderId_;
+
+  SubscriptionHolder subs_;
 };
 
 template <>
-void ServerGateway::post<TcpStatusEvent>(CRef<TcpStatusEvent> event) {
-  if (event.status == ConnectionStatus::Connected && !connectionId_.has_value()) {
-    connectionId_ = event.id;
-    bus_.systemBus.subscribe<LoginResultEvent>(
-        id_, connectionId_.value(),
-        subs_.add<CRefHandler<LoginResultEvent>>(
-            [this](CRef<LoginResultEvent> event) { onLoginResult(event); }));
+void ServerGateway::post<SocketStatusEvent>(CRef<SocketStatusEvent> event) {
+  spdlog::debug("{}", [&event] { return utils::toString(event); }());
+  if (status_ == SessionStatus::Error) {
+    spdlog::error("Gateway is in Error state");
+    return;
+  }
+  switch (event.status) {
+  case SocketStatus::Connected: {
+    if (!connectionId_.has_value()) {
+      spdlog::debug("Subscribe to LoginResponseEvent");
+      connectionId_ = event.connectionId;
+      bus_.systemBus.subscribe<LoginResponseEvent>(
+          id_, connectionId_.value(),
+          subs_.add<CRefHandler<LoginResponseEvent>>(
+              [this](CRef<LoginResponseEvent> event) { onLoginResponse(event); }));
+    }
+    break;
+  }
+  case SocketStatus::Disconnected:
+  case SocketStatus::Error:
+  default:
+    // TODO(self) Think it through, maybe this is too much
+    status_ = SessionStatus::Disconnected;
+    break;
   }
   if (authenticated()) {
-    TcpStatusEvent newEvent = event;
-    newEvent.traderId = traderId_.value();
-    bus_.post(newEvent);
-  } else {
-    bus_.post(event);
+    bus_.post<SessionStatusEvent>({traderId_.value(), event.connectionId, status_});
   }
 }
 
 template <>
-void ServerGateway::post<LoginRequest>(CRef<LoginRequest> message) {
+void ServerGateway::post<LoginRequest>(CRef<LoginRequest> request) {
+  spdlog::debug("{}", [&request] { return utils::toString(request); }());
   if (authenticated()) {
     Logger::monitorLogger->error("{} already logged in", traderId_.value());
     return;
   }
-  bus_.post(LoginRequestEvent{id(), message});
+  bus_.post(LoginRequestEvent{connectionId_.value(), request});
 }
 
 template <>
-void ServerGateway::post<LoginRequest>(Span<LoginRequest> messages) {
-  if (authenticated()) {
-    Logger::monitorLogger->error("{} already logged in", traderId_.value());
-    return;
-  }
-  if (messages.size() != 1) {
-    Logger::monitorLogger->error("Multiple login attempts");
-    return;
-  }
-  post(messages.front());
+void ServerGateway::post<LoginResponse>(CRef<LoginResponse>) {
+  Logger::monitorLogger->error("Invalid LoginResponse message from client");
 }
 
 } // namespace hft::server

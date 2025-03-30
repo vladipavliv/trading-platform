@@ -44,7 +44,7 @@ void printRawBuffer(const uint8_t *buffer, size_t size);
 UdpSocket createUdpSocket(BoostIoCtx &ctx, bool broadcast = true, Port port = 0);
 
 ObjectId getId();
-Token generateToken();
+String generateToken();
 
 } // namespace hft::utils
 

@@ -32,6 +32,11 @@ public:
   using MessageType = gen::fbs::MessageUnion;
   using BufferType = flatbuffers::DetachedBuffer;
 
+  using SupportedTypes = std::tuple<LoginRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
+
+  template <typename EventType>
+  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+
   template <typename Consumer>
   static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
@@ -53,7 +58,7 @@ public:
       }
       LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
       spdlog::trace("Deserialized {}", [&request]() { return utils::toString(request); }());
-      consumer.post(request);
+      consumer.template post<LoginRequest>(request);
       return true;
     }
     case MessageType::MessageUnion_LoginResponse: {
@@ -62,9 +67,9 @@ public:
         spdlog::error("Failed to extract LoginResponse");
         return false;
       }
-      LoginResponse response{msg->success(), fbStringToString(msg->token())};
+      LoginResponse response{fbStringToString(msg->token()), msg->success()};
       spdlog::trace("Deserialized {}", [&response]() { return utils::toString(response); }());
-      consumer.post(response);
+      consumer.template post<LoginResponse>(response);
       return true;
     }
     case MessageType::MessageUnion_Order: {
@@ -80,7 +85,7 @@ public:
                   orderMsg->price(),
                   convert(orderMsg->action())};
       spdlog::trace("Deserialized {}", [&order]() { return utils::toString(order); }());
-      consumer.post(order);
+      consumer.template post<Order>(Span<Order>(&order, 1));
       return true;
     }
     case MessageType::MessageUnion_OrderStatus: {
@@ -97,7 +102,7 @@ public:
                          convert(statusMsg->state()),
                          convert(statusMsg->action())};
       spdlog::trace("Deserialized {}", [&status]() { return utils::toString(status); }());
-      consumer.post(status);
+      consumer.template post<OrderStatus>(Span<OrderStatus>(&status, 1));
       return true;
     }
     case MessageType::MessageUnion_TickerPrice: {
@@ -108,7 +113,7 @@ public:
       }
       TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
       spdlog::trace("Deserialized {}", [&price]() { return utils::toString(price); }());
-      consumer.post(price);
+      consumer.template post<TickerPrice>(Span<TickerPrice>(&price, 1));
       return true;
     }
     default:

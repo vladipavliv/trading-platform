@@ -12,7 +12,7 @@
 #include "server_events.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
-#include "utils.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::server {
 
@@ -26,22 +26,26 @@ public:
 
 private:
   void authenticate(CRef<LoginRequestEvent> event) {
-    LoginResultEvent response;
-    response.gatewayId = event.gatewayId;
+    spdlog::debug("Authenticate {} {}", event.request.name, event.request.password);
+    LoginResponseEvent response;
+    response.connectionId = event.connectionId;
 
-    auto traderId = db::PostgresAdapter::authenticate(event.credentials);
+    auto traderId = db::PostgresAdapter::authenticate(event.request);
     if (traderId.has_value()) {
-      response.success = true;
+      spdlog::debug("Authentication successfull id: {}", traderId.value());
+      response.response.success = true;
+      response.response.token = utils::generateToken();
       response.traderId = traderId.value();
+    } else {
+      spdlog::error("Authentication failed");
     }
-    bus_.post(response);
+    bus_.post<LoginResponseEvent>(response);
   }
 
 private:
   const ObjectId id_{utils::getId()};
 
   SystemBus &bus_;
-
   SubscriptionHolder subs_;
 };
 

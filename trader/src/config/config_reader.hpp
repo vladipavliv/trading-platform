@@ -68,7 +68,7 @@ struct ConfigReader {
     if (cfg.tradeRate.count() == 0 || cfg.monitorRate.count() == 0) {
       throw std::runtime_error("Invalid rates configuration");
     }
-    if (cfg.name.empty() || cfg.password.empty() == 0) {
+    if (cfg.name.empty() || cfg.password.empty()) {
       throw std::runtime_error("Invalid credentials");
     }
     if (cfg.logOutput.empty()) {

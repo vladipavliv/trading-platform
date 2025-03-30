@@ -11,6 +11,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "authenticator.hpp"
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "bus/subscription_holder.hpp"
@@ -18,13 +19,14 @@
 #include "config/config.hpp"
 #include "io_ctx.hpp"
 #include "market_types.hpp"
-#include "network/connection_status.hpp"
 #include "network/size_framer.hpp"
+#include "network/socket_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
 #include "network_types.hpp"
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "server_command.hpp"
+#include "server_events.hpp"
 #include "server_gateway.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
@@ -56,7 +58,8 @@ class NetworkServer {
 public:
   NetworkServer(Bus &bus)
       : bus_{bus}, ingressAcceptor_{ioCtx_.ctx}, egressAcceptor_{ioCtx_.ctx},
-        udpTransport_{createUdpTransport()}, subs_{id_, bus_.systemBus} {
+        udpTransport_{createUdpTransport()}, authenticator_{bus_.systemBus},
+        subs_{id_, bus_.systemBus} {
     // Market messages
     bus_.marketBus.setHandler<OrderStatus>(
         [this](Span<OrderStatus> events) { onOrderStatus(events); });
@@ -64,17 +67,13 @@ public:
         [this](Span<TickerPrice> events) { udpTransport_.write(events); });
 
     // System bus subscriptions
-    bus_.systemBus.subscribe<LoginResultEvent>(
-        id_, subs_.add<CRefHandler<LoginResultEvent>>(
-                 [this](CRef<LoginResultEvent> event) { onLoginResult(event); }));
+    bus_.systemBus.subscribe<LoginResponseEvent>(
+        id_, subs_.add<CRefHandler<LoginResponseEvent>>(
+                 [this](CRef<LoginResponseEvent> event) { onLoginResponse(event); }));
 
-    bus_.systemBus.subscribe<TcpStatusEvent>(
-        id_, subs_.add<CRefHandler<TcpStatusEvent>>(
-                 [this](CRef<TcpStatusEvent> event) { onTcpStatus(event); }));
-
-    bus_.systemBus.subscribe<UdpStatusEvent>(
-        id_, subs_.add<CRefHandler<UdpStatusEvent>>(
-                 [this](CRef<UdpStatusEvent> event) { onUdpStatus(event); }));
+    bus_.systemBus.subscribe<SessionStatusEvent>(
+        id_, subs_.add<CRefHandler<SessionStatusEvent>>(
+                 [this](CRef<SessionStatusEvent> event) { onSessionStatus(event); }));
   }
 
   ~NetworkServer() { stop(); }
@@ -131,6 +130,7 @@ private:
       auto id = connection->id();
       unauthorizedConnections_[id] = std::move(connection);
       unauthorizedConnections_[id]->read();
+      spdlog::error("Accepted ingress connection id {}", id);
       acceptIngress();
     });
   }
@@ -157,6 +157,7 @@ private:
       auto id = connection->id();
       unauthorizedConnections_[id] = std::move(connection);
       unauthorizedConnections_[id]->read();
+      spdlog::error("Accepted egress connection id {}", id);
       acceptEgress();
     });
   }
@@ -177,53 +178,61 @@ private:
     }
   }
 
-  void onLoginResult(CRef<LoginResultEvent> event) {
-    if (!event.success) {
+  void onSessionStatus(CRef<SessionStatusEvent> event) {
+    // TODO
+    switch (event.status) {
+    case SessionStatus::Connected:
+      Logger::monitorLogger->info("{} connected", event.traderId);
+      break;
+    case SessionStatus::Authenticated:
+      Logger::monitorLogger->info("{} authenticated", event.traderId);
+      break;
+    case SessionStatus::Disconnected:
+      Logger::monitorLogger->info("{} disconnected", event.traderId);
+    case SessionStatus::Error:
+    default:
       unauthorizedConnections_.erase(event.connectionId);
-    } else {
-      // Check if trader is already authorized for the given connection type
-      auto connection = std::move(unauthorizedConnections_[event.connectionId]);
-      unauthorizedConnections_.erase(event.connectionId);
-
-      auto &session = sessions_[event.traderId];
-      if (connection->type() == TcpConnectionType::Ingress) {
-        if (session.ingress != nullptr) {
-          Logger::monitorLogger->error("{} is already connected ingress", event.traderId);
-          return;
-        }
-        session.ingress = std::move(connection);
-        Logger::monitorLogger->error("{} connected ingress", event.traderId);
-      } else {
-        if (session.egress != nullptr) {
-          Logger::monitorLogger->error("{} is already connected egress", event.traderId);
-          return;
-        }
-        session.egress = std::move(connection);
-        Logger::monitorLogger->error("{} connected egress", event.traderId);
-      }
-    }
-  }
-
-  void onTcpStatus(CRef<TcpStatusEvent> event) {
-    if (event.status != ConnectionStatus::Connected) {
-      // Disconnect client if either ingress or egress connections drop
       sessions_.erase(event.traderId);
+      break;
     }
   }
 
-  void onUdpStatus(CRef<UdpStatusEvent> event) {
-    Logger::monitorLogger->info("Udp status event {} {}", event.id,
-                                [&event] { return utils::toString(event.status); }());
-  }
-
-  bool isConnected(TraderId traderId) {
-    if (sessions_.count(traderId) == 0) {
-      return false;
+  void onLoginResponse(CRef<LoginResponseEvent> event) {
+    spdlog::info("NetworkServer {}", [&event] { return utils::toString(event); }());
+    if (!event.response.success) {
+      spdlog::error("Login failed for {}", event.connectionId);
+      unauthorizedConnections_.erase(event.connectionId);
+      return;
     }
-    auto &session = sessions_[traderId];
-    return session.egress != nullptr && session.ingress != nullptr &&
-           session.egress->status() == ConnectionStatus::Connected &&
-           session.ingress->status() == ConnectionStatus::Connected;
+    if (unauthorizedConnections_.count(event.connectionId) == 0 ||
+        unauthorizedConnections_[event.connectionId] == nullptr) {
+      spdlog::error("No such connection {}", event.connectionId);
+      unauthorizedConnections_.erase(event.connectionId);
+      return;
+    }
+    auto connection = std::move(unauthorizedConnections_[event.connectionId]);
+    unauthorizedConnections_.erase(event.connectionId);
+
+    LoginResponse response = event.response;
+    auto &session = sessions_[event.traderId];
+
+    if (connection->type() == TcpConnectionType::Ingress) {
+      if (session.ingress != nullptr) {
+        Logger::monitorLogger->error("{} is already logged in ingress", event.traderId);
+        return;
+      }
+      session.ingress = std::move(connection);
+      session.ingress->write(Span<LoginResponse>(&response, 1));
+      Logger::monitorLogger->info("{} logged in ingress", event.traderId);
+    } else {
+      if (session.egress != nullptr) {
+        Logger::monitorLogger->error("{} is already logged in egress", event.traderId);
+        return;
+      }
+      session.egress = std::move(connection);
+      session.egress->write(Span<LoginResponse>(&response, 1));
+      Logger::monitorLogger->info("{} logged in egress", event.traderId);
+    }
   }
 
   ServerUdpTransport createUdpTransport() {
@@ -240,6 +249,7 @@ private:
   TcpAcceptor ingressAcceptor_;
   TcpAcceptor egressAcceptor_;
   ServerUdpTransport udpTransport_;
+  Authenticator authenticator_;
 
   SubscriptionHolder subs_;
 

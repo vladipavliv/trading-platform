@@ -137,7 +137,7 @@ private:
     if (prices_.empty()) {
       throw std::runtime_error("Failed to laod market data");
     }
-    Logger::monitorLogger->info(std::format("Market data loaded for {} tickers", prices_.size()));
+    spdlog::debug(std::format("Market data loaded for {} tickers", prices_.size()));
   }
 
   void tradeStart() {

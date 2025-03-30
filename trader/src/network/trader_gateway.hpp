@@ -9,37 +9,19 @@
 #include "bus/bus.hpp"
 #include "bus/subscription_holder.hpp"
 #include "config/config.hpp"
-#include "network/connection_status.hpp"
+#include "network/socket_status.hpp"
 #include "trader_events.hpp"
 #include "types.hpp"
 
 namespace hft::trader {
 
 class TraderGateway {
-  enum class AuthenticationStatus : uint8_t { None, Requested, Authenticated, Failed };
 
 public:
   TraderGateway(Bus &bus) : bus_{bus}, subs_{id_, bus_.systemBus} {}
 
   template <typename MessageType>
-  void post(Ref<MessageType> message) {
-    if (!authenticated()) {
-      Logger::monitorLogger->error("401");
-      return;
-    }
-    bus_.post(message);
-  }
-
-  template <typename MessageType>
-  void post(CRef<MessageType> message) {
-    if (!authenticated()) {
-      Logger::monitorLogger->error("401");
-      return;
-    }
-    bus_.post(message);
-  }
-
-  template <typename MessageType>
+    requires Bus::MarketBus::RoutedType<MessageType>
   void post(Span<MessageType> messages) {
     if (!authenticated()) {
       Logger::monitorLogger->error("401");
@@ -48,9 +30,19 @@ public:
     bus_.post(messages);
   }
 
+  template <typename MessageType>
+    requires(!Bus::MarketBus::RoutedType<MessageType>)
+  void post(CRef<MessageType> message) {
+    if (!authenticated()) {
+      Logger::monitorLogger->error("401");
+      return;
+    }
+    bus_.post(message);
+  }
+
   inline ObjectId id() const { return id_; }
 
-  inline bool authenticated() const { return status_ == AuthenticationStatus::Authenticated; }
+  inline bool authenticated() const { return status_ == SessionStatus::Authenticated; }
 
 private:
   void authenticate() {
@@ -65,52 +57,56 @@ private:
   Bus &bus_;
 
   std::optional<ObjectId> connectionId_;
-  AuthenticationStatus status_{AuthenticationStatus::None};
+  SessionStatus status_{SessionStatus::Disconnected};
   String authToken_;
 
   SubscriptionHolder subs_;
 };
 
 template <>
-void TraderGateway::post<TcpStatusEvent>(CRef<TcpStatusEvent> event) {
-  if (status_ == AuthenticationStatus::Failed) {
+void TraderGateway::post<SocketStatusEvent>(CRef<SocketStatusEvent> event) {
+  spdlog::debug([&event] { return utils::toString(event); }());
+  if (status_ == SessionStatus::Error) {
     Logger::monitorLogger->error("401");
     return;
   }
   switch (event.status) {
-  case ConnectionStatus::Connected: {
+  case SocketStatus::Connected: {
     if (!connectionId_.has_value()) {
-      connectionId_ = event.id;
+      connectionId_ = event.connectionId;
     }
-    if (status_ == AuthenticationStatus::None) {
+    if (status_ == SessionStatus::Disconnected) {
+      status_ = SessionStatus::Connected;
       authenticate();
-      status_ = AuthenticationStatus::Requested;
     }
     break;
   }
+  case SocketStatus::Error:
+    status_ = SessionStatus::Error;
+    break;
+  case SocketStatus::Disconnected:
   default:
-    // Reset authentication if got disconnected or transport error happened
-    status_ = AuthenticationStatus::None;
+    status_ = SessionStatus::Disconnected;
     break;
   }
-  // Forward to the Bus
-  bus_.post(event);
+  if (authenticated()) {
+    bus_.post<SessionStatusEvent>({event.connectionId, status_});
+  }
 }
 
 template <>
 void TraderGateway::post<LoginResponse>(CRef<LoginResponse> event) {
-  if (status_ != AuthenticationStatus::Requested) {
-    Logger::monitorLogger->error("Authentication not requested");
+  spdlog::debug([&event] { return utils::toString(event); }());
+  if (status_ != SessionStatus::Connected) {
+    Logger::monitorLogger->error("Invalid status for authentication {}", utils::toString(status_));
   } else if (!event.success) {
     Logger::monitorLogger->error("Authentication failed");
-    status_ = AuthenticationStatus::Failed;
+    status_ = SessionStatus::Error;
   } else {
-    Logger::monitorLogger->error("Authentication success");
-    status_ = AuthenticationStatus::Authenticated;
+    Logger::monitorLogger->info("Logged in, token: {}", event.token);
+    status_ = SessionStatus::Authenticated;
     authToken_ = event.token;
   }
-  // Forward to the Bus
-  bus_.post(event);
 }
 
 } // namespace hft::trader

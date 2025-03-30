@@ -20,7 +20,7 @@ namespace hft {
  * otherwise it will be posted to SystemBus
  */
 struct Bus {
-  using MarketBus = MessageBus<LoginRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
+  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
 
   SystemBus systemBus;
   MarketBus marketBus;
@@ -30,19 +30,13 @@ struct Bus {
   template <typename MessageType>
     requires Bus::MarketBus::RoutedType<MessageType>
   void post(Span<MessageType> messages) {
-    marketBus.post(messages);
-  }
-
-  template <typename MessageType>
-    requires(Bus::MarketBus::RoutedType<MessageType>)
-  void post(CRef<MessageType> message) {
-    marketBus.post(message);
+    marketBus.post<MessageType>(messages);
   }
 
   template <typename MessageType>
     requires(!Bus::MarketBus::RoutedType<MessageType>)
   void post(CRef<MessageType> message) {
-    systemBus.post(message);
+    systemBus.post<MessageType>(message);
   }
 };
 } // namespace hft
