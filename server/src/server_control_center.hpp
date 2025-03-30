@@ -7,16 +7,17 @@
 #define HFT_SERVER_SERVERCONTROLCENTER_HPP
 
 #include "bus/bus.hpp"
+#include "bus/subscription_holder.hpp"
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "console_reader.hpp"
 #include "coordinator.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
-#include "network_server.hpp"
+#include "network/network_server.hpp"
 #include "price_feed.hpp"
 #include "server_command.hpp"
-#include "server_event.hpp"
+#include "server_events.hpp"
 
 namespace hft::server {
 
@@ -32,14 +33,18 @@ public:
 
   ServerControlCenter()
       : networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
-        priceFeed_{bus_, marketData_} {
+        priceFeed_{bus_, marketData_}, subs_{id_, bus_.systemBus} {
 
     // System bus subscriptions
-    bus_.systemBus.subscribe(ServerEvent::Ready, [this]() {
-      Logger::monitorLogger->info("Server is ready");
-      networkServer_.start();
-    });
-    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
+    bus_.systemBus.subscribe<ServerEvent>(
+        id_, ServerEvent::Ready,
+        subs_.add<CRefHandler<ServerEvent>>([this](CRef<ServerEvent> event) {
+          Logger::monitorLogger->info("Server is ready");
+          networkServer_.start();
+        }));
+    bus_.systemBus.subscribe<ServerCommand>(
+        id_, ServerCommand::Shutdown,
+        subs_.add<CRefHandler<ServerCommand>>([this](CRef<ServerCommand> event) { stop(); }));
 
     // Console commands
     consoleReader_.addCommand("q", ServerCommand::Shutdown);
@@ -55,14 +60,14 @@ public:
 
     utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
-    bus_.run();
+    bus_.systemBus.ioCtx.run();
   }
 
   void stop() {
     networkServer_.stop();
     coordinator_.stop();
     consoleReader_.stop();
-    bus_.stop();
+    bus_.systemBus.ioCtx.stop();
     Logger::monitorLogger->info("stonk");
   }
 
@@ -88,6 +93,8 @@ private:
   }
 
 private:
+  const ObjectId id_{utils::getId()};
+
   Bus bus_;
   MarketData marketData_;
 
@@ -95,6 +102,8 @@ private:
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
+
+  SubscriptionHolder subs_;
 };
 
 } // namespace hft::server

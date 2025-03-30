@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <array>
-#include <boost/lockfree/queue.hpp>
 #include <concepts>
 #include <expected>
 #include <functional>
@@ -18,25 +17,38 @@
 #include <string>
 #include <vector>
 
+#include <boost/lockfree/queue.hpp>
+
 #include "constants.hpp"
 #include "types.hpp"
 
 namespace hft {
 
 /**
- * General template types
+ * Pointer types
  */
 template <typename Type>
-using Span = std::span<Type>;
+using CPtr = const Type *;
+
+template <typename Type>
+using SPtr = std::shared_ptr<Type>;
+
+template <typename Type>
+using WPtr = std::weak_ptr<Type>;
+
+template <typename Type>
+using UPtr = std::unique_ptr<Type>;
 
 template <typename Type>
 using CRef = const Type &;
 
 template <typename Type>
 using Ref = Type &;
-
+/**
+ * General template types
+ */
 template <typename Type>
-using CPtr = const Type *;
+using Span = std::span<Type>;
 
 template <typename K, typename V>
 using HashMap = std::unordered_map<K, V>;
@@ -51,6 +63,8 @@ using Expected = std::expected<Type, std::string>;
  * Function types
  */
 using Callback = std::function<void()>;
+using WeakCallback = std::weak_ptr<Callback>;
+using SharedCallback = std::shared_ptr<Callback>;
 using Predicate = std::function<bool()>;
 template <typename ArgType>
 using Handler = std::function<void(ArgType)>;

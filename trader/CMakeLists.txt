@@ -5,7 +5,10 @@ add_executable(hft_trader ${TRADER_SOURCES})
 target_compile_definitions(hft_trader PRIVATE)
 
 target_link_libraries(hft_trader PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
-target_include_directories(hft_trader PRIVATE common/src trader/src trader/src/types)
+target_include_directories(hft_trader PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/common/src
+)
 
 # mimalloc
 if(USE_MIMALLOC)

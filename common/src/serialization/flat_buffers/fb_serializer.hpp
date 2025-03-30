@@ -24,16 +24,16 @@ namespace hft::serialization {
  * @brief Flat buffers serializer
  * @details For simplicity posts deserialized messages directly to a bus
  * saves the trouble of type extraction, and performs slightly better
- * @todo improve later
+ * @todo improve
  */
 class FlatBuffersSerializer {
 public:
   using Message = gen::fbs::Message;
   using MessageType = gen::fbs::MessageUnion;
-
   using BufferType = flatbuffers::DetachedBuffer;
 
-  static bool deserialize(const uint8_t *data, size_t size, BusWrapper &bus) {
+  template <typename Consumer>
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
       spdlog::error("Failed to verify Buffer");
       return false;
@@ -45,6 +45,28 @@ public:
     }
     const auto type = message->message_type();
     switch (type) {
+    case MessageType::MessageUnion_LoginRequest: {
+      auto msg = message->message_as_LoginRequest();
+      if (msg == nullptr) {
+        spdlog::error("Failed to extract LoginRequest");
+        return false;
+      }
+      LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
+      spdlog::trace("Deserialized {}", [&request]() { return utils::toString(request); }());
+      consumer.post(request);
+      return true;
+    }
+    case MessageType::MessageUnion_LoginResponse: {
+      auto msg = message->message_as_LoginResponse();
+      if (msg == nullptr) {
+        spdlog::error("Failed to extract LoginResponse");
+        return false;
+      }
+      LoginResponse response{msg->success(), fbStringToString(msg->token())};
+      spdlog::trace("Deserialized {}", [&response]() { return utils::toString(response); }());
+      consumer.post(response);
+      return true;
+    }
     case MessageType::MessageUnion_Order: {
       auto orderMsg = message->message_as_Order();
       if (orderMsg == nullptr) {
@@ -58,7 +80,7 @@ public:
                   orderMsg->price(),
                   convert(orderMsg->action())};
       spdlog::trace("Deserialized {}", [&order]() { return utils::toString(order); }());
-      bus.post(order);
+      consumer.post(order);
       return true;
     }
     case MessageType::MessageUnion_OrderStatus: {
@@ -75,7 +97,7 @@ public:
                          convert(statusMsg->state()),
                          convert(statusMsg->action())};
       spdlog::trace("Deserialized {}", [&status]() { return utils::toString(status); }());
-      bus.post(status);
+      consumer.post(status);
       return true;
     }
     case MessageType::MessageUnion_TickerPrice: {
@@ -86,7 +108,7 @@ public:
       }
       TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
       spdlog::trace("Deserialized {}", [&price]() { return utils::toString(price); }());
-      bus.post(price);
+      consumer.post(price);
       return true;
     }
     default:
@@ -94,6 +116,28 @@ public:
     }
     spdlog::error("Unknown message type {}", static_cast<uint8_t>(type));
     return false;
+  }
+
+  static BufferType serialize(const LoginRequest &request) {
+    spdlog::trace("Serializing {}", [&request]() { return utils::toString(request); }());
+    using namespace gen::fbs;
+    flatbuffers::FlatBufferBuilder builder;
+    auto msg = CreateLoginRequest(
+        builder, builder.CreateString(request.name.c_str(), request.name.length()),
+        builder.CreateString(request.password.c_str(), request.password.length()));
+    builder.Finish(CreateMessage(builder, MessageUnion_LoginRequest, msg.Union()));
+    return builder.Release();
+  }
+
+  static BufferType serialize(const LoginResponse &response) {
+    spdlog::trace("Serializing {}", [&response]() { return utils::toString(response); }());
+    using namespace gen::fbs;
+    flatbuffers::FlatBufferBuilder builder;
+    auto msg =
+        CreateLoginResponse(builder, response.success,
+                            builder.CreateString(response.token.c_str(), response.token.length()));
+    builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
+    return builder.Release();
   }
 
   static BufferType serialize(const Order &order) {

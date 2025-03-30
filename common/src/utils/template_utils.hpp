@@ -53,6 +53,14 @@ bool isTupleEmpty(const std::tuple<UPtrLFQueue<Type>...> &tupl) {
   return std::apply([](const auto &...lfqs) { return (... && lfqs->empty()); }, tupl);
 }
 
+template <typename MessageType, typename = void>
+struct HasTraderId : std::false_type {};
+
+// Specialization if T has member 'traderId'
+template <typename MessageType>
+struct HasTraderId<MessageType, std::void_t<decltype(std::declval<MessageType>().traderId)>>
+    : std::true_type {};
+
 /**
  * @brief Generic template helpers
  */

@@ -15,6 +15,16 @@ namespace hft::trader {
  * @brief System events
  */
 enum class TraderEvent : uint8_t { Initialized, Connected, Disconnected };
+
+struct LoginRequestEvent {
+  ObjectId connectionId;
+  LoginRequest request;
+};
+
+struct LoginResultEvent {
+  ObjectId connectionId;
+  LoginResponse result;
+};
 } // namespace hft::trader
 
 namespace hft::utils {

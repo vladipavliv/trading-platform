@@ -24,7 +24,7 @@ class ConsoleReader {
 public:
   using Command = CommandType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx} {
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx.ctx} {
     utils::unblockConsole();
     commands_.reserve(20);
   }

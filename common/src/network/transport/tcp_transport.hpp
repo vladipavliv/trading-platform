@@ -7,6 +7,7 @@
 #define HFT_COMMON_TCPTRANSPORT_HPP
 
 #include "bus/bus.hpp"
+#include "bus/subscription_holder.hpp"
 #include "logger.hpp"
 #include "market_types.hpp"
 #include "network/connection_status.hpp"
@@ -17,19 +18,23 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief Asynchronous TcpSocket wrapper
+ * @details Reads from the socket, unframes with FramerType, and posts to the gateway
  */
-template <typename FramerType>
+template <typename GatewayType, typename FramerType>
 class TcpTransport {
 public:
+  using Gateway = GatewayType;
   using Framer = FramerType;
   using UPtr = std::unique_ptr<TcpTransport>;
 
-  TcpTransport(TcpSocket socket, BusWrapper bus)
-      : socket_{std::move(socket)}, bus_{std::move(bus)} {}
+  TcpTransport(TcpSocket socket, Gateway gateway, TcpConnectionType type)
+      : socket_{std::move(socket)}, gateway_{std::move(gateway)}, type_{type} {}
 
-  TcpTransport(TcpSocket socket, TcpEndpoint endpoint, BusWrapper bus)
-      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{std::move(bus)} {}
+  TcpTransport(TcpSocket socket, TcpEndpoint endpoint, Gateway gateway, TcpConnectionType type)
+      : TcpTransport(std::move(socket), std::move(gateway), type) {
+    endpoint_ = std::move(endpoint);
+  }
 
   void connect() {
     socket_.async_connect(endpoint_, [this](CRef<BoostError> code) {
@@ -37,10 +42,10 @@ public:
         socket_.set_option(TcpSocket::protocol_type::no_delay(true));
         onConnected();
       } else {
-        spdlog::error("TcpTransport error {} {}", bus_.traderId(), code.message());
+        spdlog::error("TcpTransport error {} {}", id(), code.message());
         onError();
       }
-      bus_.post(TcpConnectionStatus{bus_.traderId(), status_});
+      gateway_.post(TcpStatusEvent{id_, 0, status_});
     });
   }
 
@@ -58,7 +63,16 @@ public:
   template <typename Type>
     requires(Bus::MarketBus::RoutedType<Type>)
   void write(Span<Type> messages) {
-    auto data = std::make_shared<ByteBuffer>(Framer::frame(messages));
+    auto data = Framer::frame(messages);
+    boost::asio::async_write(
+        socket_, boost::asio::buffer(data->data(), data->size()),
+        [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
+  }
+
+  template <typename Type>
+    requires(Bus::MarketBus::RoutedType<Type>)
+  void write(CRef<Type> message) {
+    auto data = Framer::frame(message);
     boost::asio::async_write(
         socket_, boost::asio::buffer(data->data(), data->size()),
         [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
@@ -67,6 +81,10 @@ public:
   inline auto status() const -> ConnectionStatus { return status_; }
 
   inline void close() { socket_.close(); }
+
+  inline ObjectId id() const { return id_; }
+
+  inline TcpConnectionType type() const { return type_; }
 
 private:
   void readHandler(CRef<BoostError> code, size_t bytes) {
@@ -79,39 +97,42 @@ private:
       return;
     }
     buffer_.commitWrite(bytes);
-    Framer::unframe(buffer_, bus_);
+    Framer::unframe(buffer_, gateway_);
     read();
   }
 
   void writeHandler(CRef<BoostError> code, size_t bytes) {
     if (code) {
-      spdlog::error("Tcp error {} {}", bus_.traderId(), code.message());
+      spdlog::error("TcpTransport error {} {}", id(), code.message());
       onError();
     }
   }
 
   void onConnected() {
     status_.store(ConnectionStatus::Connected);
-    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Connected});
+    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Connected});
   }
 
   void onDisconnected() {
     status_.store(ConnectionStatus::Disconnected);
-    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Disconnected});
+    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Disconnected});
   }
 
   void onError() {
     status_.store(ConnectionStatus::Error);
-    bus_.post(TcpConnectionStatus{bus_.traderId(), ConnectionStatus::Error});
+    gateway_.post(TcpStatusEvent{id_, 0, ConnectionStatus::Error});
   }
 
 private:
+  const ObjectId id_{utils::getId()};
+
   TcpSocket socket_;
   TcpEndpoint endpoint_;
 
-  BusWrapper bus_;
+  Gateway gateway_;
   RingBuffer buffer_;
 
+  const TcpConnectionType type_;
   Atomic<ConnectionStatus> status_{ConnectionStatus::Disconnected};
 };
 

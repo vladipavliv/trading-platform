@@ -9,14 +9,15 @@
 #include <boost/asio.hpp>
 #include <boost/endian/arithmetic.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/uuid/uuid.hpp>
 
 namespace hft {
 
 namespace Ip = boost::asio::ip;
 
-using IoContext = boost::asio::io_context;
-using UPtrIoContext = std::unique_ptr<boost::asio::io_context>;
-using ContextGuard = boost::asio::executor_work_guard<IoContext::executor_type>;
+using BoostIoCtx = boost::asio::io_context;
+using UPtrIoCtx = std::unique_ptr<boost::asio::io_context>;
+using ContextGuard = boost::asio::executor_work_guard<BoostIoCtx::executor_type>;
 using UPtrContextGuard = std::unique_ptr<ContextGuard>;
 
 using BoostError = boost::system::error_code; // TODO
@@ -34,6 +35,8 @@ using MakeGuard = decltype(boost::asio::make_work_guard(std::declval<boost::asio
 
 using LittleEndianByte = boost::endian::little_uint8_at;
 using LittleEndianUInt16 = boost::endian::little_uint16_at;
+
+using Token = boost::uuids::uuid;
 
 } // namespace hft
 

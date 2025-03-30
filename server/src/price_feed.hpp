@@ -8,6 +8,7 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
+#include "bus/subscription_holder.hpp"
 #include "config/config.hpp"
 #include "server_command.hpp"
 #include "ticker_data.hpp"
@@ -24,10 +25,14 @@ namespace hft::server {
 class PriceFeed {
 public:
   PriceFeed(Bus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemBus.systemIoCtx},
-        rate_{Config::cfg.priceFeedRate} {
-    bus_.systemBus.subscribe(ServerCommand::PriceFeedStart, [this]() { start(); });
-    bus_.systemBus.subscribe(ServerCommand::PriceFeedStop, [this]() { stop(); });
+      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{Config::cfg.priceFeedRate},
+        subs_{id_, bus_.systemBus} {
+    bus_.systemBus.subscribe<ServerCommand>(
+        id_, ServerCommand::PriceFeedStart,
+        subs_.add<CRefHandler<ServerCommand>>([this](CRef<ServerCommand> cmd) { start(); }));
+    bus_.systemBus.subscribe<ServerCommand>(
+        id_, ServerCommand::PriceFeedStop,
+        subs_.add<CRefHandler<ServerCommand>>([this](CRef<ServerCommand>) { stop(); }));
   }
 
   void start() {
@@ -75,6 +80,8 @@ private:
   }
 
 private:
+  const ObjectId id_{utils::getId()};
+
   Bus &bus_;
   const MarketData &data_;
 
@@ -82,6 +89,7 @@ private:
   Microseconds rate_;
 
   std::atomic_bool broadcasting_{false};
+  SubscriptionHolder subs_;
 };
 
 } // namespace hft::server

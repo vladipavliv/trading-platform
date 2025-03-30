@@ -21,6 +21,10 @@ static inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   return ticker;
 }
 
+static inline String fbStringToString(const flatbuffers::String *str) {
+  return String(str->c_str(), str->size());
+}
+
 OrderAction convert(gen::fbs::OrderAction action) {
   switch (action) {
   case gen::fbs::OrderAction::OrderAction_BUY:

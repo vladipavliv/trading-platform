@@ -12,7 +12,7 @@
 #include "bus/bus.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
-#include "server_event.hpp"
+#include "server_events.hpp"
 #include "ticker_data.hpp"
 #include "worker.hpp"
 
@@ -33,7 +33,7 @@ namespace hft::server {
 class Coordinator {
 public:
   Coordinator(Bus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus_.ioCtx()}, statsRate_{Config::cfg.monitorRate} {
+      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, statsRate_{Config::cfg.monitorRate} {
     bus_.marketBus.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
   }
 
@@ -55,7 +55,7 @@ private:
     Logger::monitorLogger->info("Starting {} workers", appCores);
     workers_.reserve(appCores);
     for (int i = 0; i < appCores; ++i) {
-      workers_.emplace_back(std::make_unique<Worker>(i));
+      workers_.emplace_back(std::make_unique<Worker>(i, Config::cfg.coresApp[i]));
     }
   }
 

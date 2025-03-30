@@ -9,7 +9,7 @@
 #include <memory>
 
 #include "boost_types.hpp"
-#include "config/config.hpp"
+#include "io_ctx.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -17,18 +17,16 @@ namespace hft {
 
 /**
  * @brief Worker thread with an io_context.
- * Performs significantly better then a manual lock free queue
  */
 class Worker {
 public:
   using UPtr = std::unique_ptr<Worker>;
 
-  IoContext ioCtx;
+  IoCtx ioCtx;
 
-  Worker(ThreadId id)
-      : guard_{MakeGuard(ioCtx.get_executor())}, thread_{[this, id]() {
+  Worker(ThreadId id, CoreId coreId)
+      : thread_{[this, id, coreId]() {
           try {
-            auto coreId = Config::cfg.coresApp[id];
             utils::setTheadRealTime(coreId);
             utils::pinThreadToCore(coreId);
             ioCtx.run();
@@ -37,15 +35,9 @@ public:
           }
         }} {}
 
-  ~Worker() {
-    ioCtx.stop();
-    if (thread_.joinable()) {
-      thread_.join();
-    }
-  }
+  ~Worker() { ioCtx.stop(); }
 
 private:
-  ContextGuard guard_;
   Thread thread_;
 };
 

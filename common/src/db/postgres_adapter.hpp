@@ -19,58 +19,62 @@
 namespace hft::db {
 
 /**
- * @brief Quick adapter just for local testing
+ * @brief Postgres adapter
  */
 class PostgresAdapter {
-public:
-  static std::vector<TickerPrice> readTickers() {
+  static auto connect() {
     pqxx::connection conn("dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432");
     if (!conn.is_open()) {
-      spdlog::error("Failed to open db");
-      assert(false);
-      return {};
+      throw std::runtime_error("Failed to open db");
     }
+    return conn;
+  }
+
+public:
+  static std::optional<TraderId> authenticate(CRef<LoginRequest> cred) {
+    pqxx::connection conn = connect();
+    pqxx::work transaction(conn);
+
+    std::string query = "SELECT trader_id, password FROM traders WHERE name = $1";
+    pqxx::result result = transaction.exec_params(query, cred.name);
+
+    if (result.empty()) {
+      return false;
+    }
+    TraderId traderId = result[0][0].as<TraderId>();
+    std::string password = result[0][1].as<std::string>(); // TODO(self) encrypt
+
+    return cred.password == password ? traderId : std::optional<TraderId>();
+  }
+
+  static std::vector<TickerPrice> readTickers() {
+    pqxx::connection conn = connect();
+    pqxx::work transaction(conn);
+
+    std::string countQuery = "SELECT COUNT(*) FROM tickers";
+    pqxx::result countResult = transaction.exec(countQuery);
+
+    if (countResult.empty()) {
+      throw std::runtime_error("Empty tickers table");
+    }
+    size_t count = countResult[0][0].as<size_t>();
+    if (count == 0) {
+      throw std::runtime_error("Empty tickers table");
+    }
+
     std::vector<TickerPrice> tickers;
-    tickers.reserve(1001);
-    pqxx::work txn(conn);
+    tickers.reserve(count);
 
     std::string query = "SELECT * FROM tickers";
-    pqxx::result res = txn.exec(query);
+    pqxx::result res = transaction.exec(query);
 
     for (auto row : res) {
       std::string ticker = row["ticker"].as<std::string>();
-      Price price = row["price"].as<float>();
-      if (ticker.empty()) {
-        spdlog::error("Empty ticker read from DB");
-      } else {
-        tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
-      }
+      Price price = row["price"].as<size_t>();
+      tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
     }
-    txn.commit();
+    transaction.commit();
     return tickers;
-  }
-
-  static void generateABunchOfTickers(uint16_t size) {
-    pqxx::connection pgConn(
-        "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432");
-    if (!pgConn.is_open()) {
-      spdlog::error("Failed to connect to postgres");
-      assert(false);
-      return;
-    }
-    pqxx::work pgWork(pgConn);
-
-    std::stringstream query;
-    query << "INSERT INTO tickers (ticker, price) VALUES ";
-
-    for (int i = 0; i < size; ++i) {
-      TickerPrice ticker = utils::generateTickerPrice();
-      std::string tickerStr(ticker.ticker.begin(), ticker.ticker.end());
-
-      pgWork.exec_params("INSERT INTO tickers (ticker, price) VALUES ($1, $2)", tickerStr,
-                         ticker.price);
-    }
-    pgWork.commit();
   }
 };
 

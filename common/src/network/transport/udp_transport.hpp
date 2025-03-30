@@ -18,7 +18,8 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief Asynchronous UdpSocket wrapper
+ * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
 template <typename FramerType>
 class UdpTransport {
@@ -26,8 +27,8 @@ public:
   using Framer = FramerType;
   using UPtr = std::unique_ptr<UdpTransport>;
 
-  UdpTransport(UdpSocket socket, UdpEndpoint endpoint, BusWrapper bus)
-      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{std::move(bus)} {}
+  UdpTransport(UdpSocket socket, UdpEndpoint endpoint, Bus &bus)
+      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{bus} {}
 
   void read() {
     socket_.async_receive_from(
@@ -38,17 +39,17 @@ public:
   template <typename Type>
     requires(Bus::MarketBus::RoutedType<Type>)
   void write(Span<Type> messages) {
-    auto data = std::make_shared<ByteBuffer>(Framer::frame(messages));
+    auto data = Framer::frame(messages);
     socket_.async_send_to(
         ConstBuffer{data->data(), data->size()}, endpoint_,
         [this, data](CRef<BoostError> code, size_t bytes) {
           if (code) {
             Logger::monitorLogger->error("Udp transport error {}", code.message());
-            bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
+            bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
           }
           if (bytes != data->size()) {
             Logger::monitorLogger->error("Failed to write {}, written {}", data->size(), bytes);
-            bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
+            bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
           }
         });
   }
@@ -62,7 +63,7 @@ private:
       if (code != boost::asio::error::eof) {
         spdlog::error(code.message());
       }
-      bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
+      bus_.post(UdpStatusEvent{id_, ConnectionStatus::Error});
       return;
     }
     buffer_.commitWrite(bytes);
@@ -71,10 +72,12 @@ private:
   }
 
 private:
+  const ObjectId id_{utils::getId()};
+
   UdpSocket socket_;
   UdpEndpoint endpoint_;
 
-  BusWrapper bus_;
+  Bus &bus_;
   RingBuffer buffer_;
 };
 

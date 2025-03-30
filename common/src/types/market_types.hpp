@@ -14,8 +14,8 @@
 
 namespace hft {
 
-using OrderId = uint32_t;
-using TraderId = uint32_t;
+using OrderId = uint64_t;
+using TraderId = uint64_t;
 using Quantity = uint32_t;
 using Price = uint32_t;
 
@@ -32,9 +32,19 @@ struct TickerHash {
 enum class OrderAction : uint8_t { Buy, Sell };
 enum class OrderState : uint8_t { Accepted, Partial, Full };
 
+struct LoginRequest {
+  String name;
+  String password;
+};
+
+struct LoginResponse {
+  bool success;
+  String token;
+};
+
 struct Order {
-  TraderId traderId; // Server side
   OrderId id;
+  TraderId traderId; // Server side
   Ticker ticker{};
   Quantity quantity;
   Price price;
@@ -42,8 +52,8 @@ struct Order {
 };
 
 struct OrderStatus {
-  TraderId traderId; // Server side
   OrderId id;
+  TraderId traderId; // Server side
   Ticker ticker{};
   Quantity quantity;
   Price fillPrice;

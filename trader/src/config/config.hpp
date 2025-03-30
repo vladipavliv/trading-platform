@@ -3,8 +3,8 @@
  * @date 2025-02-10
  */
 
-#ifndef HFT_COMMON_CONFIG_HPP
-#define HFT_COMMON_CONFIG_HPP
+#ifndef HFT_TRADER_CONFIG_HPP
+#define HFT_TRADER_CONFIG_HPP
 
 #include <format>
 #include <spdlog/spdlog.h>
@@ -17,44 +17,47 @@
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
-namespace hft {
+namespace hft::trader {
 
-/**
- * @brief Commonb config for both server and trader.
- * Gets loaded from a separate ini files
- */
 struct Config {
+  // Network
   String url;
   Port portTcpIn;
   Port portTcpOut;
   Port portUdp;
 
+  // Cores
   uint8_t coreSystem;
   std::vector<uint8_t> coresNetwork;
   std::vector<uint8_t> coresApp;
 
+  // Rates
   Microseconds tradeRate;
-  Microseconds priceFeedRate;
   Seconds monitorRate;
 
+  // Credentials
+  String name;
+  String password;
+
+  // Logging
   LogLevel logLevel;
-  std::string logOutput;
+  String logOutput;
 
   static Config cfg;
   static void logConfig() {
     Logger::monitorLogger->info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn,
                                 cfg.portTcpOut, cfg.portUdp);
-    Logger::monitorLogger->info(
-        "SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us PriceFeedRate:{}us",
-        cfg.coreSystem, utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
-        cfg.tradeRate.count(), cfg.priceFeedRate.count());
+    Logger::monitorLogger->info("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
+                                cfg.coreSystem, utils::toString(cfg.coresNetwork),
+                                utils::toString(cfg.coresApp), cfg.tradeRate.count());
     Logger::monitorLogger->info("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel),
                                 cfg.logOutput);
+    Logger::monitorLogger->info("Name: {} Password: {}", cfg.name, cfg.password);
   }
 };
 
 Config Config::cfg;
 
-} // namespace hft
+} // namespace hft::trader
 
-#endif // HFT_SERVER_CONFIG_HPP
+#endif // HFT_TRADER_CONFIG_HPP

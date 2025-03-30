@@ -8,6 +8,9 @@
 #include <functional>
 #include <iostream>
 #include <random>
+
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <spdlog/spdlog.h>
 
 #include "rng.hpp"
@@ -53,12 +56,6 @@ std::string getConsoleInput() {
 
 size_t getTickerHash(const Ticker &ticker) {
   return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
-}
-
-TraderId getTraderId(const TcpSocket &sock) {
-  auto endpoint = sock.remote_endpoint();
-  std::string idString = endpoint.address().to_string();
-  return static_cast<uint32_t>(std::hash<std::string>{}(idString));
 }
 
 Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act) {
@@ -135,7 +132,7 @@ std::string getScaleNs(size_t nanoSec) {
   return getScaleUs(nanoSec / 1000);
 }
 
-UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
+UdpSocket createUdpSocket(BoostIoCtx &ctx, bool broadcast, Port port) {
   UdpSocket socket(ctx, Udp::v4());
   socket.set_option(boost::asio::socket_base::reuse_address{true});
   if (broadcast) {
@@ -146,18 +143,14 @@ UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
   return socket;
 }
 
-void coreWarmUpJob() {
-  /**
-   * Running this warm up for 5s does nothing
-   * Sometimes server runs stably at ~65k rps for 5us trade rate for a good minute
-   * and after a couple of restarts rps might jump to 100k and stay there.
-   * Strange stuff. But this warm up is useless.
-   */
-  long long dummyCounter = 0;
-  for (int i = 0; i < 1000000; ++i) {
-    dummyCounter += std::sin(i) * std::cos(i);
-  }
-  spdlog::trace("Warmup job dummy counter {}", dummyCounter);
+ObjectId getId() {
+  static ObjectId counter = 0;
+  return counter++;
+}
+
+Token generateToken() {
+  boost::uuids::random_generator generator;
+  return generator();
 }
 
 } // namespace hft::utils

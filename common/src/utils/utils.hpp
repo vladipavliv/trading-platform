@@ -28,8 +28,6 @@ void setTheadRealTime(size_t coreId);
 void unblockConsole();
 std::string getConsoleInput();
 
-TraderId getTraderId(const TcpSocket &sock);
-
 size_t getTickerHash(const Ticker &ticker);
 Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act);
 Ticker generateTicker();
@@ -43,9 +41,10 @@ std::string getScaleNs(size_t);
 
 void printRawBuffer(const uint8_t *buffer, size_t size);
 
-UdpSocket createUdpSocket(IoContext &ctx, bool broadcast = true, Port port = 0);
+UdpSocket createUdpSocket(BoostIoCtx &ctx, bool broadcast = true, Port port = 0);
 
-void coreWarmUpJob();
+ObjectId getId();
+Token generateToken();
 
 } // namespace hft::utils
 

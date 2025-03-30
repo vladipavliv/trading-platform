@@ -22,7 +22,7 @@ using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
 
-enum class SocketType : uint8_t { Ingress = 0U, Egress = 1U, Broadcast = 2U };
+enum class TcpConnectionType : uint8_t { Ingress = 0U, Egress = 1U };
 
 using SocketCallback = std::function<void(const BoostError &, size_t)>;
 using SocketStatusCallback = std::function<void(const BoostError &)>;

@@ -26,7 +26,7 @@ public:
   static constexpr size_t HEADER_SIZE = sizeof(MessageSize);
 
   template <typename Type>
-  static ByteBuffer frame(Span<Type> messages) {
+  static SPtr<ByteBuffer> frame(Span<Type> messages) {
     spdlog::trace("frame {} messages", messages.size());
     std::vector<typename Serializer::BufferType> serializedMessages(messages.size());
 
@@ -36,8 +36,8 @@ public:
       allocSize += sizeof(MessageSize) + serializedMessages[index].size();
     }
 
-    ByteBuffer writeBuffer(allocSize);
-    auto cursor = writeBuffer.data();
+    SPtr<ByteBuffer> writeBuffer = std::make_shared<ByteBuffer>(allocSize);
+    auto cursor = writeBuffer->data();
     for (auto [index, message] : serializedMessages | std::views::enumerate) {
       LittleEndianUInt16 bodySize = static_cast<MessageSize>(message.size());
       std::memcpy(cursor, &bodySize, sizeof(bodySize));
@@ -47,7 +47,22 @@ public:
     return writeBuffer;
   }
 
-  static void unframe(RingBuffer &buffer, BusWrapper &bus) {
+  template <typename Type>
+  static SPtr<ByteBuffer> frame(CRef<Type> message) {
+    spdlog::trace("frame 1 message");
+
+    auto serialized = Serializer::serialize(message);
+    SPtr<ByteBuffer> buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serialized.size());
+    LittleEndianUInt16 bodySize = static_cast<MessageSize>(serialized.size());
+
+    std::memcpy(buffer->data(), &bodySize, sizeof(bodySize));
+    std::memcpy(buffer->data() + sizeof(bodySize), serialized.data(), serialized.size());
+
+    return buffer;
+  }
+
+  template <typename Cunsumer>
+  static void unframe(RingBuffer &buffer, Cunsumer &consumer) {
     // TODO(self) Try some buckets here automatically sorting messages by type and workerId
     auto readBuffer = buffer.data();
     auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
@@ -63,7 +78,7 @@ public:
         break;
       }
       cursor += HEADER_SIZE;
-      if (!Serializer::deserialize(dataPtr + cursor, bodySize, bus)) {
+      if (!Serializer::deserialize(dataPtr + cursor, bodySize, consumer)) {
         buffer.reset();
         return;
       }

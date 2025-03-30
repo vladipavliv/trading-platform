@@ -24,6 +24,16 @@ std::string toString(const Type &val) {
 }
 
 template <>
+std::string toString<LoginRequest>(const LoginRequest &msg) {
+  return std::format("LoginRequest name: {} password: {}", msg.name, msg.password);
+}
+
+template <>
+std::string toString<LoginResponse>(const LoginResponse &msg) {
+  return std::format("LoginResponse success: {} token: {}", msg.success, msg.token);
+}
+
+template <>
 std::string toString<OrderState>(const OrderState &state) {
   switch (state) {
   case OrderState::Full:
@@ -176,16 +186,15 @@ LogLevel fromString<LogLevel>(const String &input) {
   return LogLevel::trace;
 }
 
-String toString(SocketType socketType) {
-  switch (socketType) {
-  case SocketType::Ingress:
+String toString(TcpConnectionType type) {
+  switch (type) {
+  case TcpConnectionType::Ingress:
     return "Ingress";
-  case SocketType::Egress:
+  case TcpConnectionType::Egress:
     return "Egress";
-  case SocketType::Broadcast:
-    return "Broadcast";
   default:
-    return "Broadcast";
+    assert(false);
+    return "";
   }
 }
 

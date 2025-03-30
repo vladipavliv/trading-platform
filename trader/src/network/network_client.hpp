@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_NETWORKCLIENT_HPP
-#define HFT_SERVER_NETWORKCLIENT_HPP
+#ifndef HFT_TRADER_NETWORKCLIENT_HPP
+#define HFT_TRADER_NETWORKCLIENT_HPP
 
 #include <format>
 #include <memory>
@@ -14,8 +14,10 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
+#include "bus/subscription_holder.hpp"
 #include "comparators.hpp"
 #include "config/config.hpp"
+#include "io_ctx.hpp"
 #include "logger.hpp"
 #include "market_types.hpp"
 #include "network/connection_status.hpp"
@@ -25,7 +27,8 @@
 #include "serialization/flat_buffers/fb_serializer.hpp"
 #include "template_types.hpp"
 #include "trader_command.hpp"
-#include "trader_event.hpp"
+#include "trader_events.hpp"
+#include "trader_gateway.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -38,28 +41,33 @@ namespace hft::trader {
 class NetworkClient {
   using Serializer = serialization::FlatBuffersSerializer;
   using Framer = SizeFramer<Serializer>;
-  using TraderTcpTransport = TcpTransport<Framer>;
+  using TraderTcpTransport = TcpTransport<TraderGateway, Framer>;
   using TraderUdpTransport = UdpTransport<Framer>;
-
-  struct Session {
-    TraderTcpTransport::UPtr ingress;
-    TraderTcpTransport::UPtr egress;
-  };
 
 public:
   NetworkClient(Bus &bus)
-      : ioCtxGuard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus},
-        ingressTransport_{createIngressTransport()}, egressTransport_{createEgressTransport()},
-        pricesTransport_{createPricesTransport()}, connectionTimer_{ioCtx_},
+      : bus_{bus}, ingressTransport_{createIngressTransport()},
+        egressTransport_{createEgressTransport()}, pricesTransport_{createPricesTransport()},
+        subs_{id_, bus_.systemBus}, connectionTimer_{ioCtx_.ctx},
         monitorRate_{Config::cfg.monitorRate} {
     bus_.marketBus.setHandler<Order>(
         [this](Span<Order> orders) { egressTransport_.write(orders); });
 
-    bus_.systemBus.subscribe<TcpConnectionStatus>(
-        [this](CRef<TcpConnectionStatus> event) { onTcpStatus(event); });
+    bus_.systemBus.subscribe<LoginRequestEvent>(
+        id_, subs_.add<CRefHandler<LoginRequestEvent>>(
+                 [this](CRef<LoginRequestEvent> event) { onLoginRequest(event); }));
 
-    bus_.systemBus.subscribe<UdpConnectionStatus>(
-        [this](CRef<UdpConnectionStatus> event) { onUdpStatus(event); });
+    bus_.systemBus.subscribe<LoginResultEvent>(
+        id_, subs_.add<CRefHandler<LoginResultEvent>>(
+                 [this](CRef<LoginResultEvent> event) { onLoginResult(event); }));
+
+    bus_.systemBus.subscribe<TcpStatusEvent>(
+        id_, subs_.add<CRefHandler<TcpStatusEvent>>(
+                 [this](CRef<TcpStatusEvent> event) { onTcpStatus(event); }));
+
+    bus_.systemBus.subscribe<UdpStatusEvent>(
+        id_, subs_.add<CRefHandler<UdpStatusEvent>>(
+                 [this](CRef<UdpStatusEvent> event) { onUdpStatus(event); }));
   }
 
   ~NetworkClient() { stop(); }
@@ -94,7 +102,19 @@ public:
   inline bool connected() const { return connected_.load(); }
 
 private:
-  void onTcpStatus(CRef<TcpConnectionStatus> event) {
+  void onLoginRequest(CRef<LoginRequestEvent> event) {
+    if (event.connectionId == ingressTransport_.id()) {
+      ingressTransport_.write(event.request);
+    } else if (event.connectionId == egressTransport_.id()) {
+      egressTransport_.write(event.request);
+    }
+  }
+
+  void onLoginResult(CRef<LoginResultEvent> event) {
+    Logger::monitorLogger->info("Login result {}", event.result.success ? "success" : "failure");
+  }
+
+  void onTcpStatus(CRef<TcpStatusEvent> event) {
     switch (event.status) {
     case ConnectionStatus::Connected:
       if (ingressTransport_.status() == ConnectionStatus::Connected &&
@@ -116,7 +136,7 @@ private:
     }
   }
 
-  void onUdpStatus(CRef<UdpConnectionStatus> event) {
+  void onUdpStatus(CRef<UdpStatusEvent> event) {
     if (event.status == ConnectionStatus::Error) {
       Logger::monitorLogger->error("Udp connection error");
       pricesTransport_.close();
@@ -148,30 +168,33 @@ private:
    */
   TraderTcpTransport createIngressTransport() {
     return TraderTcpTransport{
-        TcpSocket{ioCtx_}, TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut},
-        BusWrapper{bus_}};
+        TcpSocket{ioCtx_.ctx},
+        TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpOut}, TraderGateway{bus_},
+        TcpConnectionType::Ingress};
   }
 
   TraderTcpTransport createEgressTransport() {
-    return TraderTcpTransport{TcpSocket{ioCtx_},
+    return TraderTcpTransport{TcpSocket{ioCtx_.ctx},
                               TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpIn},
-                              BusWrapper{bus_}};
+                              TraderGateway{bus_}, TcpConnectionType::Egress};
   }
 
   TraderUdpTransport createPricesTransport() {
-    return TraderUdpTransport{utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
-                              UdpEndpoint(Udp::v4(), Config::cfg.portUdp), BusWrapper{bus_}};
+    return TraderUdpTransport{utils::createUdpSocket(ioCtx_.ctx, false, Config::cfg.portUdp),
+                              UdpEndpoint(Udp::v4(), Config::cfg.portUdp), bus_};
   }
 
 private:
-  IoContext ioCtx_;
-  ContextGuard ioCtxGuard_;
+  const ObjectId id_{utils::getId()};
 
+  IoCtx ioCtx_;
   Bus &bus_;
 
   TraderTcpTransport ingressTransport_;
   TraderTcpTransport egressTransport_;
   TraderUdpTransport pricesTransport_;
+
+  SubscriptionHolder subs_;
 
   SteadyTimer connectionTimer_;
   Seconds monitorRate_;
@@ -182,4 +205,4 @@ private:
 
 } // namespace hft::trader
 
-#endif // HFT_SERVER_NETWORKCLIENT_HPP
+#endif // HFT_TRADER_NETWORKCLIENT_HPP
