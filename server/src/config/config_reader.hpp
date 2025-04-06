@@ -6,7 +6,6 @@
 #ifndef HFT_SERVER_CONFIGREADER_HPP
 #define HFT_SERVER_CONFIGREADER_HPP
 
-#include <spdlog/spdlog.h>
 #include <sstream>
 #include <vector>
 
@@ -32,9 +31,15 @@ struct ConfigReader {
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cores
-    Config::cfg.coreSystem = pt.get<int>("cpu.core_system");
-    Config::cfg.coresNetwork = parseCores(pt.get<std::string>("cpu.cores_network"));
-    Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
+    if (auto v = pt.get_optional<int>("cpu.core_system")) {
+      Config::cfg.coreSystem = *v;
+    }
+    if (auto v = pt.get_optional<std::string>("cpu.cores_network")) {
+      Config::cfg.coresNetwork = parseCores(*v);
+    }
+    if (auto v = pt.get_optional<std::string>("cpu.cores_app")) {
+      Config::cfg.coresApp = parseCores(*v);
+    }
 
     // Rates
     Config::cfg.priceFeedRate = Microseconds(pt.get<int>("rates.price_feed_rate"));

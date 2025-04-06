@@ -6,9 +6,8 @@
 #ifndef HFT_COMMON_CONVERTER_HPP
 #define HFT_COMMON_CONVERTER_HPP
 
-#include <spdlog/spdlog.h>
-
 #include "gen/marketdata_generated.h"
+#include "logging.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 

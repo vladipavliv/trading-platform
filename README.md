@@ -77,13 +77,25 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
 
 ## Performance
-With 1us delay between orders sent from trader performance is the following
+Tested on localhost with 4 traders and 1us trade rate
 
 Server:
 ```bash
-20:48:10.538203 [I] Orders: [opn|ttl] 1,455,201|6,639,844 | Rps: 135,116
+01:04:49.118586 [I] Orders: [opn|ttl] 10,813,666|50,054,412 | Rps: 374,655
 ```
-Trader:
+Trader0:
 ```bash
-20:48:10.433534 [I] Rtt: [<50us|>50us] 99.96% avg:6us 0.04% avg:86us
+01:04:53.380633 [I] Rtt: [<50us|>50us] 99.97% avg:7us 0.03% avg:83us
+```
+Trader1:
+```bash
+01:04:49.235910 [I] Rtt: [<50us|>50us] 99.90% avg:9us 0.10% avg:123us
+```
+Trader2:
+```bash
+01:04:50.605096 [I] Rtt: [<50us|>50us] 99.85% avg:10us 0.15% avg:144us
+```
+Trader3:
+```bash
+01:04:52.118858 [I] Rtt: [<50us|>50us] 99.96% avg:7us 0.04% avg:112us
 ```

@@ -45,7 +45,7 @@ public:
 
   template <typename Consumer>
   static void unframe(RingBuffer &buffer, Consumer &&consumer) {
-    LOG_DEBUG("unframe {} bytes", buffer.size());
+    LOG_DEBUG("unframe");
     auto readBuffer = buffer.data();
     auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
     auto cursor{0};

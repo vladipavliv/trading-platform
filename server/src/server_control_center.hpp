@@ -52,8 +52,10 @@ public:
     coordinator_.start();
     consoleReader_.start();
 
-    utils::setTheadRealTime(Config::cfg.coreSystem);
-    utils::pinThreadToCore(Config::cfg.coreSystem);
+    utils::setTheadRealTime();
+    if (Config::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(Config::cfg.coreSystem.value());
+    }
 
     bus_.systemBus.ioCtx.run();
   }

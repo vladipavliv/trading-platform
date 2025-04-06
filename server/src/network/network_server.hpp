@@ -39,20 +39,30 @@ public:
   ~NetworkServer() { stop(); }
 
   void start() {
-    const auto cores = Config::cfg.coresNetwork.size();
-    LOG_INFO_SYSTEM("Starting network server on {} threads", cores);
-    workerThreads_.reserve(cores);
-    for (int i = 0; i < cores; ++i) {
-      workerThreads_.emplace_back([this, i]() {
+    auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
+      workerThreads_.emplace_back([this, workerId, pinToCore, coreId]() {
         try {
-          auto coreId = Config::cfg.coresNetwork[i];
-          utils::setTheadRealTime(coreId);
-          utils::pinThreadToCore(coreId);
+          utils::setTheadRealTime();
+          if (pinToCore) {
+            utils::pinThreadToCore(coreId);
+            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId);
+          } else {
+            LOG_DEBUG("Worker {} started", workerId);
+          }
           ioCtx_.run();
         } catch (const std::exception &e) {
           LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
         }
       });
+    };
+
+    const auto cores = Config::cfg.coresNetwork.size();
+    workerThreads_.reserve(cores == 0 ? 1 : cores);
+    if (cores == 0) {
+      addThread(0, false);
+    }
+    for (int i = 0; i < cores; ++i) {
+      addThread(i, true, Config::cfg.coresNetwork[i]);
     }
     ioCtx_.post([this]() {
       startUpstream();

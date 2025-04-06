@@ -6,7 +6,6 @@
 #ifndef HFT_TRADER_CONFIGREADER_HPP
 #define HFT_TRADER_CONFIGREADER_HPP
 
-#include <spdlog/spdlog.h>
 #include <sstream>
 #include <vector>
 
@@ -32,9 +31,15 @@ struct ConfigReader {
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cores
-    Config::cfg.coreSystem = pt.get<int>("cpu.core_system");
-    Config::cfg.coresNetwork = parseCores(pt.get<std::string>("cpu.cores_network"));
-    Config::cfg.coresApp = parseCores(pt.get<std::string>("cpu.cores_app"));
+    if (auto v = pt.get_optional<int>("cpu.core_system")) {
+      Config::cfg.coreSystem = *v;
+    }
+    if (auto v = pt.get_optional<std::string>("cpu.cores_network")) {
+      Config::cfg.coresNetwork = parseCores(*v);
+    }
+    if (auto v = pt.get_optional<std::string>("cpu.cores_app")) {
+      Config::cfg.coresApp = parseCores(*v);
+    }
 
     // Rates
     Config::cfg.tradeRate = Microseconds(pt.get<int>("rates.trade_rate"));
@@ -58,11 +63,12 @@ struct ConfigReader {
     if (utils::hasIntersection(cfg.coresApp, cfg.coresNetwork)) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    if (std::find(cfg.coresApp.begin(), cfg.coresApp.end(), cfg.coreSystem) != cfg.coresApp.end()) {
+    if (cfg.coreSystem.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
+                                                cfg.coreSystem.value()) != cfg.coresApp.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    if (std::find(cfg.coresNetwork.begin(), cfg.coresNetwork.end(), cfg.coreSystem) !=
-        cfg.coresNetwork.end()) {
+    if (cfg.coreSystem.has_value() && std::find(cfg.coresNetwork.begin(), cfg.coresNetwork.end(),
+                                                cfg.coreSystem.value()) != cfg.coresNetwork.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
     if (cfg.tradeRate.count() == 0 || cfg.monitorRate.count() == 0) {

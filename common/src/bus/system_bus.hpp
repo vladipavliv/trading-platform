@@ -19,13 +19,15 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief Bus for system commands and events.
+ * Allows subscribing to both event in general and specific values
+ * @details All the callbacks are executed in a system io context
  */
 class SystemBus {
 public:
   IoCtx ioCtx;
 
-  SystemBus() {}
+  SystemBus() : ioCtxGuard_{MakeGuard(ioCtx.get_executor())} {}
 
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {
@@ -83,6 +85,9 @@ private:
     static ValueSubscribers<EventType> subscribers;
     return subscribers;
   }
+
+private:
+  ContextGuard ioCtxGuard_;
 };
 
 } // namespace hft

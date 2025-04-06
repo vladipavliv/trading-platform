@@ -57,8 +57,10 @@ public:
     LOG_INFO_SYSTEM("Connecting to the server");
     networkClient_.connect();
 
-    utils::setTheadRealTime(Config::cfg.coreSystem);
-    utils::pinThreadToCore(Config::cfg.coreSystem);
+    utils::setTheadRealTime();
+    if (Config::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(Config::cfg.coreSystem.value());
+    }
 
     bus_.systemCtx().run();
   }

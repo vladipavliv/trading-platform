@@ -7,7 +7,6 @@
 #define HFT_SERVER_CONFIG_HPP
 
 #include <format>
-#include <spdlog/spdlog.h>
 #include <sstream>
 #include <vector>
 
@@ -27,9 +26,9 @@ struct Config {
   Port portUdp;
 
   // Cores
-  uint8_t coreSystem;
-  std::vector<uint8_t> coresNetwork;
-  std::vector<uint8_t> coresApp;
+  Opt<CoreId> coreSystem;
+  std::vector<CoreId> coresNetwork;
+  std::vector<CoreId> coresApp;
 
   // Rates
   Microseconds priceFeedRate;
@@ -43,9 +42,9 @@ struct Config {
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
-    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us", cfg.coreSystem,
-                    utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
-                    cfg.priceFeedRate.count());
+    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us",
+                    cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
+                    utils::toString(cfg.coresApp), cfg.priceFeedRate.count());
     LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
   }
 };

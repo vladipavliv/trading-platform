@@ -6,11 +6,7 @@
 #ifndef HFT_COMMON_DB_POSTGRESADAPTER_HPP
 #define HFT_COMMON_DB_POSTGRESADAPTER_HPP
 
-#include <sstream>
-#include <string>
-
 #include <pqxx/pqxx>
-#include <spdlog/spdlog.h>
 
 #include "bus/bus.hpp"
 #include "logging.hpp"

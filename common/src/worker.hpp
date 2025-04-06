@@ -24,8 +24,9 @@ public:
 
   IoCtx ioCtx;
 
-  Worker(ThreadId id, CoreId coreId)
-      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())} {}
+  Worker(ThreadId id, bool pinToCore, CoreId coreId = 0)
+      : threadId_{id}, pinToCore_{pinToCore}, coreId_{coreId},
+        guard_{MakeGuard(ioCtx.get_executor())} {}
 
   ~Worker() { ioCtx.stop(); }
 
@@ -37,9 +38,13 @@ public:
     started_ = true;
     thread_ = Thread{[this]() {
       try {
-        LOG_DEBUG("Starting worker thread {} on the core {}", threadId_, coreId_);
-        utils::setTheadRealTime(coreId_);
-        utils::pinThreadToCore(coreId_);
+        utils::setTheadRealTime();
+        if (pinToCore_) {
+          utils::pinThreadToCore(coreId_);
+          LOG_DEBUG("Starting worker thread {} on the core {}", threadId_, coreId_);
+        } else {
+          LOG_DEBUG("Starting worker thread {}", threadId_);
+        }
         ioCtx.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in worker thread {} {}", threadId_, e.what());
@@ -51,7 +56,9 @@ public:
 
 private:
   const ThreadId threadId_;
+  const bool pinToCore_;
   const CoreId coreId_;
+
   bool started_{false};
 
   ContextGuard guard_;

@@ -29,14 +29,14 @@ void pinThreadToCore(size_t coreId) {
   }
 }
 
-void setTheadRealTime(size_t coreId) {
+void setTheadRealTime() {
   struct sched_param param;
   param.sched_priority = 99;
   sched_setscheduler(0, SCHED_FIFO, &param);
 
   auto code = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (code != 0) {
-    LOG_ERROR("Failed to set real-time priority on the core: {}, error: {}", coreId, code);
+    LOG_ERROR("Failed to set real-time priority on the error: {}", code);
   }
 }
 
@@ -145,8 +145,9 @@ SocketId generateSocketId() {
 }
 
 Token generateSessionToken() {
-  static std::atomic_uint64_t counter = 0;
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  // static std::atomic_uint64_t counter = 0;
+  // return counter.fetch_add(1, std::memory_order_relaxed);
+  return getTimestamp();
 }
 
 } // namespace hft::utils

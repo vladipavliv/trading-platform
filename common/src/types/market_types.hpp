@@ -50,8 +50,10 @@ struct TokenLoginRequest {
 struct LoginResponse {
   SocketId socketId{0}; // Server side
   TraderId traderId{0}; // Server side
-  SessionToken token;
+  mutable SessionToken token;
   bool success;
+
+  inline void setToken(Token tok) const { token = tok; }
 };
 
 enum class OrderAction : uint8_t { Buy, Sell };

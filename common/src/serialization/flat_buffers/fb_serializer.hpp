@@ -8,8 +8,6 @@
 
 #include <expected>
 
-#include <spdlog/spdlog.h>
-
 #include "bus/bus.hpp"
 #include "constants.hpp"
 #include "converter.hpp"

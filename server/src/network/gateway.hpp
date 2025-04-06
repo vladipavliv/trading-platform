@@ -99,30 +99,35 @@ public:
   }
 
   void post(CRef<SocketStatusEvent> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_TRACE_SYSTEM("{}", utils::toString(event));
     if (event.status == SocketStatus::Connected) {
       return;
     }
     // Cleanup disconnected socket from connections map and session map
     for (auto &session : sessionsMap_) {
       Session &s = session.second;
+      // Up or Downstream socket
       if (s.upstreamId.has_value() && s.upstreamId == event.socketId) {
-        s.upstreamId.reset();
-        if (!s.downstreamId.has_value()) {
-          sessionsMap_.erase(session.first);
+        upstreamMap_.erase(event.socketId);
+        if (s.downstreamId.has_value()) {
+          downstreamMap_.erase(s.downstreamId.value());
         }
+        LOG_INFO_SYSTEM("TraderId: {} disconnected", s.traderId);
+        sessionsMap_.erase(session.first);
+        printStats();
         break;
       }
       if (s.downstreamId.has_value() && s.downstreamId == event.socketId) {
-        s.downstreamId.reset();
-        if (!s.upstreamId.has_value()) {
-          sessionsMap_.erase(session.first);
+        downstreamMap_.erase(event.socketId);
+        if (s.upstreamId.has_value()) {
+          upstreamMap_.erase(s.upstreamId.value());
         }
+        LOG_INFO_SYSTEM("TraderId: {} disconnected", s.traderId);
+        sessionsMap_.erase(session.first);
+        printStats();
         break;
       }
     }
-    upstreamMap_.erase(event.socketId);
-    downstreamMap_.erase(event.socketId);
   }
 
   void post(CRef<CredentialsLoginRequest> request) {
@@ -131,7 +136,7 @@ public:
   }
 
   void post(CRef<TokenLoginRequest> request) {
-    LOG_DEBUG("{}", utils::toString(request));
+    LOG_DEBUG_SYSTEM("{}", utils::toString(request));
     // Login via token is done on the downstream socket
     const auto sessionIter = sessionsMap_.find(request.token);
     if (sessionIter == sessionsMap_.end()) {
@@ -150,6 +155,12 @@ public:
     }
     sessionIter->second.downstreamId = request.socketId;
     downstreamIt->second->write(LoginResponse{0, 0, request.token, true});
+
+    LOG_INFO_SYSTEM("Session started Trader: {} Token: {}, UpId: {}, DownId: {}",
+                    sessionIter->second.traderId, request.token,
+                    sessionIter->second.upstreamId.value_or(0),
+                    sessionIter->second.downstreamId.value_or(0));
+    printStats();
   }
 
 private:
@@ -178,7 +189,6 @@ private:
 
   void onLoginResponse(CRef<LoginResponse> response) {
     LOG_DEBUG("onLoginResponse {} {}", response.success, response.token);
-
     auto socketIter = upstreamMap_.find(response.socketId);
     if (socketIter == upstreamMap_.end()) {
       LOG_ERROR("Socket not found {}", response.socketId);
@@ -186,15 +196,25 @@ private:
     }
 
     const auto token = utils::generateSessionToken();
+    response.setToken(token);
+
     Session newSession;
     newSession.traderId = response.traderId;
     newSession.upstreamId = socketIter->first;
     auto result = sessionsMap_.insert(std::make_pair(token, std::move(newSession)));
     if (!result.second) {
       LOG_ERROR("Failed to insert new session");
+      upstreamMap_.erase(socketIter->first);
       return;
     }
     socketIter->second->write(response);
+  }
+
+  void printStats() {
+    const auto sc = sessionsMap_.size();
+    const auto uc = upstreamMap_.size();
+    const auto dc = downstreamMap_.size();
+    LOG_INFO_SYSTEM("Sessions: {} , Connections: Up {} Down {}", sc, uc, dc);
   }
 
 private:

@@ -27,9 +27,9 @@ public:
   using TickersData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
 
   explicit TraderEngine(Bus &bus)
-      : bus_{bus}, dbAdapter_{bus_.systemBus}, worker_{0, Config::cfg.coresApp[0]},
-        tradeTimer_{worker_.ioCtx}, statsTimer_{bus_.systemCtx()},
-        tradeRate_{Config::cfg.tradeRate}, monitorRate_{Config::cfg.monitorRate} {
+      : bus_{bus}, dbAdapter_{bus_.systemBus}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
+        statsTimer_{bus_.systemCtx()}, tradeRate_{Config::cfg.tradeRate},
+        monitorRate_{Config::cfg.monitorRate} {
     // Market connectors
     bus_.marketBus.setHandler<OrderStatus>(
         [this](CRef<OrderStatus> status) { onOrderStatus(status); });
@@ -175,6 +175,14 @@ private:
       LOG_INFO_SYSTEM("Rtt: {}", Tracker::getRttStats());
       scheduleStatsTimer();
     });
+  }
+
+  Worker makeWorker() {
+    if (Config::cfg.coresApp.empty()) {
+      return Worker(0, false);
+    } else {
+      return Worker(0, true, Config::cfg.coresApp[0]);
+    }
   }
 
 private:

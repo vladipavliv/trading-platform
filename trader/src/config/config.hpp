@@ -27,9 +27,9 @@ struct Config {
   Port portUdp;
 
   // Cores
-  uint8_t coreSystem;
-  std::vector<uint8_t> coresNetwork;
-  std::vector<uint8_t> coresApp;
+  Opt<CoreId> coreSystem;
+  std::vector<CoreId> coresNetwork;
+  std::vector<CoreId> coresApp;
 
   // Rates
   Microseconds tradeRate;
@@ -47,9 +47,9 @@ struct Config {
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
-    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us", cfg.coreSystem,
-                    utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
-                    cfg.tradeRate.count());
+    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
+                    cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
+                    utils::toString(cfg.coresApp), cfg.tradeRate.count());
     LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
     LOG_INFO_SYSTEM("Name: {} Password: {}", cfg.name, cfg.password);
   }
