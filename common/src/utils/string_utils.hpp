@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "logging.hpp"
 #include "market_types.hpp"
 #include "network_types.hpp"
 #include "template_types.hpp"
@@ -24,13 +25,18 @@ std::string toString(const Type &val) {
 }
 
 template <>
-std::string toString<LoginRequest>(const LoginRequest &msg) {
-  return std::format("LoginRequest name: {} password: {}", msg.name, msg.password);
+std::string toString<CredentialsLoginRequest>(const CredentialsLoginRequest &msg) {
+  return std::format("CredentialsLoginRequest {} {}", msg.name, msg.password);
+}
+
+template <>
+std::string toString<TokenLoginRequest>(const TokenLoginRequest &msg) {
+  return std::format("TokenLoginRequest {}", msg.token);
 }
 
 template <>
 std::string toString<LoginResponse>(const LoginResponse &msg) {
-  return std::format("LoginResponse success: {} token: {}", msg.success, msg.token);
+  return std::format("LoginResponse {} {}", msg.token, msg.success);
 }
 
 template <>
@@ -41,7 +47,7 @@ std::string toString<OrderState>(const OrderState &state) {
   case OrderState::Partial:
     return "Partial";
   default:
-    spdlog::error("Unknown OrderState {}", (uint8_t)state);
+    LOG_ERROR("Unknown OrderState {}", (uint8_t)state);
   }
   return "";
 }
@@ -54,45 +60,36 @@ std::string toString<OrderAction>(const OrderAction &state) {
   case OrderAction::Sell:
     return "Sell";
   default:
-    spdlog::error("Unknown OrderAction {}", (uint8_t)state);
+    LOG_ERROR("Unknown OrderAction {}", (uint8_t)state);
   }
   return "";
 }
 
-std::string_view toStrView(const Ticker &ticker) {
+std::string_view toString(const Ticker &ticker) {
   return std::string_view(ticker.data(), TICKER_SIZE);
 }
 
 template <>
-std::string toString<Order>(const Order &order) {
+std::string toString<Order>(const Order &o) {
   std::stringstream ss;
-  ss << toString(order.action) << " " << order.quantity << " shares of " << toStrView(order.ticker)
-     << " at $" << order.price;
+  ss << o.traderId << " " << o.token << " " << o.id << " " << o.timestamp << " ";
+  ss << toString(o.ticker) << o.quantity << " " << o.price << " " << (uint8_t)o.action;
   return ss.str();
 }
 
 template <>
-std::string toString<OrderStatus>(const OrderStatus &order) {
-  std::string state;
-  if ((uint8_t)order.state & (uint8_t)OrderState::Partial) {
-    state += "Partially ";
-  }
-  if ((uint8_t)order.state & (uint8_t)OrderState::Full) {
-    state += "Fully ";
-  }
-  if (state.empty()) {
-    state = "Accepted ";
-  } else {
-    state += "filled ";
-  }
-  return std::format("{} {} {} {} at {}", state, order.id, toString(order.action), order.quantity,
-                     toStrView(order.ticker), order.fillPrice);
+std::string toString<OrderStatus>(const OrderStatus &os) {
+  std::stringstream ss;
+  ss << os.traderId << " " << os.orderId << " " << os.timestamp << " ";
+  ss << toString(os.ticker) << os.quantity << " " << os.fillPrice << " ";
+  ss << (uint8_t)os.state << " " << (uint8_t)os.action;
+  return ss.str();
 }
 
 template <>
 std::string toString<TickerPrice>(const TickerPrice &price) {
   std::stringstream ss;
-  ss << toStrView(price.ticker) << ": $" << price.price;
+  ss << toString(price.ticker) << ": $" << price.price;
   return ss.str();
 }
 
@@ -184,32 +181,6 @@ LogLevel fromString<LogLevel>(const String &input) {
     return LogLevel::trace;
   }
   return LogLevel::trace;
-}
-
-String toString(TcpConnectionType type) {
-  switch (type) {
-  case TcpConnectionType::Ingress:
-    return "Ingress";
-  case TcpConnectionType::Egress:
-    return "Egress";
-  default:
-    assert(false);
-    return "";
-  }
-}
-
-std::string toStringDebug(const OrderStatus &status) {
-  return std::format("OrderStatus {} {} {} {} {}", status.id, toStrView(status.ticker),
-                     (uint8_t)status.state, status.quantity, status.fillPrice);
-}
-
-std::string toStringDebug(const Order &order) {
-  return std::format("Order {} {} {} {}", order.id, toStrView(order.ticker), (uint8_t)order.action,
-                     order.quantity, order.price);
-}
-
-std::string toStringDebug(const TickerPrice &price) {
-  return std::format("TickerPrice {} {}", price.price, toStrView(price.ticker));
 }
 
 } // namespace hft::utils

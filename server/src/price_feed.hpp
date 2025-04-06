@@ -17,32 +17,24 @@
 namespace hft::server {
 
 /**
- * @brief Simple price fluctuator that iterates over the prices at a given rate,
- * changes the price within a given delta, and posts the price update over a market bus
- * @details Accepts a const reference to a market data, which has the price as a mutable atomic
- * so it can be changed. Saves memory having one global market data storage.
+ * @brief
  */
 class PriceFeed {
 public:
   PriceFeed(Bus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{Config::cfg.priceFeedRate},
-        subs_{id_, bus_.systemBus} {
-    bus_.systemBus.subscribe<ServerCommand>(
-        id_, ServerCommand::PriceFeedStart,
-        subs_.add<CRefHandler<ServerCommand>>([this](CRef<ServerCommand> cmd) { start(); }));
-    bus_.systemBus.subscribe<ServerCommand>(
-        id_, ServerCommand::PriceFeedStop,
-        subs_.add<CRefHandler<ServerCommand>>([this](CRef<ServerCommand>) { stop(); }));
+      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{Config::cfg.priceFeedRate} {
+    bus_.systemBus.subscribe<ServerCommand>([this](CRef<ServerCommand>) { start(); });
+    bus_.systemBus.subscribe<ServerCommand>([this](CRef<ServerCommand>) { stop(); });
   }
 
   void start() {
-    Logger::monitorLogger->info("Start broadcasting price changes");
+    LOG_INFO_SYSTEM("Start broadcasting price changes");
     broadcasting_ = true;
     schedulePriceChange();
   }
 
   void stop() {
-    Logger::monitorLogger->info("Stop broadcasting price changes");
+    LOG_INFO_SYSTEM("Stop broadcasting price changes");
     timer_.cancel();
     broadcasting_ = false;
   }
@@ -64,8 +56,6 @@ private:
 
   void adjustPrices() {
     static auto cursor = data_.begin();
-    std::vector<TickerPrice> priceUpdates;
-    priceUpdates.reserve(PRICE_UPDATE_CHUNK);
     for (int i = 0; i < PRICE_UPDATE_CHUNK; ++i) {
       if (cursor == data_.end()) {
         cursor = data_.begin();
@@ -73,15 +63,11 @@ private:
       const auto &tickerData = *cursor++;
       Price newPrice = utils::fluctuateThePrice(tickerData.second->getPrice());
       tickerData.second->setPrice(newPrice);
-      priceUpdates.emplace_back(TickerPrice{tickerData.first, newPrice});
+      bus_.marketBus.post(TickerPrice{tickerData.first, newPrice});
     }
-    spdlog::trace([&priceUpdates] { return utils::toString(priceUpdates); }());
-    bus_.marketBus.post(Span<TickerPrice>(priceUpdates));
   }
 
 private:
-  const ObjectId id_{utils::getId()};
-
   Bus &bus_;
   const MarketData &data_;
 
@@ -89,7 +75,6 @@ private:
   Microseconds rate_;
 
   std::atomic_bool broadcasting_{false};
-  SubscriptionHolder subs_;
 };
 
 } // namespace hft::server

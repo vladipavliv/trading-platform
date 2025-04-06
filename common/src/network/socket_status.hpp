@@ -6,7 +6,6 @@
 #ifndef HFT_COMMON_SOCKETSTATUS_HPP
 #define HFT_COMMON_SOCKETSTATUS_HPP
 
-#include "bus/system_event_traits.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -16,14 +15,8 @@ namespace hft {
 enum class SocketStatus : uint8_t { Disconnected, Connected, Error };
 
 struct SocketStatusEvent {
-  ObjectId connectionId;
+  SocketId socketId;
   SocketStatus status;
-};
-
-template <>
-struct SystemEventTraits<SocketStatusEvent> {
-  using KeyType = ObjectId;
-  static KeyType getKey(CRef<SocketStatusEvent> event) { return event.connectionId; }
 };
 
 namespace utils {
@@ -43,7 +36,7 @@ std::string toString<SocketStatus>(const SocketStatus &status) {
 
 template <>
 std::string toString<SocketStatusEvent>(const SocketStatusEvent &event) {
-  return std::format("SocketStatusEvent {} {}", event.connectionId, toString(event.status));
+  return std::format("SocketStatusEvent {} {}", event.socketId, toString(event.status));
 }
 
 } // namespace utils

@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-#include "logger.hpp"
+#include "logging.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -45,14 +45,13 @@ struct Config {
 
   static Config cfg;
   static void logConfig() {
-    Logger::monitorLogger->info("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn,
-                                cfg.portTcpOut, cfg.portUdp);
-    Logger::monitorLogger->info("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
-                                cfg.coreSystem, utils::toString(cfg.coresNetwork),
-                                utils::toString(cfg.coresApp), cfg.tradeRate.count());
-    Logger::monitorLogger->info("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel),
-                                cfg.logOutput);
-    Logger::monitorLogger->info("Name: {} Password: {}", cfg.name, cfg.password);
+    LOG_INFO_SYSTEM("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn, cfg.portTcpOut,
+                    cfg.portUdp);
+    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us", cfg.coreSystem,
+                    utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),
+                    cfg.tradeRate.count());
+    LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
+    LOG_INFO_SYSTEM("Name: {} Password: {}", cfg.name, cfg.password);
   }
 };
 

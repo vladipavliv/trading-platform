@@ -32,143 +32,168 @@ public:
   using MessageType = gen::fbs::MessageUnion;
   using BufferType = flatbuffers::DetachedBuffer;
 
-  using SupportedTypes = std::tuple<LoginRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
+  using SupportedTypes = std::tuple<CredentialsLoginRequest, TokenLoginRequest, LoginResponse,
+                                    Order, OrderStatus, TickerPrice>;
 
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
   template <typename Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
-      spdlog::error("Failed to verify Buffer");
+      LOG_ERROR("Failed to verify Buffer");
       return false;
     }
     auto message = flatbuffers::GetRoot<Message>(data);
     if (message == nullptr) {
-      spdlog::error("Failed to extract Message");
+      LOG_ERROR("Failed to extract Message");
       return false;
     }
     const auto type = message->message_type();
     switch (type) {
-    case MessageType::MessageUnion_LoginRequest: {
-      auto msg = message->message_as_LoginRequest();
+    case MessageType::MessageUnion_CredentialsLoginRequest: {
+      auto msg = message->message_as_CredentialsLoginRequest();
       if (msg == nullptr) {
-        spdlog::error("Failed to extract LoginRequest");
+        LOG_ERROR("Failed to extract CredentialsLoginRequest");
         return false;
       }
-      LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
-      spdlog::trace("Deserialized {}", [&request]() { return utils::toString(request); }());
-      consumer.template post<LoginRequest>(request);
+      const CredentialsLoginRequest request{0, fbStringToString(msg->name()),
+                                            fbStringToString(msg->password())};
+      LOG_DEBUG("Deserialized {}", utils::toString(request));
+      consumer.post(request);
+      return true;
+    }
+    case MessageType::MessageUnion_TokenLoginRequest: {
+      auto msg = message->message_as_TokenLoginRequest();
+      if (msg == nullptr) {
+        LOG_ERROR("Failed to extract TokenLoginRequest");
+        return false;
+      }
+      const TokenLoginRequest response{0, msg->token()};
+      LOG_DEBUG("Deserialized {}", utils::toString(response));
+      consumer.post(response);
       return true;
     }
     case MessageType::MessageUnion_LoginResponse: {
       auto msg = message->message_as_LoginResponse();
       if (msg == nullptr) {
-        spdlog::error("Failed to extract LoginResponse");
+        LOG_ERROR("Failed to extract LoginResponse");
         return false;
       }
-      LoginResponse response{fbStringToString(msg->token()), msg->success()};
-      spdlog::trace("Deserialized {}", [&response]() { return utils::toString(response); }());
-      consumer.template post<LoginResponse>(response);
+      const LoginResponse response(msg->token(), msg->success());
+      LOG_DEBUG("Deserialized {}", utils::toString(response));
+      consumer.post(response);
       return true;
     }
     case MessageType::MessageUnion_Order: {
       auto orderMsg = message->message_as_Order();
       if (orderMsg == nullptr) {
-        spdlog::error("Failed to extract Order");
+        LOG_ERROR("Failed to extract Order");
         return false;
       }
-      Order order{0,
-                  orderMsg->id(),
-                  fbStringToTicker(orderMsg->ticker()),
-                  orderMsg->quantity(),
-                  orderMsg->price(),
-                  convert(orderMsg->action())};
-      spdlog::trace("Deserialized {}", [&order]() { return utils::toString(order); }());
-      consumer.template post<Order>(Span<Order>(&order, 1));
+      const Order order{0,
+                        orderMsg->token(),
+                        orderMsg->id(),
+                        orderMsg->timestamp(),
+                        fbStringToTicker(orderMsg->ticker()),
+                        orderMsg->quantity(),
+                        orderMsg->price(),
+                        convert(orderMsg->action())};
+      LOG_DEBUG("Deserialized {}", utils::toString(order));
+      consumer.post(order);
       return true;
     }
     case MessageType::MessageUnion_OrderStatus: {
       auto statusMsg = message->message_as_OrderStatus();
       if (statusMsg == nullptr) {
-        spdlog::error("Failed to extract OrderStatus");
+        LOG_ERROR("Failed to extract OrderStatus");
         return false;
       }
-      OrderStatus status{0,
-                         statusMsg->id(),
-                         fbStringToTicker(statusMsg->ticker()),
-                         statusMsg->quantity(),
-                         statusMsg->fill_price(),
-                         convert(statusMsg->state()),
-                         convert(statusMsg->action())};
-      spdlog::trace("Deserialized {}", [&status]() { return utils::toString(status); }());
-      consumer.template post<OrderStatus>(Span<OrderStatus>(&status, 1));
+      const OrderStatus status{0,
+                               0,
+                               statusMsg->order_id(),
+                               statusMsg->timestamp(),
+                               fbStringToTicker(statusMsg->ticker()),
+                               statusMsg->quantity(),
+                               statusMsg->fill_price(),
+                               convert(statusMsg->state()),
+                               convert(statusMsg->action())};
+      LOG_DEBUG("Deserialized {}", utils::toString(status));
+      consumer.post(status);
       return true;
     }
     case MessageType::MessageUnion_TickerPrice: {
       auto priceMsg = message->message_as_TickerPrice();
       if (priceMsg == nullptr) {
-        spdlog::error("Failed to extract TickerPrice");
+        LOG_ERROR("Failed to extract TickerPrice");
         return false;
       }
-      TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
-      spdlog::trace("Deserialized {}", [&price]() { return utils::toString(price); }());
-      consumer.template post<TickerPrice>(Span<TickerPrice>(&price, 1));
+      const TickerPrice price(fbStringToTicker(priceMsg->ticker()), priceMsg->price());
+      LOG_DEBUG("Deserialized {}", utils::toString(price));
+      consumer.post(price);
       return true;
     }
     default:
       break;
     }
-    spdlog::error("Unknown message type {}", static_cast<uint8_t>(type));
+    LOG_ERROR("Unknown message type {}", static_cast<uint8_t>(type));
     return false;
   }
 
-  static BufferType serialize(const LoginRequest &request) {
-    spdlog::trace("Serializing {}", [&request]() { return utils::toString(request); }());
+  static BufferType serialize(const CredentialsLoginRequest &request) {
+    LOG_DEBUG("Serializing {}", utils::toString(request));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateLoginRequest(
+    auto msg = CreateCredentialsLoginRequest(
         builder, builder.CreateString(request.name.c_str(), request.name.length()),
         builder.CreateString(request.password.c_str(), request.password.length()));
-    builder.Finish(CreateMessage(builder, MessageUnion_LoginRequest, msg.Union()));
+    builder.Finish(CreateMessage(builder, MessageUnion_CredentialsLoginRequest, msg.Union()));
+    return builder.Release();
+  }
+
+  static BufferType serialize(const TokenLoginRequest &request) {
+    LOG_DEBUG("Serializing {}", utils::toString(request));
+    using namespace gen::fbs;
+    flatbuffers::FlatBufferBuilder builder;
+    auto msg = CreateTokenLoginRequest(builder, request.token);
+    builder.Finish(CreateMessage(builder, MessageUnion_TokenLoginRequest, msg.Union()));
     return builder.Release();
   }
 
   static BufferType serialize(const LoginResponse &response) {
-    spdlog::trace("Serializing {}", [&response]() { return utils::toString(response); }());
+    LOG_DEBUG("Serializing {}", utils::toString(response));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg =
-        CreateLoginResponse(builder, response.success,
-                            builder.CreateString(response.token.c_str(), response.token.length()));
+    auto msg = CreateLoginResponse(builder, response.token, response.success);
     builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
     return builder.Release();
   }
 
   static BufferType serialize(const Order &order) {
-    spdlog::trace("Serializing {}", [&order]() { return utils::toString(order); }());
+    LOG_DEBUG("Serializing {}", utils::toString(order));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg =
-        CreateOrder(builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE),
-                    order.quantity, order.price, convert(order.action));
+    auto msg = CreateOrder(builder, order.token, order.id, order.timestamp,
+                           builder.CreateString(order.ticker.data(), TICKER_SIZE), order.quantity,
+                           order.price, convert(order.action));
     builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const OrderStatus &order) {
-    spdlog::trace("Serializing {}", [&order]() { return utils::toString(order); }());
+  static BufferType serialize(const OrderStatus &status) {
+    LOG_DEBUG("Serializing {}", utils::toString(status));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateOrderStatus(
-        builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE), order.quantity,
-        order.fillPrice, convert(order.state), convert(order.action));
+    auto msg =
+        CreateOrderStatus(builder, status.orderId, status.timestamp,
+                          builder.CreateString(status.ticker.data(), TICKER_SIZE), status.quantity,
+                          status.fillPrice, convert(status.state), convert(status.action));
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     return builder.Release();
   }
 
   static BufferType serialize(const TickerPrice &price) {
-    spdlog::trace("Serializing {}", [&price]() { return utils::toString(price); }());
+    LOG_DEBUG("Serializing {}", utils::toString(price));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
     auto msg = gen::fbs::CreateTickerPrice(

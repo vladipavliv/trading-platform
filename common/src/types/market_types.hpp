@@ -21,7 +21,6 @@ using Price = uint32_t;
 
 constexpr size_t TICKER_SIZE = 4;
 using Ticker = std::array<char, TICKER_SIZE>;
-using TickerRef = const Ticker &;
 
 struct TickerHash {
   std::size_t operator()(const Ticker &t) const {
@@ -29,40 +28,70 @@ struct TickerHash {
   }
 };
 
-enum class OrderAction : uint8_t { Buy, Sell };
-enum class OrderState : uint8_t { Accepted, Partial, Full };
-
-struct LoginRequest {
+struct CredentialsLoginRequest {
+  mutable SocketId socketId; // Server side
   String name;
-  String password;
+  String password; // TODO() encrypt
+
+  inline void setSocketId(SocketId id) const { socketId = id; }
 };
 
+struct TokenLoginRequest {
+  mutable SocketId socketId; // Server side
+  SessionToken token;
+
+  inline void setSocketId(SocketId id) const { socketId = id; }
+};
+
+/**
+ * @brief
+ * @todo Make separate server and client side structs
+ */
 struct LoginResponse {
-  String token;
+  SocketId socketId{0}; // Server side
+  TraderId traderId{0}; // Server side
+  SessionToken token;
   bool success{false};
 };
 
+enum class OrderAction : uint8_t { Buy, Sell };
+
+enum class OrderState : uint8_t { Accepted, Partial, Full };
+
 struct Order {
-  TraderId traderId; // Server side
+  mutable TraderId traderId; // Server side
+  SessionToken token;
   OrderId id;
-  Ticker ticker{};
-  Quantity quantity;
+  Timestamp timestamp;
+  Ticker ticker;
+  mutable Quantity quantity;
   Price price;
   OrderAction action;
+  uint8_t padding[3]{0};
+
+  inline void setTraderId(TraderId id) const { traderId = id; }
+  inline void reduceQuantity(Quantity amount) const {
+    quantity = quantity < amount ? 0 : quantity - amount;
+  }
 };
 
 struct OrderStatus {
-  TraderId traderId; // Server side
-  OrderId id;
-  Ticker ticker{};
+  mutable TraderId traderId; // Server side
+  SessionToken token;        // Server side
+  OrderId orderId;
+  Timestamp timestamp;
+  Ticker ticker;
   Quantity quantity;
   Price fillPrice;
   OrderState state;
   OrderAction action;
+  uint8_t padding[2]{0};
+
+  inline void setTraderId(TraderId id) const { traderId = id; }
 };
 
 struct TickerPrice {
-  Ticker ticker{};
+  Ticker ticker;
   Price price;
 };
 

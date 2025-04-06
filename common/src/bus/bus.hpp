@@ -6,7 +6,6 @@
 #ifndef HFT_COMMON_BUS_HPP
 #define HFT_COMMON_BUS_HPP
 
-#include "io_ctx.hpp"
 #include "market_types.hpp"
 #include "message_bus.hpp"
 #include "system_bus.hpp"
@@ -25,12 +24,12 @@ struct Bus {
   SystemBus systemBus;
   MarketBus marketBus;
 
-  inline BoostIoCtx &systemCtx() { return systemBus.ioCtx.ctx; }
+  inline IoCtx &systemCtx() { return systemBus.ioCtx; }
 
   template <typename MessageType>
     requires Bus::MarketBus::RoutedType<MessageType>
-  void post(Span<MessageType> messages) {
-    marketBus.post<MessageType>(messages);
+  void post(CRef<MessageType> message) {
+    marketBus.post<MessageType>(message);
   }
 
   template <typename MessageType>

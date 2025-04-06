@@ -18,28 +18,25 @@
 namespace hft {
 
 /**
- * @brief Message bus for fast, direct message flow between objects
- * @details Designed for hot market data paths, with only one consumer for a given message type
- * Message types are predefined to keep all handlers close together and cache friendly
- * Passes messages around via std::span, its lightweight enough to not introduce
- * much performance impact. Single values are wrapped in a Span(&value, 1) with additional
- * indirection but the value is most likely on the stack so the impact is also negligible.
+ * @brief Message bus for fast, direct message flow.
+ * @details For better cache locality all types are defined
+ * via variadics and only one message consumer is allowed pr message type
+ * a container type
  */
 template <typename... EventTypes>
 class MessageBus {
 public:
-  MessageBus() : spanHandlers_{std::make_tuple(SpanHandler<EventTypes>{}...)} {}
+  MessageBus() : handlers_{std::make_tuple(CRefHandler<EventTypes>{}...)} {}
 
   template <typename EventType>
   static constexpr bool RoutedType = utils::contains<EventType, EventTypes...>;
 
   template <typename EventType>
     requires RoutedType<EventType>
-  void setHandler(SpanHandler<EventType> handler) {
-    auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
+  void setHandler(CRefHandler<EventType> handler) {
+    auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
     if (handlerRef != nullptr) {
-      spdlog::error("SpanHandler is already registered for the type {}",
-                    []() { return typeid(EventType).name(); }());
+      LOG_ERROR("Handler is already registered for the type {}", typeid(EventType).name());
     } else {
       handlerRef = std::move(handler);
     }
@@ -47,8 +44,8 @@ public:
 
   template <typename EventType>
     requires RoutedType<EventType>
-  void post(Span<EventType> event) {
-    auto &handlerRef = std::get<SpanHandler<EventType>>(spanHandlers_);
+  void post(CRef<EventType> event) {
+    auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
     assert(handlerRef != nullptr && "Handler not registered for event type");
     handlerRef(event);
   }
@@ -60,7 +57,7 @@ private:
   MessageBus &operator=(const MessageBus &&) = delete;
 
 private:
-  std::tuple<SpanHandler<EventTypes>...> spanHandlers_;
+  std::tuple<CRefHandler<EventTypes>...> handlers_;
 };
 
 } // namespace hft

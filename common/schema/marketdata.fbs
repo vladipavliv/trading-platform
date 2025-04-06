@@ -11,18 +11,24 @@ enum OrderState: int {
     Full = 2
 }
 
-table LoginRequest {
+table CredentialsLoginRequest {
     name: string;
     password: string;
 }
 
+table TokenLoginRequest {
+    token: uint64;
+}
+
 table LoginResponse {
     success: bool;
-    token: string;
+    token: uint64;
 }
 
 table Order {
+    token: uint64;
     id: uint64;
+    timestamp: uint64;
     ticker: string;
     quantity: uint;
     price: uint;
@@ -30,7 +36,8 @@ table Order {
 }
 
 table OrderStatus {
-    id: uint64;
+    order_id: uint64;
+    timestamp: uint64;
     ticker: string;
     quantity: uint;
     fill_price: uint;
@@ -44,7 +51,8 @@ table TickerPrice {
 }
 
 union MessageUnion {
-    LoginRequest,
+    CredentialsLoginRequest,
+    TokenLoginRequest,
     LoginResponse,
     Order,
     OrderStatus,

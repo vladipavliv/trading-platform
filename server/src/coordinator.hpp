@@ -19,22 +19,13 @@
 namespace hft::server {
 
 /**
- * @brief Subscribes to Orders and coordinates them between workers
- * Later on would do load balancing and adding/removing workers dynamically
- * @details Load balancing is suggested to be done in the following way:
- * all the tickers are known in advance, so the map <Ticker, TickerData> could be read in parallel
- * every ticker data has atomic worker id for orders routing, but when it gets switched to a
- * different worker, orders that already gotten to its queue would have to be dispatched to a new
- * threads io_context. Also, worker wont have to be caught for rerouting in the middle of the work
- * on an order book, so first the book would have to be locked with atomic flag, and then id gets
- * switched. The impact of those two atomic operations probably won't cause any impact on the worker
- * flow, but testing is needed. Impact of io_ctx.dispatch on rerouted orders needs testing too
+ * @brief
  */
 class Coordinator {
 public:
   Coordinator(Bus &bus, const MarketData &data)
       : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, statsRate_{Config::cfg.monitorRate} {
-    bus_.marketBus.setHandler<Order>([this](Span<Order> orders) { processOrders(orders); });
+    bus_.marketBus.setHandler<Order>([this](CRef<Order> order) { processOrder(order); });
   }
 
   void start() {
@@ -52,29 +43,19 @@ public:
 private:
   void startWorkers() {
     const auto appCores = Config::cfg.coresApp.size();
-    Logger::monitorLogger->info("Starting {} workers", appCores);
+    LOG_INFO_SYSTEM("Starting {} workers", appCores);
     workers_.reserve(appCores);
     for (int i = 0; i < appCores; ++i) {
       workers_.emplace_back(std::make_unique<Worker>(i, Config::cfg.coresApp[i]));
     }
   }
 
-  void processOrders(Span<Order> orders) {
-    // TODO() Try sorting by the worker id and processing in chunks
-    ordersTotal_.fetch_add(orders.size(), std::memory_order_relaxed);
-    for (auto &order : orders) {
-      processOrder(order);
-    }
-  }
-
   void processOrder(CRef<Order> order) {
+    ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       data->orderBook.add(order);
-      auto matches = data->orderBook.match();
-      if (!matches.empty()) {
-        bus_.marketBus.post(Span<OrderStatus>(matches));
-      }
+      data->orderBook.match([this](CRef<OrderStatus> status) { bus_.marketBus.post(status); });
     });
   }
 
@@ -82,7 +63,7 @@ private:
     timer_.expires_after(statsRate_);
     timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
-        Logger::monitorLogger->error("Error {}", ec.message());
+        LOG_ERROR_SYSTEM("Error {}", ec.message());
         return;
       }
       static uint64_t lastTtl = 0;
@@ -93,7 +74,7 @@ private:
       auto opnStr = utils::thousandify(countOpenedOrders());
       auto ttlStr = utils::thousandify(currentTtl);
       if (rps != 0) {
-        Logger::monitorLogger->info("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
+        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
       }
       lastTtl = currentTtl;
       scheduleStatsTimer();

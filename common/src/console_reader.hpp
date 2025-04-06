@@ -10,7 +10,7 @@
 
 #include "boost_types.hpp"
 #include "bus/system_bus.hpp"
-#include "logger.hpp"
+#include "logging.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -24,7 +24,7 @@ class ConsoleReader {
 public:
   using Command = CommandType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx.ctx} {
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} {
     utils::unblockConsole();
     commands_.reserve(20);
   }
@@ -36,9 +36,9 @@ public:
   void stop() { timer_.cancel(); }
 
   void printCommands() {
-    Logger::monitorLogger->info("Commands:");
+    LOG_INFO_SYSTEM("Commands:");
     for (auto &command : commands_) {
-      Logger::monitorLogger->info("> {:3} => {}", command.first, utils::toString(command.second));
+      LOG_INFO_SYSTEM("> {:3} => {}", command.first, utils::toString(command.second));
     }
   }
 

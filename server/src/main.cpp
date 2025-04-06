@@ -7,7 +7,7 @@
 
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
-#include "logger.hpp"
+#include "logging.hpp"
 #include "server_command.hpp"
 #include "server_control_center.hpp"
 #include "utils/string_utils.hpp"
@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   using namespace server;
   try {
     ConfigReader::readConfig("server_config.ini");
-    Logger::initialize(Config::cfg.logLevel, Config::cfg.logOutput);
+    LOG_INIT(Config::cfg.logOutput);
 
     ServerControlCenter serverCc;
     serverCc.start();

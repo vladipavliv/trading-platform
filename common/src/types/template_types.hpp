@@ -44,6 +44,10 @@ using CRef = const Type &;
 
 template <typename Type>
 using Ref = Type &;
+
+template <typename Type>
+using Opt = std::optional<Type>;
+
 /**
  * General template types
  */
@@ -86,6 +90,21 @@ concept IsTypeInTuple = requires {
   []<typename... Types>(
       std::tuple<Types...>) -> std::bool_constant<(std::is_same_v<Type, Types> || ...)> {
   }(std::declval<Tuple>());
+};
+
+template <typename EventType>
+concept HasToken = requires(EventType event) {
+  { event.token } -> std::convertible_to<Token>;
+};
+
+template <typename EventType>
+concept MutableSocketId = requires(const EventType &event, SocketId id) {
+  { event.setSocketId(id) } -> std::same_as<void>;
+};
+
+template <typename EventType>
+concept MutableTraderId = requires(const EventType &event, TraderId id) {
+  { event.setTraderId(id) } -> std::same_as<void>;
 };
 
 /**

@@ -42,59 +42,36 @@ public:
   using Tracker = RttTracker<50>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, consoleReader_{bus_.systemBus}, tradeTimer_{bus_.systemCtx()},
-        statsTimer_{bus_.systemCtx()}, tradeRate_{Config::cfg.tradeRate},
-        monitorRate_{Config::cfg.monitorRate}, subs_{id_, bus_.systemBus} {
-    // TODO() improve trader, add workers to run trading loop, save prices, run some real strategy
-    // Incoming market events
-    bus_.marketBus.setHandler<OrderStatus>([this](Span<OrderStatus> events) {
-      for (auto &status : events) {
-        onOrderStatus(status);
-      }
-    });
-    bus_.marketBus.setHandler<TickerPrice>([this](Span<TickerPrice> prices) {
-      for (auto &price : prices) {
-        onPriceUpdate(price);
-      }
-    });
+      : networkClient_{bus_}, consoleReader_{bus_.systemBus}, dbAdapter_{bus_.systemBus},
+        tradeTimer_{bus_.systemCtx()}, statsTimer_{bus_.systemCtx()},
+        tradeRate_{Config::cfg.tradeRate}, monitorRate_{Config::cfg.monitorRate} {
+
+    bus_.marketBus.setHandler<OrderStatus>([this](CRef<OrderStatus> s) { onOrderStatus(s); });
+    bus_.marketBus.setHandler<TickerPrice>([this](CRef<TickerPrice> p) { onPriceUpdate(p); });
 
     // System events
-    bus_.systemBus.subscribe<TraderEvent>(
-        id_, TraderEvent::Connected,
-        subs_.add<CRefHandler<TraderEvent>>([this](CRef<TraderEvent> event) {
-          Logger::monitorLogger->info("Connected to the server");
-        }));
-    bus_.systemBus.subscribe<TraderEvent>(
-        id_, TraderEvent::Disconnected,
-        subs_.add<CRefHandler<TraderEvent>>([this](CRef<TraderEvent> event) {
-          Logger::monitorLogger->error("Disconnected from the server");
-          tradeStop();
-        }));
+    bus_.systemBus.subscribe<LoginResponse>([this](CRef<LoginResponse> l) { onLoginResponse(l); });
+
+    bus_.systemBus.subscribe(TraderEvent::Connected, [this] { LOG_INFO_SYSTEM("Connected"); });
+    bus_.systemBus.subscribe(TraderEvent::Disconnected, [this] {
+      LOG_ERROR_SYSTEM("Disconnected");
+      tradeStop();
+    });
 
     // Console commands
-    bus_.systemBus.subscribe<TraderCommand>(
-        id_, TraderCommand::Shutdown,
-        subs_.add<CRefHandler<TraderCommand>>([this](CRef<TraderCommand>) { stop(); }));
-    bus_.systemBus.subscribe<TraderCommand>(
-        id_, TraderCommand::TradeStart,
-        subs_.add<CRefHandler<TraderCommand>>([this](CRef<TraderCommand>) { tradeStart(); }));
-    bus_.systemBus.subscribe<TraderCommand>(
-        id_, TraderCommand::TradeStop,
-        subs_.add<CRefHandler<TraderCommand>>([this](CRef<TraderCommand>) { tradeStop(); }));
-    bus_.systemBus.subscribe<TraderCommand>(
-        id_, TraderCommand::TradeSpeedUp,
-        subs_.add<CRefHandler<TraderCommand>>([this](CRef<TraderCommand>) {
-          if (tradeRate_ > Microseconds(1)) {
-            tradeRate_ /= 2;
-            Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-          }
-        }));
-    bus_.systemBus.subscribe<TraderCommand>(
-        id_, TraderCommand::TradeSpeedDown,
-        subs_.add<CRefHandler<TraderCommand>>([this](CRef<TraderCommand>) {
-          tradeRate_ *= 2;
-          Logger::monitorLogger->info(std::format("Trade rate: {}", tradeRate_));
-        }));
+    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this] { stop(); });
+    bus_.systemBus.subscribe(TraderCommand::TradeStart, [this] { tradeStart(); });
+    bus_.systemBus.subscribe(TraderCommand::TradeStop, [this] { tradeStop(); });
+    bus_.systemBus.subscribe(TraderCommand::TradeSpeedUp, [this] {
+      if (tradeRate_ > Microseconds(1)) {
+        tradeRate_ /= 2;
+        LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
+      }
+    });
+    bus_.systemBus.subscribe(TraderCommand::TradeSpeedDown, [this] {
+      tradeRate_ *= 2;
+      LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
+    });
 
     consoleReader_.addCommand("t+", TraderCommand::TradeStart);
     consoleReader_.addCommand("t-", TraderCommand::TradeStop);
@@ -120,30 +97,30 @@ public:
     networkClient_.stop();
     consoleReader_.stop();
     bus_.systemCtx().stop();
-    Logger::monitorLogger->info("stonk");
+    LOG_INFO_SYSTEM("stonk");
   }
 
 private:
   void greetings() {
-    Logger::monitorLogger->info("Trader go stonks {}", std::string(38, '~'));
-    Logger::monitorLogger->info("Configuration:");
+    LOG_INFO_SYSTEM("Trader go stonks {}", std::string(38, '~'));
+    LOG_INFO_SYSTEM("Configuration:");
     Config::cfg.logConfig();
     consoleReader_.printCommands();
-    Logger::monitorLogger->info(std::string(55, '~'));
+    LOG_INFO_SYSTEM("{}", std::string(55, '~'));
   }
 
   void loadMarketData() {
-    prices_ = db::PostgresAdapter::readTickers();
+    prices_ = dbAdapter_.readTickers();
     if (prices_.empty()) {
       throw std::runtime_error("Failed to laod market data");
     }
-    spdlog::debug(std::format("Market data loaded for {} tickers", prices_.size()));
+    LOG_DEBUG("Market data loaded for {} tickers", prices_.size());
   }
 
   void tradeStart() {
-    Logger::monitorLogger->info("Trade start");
+    LOG_INFO_SYSTEM("Trade start");
     if (!networkClient_.connected()) {
-      Logger::monitorLogger->error("Not connected to the server");
+      LOG_ERROR_SYSTEM("Not connected to the server");
       return;
     }
     trading_ = true;
@@ -151,23 +128,37 @@ private:
   }
 
   void tradeStop() {
-    Logger::monitorLogger->info("Trade stop");
+    LOG_INFO_SYSTEM("Trade stop");
     tradeTimer_.cancel();
     trading_ = false;
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
-    spdlog::debug("OrderStatus {}", [&status] { return utils::toString(status); }());
-    Tracker::logRtt(status.id);
+    LOG_DEBUG("{}", utils::toString(status));
+    Tracker::logRtt(status.timestamp);
   }
 
   void onPriceUpdate(CRef<TickerPrice> price) {
-    spdlog::debug([&price] { return utils::toString(price); }());
+    LOG_DEBUG("{}", utils::toString(price));
     pricesCounter_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  void onLoginResponse(CRef<LoginResponse> response) {
+    LOG_DEBUG("{}", utils::toString(response));
+    if (!response.success) {
+      LOG_ERROR_SYSTEM("Failed to log in")
+    } else {
+      LOG_INFO_SYSTEM("Logged in successfully");
+      token_ = response.token;
+    }
   }
 
   void scheduleTradeTimer() {
     if (!trading_) {
+      return;
+    }
+    if (!token_.has_value()) {
+      LOG_ERROR_SYSTEM("Not logged in");
       return;
     }
     tradeTimer_.expires_after(tradeRate_);
@@ -210,7 +201,7 @@ private:
         output += std::format("Prices rps: {}", thousandify(prps));
       }
       if (!output.empty()) {
-        Logger::monitorLogger->info(output);
+        LOG_INFO_SYSTEM("{}", output);
 
         requestsLast = requestsCurrent;
         pricesCounterLast = pricesCounterCurrent;
@@ -224,25 +215,22 @@ private:
     if (cursor == prices_.end()) {
       cursor = prices_.begin();
     }
-    auto tickerPrice = *cursor++;
-    Order order;
-    order.id = utils::getLinuxTimestamp();
-    order.ticker = tickerPrice.ticker;
-    order.price = utils::fluctuateThePrice(tickerPrice.price);
-    order.action = utils::RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    order.quantity = utils::RNG::rng(100);
-    spdlog::trace("Placing order {}", [&order] { return utils::toString(order); }());
-
-    bus_.marketBus.post(Span<Order>{&order, 1});
+    auto p = *cursor++;
+    auto newPrice = utils::fluctuateThePrice(p.price);
+    auto action = utils::RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
+    auto quantity = utils::RNG::rng<Quantity>(100);
+    // TODO(self) set all the fields
+    Order order{0, 0, 0, utils::getTimestamp(), p.ticker, quantity, newPrice, action};
+    LOG_DEBUG("Placing order {}", utils::toString(order));
+    bus_.marketBus.post(order);
     requestCounter_.fetch_add(1, std::memory_order_relaxed);
   }
 
 private:
-  const ObjectId id_{utils::getId()};
-
   Bus bus_;
   NetworkClient networkClient_;
   TraderConsoleReader consoleReader_;
+  PostgresAdapter dbAdapter_;
   std::vector<TickerPrice> prices_;
 
   SteadyTimer tradeTimer_;
@@ -254,8 +242,6 @@ private:
   std::atomic_size_t requestCounter_{0};
   std::atomic_size_t pricesCounter_{0};
   std::atomic_bool trading_{false};
-
-  SubscriptionHolder subs_;
 };
 } // namespace hft::trader
 

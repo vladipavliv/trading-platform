@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "boost_types.hpp"
-#include "io_ctx.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -31,14 +30,16 @@ public:
             utils::pinThreadToCore(coreId);
             ioCtx.run();
           } catch (const std::exception &e) {
-            Logger::monitorLogger->error("Exception in worker thread {}", e.what());
+            LOG_ERROR_SYSTEM("Exception in worker thread {}", e.what());
           }
-        }} {}
+        }},
+        guard_{MakeGuard(ioCtx.get_executor())} {}
 
   ~Worker() { ioCtx.stop(); }
 
 private:
   Thread thread_;
+  ContextGuard guard_;
 };
 
 } // namespace hft

@@ -21,38 +21,9 @@
 
 namespace hft::utils {
 
-/**
- * @brief Returns subspan of the same elements for the given comparator
- */
-template <typename Type, typename Cmp>
-std::pair<Span<Type>, Span<Type>> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}) {
-  if (input.size() < 2) {
-    return std::make_pair(input, Span<Type>());
-  }
-  const auto base = input.front();
-  size_t end = 1;
-  while (end < input.size() && cmp(base, input[end]) && cmp(input[end], base)) {
-    ++end;
-  }
-  return std::make_pair(input.subspan(0, end), input.subspan(end, input.size() - end));
-}
-
-/**
- * @brief lock-free helpers
- */
-template <typename EventType>
-static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
-  return std::make_unique<LFQueue<EventType>>(size);
-}
-template <typename... TupleTypes>
-static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
-  return std::make_tuple(createLFQueue<TupleTypes>(size)...);
-}
-
 template <typename MessageType, typename = void>
 struct HasTraderId : std::false_type {};
 
-// Specialization if T has member 'traderId'
 template <typename MessageType>
 struct HasTraderId<MessageType, std::void_t<decltype(std::declval<MessageType>().traderId)>>
     : std::true_type {};
@@ -106,6 +77,34 @@ bool hasIntersection(const std::vector<ValueType> &left, const std::vector<Value
   return std::any_of(left.begin(), left.end(), [&](const ValueType &value) {
     return std::find(right.begin(), right.end(), value) != right.end();
   });
+}
+
+/**
+ * @brief Returns subspan of the same elements for the given comparator
+ */
+template <typename Type, typename Cmp>
+std::pair<Span<Type>, Span<Type>> frontSubspan(Span<Type> input, Cmp cmp = Cmp{}) {
+  if (input.size() < 2) {
+    return std::make_pair(input, Span<Type>());
+  }
+  const auto base = input.front();
+  size_t end = 1;
+  while (end < input.size() && cmp(base, input[end]) && cmp(input[end], base)) {
+    ++end;
+  }
+  return std::make_pair(input.subspan(0, end), input.subspan(end, input.size() - end));
+}
+
+/**
+ * @brief lock-free helpers
+ */
+template <typename EventType>
+static UPtrLFQueue<EventType> createLFQueue(std::size_t size) {
+  return std::make_unique<LFQueue<EventType>>(size);
+}
+template <typename... TupleTypes>
+static std::tuple<UPtrLFQueue<TupleTypes>...> createLFQueueTuple(std::size_t size) {
+  return std::make_tuple(createLFQueue<TupleTypes>(size)...);
 }
 
 template <typename Number>

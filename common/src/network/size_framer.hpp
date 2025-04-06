@@ -11,14 +11,15 @@
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "constants.hpp"
-#include "logger.hpp"
+#include "logging.hpp"
 #include "ring_buffer.hpp"
+#include "serialization/flat_buffers/fb_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
 
-template <typename SerializerType>
+template <typename SerializerType = serialization::FlatBuffersSerializer>
 class SizeFramer {
 public:
   using Serializer = SerializerType;
@@ -29,30 +30,22 @@ public:
   static constexpr size_t HEADER_SIZE = sizeof(MessageSize);
 
   template <typename Type>
-  static SPtr<ByteBuffer> frame(Span<Type> messages) {
-    spdlog::trace("frame {} messages", messages.size());
-    std::vector<typename Serializer::BufferType> serializedMessages(messages.size());
+  static SPtr<ByteBuffer> frame(CRef<Type> message) {
+    LOG_DEBUG("frame {}", [&message] { return utils::toString(message); }());
 
-    size_t allocSize{0};
-    for (auto [index, message] : messages | std::views::enumerate) {
-      serializedMessages[index] = Serializer::serialize(message);
-      allocSize += sizeof(MessageSize) + serializedMessages[index].size();
-    }
+    auto serializedMsg = Serializer::serialize(message);
+    auto buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serializedMsg.size());
 
-    SPtr<ByteBuffer> writeBuffer = std::make_shared<ByteBuffer>(allocSize);
-    auto cursor = writeBuffer->data();
-    for (auto [index, message] : serializedMessages | std::views::enumerate) {
-      LittleEndianUInt16 bodySize = static_cast<MessageSize>(message.size());
-      std::memcpy(cursor, &bodySize, sizeof(bodySize));
-      std::memcpy(cursor + sizeof(bodySize), message.data(), message.size());
-      cursor += sizeof(bodySize) + bodySize;
-    }
-    return writeBuffer;
+    LittleEndianUInt16 bodySize = static_cast<MessageSize>(serializedMsg.size());
+    std::memcpy(buffer->data(), &bodySize, sizeof(bodySize));
+    std::memcpy(buffer->data() + sizeof(bodySize), serializedMsg.data(), serializedMsg.size());
+
+    return buffer;
   }
 
-  template <typename Cunsumer>
-  static void unframe(RingBuffer &buffer, Cunsumer &consumer) {
-    // TODO(self) Try some buckets here automatically sorting messages by type and workerId
+  template <typename Consumer>
+  static void unframe(RingBuffer &buffer, Consumer &&consumer) {
+    LOG_DEBUG("unframe {} bytes", buffer.size());
     auto readBuffer = buffer.data();
     auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
     auto cursor{0};
@@ -65,7 +58,7 @@ public:
         break;
       }
       cursor += HEADER_SIZE;
-      if (!Serializer::deserialize(dataPtr + cursor, bodySize, consumer)) {
+      if (!Serializer::deserialize(dataPtr + cursor, bodySize, std::forward<Consumer>(consumer))) {
         buffer.reset();
         return;
       }

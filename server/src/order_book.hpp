@@ -56,10 +56,8 @@ public:
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
-  std::vector<OrderStatus> match() {
-    std::vector<OrderStatus> matches;
-    matches.reserve(10);
-
+  template <typename Consumer>
+  void match(Consumer &&consumer) {
     while (!bids_.empty() && !asks_.empty()) {
       Order &bestBid = bids_.front();
       Order &bestAsk = asks_.front();
@@ -67,14 +65,14 @@ public:
         break;
       }
       auto quantity = std::min(bestBid.quantity, bestAsk.quantity);
-      bestBid.quantity -= quantity;
-      bestAsk.quantity -= quantity;
+      bestBid.reduceQuantity(quantity);
+      bestAsk.reduceQuantity(quantity);
 
       if (lastAdded_.contains(bestBid.id)) {
-        matches.emplace_back(handleMatch(bestBid, quantity, bestAsk.price));
+        consumer(getMatch(bestBid, quantity, bestAsk.price));
       }
       if (lastAdded_.contains(bestAsk.id)) {
-        matches.emplace_back(handleMatch(bestAsk, quantity, bestAsk.price));
+        consumer(getMatch(bestAsk, quantity, bestAsk.price));
       }
 
       if (bestBid.quantity == 0) {
@@ -88,23 +86,14 @@ public:
     }
     lastAdded_.clear();
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
-    return matches;
   }
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
 private:
-  OrderStatus handleMatch(const Order &order, Quantity quantity, Price price) {
-    OrderStatus status;
-    status.id = order.id;
-    status.state = (order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-    status.quantity = quantity;
-    status.fillPrice = price;
-    status.action = order.action;
-    status.traderId = order.traderId;
-    status.ticker = order.ticker;
-    spdlog::debug([&status] { return utils::toString(status); }());
-    return status;
+  OrderStatus getMatch(const Order &o, Quantity quantity, Price price) {
+    return OrderStatus(o.traderId, o.token, o.id, utils::getTimestamp(), o.ticker, quantity, price,
+                       (o.quantity == 0) ? OrderState::Full : OrderState::Partial, o.action);
   }
 
 private:

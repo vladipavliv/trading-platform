@@ -24,7 +24,7 @@ public:
     callbacks.reserve(10);
   }
 
-  ~SubscriptionHolder() { bus_.unsubscribe(subscriberId_); }
+  ~SubscriptionHolder() { /* bus_.unsubscribe(subscriberId_); */ }
 
   template <typename HandlerType>
   WPtr<HandlerType> add(HandlerType &&callback) {
