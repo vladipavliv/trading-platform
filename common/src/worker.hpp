@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "boost_types.hpp"
+#include "logging.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -24,22 +25,37 @@ public:
   IoCtx ioCtx;
 
   Worker(ThreadId id, CoreId coreId)
-      : thread_{[this, id, coreId]() {
-          try {
-            utils::setTheadRealTime(coreId);
-            utils::pinThreadToCore(coreId);
-            ioCtx.run();
-          } catch (const std::exception &e) {
-            LOG_ERROR_SYSTEM("Exception in worker thread {}", e.what());
-          }
-        }},
-        guard_{MakeGuard(ioCtx.get_executor())} {}
+      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())} {}
 
   ~Worker() { ioCtx.stop(); }
 
+  void start() {
+    if (started_) {
+      LOG_ERROR("Worker is already running");
+      return;
+    }
+    started_ = true;
+    thread_ = Thread{[this]() {
+      try {
+        LOG_DEBUG("Starting worker thread {} on the core {}", threadId_, coreId_);
+        utils::setTheadRealTime(coreId_);
+        utils::pinThreadToCore(coreId_);
+        ioCtx.run();
+      } catch (const std::exception &e) {
+        LOG_ERROR_SYSTEM("Exception in worker thread {} {}", threadId_, e.what());
+      }
+    }};
+  }
+
+  void stop() { ioCtx.stop(); }
+
 private:
-  Thread thread_;
+  const ThreadId threadId_;
+  const CoreId coreId_;
+  bool started_{false};
+
   ContextGuard guard_;
+  Thread thread_;
 };
 
 } // namespace hft

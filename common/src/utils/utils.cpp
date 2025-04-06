@@ -134,6 +134,11 @@ UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast, Port port) {
   return socket;
 }
 
+OrderId generateOrderId() {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
 SocketId generateSocketId() {
   static std::atomic_uint64_t counter = 0;
   return counter.fetch_add(1, std::memory_order_relaxed);

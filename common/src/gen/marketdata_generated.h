@@ -424,27 +424,27 @@ flatbuffers::Offset<TokenLoginRequest> CreateTokenLoginRequest(flatbuffers::Flat
 
 struct LoginResponseT : public flatbuffers::NativeTable {
   typedef LoginResponse TableType;
-  bool success = false;
   uint64_t token = 0;
+  bool success = false;
 };
 
 struct LoginResponse FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef LoginResponseT NativeTableType;
   typedef LoginResponseBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SUCCESS = 4,
-    VT_TOKEN = 6
+    VT_TOKEN = 4,
+    VT_SUCCESS = 6
   };
-  bool success() const {
-    return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
-  }
   uint64_t token() const {
     return GetField<uint64_t>(VT_TOKEN, 0);
   }
+  bool success() const {
+    return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_SUCCESS, 1) &&
            VerifyField<uint64_t>(verifier, VT_TOKEN, 8) &&
+           VerifyField<uint8_t>(verifier, VT_SUCCESS, 1) &&
            verifier.EndTable();
   }
   LoginResponseT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -456,11 +456,11 @@ struct LoginResponseBuilder {
   typedef LoginResponse Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_success(bool success) {
-    fbb_.AddElement<uint8_t>(LoginResponse::VT_SUCCESS, static_cast<uint8_t>(success), 0);
-  }
   void add_token(uint64_t token) {
     fbb_.AddElement<uint64_t>(LoginResponse::VT_TOKEN, token, 0);
+  }
+  void add_success(bool success) {
+    fbb_.AddElement<uint8_t>(LoginResponse::VT_SUCCESS, static_cast<uint8_t>(success), 0);
   }
   explicit LoginResponseBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -475,8 +475,8 @@ struct LoginResponseBuilder {
 
 inline flatbuffers::Offset<LoginResponse> CreateLoginResponse(
     flatbuffers::FlatBufferBuilder &_fbb,
-    bool success = false,
-    uint64_t token = 0) {
+    uint64_t token = 0,
+    bool success = false) {
   LoginResponseBuilder builder_(_fbb);
   builder_.add_token(token);
   builder_.add_success(success);
@@ -1010,8 +1010,8 @@ inline LoginResponseT *LoginResponse::UnPack(const flatbuffers::resolver_functio
 inline void LoginResponse::UnPackTo(LoginResponseT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = success(); _o->success = _e; }
   { auto _e = token(); _o->token = _e; }
+  { auto _e = success(); _o->success = _e; }
 }
 
 inline flatbuffers::Offset<LoginResponse> LoginResponse::Pack(flatbuffers::FlatBufferBuilder &_fbb, const LoginResponseT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1022,12 +1022,12 @@ inline flatbuffers::Offset<LoginResponse> CreateLoginResponse(flatbuffers::FlatB
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const LoginResponseT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _success = _o->success;
   auto _token = _o->token;
+  auto _success = _o->success;
   return hft::serialization::gen::fbs::CreateLoginResponse(
       _fbb,
-      _success,
-      _token);
+      _token,
+      _success);
 }
 
 inline OrderT *Order::UnPack(const flatbuffers::resolver_function_t *_resolver) const {

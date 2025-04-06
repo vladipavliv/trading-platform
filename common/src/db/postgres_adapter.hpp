@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 
 #include "bus/bus.hpp"
+#include "logging.hpp"
 #include "market_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -77,6 +78,7 @@ public:
 private:
   void onAuthenticate(CRef<CredentialsLoginRequest> request) {
     try {
+      LOG_DEBUG("Authenticating {} {}", request.name, request.password);
       pqxx::work transaction(conn_);
       transaction.exec("SET statement_timeout = 50");
 
@@ -88,9 +90,14 @@ private:
         TraderId traderId = result[0][0].as<TraderId>();
         std::string password = result[0][1].as<std::string>(); // TODO(self) encrypt
         if (request.password == password) {
+          LOG_INFO("Authentication successfull");
           authSuccessfull = true;
           bus_.post(LoginResponse{request.socketId, traderId, 0, true});
+        } else {
+          LOG_ERROR("Invalid password");
         }
+      } else {
+        LOG_ERROR("User not found");
       }
       if (!authSuccessfull) {
         bus_.post(LoginResponse{request.socketId, 0, 0, false});

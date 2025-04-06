@@ -8,7 +8,6 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "bus/subscription_holder.hpp"
 #include "config/config.hpp"
 #include "server_command.hpp"
 #include "ticker_data.hpp"
@@ -23,8 +22,8 @@ class PriceFeed {
 public:
   PriceFeed(Bus &bus, const MarketData &data)
       : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{Config::cfg.priceFeedRate} {
-    bus_.systemBus.subscribe<ServerCommand>([this](CRef<ServerCommand>) { start(); });
-    bus_.systemBus.subscribe<ServerCommand>([this](CRef<ServerCommand>) { stop(); });
+    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStart, [this] { start(); });
+    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStop, [this] { stop(); });
   }
 
   void start() {

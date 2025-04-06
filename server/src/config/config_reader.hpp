@@ -27,8 +27,8 @@ struct ConfigReader {
 
     // Network
     Config::cfg.url = pt.get<std::string>("network.url");
-    Config::cfg.portTcpIn = pt.get<int>("network.port_tcp_in");
-    Config::cfg.portTcpOut = pt.get<int>("network.port_tcp_out");
+    Config::cfg.portTcpUp = pt.get<int>("network.port_tcp_up");
+    Config::cfg.portTcpDown = pt.get<int>("network.port_tcp_down");
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cores
@@ -48,7 +48,7 @@ struct ConfigReader {
   }
 
   static void verifyConfig(CRef<Config> cfg) {
-    if (cfg.url.empty() || cfg.portTcpIn == 0 || cfg.portTcpOut == 0 || cfg.portUdp == 0) {
+    if (cfg.url.empty() || cfg.portTcpUp == 0 || cfg.portTcpDown == 0 || cfg.portUdp == 0) {
       throw std::runtime_error("Invalid network configuration");
     }
     if (utils::hasIntersection(cfg.coresApp, cfg.coresNetwork)) {

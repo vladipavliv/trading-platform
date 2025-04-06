@@ -36,7 +36,7 @@ public:
 
   void stop() {
     for (auto &worker : workers_) {
-      worker->ioCtx.stop();
+      worker->stop();
     }
   }
 
@@ -47,6 +47,7 @@ private:
     workers_.reserve(appCores);
     for (int i = 0; i < appCores; ++i) {
       workers_.emplace_back(std::make_unique<Worker>(i, Config::cfg.coresApp[i]));
+      workers_[i]->start();
     }
   }
 

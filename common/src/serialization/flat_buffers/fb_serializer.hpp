@@ -80,7 +80,7 @@ public:
         LOG_ERROR("Failed to extract LoginResponse");
         return false;
       }
-      const LoginResponse response(msg->token(), msg->success());
+      const LoginResponse response{0, 0, msg->token(), msg->success()};
       LOG_DEBUG("Deserialized {}", utils::toString(response));
       consumer.post(response);
       return true;
@@ -128,7 +128,7 @@ public:
         LOG_ERROR("Failed to extract TickerPrice");
         return false;
       }
-      const TickerPrice price(fbStringToTicker(priceMsg->ticker()), priceMsg->price());
+      const TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
       LOG_DEBUG("Deserialized {}", utils::toString(price));
       consumer.post(price);
       return true;

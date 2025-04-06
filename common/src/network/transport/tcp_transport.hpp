@@ -8,7 +8,6 @@
 
 #include "appender.hpp"
 #include "bus/bus.hpp"
-#include "bus/subscription_holder.hpp"
 #include "logging.hpp"
 #include "market_types.hpp"
 #include "network/ring_buffer.hpp"
@@ -48,7 +47,7 @@ public:
         onStatus(SocketStatus::Connected);
         read();
       } else {
-        LOG_ERROR("{} {}", id(), code.message());
+        LOG_ERROR("SocketId:{} {}", id(), code.message());
         onStatus(SocketStatus::Error);
       }
     });

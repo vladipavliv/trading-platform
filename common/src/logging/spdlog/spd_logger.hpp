@@ -29,6 +29,9 @@ public:
   static SPtrSpdLogger fileLogger;
 
   static void initialize(const std::string &fileName = "") {
+    if (consoleLogger != nullptr || fileLogger != nullptr) {
+      return;
+    }
     LogLevel logLevel = static_cast<LogLevel>(SPDLOG_ACTIVE_LEVEL);
 
     initConsoleLogger();

@@ -51,7 +51,7 @@ struct LoginResponse {
   SocketId socketId{0}; // Server side
   TraderId traderId{0}; // Server side
   SessionToken token;
-  bool success{false};
+  bool success;
 };
 
 enum class OrderAction : uint8_t { Buy, Sell };
@@ -60,7 +60,7 @@ enum class OrderState : uint8_t { Accepted, Partial, Full };
 
 struct Order {
   mutable TraderId traderId; // Server side
-  SessionToken token;
+  mutable SessionToken token;
   OrderId id;
   Timestamp timestamp;
   Ticker ticker;
@@ -70,6 +70,8 @@ struct Order {
   uint8_t padding[3]{0};
 
   inline void setTraderId(TraderId id) const { traderId = id; }
+  inline void setToken(Token tok) const { token = tok; }
+
   inline void reduceQuantity(Quantity amount) const {
     quantity = quantity < amount ? 0 : quantity - amount;
   }

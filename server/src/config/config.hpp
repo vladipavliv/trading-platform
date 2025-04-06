@@ -22,8 +22,8 @@ namespace hft::server {
 struct Config {
   // Network
   String url;
-  Port portTcpIn;
-  Port portTcpOut;
+  Port portTcpUp;
+  Port portTcpDown;
   Port portUdp;
 
   // Cores
@@ -41,7 +41,7 @@ struct Config {
 
   static Config cfg;
   static void logConfig() {
-    LOG_INFO_SYSTEM("Url:{} TcpIn:{} TcpOut:{} Udp:{}", cfg.url, cfg.portTcpIn, cfg.portTcpOut,
+    LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us", cfg.coreSystem,
                     utils::toString(cfg.coresNetwork), utils::toString(cfg.coresApp),

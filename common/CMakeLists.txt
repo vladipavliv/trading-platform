@@ -12,7 +12,7 @@ target_include_directories(hft_common PUBLIC
     ${LIBPQXX_INCLUDE_DIRS}
 )
 
-set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_TRACE")
+set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR")
 
 target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic folly glog pthread dl iberty)
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})

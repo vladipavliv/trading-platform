@@ -20,5 +20,5 @@ add_dependencies(hft_server fbs_code_generator)
 
 add_custom_command(
     TARGET hft_server POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/server_config.ini ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/server_config.ini ${CMAKE_BINARY_DIR}/server
 )

@@ -81,9 +81,9 @@ With 1us delay between orders sent from trader performance is the following
 
 Server:
 ```bash
-14:22:57.819075 [I] Orders: [opn|ttl] 1,428,923|8,294,443 | Rps: 147,117
+20:48:10.538203 [I] Orders: [opn|ttl] 1,455,201|6,639,844 | Rps: 135,116
 ```
 Trader:
 ```bash
-14:22:57.722984 [I] Rtt: [<50us|>50us] 99.89% avg:17us 0.11% avg:89us | Rps: 147,001
+20:48:10.433534 [I] Rtt: [<50us|>50us] 99.96% avg:6us 0.04% avg:86us
 ```

@@ -43,6 +43,7 @@ void printRawBuffer(const uint8_t *buffer, size_t size);
 
 UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0);
 
+OrderId generateOrderId();
 SocketId generateSocketId();
 SocketId generateSessionToken();
 

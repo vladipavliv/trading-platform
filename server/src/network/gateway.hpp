@@ -10,7 +10,6 @@
 #include <folly/container/F14Map.h>
 
 #include "bus/bus.hpp"
-#include "bus/subscription_holder.hpp"
 #include "comparators.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
@@ -57,10 +56,11 @@ public:
     }
     auto newTransport = std::make_unique<Transport>(std::move(socket), *this);
     const auto id = newTransport->id();
-    auto result = upstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    const auto result = upstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     if (!result.second) {
       LOG_ERROR("Failed to insert new upstream connection");
     } else {
+      LOG_INFO_SYSTEM("New upstream connection id:{}", id);
       result.first->second->read();
     }
   }
@@ -72,10 +72,11 @@ public:
     }
     auto newTransport = std::make_unique<Transport>(std::move(socket), *this);
     const auto id = newTransport->id();
-    auto result = downstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    const auto result = downstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     if (!result.second) {
       LOG_ERROR("Failed to insert new downstream connection");
     } else {
+      LOG_INFO_SYSTEM("New downstream connection id:{}", id);
       result.first->second->read();
     }
   }
@@ -99,28 +100,29 @@ public:
 
   void post(CRef<SocketStatusEvent> event) {
     LOG_DEBUG("{}", utils::toString(event));
-    if (event.status != SocketStatus::Connected) {
-      // Cleanup disconnected socket from connections map and session map
-      for (auto &session : sessionsMap_) {
-        Session &s = session.second;
-        if (s.upstreamId.has_value() && s.upstreamId == event.socketId) {
-          s.upstreamId.reset();
-          if (!s.downstreamId.has_value()) {
-            sessionsMap_.erase(session.first);
-          }
-          break;
-        }
-        if (s.downstreamId.has_value() && s.downstreamId == event.socketId) {
-          s.downstreamId.reset();
-          if (!s.upstreamId.has_value()) {
-            sessionsMap_.erase(session.first);
-          }
-          break;
-        }
-      }
-      upstreamMap_.erase(event.socketId);
-      downstreamMap_.erase(event.socketId);
+    if (event.status == SocketStatus::Connected) {
+      return;
     }
+    // Cleanup disconnected socket from connections map and session map
+    for (auto &session : sessionsMap_) {
+      Session &s = session.second;
+      if (s.upstreamId.has_value() && s.upstreamId == event.socketId) {
+        s.upstreamId.reset();
+        if (!s.downstreamId.has_value()) {
+          sessionsMap_.erase(session.first);
+        }
+        break;
+      }
+      if (s.downstreamId.has_value() && s.downstreamId == event.socketId) {
+        s.downstreamId.reset();
+        if (!s.upstreamId.has_value()) {
+          sessionsMap_.erase(session.first);
+        }
+        break;
+      }
+    }
+    upstreamMap_.erase(event.socketId);
+    downstreamMap_.erase(event.socketId);
   }
 
   void post(CRef<CredentialsLoginRequest> request) {
@@ -140,7 +142,14 @@ public:
       LOG_ERROR("Connection is already authenticated");
       return;
     }
+    // Send response to authenticated socket
+    const auto downstreamIt = downstreamMap_.find(request.socketId);
+    if (downstreamIt == downstreamMap_.end()) {
+      LOG_ERROR("Connection not found");
+      return;
+    }
     sessionIter->second.downstreamId = request.socketId;
+    downstreamIt->second->write(LoginResponse{0, 0, request.token, true});
   }
 
 private:

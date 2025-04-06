@@ -21,8 +21,8 @@ table TokenLoginRequest {
 }
 
 table LoginResponse {
-    success: bool;
     token: uint64;
+    success: bool;
 }
 
 table Order {

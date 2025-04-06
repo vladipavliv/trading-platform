@@ -7,7 +7,6 @@
 #define HFT_SERVER_SERVERCONTROLCENTER_HPP
 
 #include "bus/bus.hpp"
-#include "bus/subscription_holder.hpp"
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "console_reader.hpp"
@@ -69,11 +68,10 @@ public:
 
 private:
   void greetings() {
-    LOG_INFO_SYSTEM("Server go stonks {}", std::string(38, '~'));
+    LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
     Config::cfg.logConfig();
     consoleReader_.printCommands();
-    LOG_INFO_SYSTEM("{}", std::string(55, '~'));
   }
 
   void readMarketData() {

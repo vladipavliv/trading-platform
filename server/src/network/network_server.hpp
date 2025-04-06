@@ -55,8 +55,8 @@ public:
       });
     }
     ioCtx_.post([this]() {
-      startIngress();
-      startEgress();
+      startUpstream();
+      startDownstream();
       LOG_INFO_SYSTEM("Network server started");
     });
   }
@@ -64,8 +64,8 @@ public:
   void stop() { ioCtx_.stop(); }
 
 private:
-  void startIngress() {
-    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpIn);
+  void startUpstream() {
+    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -85,8 +85,8 @@ private:
     });
   }
 
-  void startEgress() {
-    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpOut);
+  void startDownstream() {
+    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);

@@ -26,17 +26,18 @@ std::string toString(const Type &val) {
 
 template <>
 std::string toString<CredentialsLoginRequest>(const CredentialsLoginRequest &msg) {
-  return std::format("CredentialsLoginRequest {} {}", msg.name, msg.password);
+  return std::format("CredentialsLoginRequest {} {} {}", msg.socketId, msg.name, msg.password);
 }
 
 template <>
 std::string toString<TokenLoginRequest>(const TokenLoginRequest &msg) {
-  return std::format("TokenLoginRequest {}", msg.token);
+  return std::format("TokenLoginRequest {} {}", msg.socketId, msg.token);
 }
 
 template <>
 std::string toString<LoginResponse>(const LoginResponse &msg) {
-  return std::format("LoginResponse {} {}", msg.token, msg.success);
+  return std::format("LoginResponse {} {} {} {}", msg.socketId, msg.traderId, msg.token,
+                     msg.success);
 }
 
 template <>
