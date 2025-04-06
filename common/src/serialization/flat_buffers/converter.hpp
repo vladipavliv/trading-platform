@@ -21,6 +21,10 @@ static inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   return ticker;
 }
 
+static inline String fbStringToString(const flatbuffers::String *str) {
+  return String(str->c_str(), str->size());
+}
+
 OrderAction convert(gen::fbs::OrderAction action) {
   switch (action) {
   case gen::fbs::OrderAction::OrderAction_BUY:
@@ -28,7 +32,7 @@ OrderAction convert(gen::fbs::OrderAction action) {
   case gen::fbs::OrderAction::OrderAction_SELL:
     return OrderAction::Sell;
   default:
-    spdlog::error("Unknown OrderAction {}", (uint8_t)action);
+    LOG_ERROR("Unknown OrderAction {}", (uint8_t)action);
     return OrderAction::Buy;
   }
 }
@@ -40,7 +44,7 @@ gen::fbs::OrderAction convert(OrderAction action) {
   case OrderAction::Sell:
     return gen::fbs::OrderAction::OrderAction_SELL;
   default:
-    spdlog::error("Unknown OrderAction {}", (uint8_t)action);
+    LOG_ERROR("Unknown OrderAction {}", (uint8_t)action);
     return gen::fbs::OrderAction::OrderAction_BUY;
   }
 }

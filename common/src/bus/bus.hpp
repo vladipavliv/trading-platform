@@ -12,8 +12,11 @@
 #include "template_types.hpp"
 
 namespace hft {
+
 /**
- * @todo Try combine system and market buses and specify special market types via variadics
+ * @brief Holds MarketBus and SystemBus
+ * @details If message is routed by MarketBus - it will be posted to MarketBus
+ * otherwise it will be posted to SystemBus
  */
 struct Bus {
   using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
@@ -21,55 +24,19 @@ struct Bus {
   SystemBus systemBus;
   MarketBus marketBus;
 
-  inline IoContext &ioCtx() { return systemBus.systemIoCtx; }
-
-  void run() { systemBus.systemIoCtx.run(); }
-  void stop() { systemBus.systemIoCtx.stop(); }
-};
-
-class BusWrapper {
-  template <typename MessageType, typename = void>
-  struct HasTraderId : std::false_type {};
-
-  // Specialization if T has member 'traderId'
-  template <typename MessageType>
-  struct HasTraderId<MessageType, std::void_t<decltype(std::declval<MessageType>().traderId)>>
-      : std::true_type {};
-
-public:
-  explicit BusWrapper(Bus &bus, TraderId traderId = 0) : bus_{bus}, traderId_{traderId} {}
-
-  inline TraderId traderId() const { return traderId_; }
+  inline IoCtx &systemCtx() { return systemBus.ioCtx; }
 
   template <typename MessageType>
     requires Bus::MarketBus::RoutedType<MessageType>
-  void post(Span<MessageType> messages) {
-    if constexpr (HasTraderId<MessageType>::value) {
-      for (auto &message : messages) {
-        message.traderId = traderId_;
-      }
-    }
-    bus_.marketBus.post(messages);
-  }
-
-  template <typename MessageType>
-    requires(Bus::MarketBus::RoutedType<MessageType>)
-  void post(Ref<MessageType> message) {
-    if constexpr (HasTraderId<MessageType>::value) {
-      message.traderId = traderId_;
-    }
-    bus_.marketBus.post(Span<MessageType>(&message, 1));
+  void post(CRef<MessageType> message) {
+    marketBus.post<MessageType>(message);
   }
 
   template <typename MessageType>
     requires(!Bus::MarketBus::RoutedType<MessageType>)
   void post(CRef<MessageType> message) {
-    bus_.systemBus.post(message);
+    systemBus.post<MessageType>(message);
   }
-
-private:
-  Bus &bus_;
-  TraderId traderId_;
 };
 } // namespace hft
 

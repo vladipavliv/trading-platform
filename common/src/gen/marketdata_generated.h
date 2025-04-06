@@ -18,6 +18,18 @@ namespace serialization {
 namespace gen {
 namespace fbs {
 
+struct CredentialsLoginRequest;
+struct CredentialsLoginRequestBuilder;
+struct CredentialsLoginRequestT;
+
+struct TokenLoginRequest;
+struct TokenLoginRequestBuilder;
+struct TokenLoginRequestT;
+
+struct LoginResponse;
+struct LoginResponseBuilder;
+struct LoginResponseT;
+
 struct Order;
 struct OrderBuilder;
 struct OrderT;
@@ -99,16 +111,22 @@ inline const char *EnumNameOrderState(OrderState e) {
 
 enum MessageUnion : uint8_t {
   MessageUnion_NONE = 0,
-  MessageUnion_Order = 1,
-  MessageUnion_OrderStatus = 2,
-  MessageUnion_TickerPrice = 3,
+  MessageUnion_CredentialsLoginRequest = 1,
+  MessageUnion_TokenLoginRequest = 2,
+  MessageUnion_LoginResponse = 3,
+  MessageUnion_Order = 4,
+  MessageUnion_OrderStatus = 5,
+  MessageUnion_TickerPrice = 6,
   MessageUnion_MIN = MessageUnion_NONE,
   MessageUnion_MAX = MessageUnion_TickerPrice
 };
 
-inline const MessageUnion (&EnumValuesMessageUnion())[4] {
+inline const MessageUnion (&EnumValuesMessageUnion())[7] {
   static const MessageUnion values[] = {
     MessageUnion_NONE,
+    MessageUnion_CredentialsLoginRequest,
+    MessageUnion_TokenLoginRequest,
+    MessageUnion_LoginResponse,
     MessageUnion_Order,
     MessageUnion_OrderStatus,
     MessageUnion_TickerPrice
@@ -117,8 +135,11 @@ inline const MessageUnion (&EnumValuesMessageUnion())[4] {
 }
 
 inline const char * const *EnumNamesMessageUnion() {
-  static const char * const names[5] = {
+  static const char * const names[8] = {
     "NONE",
+    "CredentialsLoginRequest",
+    "TokenLoginRequest",
+    "LoginResponse",
     "Order",
     "OrderStatus",
     "TickerPrice",
@@ -137,6 +158,18 @@ template<typename T> struct MessageUnionTraits {
   static const MessageUnion enum_value = MessageUnion_NONE;
 };
 
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::CredentialsLoginRequest> {
+  static const MessageUnion enum_value = MessageUnion_CredentialsLoginRequest;
+};
+
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::TokenLoginRequest> {
+  static const MessageUnion enum_value = MessageUnion_TokenLoginRequest;
+};
+
+template<> struct MessageUnionTraits<hft::serialization::gen::fbs::LoginResponse> {
+  static const MessageUnion enum_value = MessageUnion_LoginResponse;
+};
+
 template<> struct MessageUnionTraits<hft::serialization::gen::fbs::Order> {
   static const MessageUnion enum_value = MessageUnion_Order;
 };
@@ -151,6 +184,18 @@ template<> struct MessageUnionTraits<hft::serialization::gen::fbs::TickerPrice> 
 
 template<typename T> struct MessageUnionUnionTraits {
   static const MessageUnion enum_value = MessageUnion_NONE;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::CredentialsLoginRequestT> {
+  static const MessageUnion enum_value = MessageUnion_CredentialsLoginRequest;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::TokenLoginRequestT> {
+  static const MessageUnion enum_value = MessageUnion_TokenLoginRequest;
+};
+
+template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::LoginResponseT> {
+  static const MessageUnion enum_value = MessageUnion_LoginResponse;
 };
 
 template<> struct MessageUnionUnionTraits<hft::serialization::gen::fbs::OrderT> {
@@ -195,6 +240,30 @@ struct MessageUnionUnion {
   static void *UnPack(const void *obj, MessageUnion type, const flatbuffers::resolver_function_t *resolver);
   flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
+  hft::serialization::gen::fbs::CredentialsLoginRequestT *AsCredentialsLoginRequest() {
+    return type == MessageUnion_CredentialsLoginRequest ?
+      reinterpret_cast<hft::serialization::gen::fbs::CredentialsLoginRequestT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::CredentialsLoginRequestT *AsCredentialsLoginRequest() const {
+    return type == MessageUnion_CredentialsLoginRequest ?
+      reinterpret_cast<const hft::serialization::gen::fbs::CredentialsLoginRequestT *>(value) : nullptr;
+  }
+  hft::serialization::gen::fbs::TokenLoginRequestT *AsTokenLoginRequest() {
+    return type == MessageUnion_TokenLoginRequest ?
+      reinterpret_cast<hft::serialization::gen::fbs::TokenLoginRequestT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::TokenLoginRequestT *AsTokenLoginRequest() const {
+    return type == MessageUnion_TokenLoginRequest ?
+      reinterpret_cast<const hft::serialization::gen::fbs::TokenLoginRequestT *>(value) : nullptr;
+  }
+  hft::serialization::gen::fbs::LoginResponseT *AsLoginResponse() {
+    return type == MessageUnion_LoginResponse ?
+      reinterpret_cast<hft::serialization::gen::fbs::LoginResponseT *>(value) : nullptr;
+  }
+  const hft::serialization::gen::fbs::LoginResponseT *AsLoginResponse() const {
+    return type == MessageUnion_LoginResponse ?
+      reinterpret_cast<const hft::serialization::gen::fbs::LoginResponseT *>(value) : nullptr;
+  }
   hft::serialization::gen::fbs::OrderT *AsOrder() {
     return type == MessageUnion_Order ?
       reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(value) : nullptr;
@@ -224,9 +293,203 @@ struct MessageUnionUnion {
 bool VerifyMessageUnion(flatbuffers::Verifier &verifier, const void *obj, MessageUnion type);
 bool VerifyMessageUnionVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
 
+struct CredentialsLoginRequestT : public flatbuffers::NativeTable {
+  typedef CredentialsLoginRequest TableType;
+  std::string name{};
+  std::string password{};
+};
+
+struct CredentialsLoginRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef CredentialsLoginRequestT NativeTableType;
+  typedef CredentialsLoginRequestBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NAME = 4,
+    VT_PASSWORD = 6
+  };
+  const flatbuffers::String *name() const {
+    return GetPointer<const flatbuffers::String *>(VT_NAME);
+  }
+  const flatbuffers::String *password() const {
+    return GetPointer<const flatbuffers::String *>(VT_PASSWORD);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_NAME) &&
+           verifier.VerifyString(name()) &&
+           VerifyOffset(verifier, VT_PASSWORD) &&
+           verifier.VerifyString(password()) &&
+           verifier.EndTable();
+  }
+  CredentialsLoginRequestT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(CredentialsLoginRequestT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<CredentialsLoginRequest> Pack(flatbuffers::FlatBufferBuilder &_fbb, const CredentialsLoginRequestT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct CredentialsLoginRequestBuilder {
+  typedef CredentialsLoginRequest Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_name(flatbuffers::Offset<flatbuffers::String> name) {
+    fbb_.AddOffset(CredentialsLoginRequest::VT_NAME, name);
+  }
+  void add_password(flatbuffers::Offset<flatbuffers::String> password) {
+    fbb_.AddOffset(CredentialsLoginRequest::VT_PASSWORD, password);
+  }
+  explicit CredentialsLoginRequestBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<CredentialsLoginRequest> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<CredentialsLoginRequest>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<CredentialsLoginRequest> CreateCredentialsLoginRequest(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> name = 0,
+    flatbuffers::Offset<flatbuffers::String> password = 0) {
+  CredentialsLoginRequestBuilder builder_(_fbb);
+  builder_.add_password(password);
+  builder_.add_name(name);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<CredentialsLoginRequest> CreateCredentialsLoginRequestDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *name = nullptr,
+    const char *password = nullptr) {
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto password__ = password ? _fbb.CreateString(password) : 0;
+  return hft::serialization::gen::fbs::CreateCredentialsLoginRequest(
+      _fbb,
+      name__,
+      password__);
+}
+
+flatbuffers::Offset<CredentialsLoginRequest> CreateCredentialsLoginRequest(flatbuffers::FlatBufferBuilder &_fbb, const CredentialsLoginRequestT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct TokenLoginRequestT : public flatbuffers::NativeTable {
+  typedef TokenLoginRequest TableType;
+  uint64_t token = 0;
+};
+
+struct TokenLoginRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef TokenLoginRequestT NativeTableType;
+  typedef TokenLoginRequestBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TOKEN = 4
+  };
+  uint64_t token() const {
+    return GetField<uint64_t>(VT_TOKEN, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_TOKEN, 8) &&
+           verifier.EndTable();
+  }
+  TokenLoginRequestT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TokenLoginRequestT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<TokenLoginRequest> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TokenLoginRequestT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct TokenLoginRequestBuilder {
+  typedef TokenLoginRequest Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_token(uint64_t token) {
+    fbb_.AddElement<uint64_t>(TokenLoginRequest::VT_TOKEN, token, 0);
+  }
+  explicit TokenLoginRequestBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<TokenLoginRequest> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<TokenLoginRequest>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<TokenLoginRequest> CreateTokenLoginRequest(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t token = 0) {
+  TokenLoginRequestBuilder builder_(_fbb);
+  builder_.add_token(token);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<TokenLoginRequest> CreateTokenLoginRequest(flatbuffers::FlatBufferBuilder &_fbb, const TokenLoginRequestT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct LoginResponseT : public flatbuffers::NativeTable {
+  typedef LoginResponse TableType;
+  uint64_t token = 0;
+  bool success = false;
+};
+
+struct LoginResponse FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef LoginResponseT NativeTableType;
+  typedef LoginResponseBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TOKEN = 4,
+    VT_SUCCESS = 6
+  };
+  uint64_t token() const {
+    return GetField<uint64_t>(VT_TOKEN, 0);
+  }
+  bool success() const {
+    return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_TOKEN, 8) &&
+           VerifyField<uint8_t>(verifier, VT_SUCCESS, 1) &&
+           verifier.EndTable();
+  }
+  LoginResponseT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(LoginResponseT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<LoginResponse> Pack(flatbuffers::FlatBufferBuilder &_fbb, const LoginResponseT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct LoginResponseBuilder {
+  typedef LoginResponse Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_token(uint64_t token) {
+    fbb_.AddElement<uint64_t>(LoginResponse::VT_TOKEN, token, 0);
+  }
+  void add_success(bool success) {
+    fbb_.AddElement<uint8_t>(LoginResponse::VT_SUCCESS, static_cast<uint8_t>(success), 0);
+  }
+  explicit LoginResponseBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<LoginResponse> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<LoginResponse>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<LoginResponse> CreateLoginResponse(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t token = 0,
+    bool success = false) {
+  LoginResponseBuilder builder_(_fbb);
+  builder_.add_token(token);
+  builder_.add_success(success);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<LoginResponse> CreateLoginResponse(flatbuffers::FlatBufferBuilder &_fbb, const LoginResponseT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct OrderT : public flatbuffers::NativeTable {
   typedef Order TableType;
-  uint32_t id = 0;
+  uint64_t token = 0;
+  uint64_t id = 0;
+  uint64_t timestamp = 0;
   std::string ticker{};
   uint32_t quantity = 0;
   uint32_t price = 0;
@@ -237,14 +500,22 @@ struct Order FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef OrderT NativeTableType;
   typedef OrderBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_ID = 4,
-    VT_TICKER = 6,
-    VT_QUANTITY = 8,
-    VT_PRICE = 10,
-    VT_ACTION = 12
+    VT_TOKEN = 4,
+    VT_ID = 6,
+    VT_TIMESTAMP = 8,
+    VT_TICKER = 10,
+    VT_QUANTITY = 12,
+    VT_PRICE = 14,
+    VT_ACTION = 16
   };
-  uint32_t id() const {
-    return GetField<uint32_t>(VT_ID, 0);
+  uint64_t token() const {
+    return GetField<uint64_t>(VT_TOKEN, 0);
+  }
+  uint64_t id() const {
+    return GetField<uint64_t>(VT_ID, 0);
+  }
+  uint64_t timestamp() const {
+    return GetField<uint64_t>(VT_TIMESTAMP, 0);
   }
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
@@ -260,7 +531,9 @@ struct Order FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_ID, 4) &&
+           VerifyField<uint64_t>(verifier, VT_TOKEN, 8) &&
+           VerifyField<uint64_t>(verifier, VT_ID, 8) &&
+           VerifyField<uint64_t>(verifier, VT_TIMESTAMP, 8) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
            VerifyField<uint32_t>(verifier, VT_QUANTITY, 4) &&
@@ -277,8 +550,14 @@ struct OrderBuilder {
   typedef Order Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_id(uint32_t id) {
-    fbb_.AddElement<uint32_t>(Order::VT_ID, id, 0);
+  void add_token(uint64_t token) {
+    fbb_.AddElement<uint64_t>(Order::VT_TOKEN, token, 0);
+  }
+  void add_id(uint64_t id) {
+    fbb_.AddElement<uint64_t>(Order::VT_ID, id, 0);
+  }
+  void add_timestamp(uint64_t timestamp) {
+    fbb_.AddElement<uint64_t>(Order::VT_TIMESTAMP, timestamp, 0);
   }
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(Order::VT_TICKER, ticker);
@@ -305,23 +584,29 @@ struct OrderBuilder {
 
 inline flatbuffers::Offset<Order> CreateOrder(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t id = 0,
+    uint64_t token = 0,
+    uint64_t id = 0,
+    uint64_t timestamp = 0,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
     uint32_t quantity = 0,
     uint32_t price = 0,
     hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   OrderBuilder builder_(_fbb);
+  builder_.add_timestamp(timestamp);
+  builder_.add_id(id);
+  builder_.add_token(token);
   builder_.add_price(price);
   builder_.add_quantity(quantity);
   builder_.add_ticker(ticker);
-  builder_.add_id(id);
   builder_.add_action(action);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<Order> CreateOrderDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t id = 0,
+    uint64_t token = 0,
+    uint64_t id = 0,
+    uint64_t timestamp = 0,
     const char *ticker = nullptr,
     uint32_t quantity = 0,
     uint32_t price = 0,
@@ -329,7 +614,9 @@ inline flatbuffers::Offset<Order> CreateOrderDirect(
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
   return hft::serialization::gen::fbs::CreateOrder(
       _fbb,
+      token,
       id,
+      timestamp,
       ticker__,
       quantity,
       price,
@@ -340,7 +627,8 @@ flatbuffers::Offset<Order> CreateOrder(flatbuffers::FlatBufferBuilder &_fbb, con
 
 struct OrderStatusT : public flatbuffers::NativeTable {
   typedef OrderStatus TableType;
-  uint32_t id = 0;
+  uint64_t order_id = 0;
+  uint64_t timestamp = 0;
   std::string ticker{};
   uint32_t quantity = 0;
   uint32_t fill_price = 0;
@@ -352,15 +640,19 @@ struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef OrderStatusT NativeTableType;
   typedef OrderStatusBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_ID = 4,
-    VT_TICKER = 6,
-    VT_QUANTITY = 8,
-    VT_FILL_PRICE = 10,
-    VT_STATE = 12,
-    VT_ACTION = 14
+    VT_ORDER_ID = 4,
+    VT_TIMESTAMP = 6,
+    VT_TICKER = 8,
+    VT_QUANTITY = 10,
+    VT_FILL_PRICE = 12,
+    VT_STATE = 14,
+    VT_ACTION = 16
   };
-  uint32_t id() const {
-    return GetField<uint32_t>(VT_ID, 0);
+  uint64_t order_id() const {
+    return GetField<uint64_t>(VT_ORDER_ID, 0);
+  }
+  uint64_t timestamp() const {
+    return GetField<uint64_t>(VT_TIMESTAMP, 0);
   }
   const flatbuffers::String *ticker() const {
     return GetPointer<const flatbuffers::String *>(VT_TICKER);
@@ -379,7 +671,8 @@ struct OrderStatus FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_ID, 4) &&
+           VerifyField<uint64_t>(verifier, VT_ORDER_ID, 8) &&
+           VerifyField<uint64_t>(verifier, VT_TIMESTAMP, 8) &&
            VerifyOffset(verifier, VT_TICKER) &&
            verifier.VerifyString(ticker()) &&
            VerifyField<uint32_t>(verifier, VT_QUANTITY, 4) &&
@@ -397,8 +690,11 @@ struct OrderStatusBuilder {
   typedef OrderStatus Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_id(uint32_t id) {
-    fbb_.AddElement<uint32_t>(OrderStatus::VT_ID, id, 0);
+  void add_order_id(uint64_t order_id) {
+    fbb_.AddElement<uint64_t>(OrderStatus::VT_ORDER_ID, order_id, 0);
+  }
+  void add_timestamp(uint64_t timestamp) {
+    fbb_.AddElement<uint64_t>(OrderStatus::VT_TIMESTAMP, timestamp, 0);
   }
   void add_ticker(flatbuffers::Offset<flatbuffers::String> ticker) {
     fbb_.AddOffset(OrderStatus::VT_TICKER, ticker);
@@ -428,25 +724,28 @@ struct OrderStatusBuilder {
 
 inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t id = 0,
+    uint64_t order_id = 0,
+    uint64_t timestamp = 0,
     flatbuffers::Offset<flatbuffers::String> ticker = 0,
     uint32_t quantity = 0,
     uint32_t fill_price = 0,
     hft::serialization::gen::fbs::OrderState state = hft::serialization::gen::fbs::OrderState_Accepted,
     hft::serialization::gen::fbs::OrderAction action = hft::serialization::gen::fbs::OrderAction_BUY) {
   OrderStatusBuilder builder_(_fbb);
+  builder_.add_timestamp(timestamp);
+  builder_.add_order_id(order_id);
   builder_.add_state(state);
   builder_.add_fill_price(fill_price);
   builder_.add_quantity(quantity);
   builder_.add_ticker(ticker);
-  builder_.add_id(id);
   builder_.add_action(action);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<OrderStatus> CreateOrderStatusDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t id = 0,
+    uint64_t order_id = 0,
+    uint64_t timestamp = 0,
     const char *ticker = nullptr,
     uint32_t quantity = 0,
     uint32_t fill_price = 0,
@@ -455,7 +754,8 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatusDirect(
   auto ticker__ = ticker ? _fbb.CreateString(ticker) : 0;
   return hft::serialization::gen::fbs::CreateOrderStatus(
       _fbb,
-      id,
+      order_id,
+      timestamp,
       ticker__,
       quantity,
       fill_price,
@@ -559,6 +859,15 @@ struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetPointer<const void *>(VT_MESSAGE);
   }
   template<typename T> const T *message_as() const;
+  const hft::serialization::gen::fbs::CredentialsLoginRequest *message_as_CredentialsLoginRequest() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_CredentialsLoginRequest ? static_cast<const hft::serialization::gen::fbs::CredentialsLoginRequest *>(message()) : nullptr;
+  }
+  const hft::serialization::gen::fbs::TokenLoginRequest *message_as_TokenLoginRequest() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_TokenLoginRequest ? static_cast<const hft::serialization::gen::fbs::TokenLoginRequest *>(message()) : nullptr;
+  }
+  const hft::serialization::gen::fbs::LoginResponse *message_as_LoginResponse() const {
+    return message_type() == hft::serialization::gen::fbs::MessageUnion_LoginResponse ? static_cast<const hft::serialization::gen::fbs::LoginResponse *>(message()) : nullptr;
+  }
   const hft::serialization::gen::fbs::Order *message_as_Order() const {
     return message_type() == hft::serialization::gen::fbs::MessageUnion_Order ? static_cast<const hft::serialization::gen::fbs::Order *>(message()) : nullptr;
   }
@@ -579,6 +888,18 @@ struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   void UnPackTo(MessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   static flatbuffers::Offset<Message> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
+
+template<> inline const hft::serialization::gen::fbs::CredentialsLoginRequest *Message::message_as<hft::serialization::gen::fbs::CredentialsLoginRequest>() const {
+  return message_as_CredentialsLoginRequest();
+}
+
+template<> inline const hft::serialization::gen::fbs::TokenLoginRequest *Message::message_as<hft::serialization::gen::fbs::TokenLoginRequest>() const {
+  return message_as_TokenLoginRequest();
+}
+
+template<> inline const hft::serialization::gen::fbs::LoginResponse *Message::message_as<hft::serialization::gen::fbs::LoginResponse>() const {
+  return message_as_LoginResponse();
+}
 
 template<> inline const hft::serialization::gen::fbs::Order *Message::message_as<hft::serialization::gen::fbs::Order>() const {
   return message_as_Order();
@@ -625,6 +946,90 @@ inline flatbuffers::Offset<Message> CreateMessage(
 
 flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+inline CredentialsLoginRequestT *CredentialsLoginRequest::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<CredentialsLoginRequestT>(new CredentialsLoginRequestT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void CredentialsLoginRequest::UnPackTo(CredentialsLoginRequestT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = name(); if (_e) _o->name = _e->str(); }
+  { auto _e = password(); if (_e) _o->password = _e->str(); }
+}
+
+inline flatbuffers::Offset<CredentialsLoginRequest> CredentialsLoginRequest::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CredentialsLoginRequestT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateCredentialsLoginRequest(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<CredentialsLoginRequest> CreateCredentialsLoginRequest(flatbuffers::FlatBufferBuilder &_fbb, const CredentialsLoginRequestT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const CredentialsLoginRequestT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _name = _o->name.empty() ? 0 : _fbb.CreateString(_o->name);
+  auto _password = _o->password.empty() ? 0 : _fbb.CreateString(_o->password);
+  return hft::serialization::gen::fbs::CreateCredentialsLoginRequest(
+      _fbb,
+      _name,
+      _password);
+}
+
+inline TokenLoginRequestT *TokenLoginRequest::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<TokenLoginRequestT>(new TokenLoginRequestT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void TokenLoginRequest::UnPackTo(TokenLoginRequestT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = token(); _o->token = _e; }
+}
+
+inline flatbuffers::Offset<TokenLoginRequest> TokenLoginRequest::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TokenLoginRequestT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateTokenLoginRequest(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<TokenLoginRequest> CreateTokenLoginRequest(flatbuffers::FlatBufferBuilder &_fbb, const TokenLoginRequestT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TokenLoginRequestT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _token = _o->token;
+  return hft::serialization::gen::fbs::CreateTokenLoginRequest(
+      _fbb,
+      _token);
+}
+
+inline LoginResponseT *LoginResponse::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<LoginResponseT>(new LoginResponseT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void LoginResponse::UnPackTo(LoginResponseT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = token(); _o->token = _e; }
+  { auto _e = success(); _o->success = _e; }
+}
+
+inline flatbuffers::Offset<LoginResponse> LoginResponse::Pack(flatbuffers::FlatBufferBuilder &_fbb, const LoginResponseT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateLoginResponse(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<LoginResponse> CreateLoginResponse(flatbuffers::FlatBufferBuilder &_fbb, const LoginResponseT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const LoginResponseT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _token = _o->token;
+  auto _success = _o->success;
+  return hft::serialization::gen::fbs::CreateLoginResponse(
+      _fbb,
+      _token,
+      _success);
+}
+
 inline OrderT *Order::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::unique_ptr<OrderT>(new OrderT());
   UnPackTo(_o.get(), _resolver);
@@ -634,7 +1039,9 @@ inline OrderT *Order::UnPack(const flatbuffers::resolver_function_t *_resolver) 
 inline void Order::UnPackTo(OrderT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
+  { auto _e = token(); _o->token = _e; }
   { auto _e = id(); _o->id = _e; }
+  { auto _e = timestamp(); _o->timestamp = _e; }
   { auto _e = ticker(); if (_e) _o->ticker = _e->str(); }
   { auto _e = quantity(); _o->quantity = _e; }
   { auto _e = price(); _o->price = _e; }
@@ -649,14 +1056,18 @@ inline flatbuffers::Offset<Order> CreateOrder(flatbuffers::FlatBufferBuilder &_f
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const OrderT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _token = _o->token;
   auto _id = _o->id;
+  auto _timestamp = _o->timestamp;
   auto _ticker = _o->ticker.empty() ? 0 : _fbb.CreateString(_o->ticker);
   auto _quantity = _o->quantity;
   auto _price = _o->price;
   auto _action = _o->action;
   return hft::serialization::gen::fbs::CreateOrder(
       _fbb,
+      _token,
       _id,
+      _timestamp,
       _ticker,
       _quantity,
       _price,
@@ -672,7 +1083,8 @@ inline OrderStatusT *OrderStatus::UnPack(const flatbuffers::resolver_function_t 
 inline void OrderStatus::UnPackTo(OrderStatusT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = id(); _o->id = _e; }
+  { auto _e = order_id(); _o->order_id = _e; }
+  { auto _e = timestamp(); _o->timestamp = _e; }
   { auto _e = ticker(); if (_e) _o->ticker = _e->str(); }
   { auto _e = quantity(); _o->quantity = _e; }
   { auto _e = fill_price(); _o->fill_price = _e; }
@@ -688,7 +1100,8 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBuffe
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const OrderStatusT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _id = _o->id;
+  auto _order_id = _o->order_id;
+  auto _timestamp = _o->timestamp;
   auto _ticker = _o->ticker.empty() ? 0 : _fbb.CreateString(_o->ticker);
   auto _quantity = _o->quantity;
   auto _fill_price = _o->fill_price;
@@ -696,7 +1109,8 @@ inline flatbuffers::Offset<OrderStatus> CreateOrderStatus(flatbuffers::FlatBuffe
   auto _action = _o->action;
   return hft::serialization::gen::fbs::CreateOrderStatus(
       _fbb,
-      _id,
+      _order_id,
+      _timestamp,
       _ticker,
       _quantity,
       _fill_price,
@@ -767,6 +1181,18 @@ inline bool VerifyMessageUnion(flatbuffers::Verifier &verifier, const void *obj,
     case MessageUnion_NONE: {
       return true;
     }
+    case MessageUnion_CredentialsLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::CredentialsLoginRequest *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case MessageUnion_TokenLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TokenLoginRequest *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case MessageUnion_LoginResponse: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::LoginResponse *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     case MessageUnion_Order: {
       auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::Order *>(obj);
       return verifier.VerifyTable(ptr);
@@ -798,6 +1224,18 @@ inline bool VerifyMessageUnionVector(flatbuffers::Verifier &verifier, const flat
 inline void *MessageUnionUnion::UnPack(const void *obj, MessageUnion type, const flatbuffers::resolver_function_t *resolver) {
   (void)resolver;
   switch (type) {
+    case MessageUnion_CredentialsLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::CredentialsLoginRequest *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case MessageUnion_TokenLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TokenLoginRequest *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case MessageUnion_LoginResponse: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::LoginResponse *>(obj);
+      return ptr->UnPack(resolver);
+    }
     case MessageUnion_Order: {
       auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::Order *>(obj);
       return ptr->UnPack(resolver);
@@ -817,6 +1255,18 @@ inline void *MessageUnionUnion::UnPack(const void *obj, MessageUnion type, const
 inline flatbuffers::Offset<void> MessageUnionUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
   (void)_rehasher;
   switch (type) {
+    case MessageUnion_CredentialsLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::CredentialsLoginRequestT *>(value);
+      return CreateCredentialsLoginRequest(_fbb, ptr, _rehasher).Union();
+    }
+    case MessageUnion_TokenLoginRequest: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::TokenLoginRequestT *>(value);
+      return CreateTokenLoginRequest(_fbb, ptr, _rehasher).Union();
+    }
+    case MessageUnion_LoginResponse: {
+      auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::LoginResponseT *>(value);
+      return CreateLoginResponse(_fbb, ptr, _rehasher).Union();
+    }
     case MessageUnion_Order: {
       auto ptr = reinterpret_cast<const hft::serialization::gen::fbs::OrderT *>(value);
       return CreateOrder(_fbb, ptr, _rehasher).Union();
@@ -835,6 +1285,18 @@ inline flatbuffers::Offset<void> MessageUnionUnion::Pack(flatbuffers::FlatBuffer
 
 inline MessageUnionUnion::MessageUnionUnion(const MessageUnionUnion &u) : type(u.type), value(nullptr) {
   switch (type) {
+    case MessageUnion_CredentialsLoginRequest: {
+      value = new hft::serialization::gen::fbs::CredentialsLoginRequestT(*reinterpret_cast<hft::serialization::gen::fbs::CredentialsLoginRequestT *>(u.value));
+      break;
+    }
+    case MessageUnion_TokenLoginRequest: {
+      value = new hft::serialization::gen::fbs::TokenLoginRequestT(*reinterpret_cast<hft::serialization::gen::fbs::TokenLoginRequestT *>(u.value));
+      break;
+    }
+    case MessageUnion_LoginResponse: {
+      value = new hft::serialization::gen::fbs::LoginResponseT(*reinterpret_cast<hft::serialization::gen::fbs::LoginResponseT *>(u.value));
+      break;
+    }
     case MessageUnion_Order: {
       value = new hft::serialization::gen::fbs::OrderT(*reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(u.value));
       break;
@@ -854,6 +1316,21 @@ inline MessageUnionUnion::MessageUnionUnion(const MessageUnionUnion &u) : type(u
 
 inline void MessageUnionUnion::Reset() {
   switch (type) {
+    case MessageUnion_CredentialsLoginRequest: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::CredentialsLoginRequestT *>(value);
+      delete ptr;
+      break;
+    }
+    case MessageUnion_TokenLoginRequest: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::TokenLoginRequestT *>(value);
+      delete ptr;
+      break;
+    }
+    case MessageUnion_LoginResponse: {
+      auto ptr = reinterpret_cast<hft::serialization::gen::fbs::LoginResponseT *>(value);
+      delete ptr;
+      break;
+    }
     case MessageUnion_Order: {
       auto ptr = reinterpret_cast<hft::serialization::gen::fbs::OrderT *>(value);
       delete ptr;

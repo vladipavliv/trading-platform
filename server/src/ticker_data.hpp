@@ -7,9 +7,11 @@
 #define HFT_SERVER_TICKERDATA_HPP
 
 #include <atomic>
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <map>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
+#include "constants.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
 #include "types.hpp"
@@ -17,10 +19,7 @@
 namespace hft::server {
 
 /**
- * @brief All the ticker data in one place
- * Holds the current price and a worker id to operate the order book
- * @todo Later on would require atomic_flag to lock the order book for rerouting
- * lock -> switch the worker id -> unlock => hopefully wont affect the hot worker flow
+ * @brief
  */
 struct TickerData {
   using UPtr = std::unique_ptr<TickerData>;

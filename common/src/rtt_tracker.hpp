@@ -52,10 +52,10 @@ public:
     std::array<RttSample, RangeCount> samples{};
   };
 
-  static TimestampRaw logRtt(TimestampRaw timestamp) {
+  static Timestamp logRtt(Timestamp timestamp) {
     thread_local AtomicRttStats stats;
-    thread_local TimestampRaw lastFlushed = utils::getLinuxTimestamp();
-    TimestampRaw current = utils::getLinuxTimestamp();
+    thread_local Timestamp lastFlushed = utils::getTimestamp();
+    Timestamp current = utils::getTimestamp();
     auto rtt = (current - timestamp) / 1000;
 
     uint8_t scale = getRange(rtt);
@@ -119,7 +119,7 @@ public:
   }
 
 private:
-  static constexpr inline uint8_t getRange(TimestampRaw value) {
+  static constexpr inline uint8_t getRange(Timestamp value) {
     for (int i = 0; i < RangeCount - 1; ++i) {
       if (value < rangeValues[i]) {
         return i;
@@ -127,7 +127,7 @@ private:
     }
     return RangeCount - 1;
   }
-  static inline std::string toScale(TimestampRaw value) {
+  static inline std::string toScale(Timestamp value) {
     bool us = value < 1000;
     if (!us) {
       value /= 1000;

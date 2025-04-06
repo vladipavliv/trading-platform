@@ -13,17 +13,15 @@
 #include "coordinator.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
-#include "network_server.hpp"
+#include "network/network_server.hpp"
 #include "price_feed.hpp"
 #include "server_command.hpp"
-#include "server_event.hpp"
+#include "server_events.hpp"
 
 namespace hft::server {
 
 /**
- * @brief Starts all the components and controls the flow
- * Runs the system io_context, executes console commands, reacts to system events
- * @todo Later on would do finer startup stage management and performance monitoring
+ * @brief
  */
 class ServerControlCenter {
 public:
@@ -31,15 +29,15 @@ public:
   using ServerConsoleReader = ConsoleReader<ServerCommand>;
 
   ServerControlCenter()
-      : networkServer_{bus_}, coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
-        priceFeed_{bus_, marketData_} {
+      : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_} {
 
     // System bus subscriptions
-    bus_.systemBus.subscribe(ServerEvent::Ready, [this]() {
-      Logger::monitorLogger->info("Server is ready");
+    bus_.systemBus.subscribe<ServerEvent>(ServerEvent::Ready, [this] {
+      LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
-    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this]() { stop(); });
+    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::Shutdown, [this] { stop(); });
 
     // Console commands
     consoleReader_.addCommand("q", ServerCommand::Shutdown);
@@ -50,33 +48,34 @@ public:
   void start() {
     greetings();
     readMarketData();
+
     coordinator_.start();
     consoleReader_.start();
 
     utils::setTheadRealTime(Config::cfg.coreSystem);
     utils::pinThreadToCore(Config::cfg.coreSystem);
-    bus_.run();
+
+    bus_.systemBus.ioCtx.run();
   }
 
   void stop() {
     networkServer_.stop();
     coordinator_.stop();
     consoleReader_.stop();
-    bus_.stop();
-    Logger::monitorLogger->info("stonk");
+    bus_.systemBus.ioCtx.stop();
+    LOG_INFO_SYSTEM("stonk");
   }
 
 private:
   void greetings() {
-    Logger::monitorLogger->info("Server go stonks {}", std::string(38, '~'));
-    Logger::monitorLogger->info("Configuration:");
+    LOG_INFO_SYSTEM("Server go stonks");
+    LOG_INFO_SYSTEM("Configuration:");
     Config::cfg.logConfig();
     consoleReader_.printCommands();
-    Logger::monitorLogger->info(std::string(55, '~'));
   }
 
   void readMarketData() {
-    auto prices = db::PostgresAdapter::readTickers();
+    auto prices = dbAdapter_.readTickers();
 
     const auto workers = Config::cfg.coresApp.size();
     ThreadId roundRobin = 0;
@@ -84,17 +83,19 @@ private:
       marketData_.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
       roundRobin = (++roundRobin < workers) ? roundRobin : 0;
     }
-    Logger::monitorLogger->info("Market data loaded for {} tickers", marketData_.size());
+    LOG_INFO_SYSTEM("Market data loaded for {} tickers", marketData_.size());
   }
 
 private:
   Bus bus_;
-  MarketData marketData_;
 
+  PostgresAdapter dbAdapter_;
   NetworkServer networkServer_;
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
+
+  MarketData marketData_;
 };
 
 } // namespace hft::server

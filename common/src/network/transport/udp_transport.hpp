@@ -7,27 +7,28 @@
 #define HFT_COMMON_UDPTRANSPORT_HPP
 
 #include "bus/bus.hpp"
-#include "logger.hpp"
+#include "logging.hpp"
 #include "market_types.hpp"
-#include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
 #include "network/size_framer.hpp"
+#include "network/socket_status.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
 namespace hft {
 
 /**
- * @brief
+ * @brief Asynchronous UdpSocket wrapper
+ * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
-template <typename FramerType>
+template <typename FramerType = SizeFramer<>>
 class UdpTransport {
 public:
   using Framer = FramerType;
   using UPtr = std::unique_ptr<UdpTransport>;
 
-  UdpTransport(UdpSocket socket, UdpEndpoint endpoint, BusWrapper bus)
-      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{std::move(bus)} {}
+  UdpTransport(UdpSocket socket, UdpEndpoint endpoint, Bus &bus)
+      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{bus} {}
 
   void read() {
     socket_.async_receive_from(
@@ -37,20 +38,20 @@ public:
 
   template <typename Type>
     requires(Bus::MarketBus::RoutedType<Type>)
-  void write(Span<Type> messages) {
-    auto data = std::make_shared<ByteBuffer>(Framer::frame(messages));
-    socket_.async_send_to(
-        ConstBuffer{data->data(), data->size()}, endpoint_,
-        [this, data](CRef<BoostError> code, size_t bytes) {
-          if (code) {
-            Logger::monitorLogger->error("Udp transport error {}", code.message());
-            bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
-          }
-          if (bytes != data->size()) {
-            Logger::monitorLogger->error("Failed to write {}, written {}", data->size(), bytes);
-            bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
-          }
-        });
+  void write(CRef<Type> messages) {
+    auto data = Framer::frame(messages);
+    socket_.async_send_to(ConstBuffer{data->data(), data->size()}, endpoint_,
+                          [this, data](CRef<BoostError> code, size_t bytes) {
+                            if (code) {
+                              LOG_ERROR_SYSTEM("Udp transport error {}", code.message());
+                              bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
+                            }
+                            if (bytes != data->size()) {
+                              LOG_ERROR_SYSTEM("Failed to write {}, written {}", data->size(),
+                                               bytes);
+                              bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
+                            }
+                          });
   }
 
   inline void close() { socket_.close(); }
@@ -60,9 +61,9 @@ private:
     if (code) {
       buffer_.reset();
       if (code != boost::asio::error::eof) {
-        spdlog::error(code.message());
+        LOG_ERROR("{}", code.message());
       }
-      bus_.post(UdpConnectionStatus{ConnectionStatus::Error});
+      bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
       return;
     }
     buffer_.commitWrite(bytes);
@@ -71,10 +72,12 @@ private:
   }
 
 private:
+  const ObjectId id_{utils::generateSocketId()};
+
   UdpSocket socket_;
   UdpEndpoint endpoint_;
 
-  BusWrapper bus_;
+  Bus &bus_;
   RingBuffer buffer_;
 };
 

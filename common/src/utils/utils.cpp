@@ -8,8 +8,11 @@
 #include <functional>
 #include <iostream>
 #include <random>
-#include <spdlog/spdlog.h>
 
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+#include "logging.hpp"
 #include "rng.hpp"
 #include "utils.hpp"
 
@@ -22,7 +25,7 @@ void pinThreadToCore(size_t coreId) {
 
   int result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   if (result != 0) {
-    spdlog::error("Failed to pin thread to core: {}, error: {}", coreId, result);
+    LOG_ERROR("Failed to pin thread to core: {}, error: {}", coreId, result);
   }
 }
 
@@ -33,7 +36,7 @@ void setTheadRealTime(size_t coreId) {
 
   auto code = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (code != 0) {
-    spdlog::error("Failed to set real-time priority on the core: {}, error: {}", coreId, code);
+    LOG_ERROR("Failed to set real-time priority on the core: {}, error: {}", coreId, code);
   }
 }
 
@@ -55,16 +58,6 @@ size_t getTickerHash(const Ticker &ticker) {
   return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
 }
 
-TraderId getTraderId(const TcpSocket &sock) {
-  auto endpoint = sock.remote_endpoint();
-  std::string idString = endpoint.address().to_string();
-  return static_cast<uint32_t>(std::hash<std::string>{}(idString));
-}
-
-Order createOrder(TraderId trId, const Ticker &tkr, Quantity quan, Price price, OrderAction act) {
-  return {trId, getLinuxTimestamp(), tkr, quan, price, act};
-}
-
 Ticker generateTicker() {
   Ticker ticker{};
   for (int i = 0; i < TICKER_SIZE; ++i) {
@@ -73,29 +66,24 @@ Ticker generateTicker() {
   return ticker;
 }
 
-Order generateOrder(Ticker ticker) {
-  static size_t traderId = 0;
-  Order order;
-  order.traderId = traderId++;
-  order.action = RNG::rng(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-  order.id = getLinuxTimestamp();
-  order.ticker = ticker;
-  order.price = RNG::rng(7000);
-  order.quantity = RNG::rng(100);
-  return order;
+Order generateOrder() {
+  const OrderAction action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
+  return Order{RNG::rng<uint64_t>(INT_MAX),
+               RNG::rng<uint64_t>(INT_MAX),
+               RNG::rng<uint64_t>(INT_MAX),
+               getTimestamp(),
+               generateTicker(),
+               RNG::rng<uint32_t>(100),
+               RNG::rng<uint32_t>(7000),
+               action};
 }
 
-TickerPrice generatePriceUpdate() {
-  TickerPrice price;
-  price.ticker = generateTicker();
-  price.price = RNG::rng(700);
-  return price;
-}
+TickerPrice generatePriceUpdate() { return {generateTicker(), RNG::rng<uint32_t>(700)}; }
 
-uint32_t getLinuxTimestamp() {
+Timestamp getTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return static_cast<uint32_t>(ts.tv_sec * 1'000'000'000 + ts.tv_nsec);
+  return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
 }
 
 void printRawBuffer(const uint8_t *buffer, size_t size) {
@@ -135,7 +123,7 @@ std::string getScaleNs(size_t nanoSec) {
   return getScaleUs(nanoSec / 1000);
 }
 
-UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
+UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast, Port port) {
   UdpSocket socket(ctx, Udp::v4());
   socket.set_option(boost::asio::socket_base::reuse_address{true});
   if (broadcast) {
@@ -146,18 +134,19 @@ UdpSocket createUdpSocket(IoContext &ctx, bool broadcast, Port port) {
   return socket;
 }
 
-void coreWarmUpJob() {
-  /**
-   * Running this warm up for 5s does nothing
-   * Sometimes server runs stably at ~65k rps for 5us trade rate for a good minute
-   * and after a couple of restarts rps might jump to 100k and stay there.
-   * Strange stuff. But this warm up is useless.
-   */
-  long long dummyCounter = 0;
-  for (int i = 0; i < 1000000; ++i) {
-    dummyCounter += std::sin(i) * std::cos(i);
-  }
-  spdlog::trace("Warmup job dummy counter {}", dummyCounter);
+OrderId generateOrderId() {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+SocketId generateSocketId() {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+Token generateSessionToken() {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
 } // namespace hft::utils

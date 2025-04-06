@@ -9,14 +9,15 @@
 #include <boost/asio.hpp>
 #include <boost/endian/arithmetic.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/uuid/uuid.hpp>
 
 namespace hft {
 
 namespace Ip = boost::asio::ip;
 
-using IoContext = boost::asio::io_context;
-using UPtrIoContext = std::unique_ptr<boost::asio::io_context>;
-using ContextGuard = boost::asio::executor_work_guard<IoContext::executor_type>;
+using IoCtx = boost::asio::io_context;
+using UPtrIoCtx = std::unique_ptr<boost::asio::io_context>;
+using ContextGuard = boost::asio::executor_work_guard<IoCtx::executor_type>;
 using UPtrContextGuard = std::unique_ptr<ContextGuard>;
 
 using BoostError = boost::system::error_code; // TODO
@@ -25,7 +26,6 @@ using SteadyTimer = boost::asio::steady_timer;
 using Seconds = boost::asio::chrono::seconds;
 using Milliseconds = boost::asio::chrono::milliseconds;
 using Microseconds = boost::asio::chrono::microseconds;
-using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
 
 using ConstBuffer = boost::asio::const_buffer;
 using MutableBuffer = boost::asio::mutable_buffer;
@@ -34,6 +34,8 @@ using MakeGuard = decltype(boost::asio::make_work_guard(std::declval<boost::asio
 
 using LittleEndianByte = boost::endian::little_uint8_at;
 using LittleEndianUInt16 = boost::endian::little_uint16_at;
+
+using Token = uint64_t;
 
 } // namespace hft
 
