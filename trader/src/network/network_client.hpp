@@ -180,7 +180,7 @@ private:
   TraderUdpTransport pricesTransport_;
 
   ConnectionState state_{ConnectionState::Disconnected};
-  Opt<Token> token_;
+  Opt<SessionToken> token_;
 
   std::vector<Thread> workerThreads_;
 };

@@ -30,37 +30,33 @@ struct TickerHash {
 
 struct CredentialsLoginRequest {
   mutable SocketId socketId; // Server side
-  String name;
-  String password; // TODO() encrypt
+  const String name;
+  const String password; // TODO() encrypt
 
   inline void setSocketId(SocketId id) const { socketId = id; }
 };
 
 struct TokenLoginRequest {
   mutable SocketId socketId; // Server side
-  SessionToken token;
+  const SessionToken token;
 
   inline void setSocketId(SocketId id) const { socketId = id; }
 };
 
-/**
- * @brief
- * @todo Make separate server and client side structs
- */
 struct LoginResponse {
   SocketId socketId{0}; // Server side
   TraderId traderId{0}; // Server side
   mutable SessionToken token;
   bool success;
 
-  inline void setToken(Token tok) const { token = tok; }
+  inline void setToken(SessionToken tok) const { token = tok; }
 };
 
 enum class OrderAction : uint8_t { Buy, Sell };
 
 enum class OrderState : uint8_t { Accepted, Partial, Full };
 
-struct Order {
+struct alignas(8) Order {
   mutable TraderId traderId; // Server side
   mutable SessionToken token;
   OrderId id;
@@ -69,17 +65,16 @@ struct Order {
   mutable Quantity quantity;
   Price price;
   OrderAction action;
-  uint8_t padding[3]{0};
 
   inline void setTraderId(TraderId id) const { traderId = id; }
-  inline void setToken(Token tok) const { token = tok; }
+  inline void setToken(SessionToken tok) const { token = tok; }
 
   inline void reduceQuantity(Quantity amount) const {
     quantity = quantity < amount ? 0 : quantity - amount;
   }
 };
 
-struct OrderStatus {
+struct alignas(8) OrderStatus {
   mutable TraderId traderId; // Server side
   SessionToken token;        // Server side
   OrderId orderId;
@@ -89,15 +84,16 @@ struct OrderStatus {
   Price fillPrice;
   OrderState state;
   OrderAction action;
-  uint8_t padding[2]{0};
 
   inline void setTraderId(TraderId id) const { traderId = id; }
 };
 
 struct TickerPrice {
-  Ticker ticker;
-  Price price;
+  const Ticker ticker;
+  const Price price;
 };
+
+static_assert(sizeof(OrderStatus) == 48, "Unexpected size of OrderStatus!");
 
 } // namespace hft
 

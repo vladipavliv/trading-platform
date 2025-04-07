@@ -42,7 +42,7 @@ public:
       LOG_ERROR("Failed to verify Buffer");
       return false;
     }
-    auto message = flatbuffers::GetRoot<Message>(data);
+    const auto message = flatbuffers::GetRoot<Message>(data);
     if (message == nullptr) {
       LOG_ERROR("Failed to extract Message");
       return false;
@@ -50,7 +50,7 @@ public:
     const auto type = message->message_type();
     switch (type) {
     case MessageType::MessageUnion_CredentialsLoginRequest: {
-      auto msg = message->message_as_CredentialsLoginRequest();
+      const auto msg = message->message_as_CredentialsLoginRequest();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract CredentialsLoginRequest");
         return false;
@@ -62,7 +62,7 @@ public:
       return true;
     }
     case MessageType::MessageUnion_TokenLoginRequest: {
-      auto msg = message->message_as_TokenLoginRequest();
+      const auto msg = message->message_as_TokenLoginRequest();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract TokenLoginRequest");
         return false;
@@ -73,7 +73,7 @@ public:
       return true;
     }
     case MessageType::MessageUnion_LoginResponse: {
-      auto msg = message->message_as_LoginResponse();
+      const auto msg = message->message_as_LoginResponse();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract LoginResponse");
         return false;
@@ -84,7 +84,7 @@ public:
       return true;
     }
     case MessageType::MessageUnion_Order: {
-      auto orderMsg = message->message_as_Order();
+      const auto orderMsg = message->message_as_Order();
       if (orderMsg == nullptr) {
         LOG_ERROR("Failed to extract Order");
         return false;
@@ -102,7 +102,7 @@ public:
       return true;
     }
     case MessageType::MessageUnion_OrderStatus: {
-      auto statusMsg = message->message_as_OrderStatus();
+      const auto statusMsg = message->message_as_OrderStatus();
       if (statusMsg == nullptr) {
         LOG_ERROR("Failed to extract OrderStatus");
         return false;
@@ -121,7 +121,7 @@ public:
       return true;
     }
     case MessageType::MessageUnion_TickerPrice: {
-      auto priceMsg = message->message_as_TickerPrice();
+      const auto priceMsg = message->message_as_TickerPrice();
       if (priceMsg == nullptr) {
         LOG_ERROR("Failed to extract TickerPrice");
         return false;
@@ -142,7 +142,7 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(request));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateCredentialsLoginRequest(
+    const auto msg = CreateCredentialsLoginRequest(
         builder, builder.CreateString(request.name.c_str(), request.name.length()),
         builder.CreateString(request.password.c_str(), request.password.length()));
     builder.Finish(CreateMessage(builder, MessageUnion_CredentialsLoginRequest, msg.Union()));
@@ -153,7 +153,7 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(request));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateTokenLoginRequest(builder, request.token);
+    const auto msg = CreateTokenLoginRequest(builder, request.token);
     builder.Finish(CreateMessage(builder, MessageUnion_TokenLoginRequest, msg.Union()));
     return builder.Release();
   }
@@ -162,7 +162,7 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(response));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateLoginResponse(builder, response.token, response.success);
+    const auto msg = CreateLoginResponse(builder, response.token, response.success);
     builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
     return builder.Release();
   }
@@ -171,9 +171,9 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(order));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = CreateOrder(builder, order.token, order.id, order.timestamp,
-                           builder.CreateString(order.ticker.data(), TICKER_SIZE), order.quantity,
-                           order.price, convert(order.action));
+    const auto msg = CreateOrder(builder, order.token, order.id, order.timestamp,
+                                 builder.CreateString(order.ticker.data(), TICKER_SIZE),
+                                 order.quantity, order.price, convert(order.action));
     builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     return builder.Release();
   }
@@ -182,7 +182,7 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(status));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg =
+    const auto msg =
         CreateOrderStatus(builder, status.orderId, status.timestamp,
                           builder.CreateString(status.ticker.data(), TICKER_SIZE), status.quantity,
                           status.fillPrice, convert(status.state), convert(status.action));
@@ -194,7 +194,7 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(price));
     using namespace gen::fbs;
     flatbuffers::FlatBufferBuilder builder;
-    auto msg = gen::fbs::CreateTickerPrice(
+    const auto msg = gen::fbs::CreateTickerPrice(
         builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);
     builder.Finish(CreateMessage(builder, MessageUnion_TickerPrice, msg.Union()));
     return builder.Release();

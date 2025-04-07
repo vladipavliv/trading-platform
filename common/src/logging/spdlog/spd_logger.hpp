@@ -37,7 +37,7 @@ public:
     if (consoleLogger != nullptr || fileLogger != nullptr) {
       return;
     }
-    LogLevel logLevel = static_cast<LogLevel>(SPDLOG_ACTIVE_LEVEL);
+    const LogLevel logLevel = static_cast<LogLevel>(SPDLOG_ACTIVE_LEVEL);
 
     initConsoleLogger();
     initFileLogger(fileName);

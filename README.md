@@ -14,16 +14,16 @@
 C++ hft platform based on boost.asio.
 
 ### Server
-Runs a separate io_context on a number of threads for network operations, separate single-threaded io_context per order processing worker, and separate single-threaded io_context for system tasks. Tickers are distributed among workers for parallel processing.
+Runs a separate network io_context, a number of workers for order processing with a separate io_context each, and a separate io_context for system tasks. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
 
 ### Trader
-Runs a network io_context on a number of threads, single single-threaded io_context for order sending worker, and a system io_context. Worker, at the current stage, generates random orders at a given rate, tracks order status notifications, logs rtt and receives price updates.
+Runs a separate network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
 
 ### Logging
-Logging is done with macros for compile-time exclusion and easy implementation swap. Current implementation uses spdlog. Main logs are written to a file, system logs are written to the console.
+Logging is done with macros for compile-time exclusion and easy implementation swap. Currently spdlog is used. Main logs are written to a file, system logs are written to the console.
 
 ### Configuration
-Client and server use separate config files to specify url, ports, core ids for network, application, and system threads, log file name and other settings.
+Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
 
 ## Installation
 
@@ -50,7 +50,7 @@ python3 ./scripts/create_trader.sh trader0 password0
 ```
 
 ### Configuration
-Adjust the network, cores, trader credentials and other settings in 
+Adjust the network, cores, credentials and other settings in 
 
 `build/server/server_config.ini` and `build/trader/trader_config.ini`.
 

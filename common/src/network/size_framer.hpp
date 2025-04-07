@@ -36,10 +36,10 @@ public:
   static SPtr<ByteBuffer> frame(CRef<Type> message) {
     LOG_DEBUG("frame {}", utils::toString(message));
 
-    auto serializedMsg = Serializer::serialize(message);
-    auto buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serializedMsg.size());
+    const auto serializedMsg = Serializer::serialize(message);
+    const auto buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serializedMsg.size());
 
-    LittleEndianUInt16 bodySize = static_cast<MessageSize>(serializedMsg.size());
+    const LittleEndianUInt16 bodySize = static_cast<MessageSize>(serializedMsg.size());
     std::memcpy(buffer->data(), &bodySize, sizeof(bodySize));
     std::memcpy(buffer->data() + sizeof(bodySize), serializedMsg.data(), serializedMsg.size());
 
@@ -49,9 +49,9 @@ public:
   template <typename Consumer>
   static void unframe(RingBuffer &buffer, Consumer &&consumer) {
     LOG_DEBUG("unframe");
-    auto readBuffer = buffer.data();
-    auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
-    auto cursor{0};
+    const auto readBuffer = buffer.data();
+    const auto dataPtr = static_cast<const uint8_t *>(readBuffer.data());
+    size_t cursor{0};
 
     while (cursor + HEADER_SIZE <= readBuffer.size()) {
       auto littleBodySize = *reinterpret_cast<const LittleEndianUInt16 *>(dataPtr + cursor);

@@ -15,8 +15,8 @@ namespace hft {
 enum class SocketStatus : uint8_t { Disconnected, Connected, Error };
 
 struct SocketStatusEvent {
-  SocketId socketId;
-  SocketStatus status;
+  const SocketId socketId;
+  const SocketStatus status;
 };
 
 namespace utils {
