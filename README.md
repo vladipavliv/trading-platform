@@ -2,12 +2,9 @@
 
 ## Table of contents
 - [Introduction](#introduction)
-    - [Server](#server)
-    - [Trader](#trader)
-- [Logging](#logging)
-- [Configuration](#configuration)
 - [Installation](#installation)
 - [Usage](#usage)
+    - [Setup database](#setup-database)
     - [Run server](#run-server)
     - [Run trader](#run-trader)
 - [Performance](#performance)
@@ -29,8 +26,7 @@ Client and server use separate config files to specify url, ports, core ids for 
 
 ## Installation
 
-### Dependencies
-Main dependencies: 
+### Main dependencies
 - **Boost**
 - **Folly**
 - **spdlog**
@@ -44,7 +40,18 @@ cd trading-platform
 ```
 
 ## Usage
-Adjust the settings in build/server/server_config.ini and build/trader/trader_config.ini
+### Setup database
+Create db, tables, and generate some data
+```bash
+python3 ./scripts/create_tables.sh
+python3 ./scripts/generate_tickers.sh 1000
+python3 ./scripts/create_trader.sh trader0 password0
+```
+
+### Configuration
+Adjust the network, cores, trader credentials and other settings in 
+
+`build/server/server_config.ini` and `build/trader/trader_config.ini`.
 
 ### Run server
 ```bash
@@ -59,13 +66,13 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
 
 ## Performance
-Tested on localhost with 4 traders and 1us trade rate, only server and trader0 had threads pinned to cores
+Tested on localhost with 4 traders and 1us trade rate
 
 Server:
 ```bash
 01:04:49.118586 [I] Orders: [opn|ttl] 10,813,666|50,054,412 | Rps: 374,655
 ```
-Trader0-4:
+Trader [0-4]:
 ```bash
 01:04:53.380633 [I] Rtt: [<50us|>50us] 99.97% avg:7us 0.03% avg:83us
 01:04:49.235910 [I] Rtt: [<50us|>50us] 99.90% avg:9us 0.10% avg:123us

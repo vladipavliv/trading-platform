@@ -1,17 +1,11 @@
 """
+Creates a new trader
 TODO(self) encrypt password
 """
 
 import psycopg2
 import sys
-
-DB_CONFIG = {
-    "dbname": "hft_db",
-    "user": "postgres",
-    "password": "password",
-    "host": "localhost",
-    "port": 5432
-}
+from postgres_config import DB_CONFIG
 
 def create_trader(name, password):
     try:
