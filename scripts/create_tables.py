@@ -3,14 +3,9 @@ Creates postgres db and all the tables
 """
 
 import psycopg2
+from postgres_config import DB_CONFIG
 
-DB_CONFIG = {
-    "dbname": "hft_db",
-    "user": "postgres",
-    "password": "password",
-    "host": "localhost",
-    "port": 5432
-}
+CREATE_DB_SQL = "CREATE DATABASE IF NOT EXISTS hft_db;"
 
 CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS traders (
@@ -34,16 +29,27 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 """
 
+def create_db():
+    try:
+        conn = psycopg2.connect(dbname="postgres", user=DB_CONFIG["user"], password=DB_CONFIG["password"], host=DB_CONFIG["host"], port=DB_CONFIG["port"])
+        conn.autocommit = True  # Set autocommit for DB creation
+        cur = conn.cursor()
+
+        cur.execute(CREATE_DB_SQL)
+
+        conn.close()
+
+        print("Database 'hft_db' created successfully.")
+    except Exception as e:
+        print("Error:", e)
+
 def create_tables():
     try:
-        # Connect to PostgreSQL
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
-        # Execute SQL
         cur.execute(CREATE_TABLES_SQL)
 
-        # Commit and close
         conn.commit()
         cur.close()
         conn.close()
@@ -53,4 +59,5 @@ def create_tables():
         print("Error:", e)
 
 if __name__ == "__main__":
+    create_db()
     create_tables()
