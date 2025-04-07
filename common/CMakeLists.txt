@@ -6,6 +6,7 @@ find_package(folly REQUIRED)
 find_package(Glog REQUIRED)
 
 target_include_directories(hft_common PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gen 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types 

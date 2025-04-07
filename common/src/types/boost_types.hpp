@@ -35,8 +35,6 @@ using MakeGuard = decltype(boost::asio::make_work_guard(std::declval<boost::asio
 using LittleEndianByte = boost::endian::little_uint8_at;
 using LittleEndianUInt16 = boost::endian::little_uint16_at;
 
-using Token = uint64_t;
-
 } // namespace hft
 
 #endif // HFT_COMMON_BOOST_TYPES_HPP

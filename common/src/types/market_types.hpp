@@ -53,7 +53,7 @@ struct LoginResponse {
   mutable SessionToken token;
   bool success;
 
-  inline void setToken(Token tok) const { token = tok; }
+  inline void setToken(SessionToken tok) const { token = tok; }
 };
 
 enum class OrderAction : uint8_t { Buy, Sell };
@@ -72,7 +72,7 @@ struct Order {
   uint8_t padding[3]{0};
 
   inline void setTraderId(TraderId id) const { traderId = id; }
-  inline void setToken(Token tok) const { token = tok; }
+  inline void setToken(SessionToken tok) const { token = tok; }
 
   inline void reduceQuantity(Quantity amount) const {
     quantity = quantity < amount ? 0 : quantity - amount;

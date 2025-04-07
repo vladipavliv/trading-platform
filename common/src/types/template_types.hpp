@@ -94,7 +94,7 @@ concept IsTypeInTuple = requires {
 
 template <typename EventType>
 concept HasToken = requires(EventType event) {
-  { event.token } -> std::convertible_to<Token>;
+  { event.token } -> std::convertible_to<SessionToken>;
 };
 
 template <typename EventType>

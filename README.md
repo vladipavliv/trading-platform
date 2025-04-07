@@ -14,16 +14,16 @@
 C++ hft platform based on boost.asio.
 
 ### Server
-Runs a separate io_context on a number of threads for network operations, separate single-threaded io_context per order processing worker, and separate single-threaded io_context for system tasks. Tickers are distributed among workers for parallel processing.
+Runs a separate io_context on a number of threads for network operations, separate single-threaded io_context per worker for order processing, and separate single-threaded io_context for system tasks. Tickers are distributed among workers for parallel processing.
 
 ### Trader
-Runs a network io_context on a number of threads, single single-threaded io_context for order sending worker, and a system io_context. Worker, at the current stage, generates random orders at a given rate, tracks order status notifications, logs rtt and receives price updates.
+Runs a network io_context on a number of threads, separate single-threaded io_context for orders generating and sending, and a system io_context. Worker, at the current stage, generates random orders at a given rate, tracks order status notifications, logs rtt and receives price updates.
 
 ### Logging
 Logging is done with macros for compile-time exclusion and easy implementation swap. Current implementation uses spdlog. Main logs are written to a file, system logs are written to the console.
 
 ### Configuration
-Client and server use separate config files to specify url, ports, core ids for network, application, and system threads, log file name and other settings.
+Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
 
 ## Installation
 

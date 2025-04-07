@@ -144,10 +144,9 @@ SocketId generateSocketId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-Token generateSessionToken() {
-  // static std::atomic_uint64_t counter = 0;
-  // return counter.fetch_add(1, std::memory_order_relaxed);
-  return getTimestamp() + 1;
+SessionToken generateSessionToken() {
+  static std::atomic_uint64_t counter = 0;
+  return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
 }
 
 } // namespace hft::utils
