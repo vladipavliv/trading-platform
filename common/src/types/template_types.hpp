@@ -28,9 +28,6 @@ namespace hft {
  * Pointer types
  */
 template <typename Type>
-using CPtr = const Type *;
-
-template <typename Type>
 using SPtr = std::shared_ptr<Type>;
 
 template <typename Type>
@@ -41,9 +38,6 @@ using UPtr = std::unique_ptr<Type>;
 
 template <typename Type>
 using CRef = const Type &;
-
-template <typename Type>
-using Ref = Type &;
 
 template <typename Type>
 using Opt = std::optional<Type>;

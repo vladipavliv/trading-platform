@@ -39,14 +39,14 @@ public:
       pqxx::work transaction(conn_);
       transaction.exec("SET statement_timeout = 1000");
 
-      std::string countQuery = "SELECT COUNT(*) FROM tickers";
-      pqxx::result countResult = transaction.exec(countQuery);
+      const String countQuery = "SELECT COUNT(*) FROM tickers";
+      const pqxx::result countResult = transaction.exec(countQuery);
 
       if (countResult.empty()) {
         LOG_ERROR("Empty tickers table");
         return {};
       }
-      size_t count = countResult[0][0].as<size_t>();
+      const size_t count = countResult[0][0].as<size_t>();
       if (count == 0) {
         LOG_ERROR("Empty tickers table");
         return {};
@@ -55,8 +55,8 @@ public:
       std::vector<TickerPrice> tickers;
       tickers.reserve(count);
 
-      std::string query = "SELECT * FROM tickers";
-      pqxx::result res = transaction.exec(query);
+      const String query = "SELECT * FROM tickers";
+      const pqxx::result res = transaction.exec(query);
 
       for (auto row : res) {
         std::string ticker = row["ticker"].as<std::string>();

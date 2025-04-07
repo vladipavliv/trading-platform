@@ -39,7 +39,7 @@ public:
   template <typename Type>
     requires(Bus::MarketBus::RoutedType<Type>)
   void write(CRef<Type> messages) {
-    auto data = Framer::frame(messages);
+    const auto data = Framer::frame(messages);
     socket_.async_send_to(ConstBuffer{data->data(), data->size()}, endpoint_,
                           [this, data](CRef<BoostError> code, size_t bytes) {
                             if (code) {

@@ -70,7 +70,7 @@ public:
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> message) {
     LOG_DEBUG("TcpTransport write");
-    auto data = Framer::frame(message);
+    const auto data = Framer::frame(message);
     boost::asio::async_write(
         socket_, boost::asio::buffer(data->data(), data->size()),
         [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
