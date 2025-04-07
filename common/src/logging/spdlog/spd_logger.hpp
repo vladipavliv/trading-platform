@@ -18,6 +18,11 @@
 
 namespace hft {
 
+/**
+ * @brief Logger with two static spdlog instances:
+ * - main logger to log into a file
+ * - system logger to log into a console
+ */
 class SpdLogger {
   static constexpr auto LOG_PATTERN = "%H:%M:%S.%f [%^%L%$] %v";
 

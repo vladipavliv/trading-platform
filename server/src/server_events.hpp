@@ -12,7 +12,7 @@
 namespace hft {
 namespace server {
 /**
- * @brief
+ * @brief Server event
  */
 enum class ServerEvent : uint8_t { Ready };
 } // namespace server

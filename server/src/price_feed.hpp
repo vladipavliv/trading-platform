@@ -16,7 +16,8 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Randomly changes the prices at a given rate and posts the changes over the market bus
+ * @todo Do proper price changing algorighm
  */
 class PriceFeed {
 public:

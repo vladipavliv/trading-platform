@@ -8,9 +8,7 @@
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "logging.hpp"
-#include "server_command.hpp"
 #include "server_control_center.hpp"
-#include "utils/string_utils.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;

@@ -16,8 +16,8 @@
 namespace hft {
 
 /**
- * @brief Periodically performs non blocking console input check
- * and posts commands to the system bus
+ * @brief Performs non blocking console input check at a certain rate
+ * Checks the input over the commands map and and posts parsed commands to the system bus
  */
 template <typename CommandType>
 class ConsoleReader {
@@ -66,7 +66,7 @@ private:
 private:
   SystemBus &bus_;
   SteadyTimer timer_;
-  std::unordered_map<std::string, CommandType> commands_;
+  HashMap<String, CommandType> commands_;
 };
 
 } // namespace hft

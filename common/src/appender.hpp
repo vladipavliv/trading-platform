@@ -12,6 +12,12 @@
 
 namespace hft {
 
+/**
+ * @brief Sets the SocketId to a posted message and redirects it to a Consumer
+ * Market messages contain Token so associating message with the socket is not needed
+ * But for login messages it is needed. Such appender simplifies it for the flow
+ * Transport -> Framer -> Serializer -> Consumer
+ */
 template <typename Consumer>
 class SocketIdAppender {
 public:
@@ -20,7 +26,7 @@ public:
   template <typename MessageType>
   void post(CRef<MessageType> message) {
     if constexpr (MutableSocketId<MessageType>) {
-      message.socketId = id_;
+      message.setSocketId(id_);
     }
     consumer_.post(message);
   }
@@ -30,6 +36,9 @@ private:
   const SocketId id_;
 };
 
+/**
+ * @brief Appends TraderId
+ */
 template <typename Consumer>
 class TraderIdAppender {
 public:
@@ -38,7 +47,7 @@ public:
   template <typename MessageType>
   void post(CRef<MessageType> message) {
     if constexpr (MutableTraderId<MessageType>) {
-      message.traderId = id_;
+      message.setTraderId(id_);
     }
     consumer_.post(message);
   }

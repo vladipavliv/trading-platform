@@ -36,7 +36,7 @@ std::string toString<SocketStatus>(const SocketStatus &status) {
 
 template <>
 std::string toString<SocketStatusEvent>(const SocketStatusEvent &event) {
-  return std::format("SocketStatusEvent {} {}", event.socketId, toString(event.status));
+  return std::format("SocketStatusEvent Id:{} Status:{}", event.socketId, toString(event.status));
 }
 
 } // namespace utils

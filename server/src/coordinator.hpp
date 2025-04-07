@@ -19,7 +19,8 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Redirects Orders to a proper worker
+ * @todo Later on would perform ticker rerouting and dynamic worker add/remove
  */
 class Coordinator {
 public:

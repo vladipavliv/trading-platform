@@ -16,7 +16,7 @@
 namespace hft {
 
 /**
- * @brief Worker thread with an io_context.
+ * @brief Worker thread with an io_context
  */
 class Worker {
 public:

@@ -19,7 +19,8 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief All the data in one place
+ * @todo Add atomic flag to lock the book for rerouting
  */
 struct TickerData {
   using UPtr = std::unique_ptr<TickerData>;

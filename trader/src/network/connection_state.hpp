@@ -10,6 +10,9 @@
 
 namespace hft {
 namespace trader {
+/**
+ * @brief State of the connection with the server
+ */
 enum class ConnectionState : uint8_t {
   Disconnected,
   Connecting,
@@ -17,7 +20,7 @@ enum class ConnectionState : uint8_t {
   AuthenticatedUpstream,
   AuthenticatedDownstream
 };
-}
+} // namespace trader
 namespace utils {
 template <>
 std::string toString<trader::ConnectionState>(const trader::ConnectionState &event) {

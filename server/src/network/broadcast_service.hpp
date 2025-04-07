@@ -15,7 +15,7 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Broadcasts messages (TickerPrice) over the udp socket
  */
 class BroadcastService {
 public:

@@ -3,13 +3,12 @@
  * @date 2025-02-13
  */
 
-#include <filesystem>
+#include <iostream>
 
 #include "config/config.hpp"
 #include "config/config_reader.hpp"
 #include "logging.hpp"
 #include "trader_control_center.hpp"
-#include "utils/string_utils.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;

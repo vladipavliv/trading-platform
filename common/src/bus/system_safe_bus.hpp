@@ -15,6 +15,10 @@
 
 namespace hft {
 
+/**
+ * @brief Allows defining a key for the message type and subscribing via key value
+ * e.g. LoginResponse message could be subscribed via the socket id
+ */
 template <typename EventType>
 struct SystemEventTraits {
   using KeyType = EventType;
@@ -23,7 +27,7 @@ struct SystemEventTraits {
 };
 
 /**
- * @brief SystemBusV2 with safa callbacks allowing unsubscribing
+ * @brief SystemBusV2 with safe callbacks that allow unsubscribing
  * Design was slightly changed, and in current implementation all subscribers are long living
  * objects so unsub functionality is not really needed, and simpler SystemBus version is used
  */

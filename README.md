@@ -8,6 +8,7 @@
     - [Run server](#run-server)
     - [Run trader](#run-trader)
 - [Performance](#performance)
+- [Roadmap](#roadmap)
 
 ## Introduction
 C++ hft platform based on boost.asio.
@@ -79,3 +80,17 @@ Trader [0-4]:
 01:04:50.605096 [I] Rtt: [<50us|>50us] 99.85% avg:10us 0.15% avg:144us
 01:04:52.118858 [I] Rtt: [<50us|>50us] 99.96% avg:7us 0.04% avg:112us
 ```
+
+## Roadmap
+- [ ] **Data persist and monitoring**  
+Offload all the data to kafka, persist it and make some monitoring frontend
+- [ ] **Improve authentication**  
+Encrypt the password, use nonce
+- [ ] **Testing**  
+Add unit, integration and stress tests and run the cicd pipeline
+- [ ] **Ticker rerouting**  
+Dynamically rerout the tickers to a different worker, add/remove workers, load balancing
+- [ ] **Proper trading strategy**  
+And price fluctuations
+- [ ] **Optimize**  
+Profile cache misses, try SBE serialization, figure batch processing threshold

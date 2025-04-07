@@ -21,7 +21,7 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Creates all the components and sets up console commands
  */
 class ServerControlCenter {
 public:

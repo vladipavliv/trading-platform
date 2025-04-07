@@ -147,7 +147,7 @@ SocketId generateSocketId() {
 Token generateSessionToken() {
   // static std::atomic_uint64_t counter = 0;
   // return counter.fetch_add(1, std::memory_order_relaxed);
-  return getTimestamp();
+  return getTimestamp() + 1;
 }
 
 } // namespace hft::utils

@@ -20,7 +20,7 @@
 namespace hft::trader {
 
 /**
- * @brief
+ * @brief Creates all the components and sets up console commands
  */
 class TraderControlCenter {
 public:

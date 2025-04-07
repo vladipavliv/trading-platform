@@ -15,8 +15,8 @@ namespace hft {
 
 /**
  * @brief Holds MarketBus and SystemBus
- * @details If message is routed by MarketBus - it will be posted to MarketBus
- * otherwise it will be posted to SystemBus
+ * @details Routes message to market or system bus depending on
+ * whether its routable by market bus or not
  */
 struct Bus {
   using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;

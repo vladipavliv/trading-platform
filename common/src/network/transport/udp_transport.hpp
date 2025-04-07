@@ -43,18 +43,19 @@ public:
     socket_.async_send_to(ConstBuffer{data->data(), data->size()}, endpoint_,
                           [this, data](CRef<BoostError> code, size_t bytes) {
                             if (code) {
-                              LOG_ERROR_SYSTEM("Udp transport error {}", code.message());
+                              LOG_ERROR("Udp transport error {}", code.message());
                               bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
                             }
                             if (bytes != data->size()) {
-                              LOG_ERROR_SYSTEM("Failed to write {}, written {}", data->size(),
-                                               bytes);
+                              LOG_ERROR("Failed to write {}, written {}", data->size(), bytes);
                               bus_.post(SocketStatusEvent{id_, SocketStatus::Error});
                             }
                           });
   }
 
   inline void close() { socket_.close(); }
+
+  inline SocketId id() const { return id_; }
 
 private:
   void readHandler(CRef<BoostError> code, size_t bytes) {

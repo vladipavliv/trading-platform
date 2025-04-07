@@ -1,6 +1,6 @@
 /**
  * @author Vladimir Pavliv
- * @date 2025-02-13
+ * @date 2025-04-07
  */
 
 #ifndef HFT_COMMON_DB_POSTGRESADAPTER_HPP
@@ -19,7 +19,7 @@ namespace hft {
 
 /**
  * @brief Postgres adapter
- * @details Some requests are direct, some go over the system bus
+ * @details Handles auth requests over the system bus
  */
 class PostgresAdapter {
   static constexpr auto CONNECTION_STRING =
@@ -76,28 +76,28 @@ private:
     try {
       LOG_DEBUG("Authenticating {} {}", request.name, request.password);
       pqxx::work transaction(conn_);
+      // Set small timeout, systemBus must be responsive.
+      // Maybe later on make a separate DataBus for such operations
       transaction.exec("SET statement_timeout = 50");
 
-      std::string query = "SELECT trader_id, password FROM traders WHERE name = $1";
-      pqxx::result result = transaction.exec_params(query, request.name);
+      const String query = "SELECT trader_id, password FROM traders WHERE name = $1";
+      const pqxx::result result = transaction.exec_params(query, request.name);
 
-      bool authSuccessfull{false};
+      LoginResponse response{request.socketId, 0, 0, false};
       if (!result.empty()) {
         TraderId traderId = result[0][0].as<TraderId>();
         std::string password = result[0][1].as<std::string>(); // TODO(self) encrypt
         if (request.password == password) {
           LOG_INFO("Authentication successfull");
-          authSuccessfull = true;
-          bus_.post(LoginResponse{request.socketId, traderId, 0, true});
+          response.traderId = traderId;
+          response.success = true;
         } else {
           LOG_ERROR("Invalid password");
         }
       } else {
         LOG_ERROR("User not found");
       }
-      if (!authSuccessfull) {
-        bus_.post(LoginResponse{request.socketId, 0, 0, false});
-      }
+      bus_.post(response);
     } catch (const pqxx::sql_error &e) {
       LOG_ERROR("onAuthenticate exception {}", e.what());
       bus_.post(LoginResponse{request.socketId, 0, 0, false});

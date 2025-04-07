@@ -28,7 +28,8 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Runs network io_context. Starts tcp acceptors and broadcast service
+ * Redirects accepted tcp sockets to the gateway
  */
 class NetworkServer {
 public:
@@ -55,7 +56,6 @@ public:
         }
       });
     };
-
     const auto cores = Config::cfg.coresNetwork.size();
     workerThreads_.reserve(cores == 0 ? 1 : cores);
     if (cores == 0) {

@@ -16,7 +16,9 @@ namespace hft {
 
 /**
  * @brief Convenient holder for subscription callbacks
- * Erases the callback type and stores callbacks on the heap
+ * Using weak pointers to a subscriber itself would work only if its managed by the shared_ptr
+ * Which is a significant limitation, so instead subscription callbacks are managed by shared_ptr
+ * @details Currently not used but maybe would be usefull later
  */
 class SubscriptionHolder {
 public:

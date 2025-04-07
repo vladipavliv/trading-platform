@@ -19,6 +19,9 @@
 
 namespace hft {
 
+/**
+ * @brief Frames messages by writing message size and then serialized data
+ */
 template <typename SerializerType = serialization::FlatBuffersSerializer>
 class SizeFramer {
 public:
@@ -31,7 +34,7 @@ public:
 
   template <typename Type>
   static SPtr<ByteBuffer> frame(CRef<Type> message) {
-    LOG_DEBUG("frame {}", [&message] { return utils::toString(message); }());
+    LOG_DEBUG("frame {}", utils::toString(message));
 
     auto serializedMsg = Serializer::serialize(message);
     auto buffer = std::make_shared<ByteBuffer>(sizeof(MessageSize) + serializedMsg.size());

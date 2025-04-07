@@ -31,9 +31,8 @@ public:
 
   /**
    * @brief Returns write buffer
-   * @details read/write are not used in the interface to avoind confusion
+   * @details read/write are not used in the interface to avoid confusion
    * whos reading and whos writing. Socket is reading from network but writing to a buffer
-   * So either getReadBuffer or getWriteBuffer would look suitable
    */
   auto buffer() -> MutableBuffer {
     rotate();

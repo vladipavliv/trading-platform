@@ -17,7 +17,8 @@
 namespace hft::trader {
 
 /**
- * @brief
+ * @brief Holds only the price for now
+ * @todo Later on would track all the opened orders
  */
 struct TickerData {
   using UPtr = std::unique_ptr<TickerData>;

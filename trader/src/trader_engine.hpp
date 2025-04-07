@@ -21,6 +21,11 @@
 
 namespace hft::trader {
 
+/**
+ * @brief Performs the trading
+ * @details For now generates random orders, tracks rtt and price updates
+ * Later on maybe will add proper algorithms
+ */
 class TraderEngine {
 public:
   using Tracker = RttTracker<50>;
@@ -147,13 +152,13 @@ private:
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
-    LOG_DEBUG("{}", utils::toString(status));
+    LOG_DEBUG(utils::toString(status));
     // Track orders in TickerData
     Tracker::logRtt(status.timestamp);
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {
-    LOG_DEBUG("{}", utils::toString(price));
+    LOG_DEBUG(utils::toString(price));
     auto dataIt = tickersData_.find(price.ticker);
     if (dataIt == tickersData_.end()) {
       LOG_ERROR("Ticker {} not found", utils::toString(price.ticker));

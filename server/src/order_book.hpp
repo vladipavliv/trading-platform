@@ -23,7 +23,7 @@ namespace hft::server {
 
 /**
  * @brief Flat order book
- * @details since testing is done via single trader, all the orders have the same trader id
+ * @details Since testing is done locally, all the orders have the same trader id
  * so every match would come with two notifications, about recent order and a previous one
  * To avoid this the last added order ids are saved to a set and only those get notifications
  */

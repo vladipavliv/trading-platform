@@ -29,7 +29,7 @@
 namespace hft::trader {
 
 /**
- * @brief Manages all the Tcp and Udp connections to the server
+ * @brief Manages all the Tcp and Udp connections to the server, handles authentication
  */
 class NetworkClient {
   using TraderTcpTransport = TcpTransport<NetworkClient>;
@@ -98,12 +98,12 @@ public:
 
   template <typename MessageType>
   void post(CRef<MessageType> message) {
-    LOG_DEBUG("{}", utils::toString(message));
+    LOG_DEBUG(utils::toString(message));
     bus_.post(message);
   }
 
   void post(CRef<SocketStatusEvent> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_DEBUG(utils::toString(event));
     if (event.status == SocketStatus::Connected) {
       if (upstreamTransport_.status() == SocketStatus::Connected &&
           downstreamTransport_.status() == SocketStatus::Connected &&
@@ -127,7 +127,7 @@ public:
   }
 
   void post(CRef<LoginResponse> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_DEBUG(utils::toString(event));
     if (event.success) {
       token_ = event.token;
     } else {

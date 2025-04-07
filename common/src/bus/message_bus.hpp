@@ -18,10 +18,9 @@
 namespace hft {
 
 /**
- * @brief Message bus for fast, direct message flow.
- * @details For better cache locality all types are defined
- * via variadics and only one message consumer is allowed pr message type
- * a container type
+ * @brief Message bus for fast direct message flow
+ * @details For better cache locality all types are defined via variadics
+ * And only one consumer is allowed per message type
  */
 template <typename... EventTypes>
 class MessageBus {
