@@ -13,6 +13,7 @@
 
 #include "logging.hpp"
 #include "market_types.hpp"
+#include "metadata_types.hpp"
 #include "network_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
@@ -56,6 +57,31 @@ String toString(const OrderAction &state) {
     LOG_ERROR("Unknown OrderAction {}", (uint8_t)state);
   }
   return "";
+}
+
+String toString(TimestampType type) {
+  switch (type) {
+  case TimestampType::Created:
+    return "created";
+  case TimestampType::Received:
+    return "received";
+  case TimestampType::Fulfilled:
+    return "fulfilled";
+  case TimestampType::Notified:
+    return "notified";
+  case TimestampType::Closed:
+    return "closed";
+  default:
+    LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
+  }
+  return "";
+}
+
+String toString(CRef<OrderTimestamp> event) {
+  std::stringstream ss;
+  ss << "OrderTimestamp " << event.orderId << " " << event.timestamp << " "
+     << utils::toString(event.type);
+  return ss.str();
 }
 
 String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE); }

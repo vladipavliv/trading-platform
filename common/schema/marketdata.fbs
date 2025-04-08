@@ -1,4 +1,4 @@
-namespace hft.serialization.gen.fbs;
+namespace hft.serialization.gen.fbs.market;
 
 enum OrderAction: byte {
     BUY = 0,

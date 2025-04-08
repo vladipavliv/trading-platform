@@ -6,17 +6,16 @@
 #ifndef HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 #define HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 
-#include <expected>
-
 #include "bus/bus.hpp"
 #include "constants.hpp"
 #include "converter.hpp"
 #include "gen/marketdata_generated.h"
-#include "types/market_types.hpp"
-#include "types/types.hpp"
+#include "market_types.hpp"
+#include "template_types.hpp"
+#include "types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::fbs {
 
 /**
  * @brief Flat buffers serializer
@@ -24,10 +23,10 @@ namespace hft::serialization {
  * saves the trouble of type extraction, and performs slightly better
  * @todo improve
  */
-class FlatBuffersSerializer {
+class MarketSerializer {
 public:
-  using Message = gen::fbs::Message;
-  using MessageType = gen::fbs::MessageUnion;
+  using Message = gen::fbs::market::Message;
+  using MessageType = gen::fbs::market::MessageUnion;
   using BufferType = flatbuffers::DetachedBuffer;
 
   using SupportedTypes = std::tuple<CredentialsLoginRequest, TokenLoginRequest, LoginResponse,
@@ -140,7 +139,7 @@ public:
 
   static BufferType serialize(const CredentialsLoginRequest &request) {
     LOG_DEBUG("Serializing {}", utils::toString(request));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateCredentialsLoginRequest(
         builder, builder.CreateString(request.name.c_str(), request.name.length()),
@@ -151,7 +150,7 @@ public:
 
   static BufferType serialize(const TokenLoginRequest &request) {
     LOG_DEBUG("Serializing {}", utils::toString(request));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTokenLoginRequest(builder, request.token);
     builder.Finish(CreateMessage(builder, MessageUnion_TokenLoginRequest, msg.Union()));
@@ -160,7 +159,7 @@ public:
 
   static BufferType serialize(const LoginResponse &response) {
     LOG_DEBUG("Serializing {}", utils::toString(response));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateLoginResponse(builder, response.token, response.success);
     builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
@@ -169,7 +168,7 @@ public:
 
   static BufferType serialize(const Order &order) {
     LOG_DEBUG("Serializing {}", utils::toString(order));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrder(builder, order.token, order.id, order.timestamp,
                                  builder.CreateString(order.ticker.data(), TICKER_SIZE),
@@ -180,7 +179,7 @@ public:
 
   static BufferType serialize(const OrderStatus &status) {
     LOG_DEBUG("Serializing {}", utils::toString(status));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg =
         CreateOrderStatus(builder, status.orderId, status.timestamp,
@@ -192,15 +191,15 @@ public:
 
   static BufferType serialize(const TickerPrice &price) {
     LOG_DEBUG("Serializing {}", utils::toString(price));
-    using namespace gen::fbs;
+    using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = gen::fbs::CreateTickerPrice(
+    const auto msg = CreateTickerPrice(
         builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);
     builder.Finish(CreateMessage(builder, MessageUnion_TickerPrice, msg.Union()));
     return builder.Release();
   }
 };
 
-} // namespace hft::serialization
+} // namespace hft::serialization::fbs
 
 #endif // HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP

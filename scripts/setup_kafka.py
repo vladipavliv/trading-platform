@@ -19,7 +19,7 @@ producer_config = {
     "max.in.flight.requests.per.connection": "1000",
 }
 
-topics = ["order", "order-status"]
+topics = ["order-timestamps"]
 
 def update_producer_properties():
     if not os.path.exists(KAFKA_PROPERTIES):

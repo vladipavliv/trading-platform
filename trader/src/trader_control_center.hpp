@@ -6,11 +6,11 @@
 #ifndef HFT_SERVER_TRADERCONTROLCENTER_HPP
 #define HFT_SERVER_TRADERCONTROLCENTER_HPP
 
+#include "adapters/kafka/kafka_adapter.hpp"
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
 #include "console_reader.hpp"
-#include "db/kafka_producer.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
 #include "trader_command.hpp"
@@ -103,7 +103,7 @@ private:
 
   NetworkClient networkClient_;
   TraderEngine engine_;
-  KafkaProducer kafka_;
+  KafkaAdapter<> kafka_;
   ConsoleReader<TraderCommand> consoleReader_;
 
   std::atomic_bool networkConnected_{false};

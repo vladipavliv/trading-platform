@@ -8,9 +8,9 @@
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
+#include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
-#include "db/postgres_adapter.hpp"
 #include "rtt_tracker.hpp"
 #include "ticker_data.hpp"
 #include "types.hpp"

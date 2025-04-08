@@ -17,7 +17,6 @@
 #include "network/socket_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network_types.hpp"
-#include "serialization/flat_buffers/fb_serializer.hpp"
 #include "server_events.hpp"
 #include "template_types.hpp"
 #include "utils/template_utils.hpp"

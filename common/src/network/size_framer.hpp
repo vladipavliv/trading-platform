@@ -13,7 +13,7 @@
 #include "constants.hpp"
 #include "logging.hpp"
 #include "ring_buffer.hpp"
-#include "serialization/flat_buffers/fb_serializer.hpp"
+#include "serialization/flat_buffers/market_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -22,7 +22,7 @@ namespace hft {
 /**
  * @brief Frames messages by writing message size and then serialized data
  */
-template <typename SerializerType = serialization::FlatBuffersSerializer>
+template <typename SerializerType = serialization::fbs::MarketSerializer>
 class SizeFramer {
 public:
   using Serializer = SerializerType;

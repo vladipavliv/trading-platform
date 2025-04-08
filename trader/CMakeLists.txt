@@ -18,8 +18,6 @@ if(USE_MIMALLOC)
     target_link_libraries(hft_trader PRIVATE mimalloc)
 endif()
 
-add_dependencies(hft_trader fbs_code_generator)
-
 add_custom_command(
     TARGET hft_trader POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/trader_config.ini ${CMAKE_BINARY_DIR}/trader
