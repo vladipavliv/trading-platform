@@ -11,6 +11,7 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
+#include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
 #include "ticker_data.hpp"
 #include "types.hpp"
@@ -28,7 +29,7 @@ namespace hft::trader {
  */
 class TraderEngine {
 public:
-  using Tracker = RttTracker<50>;
+  using Tracker = RttTracker<20, 100>;
   using TickersData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
 
   explicit TraderEngine(Bus &bus)
@@ -148,13 +149,17 @@ private:
     const auto stamp = getTimestamp();
     Order order{0, 0, id, stamp, p.first, quantity, newPrice, action};
     LOG_DEBUG("Placing order {}", utils::toString(order));
+
     bus_.marketBus.post(order);
+    bus_.systemBus.post(OrderTimestamp{order.id, order.timestamp, TimestampType::Created});
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
     LOG_DEBUG(utils::toString(status));
     // Track orders in TickerData
     Tracker::logRtt(status.timestamp);
+    bus_.systemBus.post(
+        OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Notified});
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {

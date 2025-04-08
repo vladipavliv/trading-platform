@@ -59,8 +59,20 @@ private:
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
+      // Send timestamp to kafka
+      bus_.systemBus.post(OrderTimestamp{order.id, utils::getTimestamp(), TimestampType::Received});
+
       data->orderBook.add(order);
-      data->orderBook.match([this](CRef<OrderStatus> status) { bus_.marketBus.post(status); });
+      data->orderBook.match([this](CRef<OrderStatus> status) {
+        bus_.marketBus.post(status);
+        // Send fulfilled timestamp to kafka, closed timestamp if its fulfilled fully
+        const auto id = status.orderId;
+        const auto ts = utils::getTimestamp();
+        bus_.systemBus.post(OrderTimestamp{id, ts, TimestampType::Fulfilled});
+        if (status.state == OrderState::Full) {
+          bus_.systemBus.post(OrderTimestamp{id, ts, TimestampType::Closed});
+        }
+      });
     });
   }
 

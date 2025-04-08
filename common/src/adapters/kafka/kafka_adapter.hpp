@@ -10,7 +10,6 @@
 
 #include "bus/bus.hpp"
 #include "config/config.hpp"
-#include "kafka_callback.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
@@ -32,6 +31,17 @@ class KafkaAdapter {
 
   static constexpr auto BROKER = "localhost:9092";
   static constexpr auto ORDER_TIMESTAMPS_TOPIC = "order-timestamps";
+
+  class KafkaCallback : public RdKafka::DeliveryReportCb {
+  public:
+    void dr_cb(RdKafka::Message &message) override {
+      if (message.err()) {
+        LOG_ERROR("Kafka delivery failed: {}", message.errstr());
+      } else {
+        LOG_DEBUG("Message delivered to the topic: {}", message.topic_name());
+      }
+    }
+  };
 
 public:
   using Serializer = SerializerType;
