@@ -39,6 +39,9 @@ struct Config {
   String name;
   String password;
 
+  // db
+  String kafkaBroker;
+
   // Logging
   LogLevel logLevel;
   String logOutput;

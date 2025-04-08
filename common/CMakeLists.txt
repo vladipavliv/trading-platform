@@ -11,11 +11,24 @@ target_include_directories(hft_common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gen 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types 
     ${LIBPQXX_INCLUDE_DIRS}
+    ${RDKAFKA_INCLUDE_DIRS}
 )
 
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR")
 
-target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic folly glog pthread dl iberty)
+target_link_libraries(hft_common PRIVATE 
+    ${Boost_LIBRARIES} 
+    ${LIBPQXX_LIBRARIES} 
+    ${RDKAFKAXX_LIB}
+    spdlog::spdlog 
+    atomic 
+    folly 
+    glog 
+    pthread 
+    dl 
+    iberty 
+    nlohmann_json::nlohmann_json
+)
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
 # Generate flatbuffers code from the schema

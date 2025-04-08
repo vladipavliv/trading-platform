@@ -34,6 +34,9 @@ struct Config {
   Microseconds priceFeedRate;
   Seconds monitorRate;
 
+  // db
+  String kafkaBroker;
+
   // Logging
   LogLevel logLevel;
   String logOutput;

@@ -20,12 +20,12 @@
 namespace hft::server {
 
 struct ConfigReader {
-  static void readConfig(const std::string &fileName) {
+  static void readConfig(CRef<String> fileName) {
     boost::property_tree::ptree pt;
     boost::property_tree::read_ini(fileName, pt);
 
     // Network
-    Config::cfg.url = pt.get<std::string>("network.url");
+    Config::cfg.url = pt.get<String>("network.url");
     Config::cfg.portTcpUp = pt.get<int>("network.port_tcp_up");
     Config::cfg.portTcpDown = pt.get<int>("network.port_tcp_down");
     Config::cfg.portUdp = pt.get<int>("network.port_udp");
@@ -34,10 +34,10 @@ struct ConfigReader {
     if (auto v = pt.get_optional<int>("cpu.core_system")) {
       Config::cfg.coreSystem = *v;
     }
-    if (auto v = pt.get_optional<std::string>("cpu.cores_network")) {
+    if (auto v = pt.get_optional<String>("cpu.cores_network")) {
       Config::cfg.coresNetwork = parseCores(*v);
     }
-    if (auto v = pt.get_optional<std::string>("cpu.cores_app")) {
+    if (auto v = pt.get_optional<String>("cpu.cores_app")) {
       Config::cfg.coresApp = parseCores(*v);
     }
 
@@ -45,9 +45,12 @@ struct ConfigReader {
     Config::cfg.priceFeedRate = Microseconds(pt.get<int>("rates.price_feed_rate"));
     Config::cfg.monitorRate = Seconds(pt.get<int>("rates.monitor_rate"));
 
+    // db
+    Config::cfg.kafkaBroker = pt.get<String>("db.kafka_broker");
+
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
-    Config::cfg.logOutput = pt.get<std::string>("log.output");
+    Config::cfg.logOutput = pt.get<String>("log.output");
 
     verifyConfig(Config::cfg);
   }

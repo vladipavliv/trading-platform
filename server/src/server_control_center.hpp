@@ -11,6 +11,7 @@
 #include "config/config_reader.hpp"
 #include "console_reader.hpp"
 #include "coordinator.hpp"
+#include "db/kafka_producer.hpp"
 #include "db/postgres_adapter.hpp"
 #include "market_types.hpp"
 #include "network/network_server.hpp"
@@ -30,7 +31,7 @@ public:
 
   ServerControlCenter()
       : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
 
     // System bus subscriptions
     bus_.systemBus.subscribe<ServerEvent>(ServerEvent::Ready, [this] {
@@ -96,6 +97,7 @@ private:
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
+  KafkaProducer kafka_;
 
   MarketData marketData_;
 };

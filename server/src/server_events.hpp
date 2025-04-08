@@ -18,8 +18,7 @@ enum class ServerEvent : uint8_t { Ready };
 } // namespace server
 
 namespace utils {
-template <>
-std::string toString<server::ServerEvent>(const server::ServerEvent &event) {
+String toString(const server::ServerEvent &event) {
   using namespace server;
   switch (event) {
   case ServerEvent::Ready:

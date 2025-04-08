@@ -20,8 +20,7 @@ struct SocketStatusEvent {
 };
 
 namespace utils {
-template <>
-std::string toString<SocketStatus>(const SocketStatus &status) {
+String toString(const SocketStatus &status) {
   switch (status) {
   case SocketStatus::Disconnected:
     return "disconnected";
@@ -34,8 +33,7 @@ std::string toString<SocketStatus>(const SocketStatus &status) {
   }
 }
 
-template <>
-std::string toString<SocketStatusEvent>(const SocketStatusEvent &event) {
+String toString(const SocketStatusEvent &event) {
   return std::format("SocketStatusEvent Id:{} Status:{}", event.socketId, toString(event.status));
 }
 

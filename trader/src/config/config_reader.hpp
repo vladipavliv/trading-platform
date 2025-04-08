@@ -49,6 +49,9 @@ struct ConfigReader {
     Config::cfg.name = pt.get<std::string>("credentials.name");
     Config::cfg.password = pt.get<std::string>("credentials.password");
 
+    // db
+    Config::cfg.kafkaBroker = pt.get<std::string>("db.kafka_broker");
+
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
     Config::cfg.logOutput = pt.get<std::string>("log.output");

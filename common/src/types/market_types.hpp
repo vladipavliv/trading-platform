@@ -68,7 +68,6 @@ struct alignas(8) Order {
 
   inline void setTraderId(TraderId id) const { traderId = id; }
   inline void setToken(SessionToken tok) const { token = tok; }
-
   inline void reduceQuantity(Quantity amount) const {
     quantity = quantity < amount ? 0 : quantity - amount;
   }
