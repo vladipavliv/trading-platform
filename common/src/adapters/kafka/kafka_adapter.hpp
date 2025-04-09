@@ -22,11 +22,14 @@ namespace hft {
  * @brief Kafka adapter
  * @todo Make config for broker and topics, hardcoding for now
  */
-template <typename SerializerType = serialization::fbs::MetadataSerializer>
+template <typename ConsumeSerializerType,
+          typename ProduceSerializerType = serialization::fbs::MetadataSerializer>
 class KafkaAdapter {
   using Conf = RdKafka::Conf;
   using Producer = RdKafka::Producer;
+  using Consumer = RdKafka::Consumer;
   using Topic = RdKafka::Topic;
+  using Message = RdKafka::Message;
   using ErrorCode = RdKafka::ErrorCode;
 
   static constexpr auto BROKER = "localhost:9092";
@@ -38,66 +41,154 @@ class KafkaAdapter {
       if (message.err()) {
         LOG_ERROR("Kafka delivery failed: {}", message.errstr());
       } else {
-        LOG_DEBUG("Message delivered to the topic: {}", message.topic_name());
+        LOG_TRACE("Message delivered to the topic: {}", message.topic_name());
       }
     }
   };
 
 public:
-  using Serializer = SerializerType;
+  using ConsumeSerializer = ConsumeSerializerType;
+  using ProduceSerializer = ProduceSerializerType;
 
-  KafkaAdapter(SystemBus &bus) : bus_{bus} {
+  struct Config {
+    const String broker;
+    const String consumerGroup;
+    const std::vector<String> produceTopics;
+    const std::vector<String> consumeTopics;
+  };
+
+  KafkaAdapter(SystemBus &bus, CRef<Config> config) : bus_{bus}, config_{config} {
     LOG_DEBUG("Starting kafka adapter");
-    conf_ = UPtr<Conf>(Conf::create(Conf::CONF_GLOBAL));
-
-    if (conf_->set("dr_cb", &callback_, error_) != Conf::CONF_OK) {
-      LOG_ERROR("Failed to set delivery report callback: {}", error_);
-      throw std::runtime_error(error_);
-    }
-
-    if (conf_->set("metadata.broker.list", BROKER, error_) != Conf::CONF_OK) {
-      LOG_ERROR("Failed to setup kafka brokers {}", error_);
-      throw std::runtime_error(error_);
-    }
-
-    producer_ = UPtr<Producer>(Producer::create(conf_.get(), error_));
-    if (!producer_) {
-      LOG_ERROR("Failed to create producer {}", error_);
-      throw std::runtime_error(error_);
-    }
-
-    createTopic(ORDER_TIMESTAMPS_TOPIC);
+    createProducer();
+    createConsumer();
+    createTopics();
 
     bus_.subscribe<OrderTimestamp>(
         [this](CRef<OrderTimestamp> event) { produce(ORDER_TIMESTAMPS_TOPIC, event); });
   };
 
-private:
-  void createTopic(CRef<String> name) {
-    LOG_DEBUG(name);
-    if (topicMap_.count(name) != 0) {
-      LOG_ERROR("Topic {} already exists", name);
-      return;
+  void start() {
+    LOG_DEBUG("Starting kafka feed");
+    if (state_ != State::Error) {
+      state_ = State::On;
     }
-    auto topicPtr = UPtr<Topic>(Topic::create(producer_.get(), name, nullptr, error_));
-    if (!topicPtr) {
-      LOG_ERROR("Failed to create topic {}: {}", name, error_);
+    for (auto &topic : consumeTopicMap_) {
+      const auto res = consumer_->start(topic.second.get(), Topic::PARTITION_UA, 0);
+      if (res != RdKafka::ERR_NO_ERROR) {
+        LOG_ERROR_SYSTEM("Failed to subscribe to {} {} ", topic.first, RdKafka::err2str(res));
+      }
+    }
+  }
+
+  void stop() {
+    LOG_DEBUG("Stoping kafka feed");
+    if (state_ != State::Error) {
+      state_ = State::Off;
+    }
+    for (auto &topic : consumeTopicMap_) {
+      const auto res = consumer_->stop(topic.second.get(), Topic::PARTITION_UA);
+      if (res != RdKafka::ERR_NO_ERROR) {
+        LOG_ERROR_SYSTEM("Failed to unsubscribe from {} {} ", topic.first, RdKafka::err2str(res));
+      }
+    }
+  }
+
+  void poll(size_t timeout = 0) {
+    LOG_TRACE("Polling messages from kafka");
+    for (auto &topic : consumeTopicMap_) {
+      const auto msg =
+          UPtr<Message>(consumer_->consume(topic.second.get(), Topic::PARTITION_UA, timeout));
+      if (msg->err() == RdKafka::ERR_NO_ERROR) {
+        ConsumeSerializer::deserialize(msg->payload(), msg->len(), bus_);
+      } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
+        LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
+      }
+    }
+  }
+
+private:
+  void createProducer() {
+    UPtr<Conf> conf = UPtr<Conf>(Conf::create(Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
       throw std::runtime_error(error_);
     }
-    topicMap_.insert(std::make_pair(name, std::move(topicPtr)));
+    if (conf->set("dr_cb", &callback_, error_) != Conf::CONF_OK) {
+      throw std::runtime_error(error_);
+    }
+    producer_ = UPtr<Producer>(Producer::create(conf.get(), error_));
+    if (!producer_) {
+      throw std::runtime_error(error_);
+    }
+  }
+
+  void createConsumer() {
+    UPtr<Conf> conf = UPtr<Conf>(Conf::create(Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
+      throw std::runtime_error(error_);
+    }
+    if (conf->set("group.id", config_.consumerGroup, error_) != Conf::CONF_OK) {
+      throw std::runtime_error(error_);
+    }
+    consumer_ = UPtr<Consumer>(RdKafka::Consumer::create(conf.get(), error_));
+    if (!consumer_) {
+      throw std::runtime_error(error_);
+    }
+
+    for (auto &topic : config_.consumeTopics) {
+      if (consumeTopicMap_.count(topic) != 0) {
+        LOG_ERROR("Duplicate topic");
+        continue;
+      }
+      auto topicPtr = UPtr<Topic>(Topic::create(consumer_.get(), topic, nullptr, error_));
+      if (!topicPtr) {
+        LOG_ERROR("Failed to create topic {}: {}", topic, error_);
+        throw std::runtime_error(error_);
+      }
+      consumeTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
+    }
+  }
+
+  void createTopics() {
+    for (auto &topic : config_.produceTopics) {
+      if (produceTopicMap_.count(topic) != 0) {
+        LOG_ERROR("Duplicate topic");
+        continue;
+      }
+      auto topicPtr = UPtr<Topic>(Topic::create(producer_.get(), topic, nullptr, error_));
+      if (!topicPtr) {
+        LOG_ERROR("Failed to create topic {}: {}", topic, error_);
+        throw std::runtime_error(error_);
+      }
+      produceTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
+    }
+    for (auto &topic : config_.consumeTopics) {
+      if (consumeTopicMap_.count(topic) != 0) {
+        LOG_ERROR("Duplicate topic");
+        continue;
+      }
+      auto topicPtr = UPtr<Topic>(Topic::create(consumer_.get(), topic, nullptr, error_));
+      if (!topicPtr) {
+        LOG_ERROR("Failed to create topic {}: {}", topic, error_);
+        throw std::runtime_error(error_);
+      }
+      consumeTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
+    }
   }
 
   template <typename MessageType>
   void produce(CRef<String> topic, CRef<MessageType> msg) {
-    LOG_DEBUG("{} {}", topic, msg);
+    LOG_TRACE("{} {}", topic, msg);
+    if (state_ != State::On) {
+      return;
+    }
     // Kafka producer is thread-safe, as well as topic, as long as its not changed
-    const auto topicIt = topicMap_.find(topic);
-    if (topicIt == topicMap_.end()) {
+    const auto topicIt = produceTopicMap_.find(topic);
+    if (topicIt == produceTopicMap_.end()) {
       LOG_ERROR("Not connected to the topic {}", topic);
       return;
     }
     // librdkafka requires message be of a type void*
-    auto serializedMsg = Serializer::serialize(msg);
+    auto serializedMsg = ProduceSerializer::serialize(msg);
     const ErrorCode result =
         producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
                            serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
@@ -111,12 +202,15 @@ private:
 
 private:
   SystemBus &bus_;
+  const Config config_;
 
   UPtr<Producer> producer_;
-  UPtr<Conf> conf_;
+  UPtr<Consumer> consumer_;
 
-  HashMap<String, UPtr<Topic>> topicMap_;
+  HashMap<String, UPtr<Topic>> produceTopicMap_;
+  HashMap<String, UPtr<Topic>> consumeTopicMap_;
 
+  State state_{State::Off};
   String error_;
   KafkaCallback callback_;
 };

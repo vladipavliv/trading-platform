@@ -1,5 +1,6 @@
 """
-Adjusts kafka configuration for better throughput and creates topics
+Adjusts kafka configuration for better throughput
+Creates topics
 """
 
 import os
@@ -7,7 +8,8 @@ import subprocess
 
 KAFKA_DIR = "/home/vladimir/src/kafka_2.13-4.0.0"
 KAFKA_BIN = f"{KAFKA_DIR}/bin"
-KAFKA_PROPERTIES = f"{KAFKA_DIR}/config/producer.properties"
+PRODUCER_PROPERTIES = f"{KAFKA_DIR}/config/producer.properties"
+BROKER_PROPERTIES = f"{KAFKA_DIR}/config/server.properties"
 
 producer_config = {
     "bootstrap.servers": "localhost:9092",
@@ -19,42 +21,51 @@ producer_config = {
     "max.in.flight.requests.per.connection": "1000",
 }
 
-topics = ["order-timestamps"]
+broker_config = {
+    "num.network.threads": "8",
+    "num.io.threads": "16",
+    "socket.send.buffer.bytes": "102400",
+    "socket.receive.buffer.bytes": "102400",
+    "socket.request.max.bytes": "104857600",
+    "log.retention.hours": "168",
+    "log.segment.bytes": "1073741824",
+    "log.retention.check.interval.ms": "300000",
+}
 
-def update_producer_properties():
-    if not os.path.exists(KAFKA_PROPERTIES):
-        print(f"Error: {KAFKA_PROPERTIES} does not exist.")
+topics = ["order-timestamps", "server-commands"]
+
+def update_properties(path, config_dict, label):
+    if not os.path.exists(path):
+        print(f"Error: {path} does not exist.")
         return
 
-    with open(KAFKA_PROPERTIES, 'r') as file:
+    with open(path, 'r') as file:
         lines = file.readlines()
 
     updated_lines = []
     existing_keys = set()
 
     for line in lines:
-        if "=" in line:
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip()
+        stripped = line.strip()
+        if "=" in stripped and not stripped.startswith("#"):
+            key, value = map(str.strip, stripped.split("=", 1))
 
-            if key in producer_config:
-                value = producer_config[key]
-                line = f"{key}={value}\n"
+            if key in config_dict:
+                line = f"{key}={config_dict[key]}\n"
             existing_keys.add(key)
 
         updated_lines.append(line)
 
-    for key, value in producer_config.items():
+    for key, value in config_dict.items():
         if key not in existing_keys:
             updated_lines.append(f"{key}={value}\n")
 
-    with open(KAFKA_PROPERTIES, 'w') as file:
+    with open(path, 'w') as file:
         file.writelines(updated_lines)
 
-    print(f"Producer properties updated successfully in {KAFKA_PROPERTIES}")
+    print(f"{label} properties updated successfully in {path}")
 
-def create_kafka_topics():
+def create_topics():
     for topic in topics:
         print(f"Creating topic: {topic}")
         command = [
@@ -73,5 +84,6 @@ def create_kafka_topics():
             print(f"Error creating topic '{topic}': {e}")
 
 if __name__ == "__main__":
-    update_producer_properties()
-    create_kafka_topics()
+    update_properties(PRODUCER_PROPERTIES, producer_config, "Producer")
+    update_properties(BROKER_PROPERTIES, broker_config, "Broker")
+    create_topics()

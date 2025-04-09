@@ -28,6 +28,8 @@ using Timestamp = uint64_t;
 using LogLevel = spdlog::level::level_enum;
 using SessionToken = uint64_t;
 
+enum class State : uint8_t { On, Off, Error };
+
 } // namespace hft
 
 #endif // HFT_COMMON_TYPES_HPP

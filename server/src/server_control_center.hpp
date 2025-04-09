@@ -16,6 +16,7 @@
 #include "market_types.hpp"
 #include "network/network_server.hpp"
 #include "price_feed.hpp"
+#include "serialization/service_serializer.hpp"
 #include "server_command.hpp"
 #include "server_events.hpp"
 
@@ -28,17 +29,21 @@ class ServerControlCenter {
 public:
   using UPtr = std::unique_ptr<ServerControlCenter>;
   using ServerConsoleReader = ConsoleReader<ServerCommand>;
+  using Kafka = KafkaAdapter<serialization::fbs::ServiceSerializer>;
 
   ServerControlCenter()
       : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
-
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_},
+        kafka_{bus_.systemBus,
+               {"localhost:9092", "server-consumer", {"order-timestamps"}, {"server-commands"}}} {
     // System bus subscriptions
-    bus_.systemBus.subscribe<ServerEvent>(ServerEvent::Ready, [this] {
+    bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
       LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
-    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::Shutdown, [this] { stop(); });
+    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] { kafka_.start(); });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] { kafka_.stop(); });
 
     // Console commands
     consoleReader_.addCommand("q", ServerCommand::Shutdown);
@@ -97,7 +102,7 @@ private:
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
-  KafkaAdapter<> kafka_;
+  Kafka kafka_;
 
   MarketData marketData_;
 };

@@ -13,6 +13,7 @@
 #include "console_reader.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
+#include "serialization/service_serializer.hpp"
 #include "trader_command.hpp"
 #include "trader_engine.hpp"
 #include "trader_events.hpp"
@@ -26,10 +27,13 @@ namespace hft::trader {
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
+  using Kafka = KafkaAdapter<serialization::fbs::ServiceSerializer>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus}, consoleReader_{bus_.systemBus},
-        timer_{bus_.systemCtx()} {
+      : networkClient_{bus_}, engine_{bus_},
+        kafka_{bus_.systemBus,
+               {"localhost:9092", "trader-consumer", {"order-timestamps"}, {"trader-commands"}}},
+        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
     bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
 
     bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
@@ -103,7 +107,7 @@ private:
 
   NetworkClient networkClient_;
   TraderEngine engine_;
-  KafkaAdapter<> kafka_;
+  Kafka kafka_;
   ConsoleReader<TraderCommand> consoleReader_;
 
   std::atomic_bool networkConnected_{false};
