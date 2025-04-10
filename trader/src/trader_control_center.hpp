@@ -13,8 +13,8 @@
 #include "console_reader.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
-#include "serialization/service_serializer.hpp"
 #include "trader_command.hpp"
+#include "trader_command_parser.hpp"
 #include "trader_engine.hpp"
 #include "trader_events.hpp"
 #include "types.hpp"
@@ -22,18 +22,17 @@
 namespace hft::trader {
 
 /**
- * @brief Creates all the components and sets up console commands
+ * @brief Creates all the components and controls the flow
  */
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
-  using Kafka = KafkaAdapter<serialization::fbs::ServiceSerializer>;
+  using Kafka = KafkaAdapter<TraderCommandParser>;
 
   TraderControlCenter()
       : networkClient_{bus_}, engine_{bus_},
-        kafka_{bus_.systemBus,
-               {"localhost:9092", "trader-consumer", {"order-timestamps"}, {"trader-commands"}}},
-        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
+        kafka_{bus_.systemBus, "localhost:9092", "trader-consumer"}, consoleReader_{bus_.systemBus},
+        timer_{bus_.systemCtx()} {
     bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
 
     bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
@@ -45,6 +44,11 @@ public:
       scheduleReconnect();
     });
 
+    // kafka topics
+    kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
+    kafka_.addConsumeTopic("trader-commands");
+
+    // console commands
     consoleReader_.addCommand("t+", TraderCommand::TradeStart);
     consoleReader_.addCommand("t-", TraderCommand::TradeStop);
     consoleReader_.addCommand("ts+", TraderCommand::TradeSpeedUp);

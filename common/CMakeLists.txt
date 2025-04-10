@@ -34,8 +34,6 @@ target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE
 # Generate flatbuffers code from the schema
 set(MARKET_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/marketdata.fbs)
 set(META_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/metadata.fbs)
-set(SERVERCMD_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/servercmd.fbs)
-set(TRADERCMD_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/tradercmd.fbs)
 
 set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
 
@@ -51,28 +49,12 @@ add_custom_command(
     DEPENDS ${META_SCHEMA_FILE}
     COMMENT "Generating metadata FlatBuffers code from schema"
 )
-add_custom_command(
-    OUTPUT ${GEN_DIR}/servercmd_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${SERVERCMD_SCHEMA_FILE}
-    DEPENDS ${SERVERCMD_SCHEMA_FILE}
-    COMMENT "Generating server commands FlatBuffers code from schema"
-)
-add_custom_command(
-    OUTPUT ${GEN_DIR}/tradercmd_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${TRADERCMD_SCHEMA_FILE}
-    DEPENDS ${TRADERCMD_SCHEMA_FILE}
-    COMMENT "Generating trader commnands FlatBuffers code from schema"
-)
 
 add_custom_target(fbs_market_code_generator DEPENDS ${GEN_DIR}/marketdata_generated.h)
 add_custom_target(fbs_meta_code_generator DEPENDS ${GEN_DIR}/metadata_generated.h)
-add_custom_target(fbs_servercmd_code_generator DEPENDS ${GEN_DIR}/servercmd_generated.h)
-add_custom_target(fbs_tradercmd_code_generator DEPENDS ${GEN_DIR}/tradercmd_generated.h)
 
 add_dependencies(hft_common fbs_market_code_generator)
 add_dependencies(hft_common fbs_meta_code_generator)
-add_dependencies(hft_common fbs_servercmd_code_generator)
-add_dependencies(hft_common fbs_tradercmd_code_generator)
 
 # Make library
 set(CMAKE_AR "/usr/bin/ar")

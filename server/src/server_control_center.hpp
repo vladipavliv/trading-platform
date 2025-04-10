@@ -16,26 +16,25 @@
 #include "market_types.hpp"
 #include "network/network_server.hpp"
 #include "price_feed.hpp"
-#include "serialization/service_serializer.hpp"
 #include "server_command.hpp"
+#include "server_command_parser.hpp"
 #include "server_events.hpp"
 
 namespace hft::server {
 
 /**
- * @brief Creates all the components and sets up console commands
+ * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
 public:
   using UPtr = std::unique_ptr<ServerControlCenter>;
   using ServerConsoleReader = ConsoleReader<ServerCommand>;
-  using Kafka = KafkaAdapter<serialization::fbs::ServiceSerializer>;
+  using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
       : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
         consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_},
-        kafka_{bus_.systemBus,
-               {"localhost:9092", "server-consumer", {"order-timestamps"}, {"server-commands"}}} {
+        kafka_{bus_.systemBus, "localhost:9092", "server-consumer"} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
       LOG_INFO_SYSTEM("Server is ready");
@@ -44,6 +43,10 @@ public:
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
     bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] { kafka_.start(); });
     bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] { kafka_.stop(); });
+
+    // kafka topics and commands
+    kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
+    kafka_.addConsumeTopic("server-commands");
 
     // Console commands
     consoleReader_.addCommand("q", ServerCommand::Shutdown);
