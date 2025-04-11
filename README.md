@@ -67,18 +67,16 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
 
 ## Performance
-Tested on localhost with 4 traders and 1us trade rate
+Tested on localhost with 2 traders and 1us trade rate
 
 Server:
 ```bash
-01:04:49.118586 [I] Orders: [opn|ttl] 10,813,666|50,054,412 | Rps: 374,655
+10:54:19.758093 [I] Orders: [opn|ttl] 4,826,034|22,285,931 | Rps: 153,804
 ```
-Trader [0-4]:
+Trader [0-1]:
 ```bash
-01:04:53.380633 [I] Rtt: [<50us|>50us] 99.97% avg:17us 0.03% avg:83us
-01:04:49.235910 [I] Rtt: [<50us|>50us] 99.90% avg:19us 0.10% avg:123us
-01:04:50.605096 [I] Rtt: [<50us|>50us] 99.85% avg:20us 0.15% avg:144us
-01:04:52.118858 [I] Rtt: [<50us|>50us] 99.96% avg:17us 0.04% avg:112us
+10:54:21.339249 [I] Rtt: [<50us|>50us] 96.31% avg:26us 3.69% avg:64us
+10:54:19.481263 [I] Rtt: [<50us|>50us] 93.74% avg:30us 6.26% avg:64us
 ```
 
 ## Roadmap
@@ -93,4 +91,4 @@ Dynamically rerout the tickers to a different worker, add/remove workers, load b
 - [ ] **Proper trading strategy**  
 And price fluctuations
 - [ ] **Optimize**  
-Profile cache misses, try SBE serialization, figure batch processing threshold
+Profile cache misses, try SBE serialization
