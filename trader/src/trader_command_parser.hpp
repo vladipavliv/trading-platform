@@ -19,17 +19,10 @@ namespace hft::trader {
  */
 class TraderCommandParser {
 public:
+  static const HashMap<String, TraderCommand> commands;
+
   template <typename Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
-    return deserialize(String(data, size), std::forward<Consumer>(consumer));
-  }
-  template <typename Consumer>
-  static bool deserialize(CRef<String> cmd, Consumer &&consumer) {
-    static const HashMap<String, TraderCommand> commands{{"t+", TraderCommand::TradeStart},
-                                                         {"t-", TraderCommand::TradeStop},
-                                                         {"ts+", TraderCommand::TradeSpeedUp},
-                                                         {"ts-", TraderCommand::TradeSpeedDown},
-                                                         {"q", TraderCommand::Shutdown}};
+  static bool parse(CRef<String> cmd, Consumer &&consumer) {
     const auto cmdIt = commands.find(cmd);
     if (cmdIt == commands.end()) {
       LOG_ERROR("Command not found {}", cmd);
@@ -38,7 +31,22 @@ public:
     consumer.post(cmdIt->second);
     return true;
   }
+
+  /**
+   * @brief Interface so it can be used as serializer when simple string map is sufficient
+   */
+  template <typename Consumer>
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
+    return parse(String(data, size), std::forward<Consumer>(consumer));
+  }
 };
+
+const HashMap<String, TraderCommand> TraderCommandParser::commands{
+    {"t+", TraderCommand::TradeStart},
+    {"t-", TraderCommand::TradeStop},
+    {"ts+", TraderCommand::TradeSpeedUp},
+    {"ts-", TraderCommand::TradeSpeedDown},
+    {"q", TraderCommand::Shutdown}};
 
 } // namespace hft::trader
 

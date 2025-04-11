@@ -45,8 +45,10 @@ struct ConfigReader {
     Config::cfg.priceFeedRate = Microseconds(pt.get<int>("rates.price_feed_rate"));
     Config::cfg.monitorRate = Seconds(pt.get<int>("rates.monitor_rate"));
 
-    // db
-    Config::cfg.kafkaBroker = pt.get<String>("db.kafka_broker");
+    // kafka
+    Config::cfg.kafkaBroker = pt.get<String>("kafka.kafka_broker");
+    Config::cfg.kafkaConsumerGroup = pt.get<String>("kafka.kafka_consumer_group");
+    Config::cfg.kafkaPollRate = Milliseconds(pt.get<int>("kafka.kafka_poll_rate"));
 
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
@@ -68,6 +70,9 @@ struct ConfigReader {
     if (std::find(cfg.coresNetwork.begin(), cfg.coresNetwork.end(), cfg.coreSystem) !=
         cfg.coresNetwork.end()) {
       throw std::runtime_error("Invalid cores configuration");
+    }
+    if (cfg.kafkaBroker.empty() || cfg.kafkaConsumerGroup.empty()) {
+      throw std::runtime_error("Invalid kafka configuration");
     }
     if (cfg.logOutput.empty()) {
       throw std::runtime_error("Invalid log file");

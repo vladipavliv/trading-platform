@@ -39,8 +39,10 @@ struct Config {
   String name;
   String password;
 
-  // db
+  // kafka
   String kafkaBroker;
+  String kafkaConsumerGroup;
+  Milliseconds kafkaPollRate;
 
   // Logging
   LogLevel logLevel;
@@ -53,6 +55,8 @@ struct Config {
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.tradeRate.count());
+    LOG_INFO_SYSTEM("Kafka broker:{} consumer group:{} poll rate:{}", cfg.kafkaBroker,
+                    cfg.kafkaConsumerGroup, cfg.kafkaPollRate.count());
     LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
     LOG_INFO_SYSTEM("Name: {} Password: {}", cfg.name, cfg.password);
   }

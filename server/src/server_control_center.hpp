@@ -10,7 +10,6 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
-#include "config/config_reader.hpp"
 #include "console_reader.hpp"
 #include "coordinator.hpp"
 #include "market_types.hpp"
@@ -28,13 +27,13 @@ namespace hft::server {
 class ServerControlCenter {
 public:
   using UPtr = std::unique_ptr<ServerControlCenter>;
-  using ServerConsoleReader = ConsoleReader<ServerCommand>;
+  using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
       : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
         consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_},
-        kafka_{bus_.systemBus, "localhost:9092", "server-consumer"} {
+        kafka_{bus_.systemBus, kafkaCfg()} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
       LOG_INFO_SYSTEM("Server is ready");
@@ -47,11 +46,6 @@ public:
     // kafka topics and commands
     kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
     kafka_.addConsumeTopic("server-commands");
-
-    // Console commands
-    consoleReader_.addCommand("q", ServerCommand::Shutdown);
-    consoleReader_.addCommand("p+", ServerCommand::PriceFeedStart);
-    consoleReader_.addCommand("p-", ServerCommand::PriceFeedStop);
   }
 
   void start() {
@@ -83,6 +77,11 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     Config::cfg.logConfig();
     consoleReader_.printCommands();
+  }
+
+  KafkaConfig kafkaCfg() const {
+    return KafkaConfig{Config::cfg.kafkaBroker, Config::cfg.kafkaConsumerGroup,
+                       Config::cfg.kafkaPollRate};
   }
 
   void readMarketData() {

@@ -30,9 +30,8 @@ pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 
 enable_testing()
 
-set(USE_MIMALLOC OFF)
-
 add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(trader)
+add_subdirectory(monitor)
 add_subdirectory(test)

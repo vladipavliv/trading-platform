@@ -7,6 +7,7 @@
 #define HFT_SERVER_TRADERCONTROLCENTER_HPP
 
 #include "adapters/kafka/kafka_adapter.hpp"
+#include "adapters/postgres/postgres_adapter.hpp"
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
 #include "config/config.hpp"
@@ -27,12 +28,12 @@ namespace hft::trader {
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
+  using TraderConsoleReader = ConsoleReader<TraderCommandParser>;
   using Kafka = KafkaAdapter<TraderCommandParser>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, engine_{bus_},
-        kafka_{bus_.systemBus, "localhost:9092", "trader-consumer"}, consoleReader_{bus_.systemBus},
-        timer_{bus_.systemCtx()} {
+      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus, kafkaCfg()},
+        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
     bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
 
     bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
@@ -47,13 +48,6 @@ public:
     // kafka topics
     kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
     kafka_.addConsumeTopic("trader-commands");
-
-    // console commands
-    consoleReader_.addCommand("t+", TraderCommand::TradeStart);
-    consoleReader_.addCommand("t-", TraderCommand::TradeStop);
-    consoleReader_.addCommand("ts+", TraderCommand::TradeSpeedUp);
-    consoleReader_.addCommand("ts-", TraderCommand::TradeSpeedDown);
-    consoleReader_.addCommand("q", TraderCommand::Shutdown);
   }
 
   void start() {
@@ -91,6 +85,11 @@ private:
     consoleReader_.printCommands();
   }
 
+  KafkaConfig kafkaCfg() const {
+    return KafkaConfig{Config::cfg.kafkaBroker, Config::cfg.kafkaConsumerGroup,
+                       Config::cfg.kafkaPollRate};
+  }
+
   void scheduleReconnect() {
     if (networkConnected_) {
       return;
@@ -112,7 +111,7 @@ private:
   NetworkClient networkClient_;
   TraderEngine engine_;
   Kafka kafka_;
-  ConsoleReader<TraderCommand> consoleReader_;
+  TraderConsoleReader consoleReader_;
 
   std::atomic_bool networkConnected_{false};
   SteadyTimer timer_;

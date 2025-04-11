@@ -12,12 +12,6 @@ target_include_directories(hft_server PRIVATE
     ${CMAKE_SOURCE_DIR}/common/src
 )
 
-# mimalloc
-if(USE_MIMALLOC)
-    find_package(mimalloc REQUIRED)
-    target_link_libraries(hft_server PRIVATE mimalloc)
-endif()
-
 add_custom_command(
     TARGET hft_server POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/server_config.ini ${CMAKE_BINARY_DIR}/server

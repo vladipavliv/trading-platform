@@ -49,8 +49,10 @@ struct ConfigReader {
     Config::cfg.name = pt.get<std::string>("credentials.name");
     Config::cfg.password = pt.get<std::string>("credentials.password");
 
-    // db
-    Config::cfg.kafkaBroker = pt.get<std::string>("db.kafka_broker");
+    // kafka
+    Config::cfg.kafkaBroker = pt.get<String>("kafka.kafka_broker");
+    Config::cfg.kafkaConsumerGroup = pt.get<String>("kafka.kafka_consumer_group");
+    Config::cfg.kafkaPollRate = Milliseconds(pt.get<int>("kafka.kafka_poll_rate"));
 
     // Logging
     Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
@@ -82,6 +84,9 @@ struct ConfigReader {
     }
     if (cfg.logOutput.empty()) {
       throw std::runtime_error("Invalid log file");
+    }
+    if (cfg.kafkaBroker.empty() || cfg.kafkaConsumerGroup.empty()) {
+      throw std::runtime_error("Invalid kafka configuration");
     }
   }
 

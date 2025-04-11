@@ -19,18 +19,10 @@ namespace hft::server {
  */
 class ServerCommandParser {
 public:
-  template <typename Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
-    return deserialize(String(data, size), std::forward<Consumer>(consumer));
-  }
+  static const HashMap<String, ServerCommand> commands;
 
   template <typename Consumer>
-  static bool deserialize(CRef<String> cmd, Consumer &&consumer) {
-    static const HashMap<String, ServerCommand> commands{{"p+", ServerCommand::PriceFeedStart},
-                                                         {"p-", ServerCommand::PriceFeedStop},
-                                                         {"k+", ServerCommand::KafkaFeedStart},
-                                                         {"k-", ServerCommand::KafkaFeedStop},
-                                                         {"q", ServerCommand::Shutdown}};
+  static bool parse(CRef<String> cmd, Consumer &&consumer) {
     const auto cmdIt = commands.find(cmd);
     if (cmdIt == commands.end()) {
       LOG_ERROR("Command not found {}", cmd);
@@ -39,7 +31,22 @@ public:
     consumer.post(cmdIt->second);
     return true;
   }
+
+  /**
+   * @brief Interface so it can be used as serializer when simple string map is sufficient
+   */
+  template <typename Consumer>
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
+    return parse(String(data, size), std::forward<Consumer>(consumer));
+  }
 };
+
+const HashMap<String, ServerCommand> ServerCommandParser::commands{
+    {"p+", ServerCommand::PriceFeedStart},
+    {"p-", ServerCommand::PriceFeedStop},
+    {"k+", ServerCommand::KafkaFeedStart},
+    {"k-", ServerCommand::KafkaFeedStop},
+    {"q", ServerCommand::Shutdown}};
 
 } // namespace hft::server
 

@@ -12,12 +12,6 @@ target_include_directories(hft_trader PRIVATE
     ${CMAKE_SOURCE_DIR}/common/src
 )
 
-# mimalloc
-if(USE_MIMALLOC)
-    find_package(mimalloc REQUIRED)
-    target_link_libraries(hft_trader PRIVATE mimalloc)
-endif()
-
 add_custom_command(
     TARGET hft_trader POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/trader_config.ini ${CMAKE_BINARY_DIR}/trader

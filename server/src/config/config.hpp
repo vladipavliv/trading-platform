@@ -34,8 +34,10 @@ struct Config {
   Microseconds priceFeedRate;
   Seconds monitorRate;
 
-  // db
+  // kafka
   String kafkaBroker;
+  String kafkaConsumerGroup;
+  Milliseconds kafkaPollRate;
 
   // Logging
   LogLevel logLevel;
@@ -48,6 +50,8 @@ struct Config {
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.priceFeedRate.count());
+    LOG_INFO_SYSTEM("Kafka broker:{} consumer group:{} poll rate:{}", cfg.kafkaBroker,
+                    cfg.kafkaConsumerGroup, cfg.kafkaPollRate.count());
     LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
   }
 };
