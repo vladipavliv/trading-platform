@@ -19,17 +19,12 @@ namespace hft {
  * @brief Performs non blocking console input check at a certain rate
  * Checks the input over the commands map and and posts parsed commands to the system bus
  */
-template <typename CommandType>
+template <typename ParserType>
 class ConsoleReader {
 public:
-  using Command = CommandType;
+  using Parser = ParserType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} {
-    utils::unblockConsole();
-    commands_.reserve(20);
-  }
-
-  void addCommand(CRefString input, Command command) { commands_.emplace(input, command); }
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} { utils::unblockConsole(); }
 
   void start() { scheduleInputCheck(); }
 
@@ -37,7 +32,7 @@ public:
 
   void printCommands() {
     LOG_INFO_SYSTEM("Commands:");
-    for (auto &command : commands_) {
+    for (auto &command : Parser::commands) {
       LOG_INFO_SYSTEM("> {:3} => {}", command.first, utils::toString(command.second));
     }
   }
@@ -55,18 +50,15 @@ private:
   }
 
   void inputCheck() {
-    auto input = utils::getConsoleInput();
-    const auto &iterator = commands_.find(input);
-    if (iterator == commands_.end()) {
-      return;
+    const auto input = utils::getConsoleInput();
+    if (!input.empty()) {
+      Parser::parse(input, bus_);
     }
-    bus_.post(iterator->second);
   }
 
 private:
   SystemBus &bus_;
   SteadyTimer timer_;
-  HashMap<String, CommandType> commands_;
 };
 
 } // namespace hft

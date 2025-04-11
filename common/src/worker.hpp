@@ -41,9 +41,9 @@ public:
         utils::setTheadRealTime();
         if (pinToCore_) {
           utils::pinThreadToCore(coreId_);
-          LOG_DEBUG("Starting worker thread {} on the core {}", threadId_, coreId_);
+          LOG_INFO_SYSTEM("Starting worker thread {} on the core {}", threadId_, coreId_);
         } else {
-          LOG_DEBUG("Starting worker thread {}", threadId_);
+          LOG_INFO_SYSTEM("Starting worker thread {}", threadId_);
         }
         ioCtx.run();
       } catch (const std::exception &e) {

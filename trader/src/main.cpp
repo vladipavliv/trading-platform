@@ -5,8 +5,8 @@
 
 #include <iostream>
 
-#include "config/config.hpp"
-#include "config/config_reader.hpp"
+#include "config/trader_config.hpp"
+#include "config/trader_config_reader.hpp"
 #include "logging.hpp"
 #include "trader_control_center.hpp"
 
@@ -14,8 +14,8 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace trader;
   try {
-    ConfigReader::readConfig("trader_config.ini");
-    LOG_INIT(Config::cfg.logOutput);
+    TraderConfigReader::readConfig("trader_config.ini");
+    LOG_INIT(TraderConfig::cfg.logOutput);
 
     TraderControlCenter traderCc;
     traderCc.start();

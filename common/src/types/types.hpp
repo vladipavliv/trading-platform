@@ -15,7 +15,6 @@
 namespace hft {
 
 using String = std::string;
-using CRefString = const std::string &;
 using StringView = std::string_view;
 using SocketId = uint64_t;
 using ObjectId = uint64_t;
@@ -27,6 +26,8 @@ using Thread = std::jthread;
 using Timestamp = uint64_t;
 using LogLevel = spdlog::level::level_enum;
 using SessionToken = uint64_t;
+
+enum class State : uint8_t { On, Off, Error };
 
 } // namespace hft
 

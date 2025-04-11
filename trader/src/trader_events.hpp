@@ -19,8 +19,7 @@ enum class TraderEvent : uint8_t { ConnectedToTheServer, DisconnectedFromTheServ
 } // namespace trader
 
 namespace utils {
-template <>
-std::string toString<trader::TraderEvent>(const trader::TraderEvent &event) {
+String toString(const trader::TraderEvent &event) {
   using namespace trader;
   switch (event) {
   case TraderEvent::ConnectedToTheServer:

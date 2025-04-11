@@ -11,25 +11,49 @@ target_include_directories(hft_common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gen 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types 
     ${LIBPQXX_INCLUDE_DIRS}
+    ${RDKAFKA_INCLUDE_DIRS}
 )
 
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR")
 
-target_link_libraries(hft_common PRIVATE ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic folly glog pthread dl iberty)
+target_link_libraries(hft_common PRIVATE 
+    ${Boost_LIBRARIES} 
+    ${LIBPQXX_LIBRARIES} 
+    ${RDKAFKAXX_LIB}
+    spdlog::spdlog 
+    atomic 
+    folly 
+    glog 
+    pthread 
+    dl 
+    iberty 
+)
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
 # Generate flatbuffers code from the schema
-set(SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/marketdata.fbs)
+set(MARKET_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/marketdata.fbs)
+set(META_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/metadata.fbs)
+
 set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
 
 add_custom_command(
     OUTPUT ${GEN_DIR}/marketdata_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${SCHEMA_FILE}
-    DEPENDS ${SCHEMA_FILE}
-    COMMENT "Generating FlatBuffers code from schema"
+    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${MARKET_SCHEMA_FILE}
+    DEPENDS ${MARKET_SCHEMA_FILE}
+    COMMENT "Generating market FlatBuffers code from schema"
 )
-add_custom_target(fbs_code_generator DEPENDS ${GEN_DIR}/marketdata_generated.h)
-add_dependencies(hft_common fbs_code_generator)
+add_custom_command(
+    OUTPUT ${GEN_DIR}/metadata_generated.h
+    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${META_SCHEMA_FILE}
+    DEPENDS ${META_SCHEMA_FILE}
+    COMMENT "Generating metadata FlatBuffers code from schema"
+)
+
+add_custom_target(fbs_market_code_generator DEPENDS ${GEN_DIR}/marketdata_generated.h)
+add_custom_target(fbs_meta_code_generator DEPENDS ${GEN_DIR}/metadata_generated.h)
+
+add_dependencies(hft_common fbs_market_code_generator)
+add_dependencies(hft_common fbs_meta_code_generator)
 
 # Make library
 set(CMAKE_AR "/usr/bin/ar")

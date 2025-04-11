@@ -19,6 +19,8 @@ enum class TraderCommand : uint8_t {
   TradeStop,
   TradeSpeedUp,
   TradeSpeedDown,
+  KafkaFeedStart,
+  KafkaFeedStop,
   Shutdown
 };
 } // namespace hft::trader
@@ -37,6 +39,10 @@ std::string toString<trader::TraderCommand>(const trader::TraderCommand &command
     return "+ trade speed";
   case TraderCommand::TradeSpeedDown:
     return "- trade speed";
+  case TraderCommand::KafkaFeedStart:
+    return "start kafka feed";
+  case TraderCommand::KafkaFeedStop:
+    return "stop kafka feed";
   case TraderCommand::Shutdown:
     return "shutdown";
   default:

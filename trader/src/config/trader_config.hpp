@@ -6,9 +6,6 @@
 #ifndef HFT_TRADER_CONFIG_HPP
 #define HFT_TRADER_CONFIG_HPP
 
-#include <format>
-#include <spdlog/spdlog.h>
-#include <sstream>
 #include <vector>
 
 #include "logging.hpp"
@@ -19,7 +16,7 @@
 
 namespace hft::trader {
 
-struct Config {
+struct TraderConfig {
   // Network
   String url;
   Port portTcpUp;
@@ -39,23 +36,31 @@ struct Config {
   String name;
   String password;
 
+  // kafka
+  String kafkaBroker;
+  String kafkaConsumerGroup;
+  Milliseconds kafkaPollRate;
+
   // Logging
   LogLevel logLevel;
   String logOutput;
 
-  static Config cfg;
+  static TraderConfig cfg;
+
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.tradeRate.count());
+    LOG_INFO_SYSTEM("Kafka broker:{} consumer group:{} poll rate:{}", cfg.kafkaBroker,
+                    cfg.kafkaConsumerGroup, cfg.kafkaPollRate.count());
     LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
     LOG_INFO_SYSTEM("Name: {} Password: {}", cfg.name, cfg.password);
   }
 };
 
-Config Config::cfg;
+TraderConfig TraderConfig::cfg;
 
 } // namespace hft::trader
 

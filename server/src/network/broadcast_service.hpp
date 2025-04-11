@@ -7,7 +7,7 @@
 #define HFT_SERVER_BROADCAST_SERVICE_HPP
 
 #include "boost_types.hpp"
-#include "config/config.hpp"
+#include "config/server_config.hpp"
 #include "network/transport/udp_transport.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
@@ -22,7 +22,7 @@ public:
   BroadcastService(IoCtx &ioCtx, Bus &bus)
       : ioCtx_{ioCtx}, bus_{bus},
         udpTransport_{utils::createUdpSocket(ioCtx_),
-                      UdpEndpoint{Ip::address_v4::broadcast(), Config::cfg.portUdp}, bus_} {
+                      UdpEndpoint{Ip::address_v4::broadcast(), ServerConfig::cfg.portUdp}, bus_} {
     bus_.marketBus.setHandler<TickerPrice>([this](CRef<TickerPrice> p) { udpTransport_.write(p); });
   }
 

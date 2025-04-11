@@ -8,9 +8,10 @@
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
+#include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
-#include "db/postgres_adapter.hpp"
+#include "config/trader_config.hpp"
+#include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
 #include "ticker_data.hpp"
 #include "types.hpp"
@@ -33,8 +34,8 @@ public:
 
   explicit TraderEngine(Bus &bus)
       : bus_{bus}, dbAdapter_{bus_.systemBus}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
-        statsTimer_{bus_.systemCtx()}, tradeRate_{Config::cfg.tradeRate},
-        monitorRate_{Config::cfg.monitorRate} {
+        statsTimer_{bus_.systemCtx()}, tradeRate_{TraderConfig::cfg.tradeRate},
+        monitorRate_{TraderConfig::cfg.monitorRate} {
     // Market connectors
     bus_.marketBus.setHandler<OrderStatus>(
         [this](CRef<OrderStatus> status) { onOrderStatus(status); });
@@ -78,7 +79,6 @@ public:
 private:
   void startWorkers() {
     // Design is not yet clear here so a single worker for now
-    const auto appCores = Config::cfg.coresApp.size();
     LOG_INFO_SYSTEM("Starting trade worker");
     worker_.start();
   }
@@ -144,17 +144,20 @@ private:
     const auto newPrice = fluctuateThePrice(p.second->getPrice());
     const auto action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     const auto quantity = RNG::rng<Quantity>(100);
-    const auto id = generateOrderId();
-    const auto stamp = getTimestamp();
-    Order order{0, 0, id, stamp, p.first, quantity, newPrice, action};
+    const auto id = getTimestamp(); // TODO(self)
+    Order order{0, 0, id, id, p.first, quantity, newPrice, action};
     LOG_DEBUG("Placing order {}", utils::toString(order));
+
     bus_.marketBus.post(order);
+    bus_.systemBus.post(OrderTimestamp{order.id, order.timestamp, TimestampType::Created});
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
     LOG_DEBUG(utils::toString(status));
     // Track orders in TickerData
-    Tracker::logRtt(status.timestamp);
+    Tracker::logRtt(status.orderId);
+    bus_.systemBus.post(
+        OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Notified});
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {
@@ -183,10 +186,10 @@ private:
   }
 
   Worker makeWorker() {
-    if (Config::cfg.coresApp.empty()) {
+    if (TraderConfig::cfg.coresApp.empty()) {
       return Worker(0, false);
     } else {
-      return Worker(0, true, Config::cfg.coresApp[0]);
+      return Worker(0, true, TraderConfig::cfg.coresApp[0]);
     }
   }
 

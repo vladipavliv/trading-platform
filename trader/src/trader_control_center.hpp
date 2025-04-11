@@ -6,13 +6,16 @@
 #ifndef HFT_SERVER_TRADERCONTROLCENTER_HPP
 #define HFT_SERVER_TRADERCONTROLCENTER_HPP
 
+#include "adapters/kafka/kafka_adapter.hpp"
+#include "adapters/postgres/postgres_adapter.hpp"
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/trader_config.hpp"
 #include "console_reader.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
 #include "trader_command.hpp"
+#include "trader_command_parser.hpp"
 #include "trader_engine.hpp"
 #include "trader_events.hpp"
 #include "types.hpp"
@@ -20,16 +23,17 @@
 namespace hft::trader {
 
 /**
- * @brief Creates all the components and sets up console commands
+ * @brief Creates all the components and controls the flow
  */
 class TraderControlCenter {
 public:
   using UPtr = std::unique_ptr<TraderControlCenter>;
+  using TraderConsoleReader = ConsoleReader<TraderCommandParser>;
+  using Kafka = KafkaAdapter<TraderCommandParser>;
 
   TraderControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, consoleReader_{bus_.systemBus},
-        timer_{bus_.systemCtx()} {
-    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
+      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus, kafkaCfg()},
+        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
 
     bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
       networkConnected_ = true;
@@ -40,11 +44,20 @@ public:
       scheduleReconnect();
     });
 
-    consoleReader_.addCommand("t+", TraderCommand::TradeStart);
-    consoleReader_.addCommand("t-", TraderCommand::TradeStop);
-    consoleReader_.addCommand("ts+", TraderCommand::TradeSpeedUp);
-    consoleReader_.addCommand("ts-", TraderCommand::TradeSpeedDown);
-    consoleReader_.addCommand("q", TraderCommand::Shutdown);
+    // commands
+    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
+    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStart, [this]() {
+      LOG_INFO_SYSTEM("Start kafka feed");
+      kafka_.start();
+    });
+    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStop, [this]() {
+      LOG_INFO_SYSTEM("Stop kafka feed");
+      kafka_.stop();
+    });
+
+    // kafka topics
+    kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
+    kafka_.addConsumeTopic("trader-commands");
   }
 
   void start() {
@@ -58,10 +71,9 @@ public:
     networkClient_.connect();
 
     utils::setTheadRealTime();
-    if (Config::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(Config::cfg.coreSystem.value());
+    if (TraderConfig::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(TraderConfig::cfg.coreSystem.value());
     }
-
     bus_.systemCtx().run();
   }
 
@@ -78,8 +90,13 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Trader go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    Config::cfg.logConfig();
+    TraderConfig::cfg.logConfig();
     consoleReader_.printCommands();
+  }
+
+  KafkaConfig kafkaCfg() const {
+    return KafkaConfig{TraderConfig::cfg.kafkaBroker, TraderConfig::cfg.kafkaConsumerGroup,
+                       TraderConfig::cfg.kafkaPollRate};
   }
 
   void scheduleReconnect() {
@@ -87,7 +104,7 @@ private:
       return;
     }
     LOG_ERROR_SYSTEM("Server is down, reconnecting...");
-    timer_.expires_after(Config::cfg.monitorRate);
+    timer_.expires_after(TraderConfig::cfg.monitorRate);
     timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         LOG_ERROR("{}", ec.message());
@@ -102,7 +119,8 @@ private:
 
   NetworkClient networkClient_;
   TraderEngine engine_;
-  ConsoleReader<TraderCommand> consoleReader_;
+  Kafka kafka_;
+  TraderConsoleReader consoleReader_;
 
   std::atomic_bool networkConnected_{false};
   SteadyTimer timer_;

@@ -23,14 +23,14 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fno-omit-frame-pointer")
 find_package(Boost 1.83 REQUIRED COMPONENTS thread)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_library(RDKAFKAXX_LIB rdkafka++)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 
 enable_testing()
 
-set(USE_MIMALLOC OFF)
-
 add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(trader)
+add_subdirectory(monitor)
 add_subdirectory(test)

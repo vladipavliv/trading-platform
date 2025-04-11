@@ -1,4 +1,4 @@
-namespace hft.serialization.gen.fbs;
+namespace hft.serialization.gen.fbs.market;
 
 enum OrderAction: byte {
     BUY = 0,
@@ -37,12 +37,10 @@ table Order {
 
 table OrderStatus {
     order_id: uint64;
-    timestamp: uint64;
     ticker: string;
     quantity: uint;
     fill_price: uint;
     state: OrderState;
-    action: OrderAction;
 }
 
 table TickerPrice {

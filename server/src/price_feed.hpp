@@ -8,7 +8,7 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/server_config.hpp"
 #include "server_command.hpp"
 #include "ticker_data.hpp"
 #include "utils/market_utils.hpp"
@@ -22,7 +22,7 @@ namespace hft::server {
 class PriceFeed {
 public:
   PriceFeed(Bus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{Config::cfg.priceFeedRate} {
+      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, rate_{ServerConfig::cfg.priceFeedRate} {
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStart, [this] { start(); });
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStop, [this] { stop(); });
   }

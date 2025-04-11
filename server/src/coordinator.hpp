@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "bus/bus.hpp"
+#include "config/server_config.hpp"
 #include "market_types.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
@@ -25,7 +26,8 @@ namespace hft::server {
 class Coordinator {
 public:
   Coordinator(Bus &bus, const MarketData &data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()}, statsRate_{Config::cfg.monitorRate} {
+      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()},
+        statsRate_{ServerConfig::cfg.monitorRate} {
     bus_.marketBus.setHandler<Order>([this](CRef<Order> order) { processOrder(order); });
   }
 
@@ -43,24 +45,34 @@ public:
 
 private:
   void startWorkers() {
-    const auto appCores = Config::cfg.coresApp.size();
+    const auto appCores = ServerConfig::cfg.coresApp.size();
     workers_.reserve(appCores == 0 ? 1 : appCores);
     if (appCores == 0) {
       workers_.emplace_back(std::make_unique<Worker>(0, false));
       workers_[0]->start();
     }
     for (int i = 0; i < appCores; ++i) {
-      workers_.emplace_back(std::make_unique<Worker>(i, true, Config::cfg.coresApp[i]));
+      workers_.emplace_back(std::make_unique<Worker>(i, true, ServerConfig::cfg.coresApp[i]));
       workers_[i]->start();
     }
   }
 
   void processOrder(CRef<Order> order) {
+    LOG_TRACE(utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
+    bus_.systemBus.post(OrderTimestamp{order.id, utils::getTimestamp(), TimestampType::Received});
+
     const auto &data = data_.at(order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
+      // Send timestamp to kafka
       data->orderBook.add(order);
-      data->orderBook.match([this](CRef<OrderStatus> status) { bus_.marketBus.post(status); });
+      data->orderBook.match([this](CRef<OrderStatus> status) {
+        bus_.marketBus.post(status);
+        if (status.state == OrderState::Full) {
+          bus_.systemBus.post(
+              OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Fulfilled});
+        }
+      });
     });
   }
 

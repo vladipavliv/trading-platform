@@ -22,8 +22,7 @@ enum class ConnectionState : uint8_t {
 };
 } // namespace trader
 namespace utils {
-template <>
-std::string toString<trader::ConnectionState>(const trader::ConnectionState &event) {
+String toString(const trader::ConnectionState &event) {
   using namespace trader;
   switch (event) {
   case ConnectionState::Disconnected:

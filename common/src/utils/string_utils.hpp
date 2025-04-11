@@ -13,35 +13,29 @@
 
 #include "logging.hpp"
 #include "market_types.hpp"
+#include "metadata_types.hpp"
 #include "network_types.hpp"
 #include "template_types.hpp"
 #include "types.hpp"
 
 namespace hft::utils {
 
-template <typename Type>
-std::string toString(const Type &val) {
-  return std::to_string(val);
-}
+String toString(const auto &val) { return std::to_string(val); }
 
-template <>
-std::string toString<CredentialsLoginRequest>(const CredentialsLoginRequest &msg) {
+String toString(const CredentialsLoginRequest &msg) {
   return std::format("CredentialsLoginRequest {} {} {}", msg.socketId, msg.name, msg.password);
 }
 
-template <>
-std::string toString<TokenLoginRequest>(const TokenLoginRequest &msg) {
+String toString(const TokenLoginRequest &msg) {
   return std::format("TokenLoginRequest {} {}", msg.socketId, msg.token);
 }
 
-template <>
-std::string toString<LoginResponse>(const LoginResponse &msg) {
+String toString(const LoginResponse &msg) {
   return std::format("LoginResponse {} {} {} {}", msg.socketId, msg.traderId, msg.token,
                      msg.success);
 }
 
-template <>
-std::string toString<OrderState>(const OrderState &state) {
+String toString(const OrderState &state) {
   switch (state) {
   case OrderState::Full:
     return "Full";
@@ -53,8 +47,7 @@ std::string toString<OrderState>(const OrderState &state) {
   return "";
 }
 
-template <>
-std::string toString<OrderAction>(const OrderAction &state) {
+String toString(const OrderAction &state) {
   switch (state) {
   case OrderAction::Buy:
     return "Buy";
@@ -66,36 +59,54 @@ std::string toString<OrderAction>(const OrderAction &state) {
   return "";
 }
 
-std::string_view toString(const Ticker &ticker) {
-  return std::string_view(ticker.data(), TICKER_SIZE);
+String toString(TimestampType type) {
+  switch (type) {
+  case TimestampType::Created:
+    return "created";
+  case TimestampType::Received:
+    return "received";
+  case TimestampType::Fulfilled:
+    return "fulfilled";
+  case TimestampType::Notified:
+    return "notified";
+  default:
+    LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
+  }
+  return "";
 }
 
-template <>
-std::string toString<Order>(const Order &o) {
+String toString(CRef<OrderTimestamp> event) {
+  std::stringstream ss;
+  ss << "OrderTimestamp " << event.orderId << " " << event.timestamp << " "
+     << utils::toString(event.type);
+  return ss.str();
+}
+
+String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE); }
+
+String toString(const Order &o) {
   std::stringstream ss;
   ss << o.traderId << " " << o.token << " " << o.id << " " << o.timestamp << " ";
   ss << toString(o.ticker) << o.quantity << " " << o.price << " " << (uint8_t)o.action;
   return ss.str();
 }
 
-template <>
-std::string toString<OrderStatus>(const OrderStatus &os) {
+String toString(const OrderStatus &os) {
   std::stringstream ss;
-  ss << os.traderId << " " << os.orderId << " " << os.timestamp << " ";
+  ss << os.traderId << " " << os.orderId;
   ss << toString(os.ticker) << os.quantity << " " << os.fillPrice << " ";
-  ss << (uint8_t)os.state << " " << (uint8_t)os.action;
+  ss << (uint8_t)os.state;
   return ss.str();
 }
 
-template <>
-std::string toString<TickerPrice>(const TickerPrice &price) {
+String toString(const TickerPrice &price) {
   std::stringstream ss;
   ss << toString(price.ticker) << ": $" << price.price;
   return ss.str();
 }
 
 template <typename Type>
-std::string toString(const std::vector<Type> &vec) {
+String toString(const std::vector<Type> &vec) {
   std::stringstream ss;
   ss << "[";
   for (size_t index = 0; auto &value : vec) {
@@ -109,8 +120,8 @@ std::string toString(const std::vector<Type> &vec) {
 }
 
 template <typename Type>
-std::string toString(Span<Type> elements) {
-  std::string result;
+String toString(Span<Type> elements) {
+  String result;
   for (auto &element : elements) {
     result += toString(element) + " ";
   }
@@ -123,7 +134,7 @@ String toLower(String str) {
   return str;
 }
 
-Ticker toTicker(CRefString str) {
+Ticker toTicker(CRef<String> str) {
   Ticker ticker{};
   std::memcpy(ticker.data(), str.data(), std::min(str.size(), TICKER_SIZE));
   return ticker;

@@ -4,6 +4,8 @@
 **/.vscode/
 Makefile
 Makefile.*
+CMakeCache.txt
+*.cmake
 *.mk
 cmake_install.cmake
 config.ini

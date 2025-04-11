@@ -45,21 +45,24 @@ public:
 
   template <typename EventType>
   void post(CRef<EventType> event) {
-    ioCtx.post([event]() {
-      // First notify generic subscribers for EventType
-      for (auto &handler : getEventSubscribers<EventType>()) {
-        handler(event);
-      }
-      // Now try to notify value subscribers if possible
-      if constexpr (UnorderedMapKey<EventType>) {
-        auto &valueSubscribers = getValueSubscribers<EventType>();
-        if (valueSubscribers.count(event) > 0) {
-          for (auto &callback : valueSubscribers[event]) {
-            callback();
-          }
+    ioCtx.post([event]() { onEvent(event); });
+  }
+
+  template <typename EventType>
+  static void onEvent(CRef<EventType> event) {
+    // First notify generic subscribers for EventType
+    for (auto &handler : getEventSubscribers<EventType>()) {
+      handler(event);
+    }
+    // Now try to notify value subscribers if possible
+    if constexpr (UnorderedMapKey<EventType>) {
+      auto &valueSubscribers = getValueSubscribers<EventType>();
+      if (valueSubscribers.count(event) > 0) {
+        for (auto &callback : valueSubscribers[event]) {
+          callback();
         }
       }
-    });
+    }
   }
 
 private:

@@ -16,7 +16,13 @@ namespace hft::server {
  * @brief Commands for console management
  * @todo Make commands to add/remove workers, orders rerouting
  */
-enum class ServerCommand : uint8_t { PriceFeedStart, PriceFeedStop, Shutdown };
+enum class ServerCommand : uint8_t {
+  PriceFeedStart,
+  PriceFeedStop,
+  KafkaFeedStart,
+  KafkaFeedStop,
+  Shutdown
+};
 } // namespace hft::server
 
 namespace hft::utils {
@@ -28,6 +34,10 @@ std::string toString<server::ServerCommand>(const server::ServerCommand &command
     return "start price feed";
   case ServerCommand::PriceFeedStop:
     return "stop price feed";
+  case ServerCommand::KafkaFeedStart:
+    return "start kafka feed";
+  case ServerCommand::KafkaFeedStop:
+    return "stop kafka feed";
   case ServerCommand::Shutdown:
     return "shutdown";
   default:
