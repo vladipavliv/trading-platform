@@ -61,7 +61,7 @@ public:
         break;
       }
       cursor += HEADER_SIZE;
-      if (!Serializer::deserialize(dataPtr + cursor, bodySize, std::forward<Consumer>(consumer))) {
+      if (!Serializer::deserialize(dataPtr + cursor, bodySize, consumer)) {
         buffer.reset();
         return;
       }

@@ -8,8 +8,13 @@
 
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "bus/system_bus.hpp"
+#include "config/monitor_config.hpp"
+#include "console_reader.hpp"
+#include "market_types.hpp"
 #include "monitor_command_parser.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
+#include "server_command.hpp"
+#include "trader_command.hpp"
 
 namespace hft::monitor {
 /**
@@ -17,20 +22,64 @@ namespace hft::monitor {
  */
 class MonitorControlCenter {
   using Kafka = KafkaAdapter<serialization::fbs::MetadataSerializer, MonitorCommandParser>;
+  using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
 
 public:
-  MonitorControlCenter() : kafka_{bus_, kafkaCfg()} {}
+  MonitorControlCenter() : consoleReader_{bus_}, kafka_{bus_, kafkaCfg()} {
+    // upstream subscriptions
+    bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> stamp) { onOrderTimestamp(stamp); });
+    bus_.subscribe<MonitorCommand>([this](CRef<MonitorCommand> cmd) { onCommand(cmd); });
 
-  void start() {}
+    // kafka setup
+    kafka_.addProduceTopic<server::ServerCommand>("server-commands");
+    kafka_.addProduceTopic<trader::TraderCommand>("trader-commands");
+    kafka_.addConsumeTopic("order-timestamps");
+  }
+
+  void start() {
+    greetings();
+
+    consoleReader_.start();
+    kafka_.start();
+
+    utils::setTheadRealTime();
+    if (MonitorConfig::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(MonitorConfig::cfg.coreSystem.value());
+    }
+    bus_.ioCtx.run();
+  }
+
+  void stop() {
+    consoleReader_.stop();
+    kafka_.stop();
+    bus_.ioCtx.stop();
+    LOG_INFO_SYSTEM("stonk");
+  }
 
 private:
+  void greetings() {
+    LOG_INFO_SYSTEM("Monitor go stonks");
+    LOG_INFO_SYSTEM("Configuration:");
+    MonitorConfig::cfg.logConfig();
+    consoleReader_.printCommands();
+  }
+
+  void onOrderTimestamp(CRef<OrderTimestamp> stamp) {
+    LOG_DEBUG(utils::toString(stamp));
+    //
+  }
+
+  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG(utils::toString(cmd)); }
+
   KafkaConfig kafkaCfg() const {
-    return KafkaConfig{Config::cfg.kafkaBroker, Config::cfg.kafkaConsumerGroup,
-                       Config::cfg.kafkaPollRate};
+    return KafkaConfig{MonitorConfig::cfg.kafkaBroker, MonitorConfig::cfg.kafkaConsumerGroup,
+                       MonitorConfig::cfg.kafkaPollRate};
   }
 
 private:
   SystemBus bus_;
+
+  MonitorConsoleReader consoleReader_;
   Kafka kafka_;
 };
 } // namespace hft::monitor

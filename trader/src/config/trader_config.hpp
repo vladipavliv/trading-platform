@@ -6,9 +6,6 @@
 #ifndef HFT_TRADER_CONFIG_HPP
 #define HFT_TRADER_CONFIG_HPP
 
-#include <format>
-#include <spdlog/spdlog.h>
-#include <sstream>
 #include <vector>
 
 #include "logging.hpp"
@@ -19,7 +16,7 @@
 
 namespace hft::trader {
 
-struct Config {
+struct TraderConfig {
   // Network
   String url;
   Port portTcpUp;
@@ -48,7 +45,8 @@ struct Config {
   LogLevel logLevel;
   String logOutput;
 
-  static Config cfg;
+  static TraderConfig cfg;
+
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
@@ -62,7 +60,7 @@ struct Config {
   }
 };
 
-Config Config::cfg;
+TraderConfig TraderConfig::cfg;
 
 } // namespace hft::trader
 

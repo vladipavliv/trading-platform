@@ -13,7 +13,7 @@
 #include "boost_types.hpp"
 #include "broadcast_service.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/server_config.hpp"
 #include "gateway.hpp"
 #include "market_types.hpp"
 #include "network/transport/udp_transport.hpp"
@@ -56,13 +56,13 @@ public:
         }
       });
     };
-    const auto cores = Config::cfg.coresNetwork.size();
+    const auto cores = ServerConfig::cfg.coresNetwork.size();
     workerThreads_.reserve(cores == 0 ? 1 : cores);
     if (cores == 0) {
       addThread(0, false);
     }
     for (int i = 0; i < cores; ++i) {
-      addThread(i, true, Config::cfg.coresNetwork[i]);
+      addThread(i, true, ServerConfig::cfg.coresNetwork[i]);
     }
     ioCtx_.post([this]() {
       startUpstream();
@@ -75,7 +75,7 @@ public:
 
 private:
   void startUpstream() {
-    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpUp);
+    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -96,7 +96,7 @@ private:
   }
 
   void startDownstream() {
-    TcpEndpoint endpoint(Tcp::v4(), Config::cfg.portTcpDown);
+    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);

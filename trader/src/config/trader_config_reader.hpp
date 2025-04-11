@@ -12,56 +12,56 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
-#include "config.hpp"
 #include "network_types.hpp"
+#include "trader_config.hpp"
 #include "types.hpp"
 #include "utils/template_utils.hpp"
 
 namespace hft::trader {
 
-struct ConfigReader {
-  static void readConfig(const std::string &fileName) {
+struct TraderConfigReader {
+  static void readConfig(CRef<String> fileName) {
     boost::property_tree::ptree pt;
     boost::property_tree::read_ini(fileName, pt);
 
     // Network config
-    Config::cfg.url = pt.get<std::string>("network.url");
-    Config::cfg.portTcpUp = pt.get<int>("network.port_tcp_up");
-    Config::cfg.portTcpDown = pt.get<int>("network.port_tcp_down");
-    Config::cfg.portUdp = pt.get<int>("network.port_udp");
+    TraderConfig::cfg.url = pt.get<String>("network.url");
+    TraderConfig::cfg.portTcpUp = pt.get<int>("network.port_tcp_up");
+    TraderConfig::cfg.portTcpDown = pt.get<int>("network.port_tcp_down");
+    TraderConfig::cfg.portUdp = pt.get<int>("network.port_udp");
 
     // Cores
-    if (auto v = pt.get_optional<int>("cpu.core_system")) {
-      Config::cfg.coreSystem = *v;
+    if (const auto core = pt.get_optional<int>("cpu.core_system")) {
+      TraderConfig::cfg.coreSystem = *core;
     }
-    if (auto v = pt.get_optional<std::string>("cpu.cores_network")) {
-      Config::cfg.coresNetwork = parseCores(*v);
+    if (const auto cores = pt.get_optional<String>("cpu.cores_network")) {
+      TraderConfig::cfg.coresNetwork = parseCores(*cores);
     }
-    if (auto v = pt.get_optional<std::string>("cpu.cores_app")) {
-      Config::cfg.coresApp = parseCores(*v);
+    if (const auto cores = pt.get_optional<String>("cpu.cores_app")) {
+      TraderConfig::cfg.coresApp = parseCores(*cores);
     }
 
     // Rates
-    Config::cfg.tradeRate = Microseconds(pt.get<int>("rates.trade_rate"));
-    Config::cfg.monitorRate = Seconds(pt.get<int>("rates.monitor_rate"));
+    TraderConfig::cfg.tradeRate = Microseconds(pt.get<int>("rates.trade_rate"));
+    TraderConfig::cfg.monitorRate = Seconds(pt.get<int>("rates.monitor_rate"));
 
     // Credentials
-    Config::cfg.name = pt.get<std::string>("credentials.name");
-    Config::cfg.password = pt.get<std::string>("credentials.password");
+    TraderConfig::cfg.name = pt.get<String>("credentials.name");
+    TraderConfig::cfg.password = pt.get<String>("credentials.password");
 
     // kafka
-    Config::cfg.kafkaBroker = pt.get<String>("kafka.kafka_broker");
-    Config::cfg.kafkaConsumerGroup = pt.get<String>("kafka.kafka_consumer_group");
-    Config::cfg.kafkaPollRate = Milliseconds(pt.get<int>("kafka.kafka_poll_rate"));
+    TraderConfig::cfg.kafkaBroker = pt.get<String>("kafka.kafka_broker");
+    TraderConfig::cfg.kafkaConsumerGroup = pt.get<String>("kafka.kafka_consumer_group");
+    TraderConfig::cfg.kafkaPollRate = Milliseconds(pt.get<int>("kafka.kafka_poll_rate"));
 
     // Logging
-    Config::cfg.logLevel = utils::fromString<LogLevel>(pt.get<std::string>("log.level"));
-    Config::cfg.logOutput = pt.get<std::string>("log.output");
+    TraderConfig::cfg.logLevel = utils::fromString<LogLevel>(pt.get<String>("log.level"));
+    TraderConfig::cfg.logOutput = pt.get<String>("log.output");
 
-    verifyConfig(Config::cfg);
+    verifyConfig(TraderConfig::cfg);
   }
 
-  static void verifyConfig(CRef<Config> cfg) {
+  static void verifyConfig(CRef<TraderConfig> cfg) {
     if (cfg.url.empty() || cfg.portTcpUp == 0 || cfg.portTcpDown == 0 || cfg.portUdp == 0) {
       throw std::runtime_error("Invalid network configuration");
     }
@@ -90,10 +90,10 @@ struct ConfigReader {
     }
   }
 
-  static ByteBuffer parseCores(CRefString input) {
+  static ByteBuffer parseCores(CRef<String> input) {
     ByteBuffer result;
     std::stringstream ss(input);
-    std::string token;
+    String token;
 
     while (std::getline(ss, token, ',')) {
       result.push_back(static_cast<uint8_t>(std::stoi(token)));

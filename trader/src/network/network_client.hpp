@@ -12,7 +12,7 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/trader_config.hpp"
 #include "connection_state.hpp"
 #include "logging.hpp"
 #include "market_types.hpp"
@@ -70,13 +70,13 @@ public:
         }
       });
     };
-    const auto cores = Config::cfg.coresNetwork.size();
+    const auto cores = TraderConfig::cfg.coresNetwork.size();
     workerThreads_.reserve(cores == 0 ? 1 : cores);
     if (cores == 0) {
       addThread(0, false);
     }
     for (int i = 0; i < cores; ++i) {
-      addThread(i, true, Config::cfg.coresNetwork[i]);
+      addThread(i, true, TraderConfig::cfg.coresNetwork[i]);
     }
   }
 
@@ -112,7 +112,7 @@ public:
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
         upstreamTransport_.write(
-            CredentialsLoginRequest{0, Config::cfg.name, Config::cfg.password});
+            CredentialsLoginRequest{0, TraderConfig::cfg.name, TraderConfig::cfg.password});
       }
     } else {
       const auto prevState = state_;
@@ -156,17 +156,19 @@ public:
 private:
   TraderTcpTransport createUpstreamTransport() {
     return {TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpUp}, *this};
+            TcpEndpoint{Ip::make_address(TraderConfig::cfg.url), TraderConfig::cfg.portTcpUp},
+            *this};
   }
 
   TraderTcpTransport createDownstreamTransport() {
     return {TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(Config::cfg.url), Config::cfg.portTcpDown}, *this};
+            TcpEndpoint{Ip::make_address(TraderConfig::cfg.url), TraderConfig::cfg.portTcpDown},
+            *this};
   }
 
   TraderUdpTransport createPricesTransport() {
-    return {utils::createUdpSocket(ioCtx_, false, Config::cfg.portUdp),
-            UdpEndpoint(Udp::v4(), Config::cfg.portUdp), bus_};
+    return {utils::createUdpSocket(ioCtx_, false, TraderConfig::cfg.portUdp),
+            UdpEndpoint(Udp::v4(), TraderConfig::cfg.portUdp), bus_};
   }
 
 private:

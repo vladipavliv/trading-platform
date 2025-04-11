@@ -10,7 +10,7 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/trader_config.hpp"
 #include "console_reader.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
@@ -61,8 +61,8 @@ public:
     networkClient_.connect();
 
     utils::setTheadRealTime();
-    if (Config::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(Config::cfg.coreSystem.value());
+    if (TraderConfig::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(TraderConfig::cfg.coreSystem.value());
     }
 
     bus_.systemCtx().run();
@@ -81,13 +81,13 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Trader go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    Config::cfg.logConfig();
+    TraderConfig::cfg.logConfig();
     consoleReader_.printCommands();
   }
 
   KafkaConfig kafkaCfg() const {
-    return KafkaConfig{Config::cfg.kafkaBroker, Config::cfg.kafkaConsumerGroup,
-                       Config::cfg.kafkaPollRate};
+    return KafkaConfig{TraderConfig::cfg.kafkaBroker, TraderConfig::cfg.kafkaConsumerGroup,
+                       TraderConfig::cfg.kafkaPollRate};
   }
 
   void scheduleReconnect() {
@@ -95,7 +95,7 @@ private:
       return;
     }
     LOG_ERROR_SYSTEM("Server is down, reconnecting...");
-    timer_.expires_after(Config::cfg.monitorRate);
+    timer_.expires_after(TraderConfig::cfg.monitorRate);
     timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         LOG_ERROR("{}", ec.message());

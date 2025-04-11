@@ -9,7 +9,7 @@
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/server_config.hpp"
 #include "console_reader.hpp"
 #include "coordinator.hpp"
 #include "market_types.hpp"
@@ -56,8 +56,8 @@ public:
     consoleReader_.start();
 
     utils::setTheadRealTime();
-    if (Config::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(Config::cfg.coreSystem.value());
+    if (ServerConfig::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(ServerConfig::cfg.coreSystem.value());
     }
 
     bus_.systemBus.ioCtx.run();
@@ -75,19 +75,19 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    Config::cfg.logConfig();
+    ServerConfig::cfg.logConfig();
     consoleReader_.printCommands();
   }
 
   KafkaConfig kafkaCfg() const {
-    return KafkaConfig{Config::cfg.kafkaBroker, Config::cfg.kafkaConsumerGroup,
-                       Config::cfg.kafkaPollRate};
+    return KafkaConfig{ServerConfig::cfg.kafkaBroker, ServerConfig::cfg.kafkaConsumerGroup,
+                       ServerConfig::cfg.kafkaPollRate};
   }
 
   void readMarketData() {
     auto prices = dbAdapter_.readTickers();
 
-    const auto workers = Config::cfg.coresApp.size();
+    const auto workers = ServerConfig::cfg.coresApp.size();
     ThreadId roundRobin = 0;
     for (auto &item : prices) {
       marketData_.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));

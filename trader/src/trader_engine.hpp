@@ -10,7 +10,7 @@
 
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
+#include "config/trader_config.hpp"
 #include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
 #include "ticker_data.hpp"
@@ -34,8 +34,8 @@ public:
 
   explicit TraderEngine(Bus &bus)
       : bus_{bus}, dbAdapter_{bus_.systemBus}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
-        statsTimer_{bus_.systemCtx()}, tradeRate_{Config::cfg.tradeRate},
-        monitorRate_{Config::cfg.monitorRate} {
+        statsTimer_{bus_.systemCtx()}, tradeRate_{TraderConfig::cfg.tradeRate},
+        monitorRate_{TraderConfig::cfg.monitorRate} {
     // Market connectors
     bus_.marketBus.setHandler<OrderStatus>(
         [this](CRef<OrderStatus> status) { onOrderStatus(status); });
@@ -79,7 +79,7 @@ public:
 private:
   void startWorkers() {
     // Design is not yet clear here so a single worker for now
-    const auto appCores = Config::cfg.coresApp.size();
+    const auto appCores = TraderConfig::cfg.coresApp.size();
     LOG_INFO_SYSTEM("Starting trade worker");
     worker_.start();
   }
@@ -188,10 +188,10 @@ private:
   }
 
   Worker makeWorker() {
-    if (Config::cfg.coresApp.empty()) {
+    if (TraderConfig::cfg.coresApp.empty()) {
       return Worker(0, false);
     } else {
-      return Worker(0, true, Config::cfg.coresApp[0]);
+      return Worker(0, true, TraderConfig::cfg.coresApp[0]);
     }
   }
 

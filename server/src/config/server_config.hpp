@@ -6,8 +6,6 @@
 #ifndef HFT_SERVER_CONFIG_HPP
 #define HFT_SERVER_CONFIG_HPP
 
-#include <format>
-#include <sstream>
 #include <vector>
 
 #include "logging.hpp"
@@ -18,7 +16,7 @@
 
 namespace hft::server {
 
-struct Config {
+struct ServerConfig {
   // Network
   String url;
   Port portTcpUp;
@@ -43,7 +41,7 @@ struct Config {
   LogLevel logLevel;
   String logOutput;
 
-  static Config cfg;
+  static ServerConfig cfg;
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
@@ -56,7 +54,7 @@ struct Config {
   }
 };
 
-Config Config::cfg;
+ServerConfig ServerConfig::cfg;
 
 } // namespace hft::server
 

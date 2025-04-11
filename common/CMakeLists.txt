@@ -27,7 +27,6 @@ target_link_libraries(hft_common PRIVATE
     pthread 
     dl 
     iberty 
-    nlohmann_json::nlohmann_json
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 

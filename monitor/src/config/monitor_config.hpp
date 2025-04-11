@@ -6,10 +6,6 @@
 #ifndef HFT_MONITOR_CONFIG_HPP
 #define HFT_MONITOR_CONFIG_HPP
 
-#include <format>
-#include <sstream>
-#include <vector>
-
 #include "logging.hpp"
 #include "network_types.hpp"
 #include "types.hpp"
@@ -18,7 +14,10 @@
 
 namespace hft::monitor {
 
-struct Config {
+struct MonitorConfig {
+  // cores
+  Opt<CoreId> coreSystem;
+
   // kafka
   String kafkaBroker;
   String kafkaConsumerGroup;
@@ -28,7 +27,8 @@ struct Config {
   LogLevel logLevel;
   String logOutput;
 
-  static Config cfg;
+  static MonitorConfig cfg;
+
   static void logConfig() {
     LOG_INFO_SYSTEM("Kafka broker:{} consumer group:{} poll rate:{}", cfg.kafkaBroker,
                     cfg.kafkaConsumerGroup, cfg.kafkaPollRate.count());
@@ -36,7 +36,7 @@ struct Config {
   }
 };
 
-Config Config::cfg;
+MonitorConfig MonitorConfig::cfg;
 
 } // namespace hft::monitor
 

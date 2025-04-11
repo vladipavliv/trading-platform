@@ -5,8 +5,8 @@
 
 #include <iostream>
 
-#include "config/config.hpp"
-#include "config/config_reader.hpp"
+#include "config/server_config.hpp"
+#include "config/server_config_reader.hpp"
 #include "logging.hpp"
 #include "server_control_center.hpp"
 
@@ -14,8 +14,8 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace server;
   try {
-    ConfigReader::readConfig("server_config.ini");
-    LOG_INIT(Config::cfg.logOutput);
+    ServerConfigReader::readConfig("server_config.ini");
+    LOG_INIT(ServerConfig::cfg.logOutput);
 
     ServerControlCenter serverCc;
     serverCc.start();

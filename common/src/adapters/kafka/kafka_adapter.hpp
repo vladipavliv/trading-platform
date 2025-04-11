@@ -10,7 +10,6 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
-#include "config/config.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
@@ -72,7 +71,7 @@ public:
       throw std::runtime_error(error_);
     }
     produceTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
-    bus_.subscribe<EventType>([this, topic](CRef<OrderTimestamp> event) { produce(topic, event); });
+    bus_.subscribe<EventType>([this, topic](CRef<EventType> event) { produce(topic, event); });
   }
 
   void addConsumeTopic(CRef<String> topic) {

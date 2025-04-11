@@ -15,7 +15,6 @@
 namespace hft {
 
 using String = std::string;
-using CRefString = const std::string &;
 using StringView = std::string_view;
 using SocketId = uint64_t;
 using ObjectId = uint64_t;
