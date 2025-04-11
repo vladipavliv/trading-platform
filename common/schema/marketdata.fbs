@@ -37,6 +37,7 @@ table Order {
 
 table OrderStatus {
     order_id: uint64;
+    fulfilled: uint64;
     ticker: string;
     quantity: uint;
     fill_price: uint;

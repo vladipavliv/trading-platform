@@ -60,19 +60,11 @@ private:
   void processOrder(CRef<Order> order) {
     LOG_TRACE(utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    bus_.systemBus.post(OrderTimestamp{order.id, utils::getTimestamp(), TimestampType::Received});
-
     const auto &data = data_.at(order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       // Send timestamp to kafka
       data->orderBook.add(order);
-      data->orderBook.match([this](CRef<OrderStatus> status) {
-        bus_.marketBus.post(status);
-        if (status.state == OrderState::Full) {
-          bus_.systemBus.post(
-              OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Fulfilled});
-        }
-      });
+      data->orderBook.match([this](CRef<OrderStatus> status) { bus_.marketBus.post(status); });
     });
   }
 

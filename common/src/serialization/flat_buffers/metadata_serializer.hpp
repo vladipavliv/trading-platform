@@ -33,7 +33,8 @@ public:
       LOG_ERROR("Failed to extract Message");
       return false;
     }
-    consumer.post(OrderTimestamp{msg->order_id(), msg->timestamp(), convert(msg->event_type())});
+    consumer.post(
+        OrderTimestamp{msg->order_id(), msg->created(), msg->fulfilled(), msg->notified()});
     return true;
   }
 
@@ -41,8 +42,8 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(event));
     using namespace gen::fbs::meta;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg =
-        CreateOrderTimestamp(builder, event.orderId, event.timestamp, convert(event.type));
+    const auto msg = CreateOrderTimestamp(builder, event.orderId, event.created, event.fulfilled,
+                                          event.notified);
     builder.Finish(msg);
     return builder.Release();
   }

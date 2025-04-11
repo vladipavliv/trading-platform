@@ -92,7 +92,7 @@ public:
 
 private:
   OrderStatus getMatch(const Order &o, Quantity quantity, Price price) {
-    return OrderStatus(o.traderId, o.token, o.id, o.ticker, quantity, price,
+    return OrderStatus(o.traderId, o.token, o.id, utils::getTimestamp(), o.ticker, quantity, price,
                        (o.quantity == 0) ? OrderState::Full : OrderState::Partial);
   }
 

@@ -77,6 +77,7 @@ struct alignas(8) OrderStatus {
   mutable TraderId traderId; // Server side
   SessionToken token;        // Server side
   OrderId orderId;
+  Timestamp fulfilled;
   Ticker ticker;
   Quantity quantity;
   Price fillPrice;

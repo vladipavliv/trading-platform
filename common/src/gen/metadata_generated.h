@@ -23,47 +23,12 @@ struct OrderTimestamp;
 struct OrderTimestampBuilder;
 struct OrderTimestampT;
 
-enum TimestampType : uint8_t {
-  TimestampType_Created = 0,
-  TimestampType_Received = 1,
-  TimestampType_Fulfilled = 2,
-  TimestampType_Notified = 3,
-  TimestampType_MIN = TimestampType_Created,
-  TimestampType_MAX = TimestampType_Notified
-};
-
-inline const TimestampType (&EnumValuesTimestampType())[4] {
-  static const TimestampType values[] = {
-    TimestampType_Created,
-    TimestampType_Received,
-    TimestampType_Fulfilled,
-    TimestampType_Notified
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesTimestampType() {
-  static const char * const names[5] = {
-    "Created",
-    "Received",
-    "Fulfilled",
-    "Notified",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameTimestampType(TimestampType e) {
-  if (flatbuffers::IsOutRange(e, TimestampType_Created, TimestampType_Notified)) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesTimestampType()[index];
-}
-
 struct OrderTimestampT : public flatbuffers::NativeTable {
   typedef OrderTimestamp TableType;
   uint64_t order_id = 0;
-  uint64_t timestamp = 0;
-  hft::serialization::gen::fbs::meta::TimestampType event_type = hft::serialization::gen::fbs::meta::TimestampType_Created;
+  uint64_t created = 0;
+  uint64_t fulfilled = 0;
+  uint64_t notified = 0;
 };
 
 struct OrderTimestamp FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -71,23 +36,28 @@ struct OrderTimestamp FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef OrderTimestampBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ORDER_ID = 4,
-    VT_TIMESTAMP = 6,
-    VT_EVENT_TYPE = 8
+    VT_CREATED = 6,
+    VT_FULFILLED = 8,
+    VT_NOTIFIED = 10
   };
   uint64_t order_id() const {
     return GetField<uint64_t>(VT_ORDER_ID, 0);
   }
-  uint64_t timestamp() const {
-    return GetField<uint64_t>(VT_TIMESTAMP, 0);
+  uint64_t created() const {
+    return GetField<uint64_t>(VT_CREATED, 0);
   }
-  hft::serialization::gen::fbs::meta::TimestampType event_type() const {
-    return static_cast<hft::serialization::gen::fbs::meta::TimestampType>(GetField<uint8_t>(VT_EVENT_TYPE, 0));
+  uint64_t fulfilled() const {
+    return GetField<uint64_t>(VT_FULFILLED, 0);
+  }
+  uint64_t notified() const {
+    return GetField<uint64_t>(VT_NOTIFIED, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint64_t>(verifier, VT_ORDER_ID, 8) &&
-           VerifyField<uint64_t>(verifier, VT_TIMESTAMP, 8) &&
-           VerifyField<uint8_t>(verifier, VT_EVENT_TYPE, 1) &&
+           VerifyField<uint64_t>(verifier, VT_CREATED, 8) &&
+           VerifyField<uint64_t>(verifier, VT_FULFILLED, 8) &&
+           VerifyField<uint64_t>(verifier, VT_NOTIFIED, 8) &&
            verifier.EndTable();
   }
   OrderTimestampT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -102,11 +72,14 @@ struct OrderTimestampBuilder {
   void add_order_id(uint64_t order_id) {
     fbb_.AddElement<uint64_t>(OrderTimestamp::VT_ORDER_ID, order_id, 0);
   }
-  void add_timestamp(uint64_t timestamp) {
-    fbb_.AddElement<uint64_t>(OrderTimestamp::VT_TIMESTAMP, timestamp, 0);
+  void add_created(uint64_t created) {
+    fbb_.AddElement<uint64_t>(OrderTimestamp::VT_CREATED, created, 0);
   }
-  void add_event_type(hft::serialization::gen::fbs::meta::TimestampType event_type) {
-    fbb_.AddElement<uint8_t>(OrderTimestamp::VT_EVENT_TYPE, static_cast<uint8_t>(event_type), 0);
+  void add_fulfilled(uint64_t fulfilled) {
+    fbb_.AddElement<uint64_t>(OrderTimestamp::VT_FULFILLED, fulfilled, 0);
+  }
+  void add_notified(uint64_t notified) {
+    fbb_.AddElement<uint64_t>(OrderTimestamp::VT_NOTIFIED, notified, 0);
   }
   explicit OrderTimestampBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -122,12 +95,14 @@ struct OrderTimestampBuilder {
 inline flatbuffers::Offset<OrderTimestamp> CreateOrderTimestamp(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint64_t order_id = 0,
-    uint64_t timestamp = 0,
-    hft::serialization::gen::fbs::meta::TimestampType event_type = hft::serialization::gen::fbs::meta::TimestampType_Created) {
+    uint64_t created = 0,
+    uint64_t fulfilled = 0,
+    uint64_t notified = 0) {
   OrderTimestampBuilder builder_(_fbb);
-  builder_.add_timestamp(timestamp);
+  builder_.add_notified(notified);
+  builder_.add_fulfilled(fulfilled);
+  builder_.add_created(created);
   builder_.add_order_id(order_id);
-  builder_.add_event_type(event_type);
   return builder_.Finish();
 }
 
@@ -143,8 +118,9 @@ inline void OrderTimestamp::UnPackTo(OrderTimestampT *_o, const flatbuffers::res
   (void)_o;
   (void)_resolver;
   { auto _e = order_id(); _o->order_id = _e; }
-  { auto _e = timestamp(); _o->timestamp = _e; }
-  { auto _e = event_type(); _o->event_type = _e; }
+  { auto _e = created(); _o->created = _e; }
+  { auto _e = fulfilled(); _o->fulfilled = _e; }
+  { auto _e = notified(); _o->notified = _e; }
 }
 
 inline flatbuffers::Offset<OrderTimestamp> OrderTimestamp::Pack(flatbuffers::FlatBufferBuilder &_fbb, const OrderTimestampT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -156,13 +132,15 @@ inline flatbuffers::Offset<OrderTimestamp> CreateOrderTimestamp(flatbuffers::Fla
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const OrderTimestampT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _order_id = _o->order_id;
-  auto _timestamp = _o->timestamp;
-  auto _event_type = _o->event_type;
+  auto _created = _o->created;
+  auto _fulfilled = _o->fulfilled;
+  auto _notified = _o->notified;
   return hft::serialization::gen::fbs::meta::CreateOrderTimestamp(
       _fbb,
       _order_id,
-      _timestamp,
-      _event_type);
+      _created,
+      _fulfilled,
+      _notified);
 }
 
 inline const hft::serialization::gen::fbs::meta::OrderTimestamp *GetOrderTimestamp(const void *buf) {

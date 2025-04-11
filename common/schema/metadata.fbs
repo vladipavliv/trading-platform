@@ -1,16 +1,10 @@
 namespace hft.serialization.gen.fbs.meta;
 
-enum TimestampType : uint8 {
-    Created,
-    Received,
-    Fulfilled,
-    Notified
-}
-
 table OrderTimestamp {
     order_id: uint64;
-    timestamp: uint64;
-    event_type: TimestampType;
+    created: uint64;
+    fulfilled: uint64;
+    notified: uint64;
 }
 
 root_type OrderTimestamp;

@@ -52,7 +52,6 @@ public:
     });
 
     // kafka topics and commands
-    kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
     kafka_.addConsumeTopic("server-commands");
   }
 

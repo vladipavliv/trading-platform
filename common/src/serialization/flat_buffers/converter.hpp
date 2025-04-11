@@ -75,37 +75,6 @@ gen::fbs::market::OrderState convert(OrderState state) {
   }
 }
 
-TimestampType convert(gen::fbs::meta::TimestampType type) {
-  switch (type) {
-  case gen::fbs::meta::TimestampType::TimestampType_Created:
-    return TimestampType::Created;
-  case gen::fbs::meta::TimestampType::TimestampType_Received:
-    return TimestampType::Received;
-  case gen::fbs::meta::TimestampType::TimestampType_Fulfilled:
-    return TimestampType::Fulfilled;
-  case gen::fbs::meta::TimestampType::TimestampType_Notified:
-    return TimestampType::Notified;
-  default:
-    LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
-    return static_cast<TimestampType>(type);
-  }
-}
-gen::fbs::meta::TimestampType convert(TimestampType type) {
-  switch (type) {
-  case TimestampType::Created:
-    return gen::fbs::meta::TimestampType::TimestampType_Created;
-  case TimestampType::Received:
-    return gen::fbs::meta::TimestampType::TimestampType_Received;
-  case TimestampType::Fulfilled:
-    return gen::fbs::meta::TimestampType::TimestampType_Fulfilled;
-  case TimestampType::Notified:
-    return gen::fbs::meta::TimestampType::TimestampType_Notified;
-  default:
-    LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
-    return static_cast<gen::fbs::meta::TimestampType>(type);
-  }
-}
-
 } // namespace hft::serialization
 
 #endif // HFT_COMMON_CONVERTER_HPP

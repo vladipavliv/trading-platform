@@ -11,12 +11,11 @@
 
 namespace hft {
 
-enum class TimestampType : uint8_t { Created, Received, Fulfilled, Notified };
-
 struct OrderTimestamp {
   const OrderId orderId;
-  const Timestamp timestamp;
-  const TimestampType type;
+  const Timestamp created;
+  const Timestamp fulfilled;
+  const Timestamp notified;
 };
 
 } // namespace hft

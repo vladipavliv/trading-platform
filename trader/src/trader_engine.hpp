@@ -147,9 +147,7 @@ private:
     const auto id = getTimestamp(); // TODO(self)
     Order order{0, 0, id, id, p.first, quantity, newPrice, action};
     LOG_DEBUG("Placing order {}", utils::toString(order));
-
     bus_.marketBus.post(order);
-    bus_.systemBus.post(OrderTimestamp{order.id, order.timestamp, TimestampType::Created});
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
@@ -157,7 +155,7 @@ private:
     // Track orders in TickerData
     Tracker::logRtt(status.orderId);
     bus_.systemBus.post(
-        OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Notified});
+        OrderTimestamp{status.orderId, status.orderId, status.fulfilled, utils::getTimestamp()});
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {

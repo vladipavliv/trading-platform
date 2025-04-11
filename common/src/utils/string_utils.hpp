@@ -59,26 +59,10 @@ String toString(const OrderAction &state) {
   return "";
 }
 
-String toString(TimestampType type) {
-  switch (type) {
-  case TimestampType::Created:
-    return "created";
-  case TimestampType::Received:
-    return "received";
-  case TimestampType::Fulfilled:
-    return "fulfilled";
-  case TimestampType::Notified:
-    return "notified";
-  default:
-    LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
-  }
-  return "";
-}
-
 String toString(CRef<OrderTimestamp> event) {
   std::stringstream ss;
-  ss << "OrderTimestamp " << event.orderId << " " << event.timestamp << " "
-     << utils::toString(event.type);
+  ss << "OrderTimestamp " << event.orderId << " " << event.created << " " << event.fulfilled << " "
+     << event.notified;
   return ss.str();
 }
 
