@@ -69,8 +69,6 @@ String toString(TimestampType type) {
     return "fulfilled";
   case TimestampType::Notified:
     return "notified";
-  case TimestampType::Closed:
-    return "closed";
   default:
     LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
   }
@@ -95,9 +93,9 @@ String toString(const Order &o) {
 
 String toString(const OrderStatus &os) {
   std::stringstream ss;
-  ss << os.traderId << " " << os.orderId << " " << os.timestamp << " ";
+  ss << os.traderId << " " << os.orderId;
   ss << toString(os.ticker) << os.quantity << " " << os.fillPrice << " ";
-  ss << (uint8_t)os.state << " " << (uint8_t)os.action;
+  ss << (uint8_t)os.state;
   return ss.str();
 }
 

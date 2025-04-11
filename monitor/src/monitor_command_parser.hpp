@@ -29,17 +29,17 @@ public:
   template <typename Consumer>
   static bool parse(CRef<String> cmd, Consumer &&consumer) {
     // first try to parse with native command map, then server/trader
+    bool ret{false};
     const auto cmdIt = commands.find(cmd);
     if (cmdIt != commands.end()) {
       consumer.post(cmdIt->second);
-      return true;
+      ret = true;
     }
-    if (server::ServerCommandParser::parse(cmd, consumer) ||
+    if (server::ServerCommandParser::parse(cmd, consumer) |
         trader::TraderCommandParser::parse(cmd, consumer)) {
-      return true;
+      ret = true;
     }
-    LOG_ERROR("Command not found {}", cmd);
-    return false;
+    return ret;
   }
 
   /**
@@ -50,7 +50,7 @@ public:
     return parse(String(data, size), consumer);
   }
 
-  static ByteBuffer serialize(MonitorCommand cmd) {
+  static ByteBuffer serialize(CRef<MonitorCommand> cmd) {
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {

@@ -39,9 +39,17 @@ public:
       LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
+
+    // commands
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] { kafka_.start(); });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] { kafka_.stop(); });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] {
+      LOG_INFO_SYSTEM("Start kafka feed");
+      kafka_.start();
+    });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] {
+      LOG_INFO_SYSTEM("Stop kafka feed");
+      kafka_.stop();
+    });
 
     // kafka topics and commands
     kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
@@ -59,7 +67,6 @@ public:
     if (ServerConfig::cfg.coreSystem.has_value()) {
       utils::pinThreadToCore(ServerConfig::cfg.coreSystem.value());
     }
-
     bus_.systemBus.ioCtx.run();
   }
 

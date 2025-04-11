@@ -85,8 +85,6 @@ TimestampType convert(gen::fbs::meta::TimestampType type) {
     return TimestampType::Fulfilled;
   case gen::fbs::meta::TimestampType::TimestampType_Notified:
     return TimestampType::Notified;
-  case gen::fbs::meta::TimestampType::TimestampType_Closed:
-    return TimestampType::Closed;
   default:
     LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
     return static_cast<TimestampType>(type);
@@ -102,8 +100,6 @@ gen::fbs::meta::TimestampType convert(TimestampType type) {
     return gen::fbs::meta::TimestampType::TimestampType_Fulfilled;
   case TimestampType::Notified:
     return gen::fbs::meta::TimestampType::TimestampType_Notified;
-  case TimestampType::Closed:
-    return gen::fbs::meta::TimestampType::TimestampType_Closed;
   default:
     LOG_ERROR("Unknown TimestampType {}", (uint8_t)type);
     return static_cast<gen::fbs::meta::TimestampType>(type);

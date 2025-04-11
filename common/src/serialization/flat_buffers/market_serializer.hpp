@@ -109,12 +109,10 @@ public:
       const OrderStatus status{0,
                                0,
                                statusMsg->order_id(),
-                               statusMsg->timestamp(),
                                fbStringToTicker(statusMsg->ticker()),
                                statusMsg->quantity(),
                                statusMsg->fill_price(),
-                               convert(statusMsg->state()),
-                               convert(statusMsg->action())};
+                               convert(statusMsg->state())};
       LOG_DEBUG("Deserialized {}", utils::toString(status));
       consumer.post(status);
       return true;
@@ -181,10 +179,9 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(status));
     using namespace gen::fbs::market;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg =
-        CreateOrderStatus(builder, status.orderId, status.timestamp,
-                          builder.CreateString(status.ticker.data(), TICKER_SIZE), status.quantity,
-                          status.fillPrice, convert(status.state), convert(status.action));
+    const auto msg = CreateOrderStatus(builder, status.orderId,
+                                       builder.CreateString(status.ticker.data(), TICKER_SIZE),
+                                       status.quantity, status.fillPrice, convert(status.state));
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     return builder.Release();
   }

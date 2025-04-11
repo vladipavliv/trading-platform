@@ -57,10 +57,21 @@ public:
     createConsumer();
   };
 
+  ~KafkaAdapter() {
+    consumer_->unsubscribe();
+    while (producer_->outq_len() > 0) {
+      LOG_INFO_SYSTEM("Flushing {} messages to kafka", producer_->outq_len());
+      producer_->flush(1000);
+    }
+  }
+
   template <typename EventType>
   void addProduceTopic(CRef<String> topic) {
     using namespace RdKafka;
     LOG_DEBUG(topic);
+    // There is no real need to create Topic instances, there is interface for producer
+    // to pass topic name, but apparently doing it with Topic* is slightly faster
+    // And as i am aiming for 1m+/s throughput, thats better
     if (produceTopicMap_.count(topic) != 0) {
       LOG_ERROR("Topic already exist");
       return;
@@ -77,16 +88,7 @@ public:
   void addConsumeTopic(CRef<String> topic) {
     using namespace RdKafka;
     LOG_DEBUG(topic);
-    if (consumeTopicMap_.count(topic) != 0) {
-      LOG_ERROR("Topic already exist");
-      return;
-    }
-    UPtr<Topic> topicPtr{Topic::create(consumer_.get(), topic, nullptr, error_)};
-    if (!topicPtr) {
-      LOG_ERROR("Failed to create topic {}: {}", topic, error_);
-      throw std::runtime_error(error_);
-    }
-    consumeTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
+    consumeTopics_.push_back(topic);
   }
 
   void start() {
@@ -96,13 +98,10 @@ public:
       throw std::runtime_error(error_);
     }
     state_ = State::On;
-    for (auto &topic : consumeTopicMap_) {
-      const auto res = consumer_->start(topic.second.get(), Topic::PARTITION_UA, 0);
-      if (res != RdKafka::ERR_NO_ERROR) {
-        const String errMsg = RdKafka::err2str(res);
-        LOG_ERROR_SYSTEM("Failed to subscribe to {} {} ", topic.first, errMsg);
-        throw std::runtime_error(errMsg);
-      }
+    const auto res = consumer_->subscribe(consumeTopics_);
+    if (res != RdKafka::ERR_NO_ERROR) {
+      const String errMsg = RdKafka::err2str(res);
+      throw std::runtime_error(errMsg);
     }
   }
 
@@ -113,13 +112,10 @@ public:
       throw std::runtime_error(error_);
     }
     state_ = State::Off;
-    for (auto &topic : consumeTopicMap_) {
-      const auto res = consumer_->stop(topic.second.get(), Topic::PARTITION_UA);
-      if (res != RdKafka::ERR_NO_ERROR) {
-        const String errMsg = RdKafka::err2str(res);
-        LOG_ERROR_SYSTEM("Failed to unsubscribe from {} {} ", topic.first, errMsg);
-        throw std::runtime_error(errMsg);
-      }
+    const auto res = consumer_->unsubscribe();
+    if (res != RdKafka::ERR_NO_ERROR) {
+      const String errMsg = RdKafka::err2str(res);
+      throw std::runtime_error(errMsg);
     }
   }
 
@@ -148,21 +144,19 @@ private:
     if (conf->set("group.id", config_.consumerGroup, error_) != Conf::CONF_OK) {
       throw std::runtime_error(error_);
     }
-    consumer_ = UPtr<Consumer>(Consumer::create(conf.get(), error_));
+    consumer_ = UPtr<KafkaConsumer>(KafkaConsumer::create(conf.get(), error_));
     if (!consumer_) {
       throw std::runtime_error(error_);
     }
   }
 
-  void poll() {
+  void pollConsume() {
     using namespace RdKafka;
-    for (auto &topic : consumeTopicMap_) {
-      UPtr<Message> msg{consumer_->consume(topic.second.get(), Topic::PARTITION_UA, 0)};
-      if (msg->err() == RdKafka::ERR_NO_ERROR) {
-        ConsumeSerializer::deserialize(msg->payload(), msg->len(), bus_);
-      } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
-        LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
-      }
+    const UPtr<Message> msg{consumer_->consume(0)};
+    if (msg->err() == RdKafka::ERR_NO_ERROR) {
+      ConsumeSerializer::deserialize(msg->payload(), msg->len(), bus_);
+    } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
+      LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
     }
   }
 
@@ -173,7 +167,8 @@ private:
         LOG_ERROR("{}", code.message());
         return;
       }
-      poll();
+      pollConsume();
+      producer_->poll(0);
       schedulePoll();
     });
   }
@@ -192,6 +187,8 @@ private:
       return;
     }
     // librdkafka requires message be of a type void*
+    // TODO(self): instead of RK_MSG_COPY one can do RK_MSG_FREE, but kafka would take
+    // ownership, so serialization should be done into a heap
     auto serializedMsg = ProduceSerializer::serialize(msg);
     const ErrorCode result =
         producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
@@ -201,7 +198,6 @@ private:
     } else {
       LOG_DEBUG("Order sent to kafka");
     }
-    producer_->poll(0);
   }
 
 private:
@@ -210,10 +206,10 @@ private:
   const KafkaConfig config_;
 
   UPtr<RdKafka::Producer> producer_;
-  UPtr<RdKafka::Consumer> consumer_;
+  UPtr<RdKafka::KafkaConsumer> consumer_;
 
   HashMap<String, UPtr<RdKafka::Topic>> produceTopicMap_;
-  HashMap<String, UPtr<RdKafka::Topic>> consumeTopicMap_;
+  std::vector<String> consumeTopics_;
 
   SteadyTimer timer_;
 

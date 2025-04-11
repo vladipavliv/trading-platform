@@ -51,10 +51,9 @@ public:
 };
 
 const HashMap<String, TraderCommand> TraderCommandParser::commands{
-    {"t+", TraderCommand::TradeStart},
-    {"t-", TraderCommand::TradeStop},
-    {"ts+", TraderCommand::TradeSpeedUp},
-    {"ts-", TraderCommand::TradeSpeedDown},
+    {"t+", TraderCommand::TradeStart},     {"t-", TraderCommand::TradeStop},
+    {"ts+", TraderCommand::TradeSpeedUp},  {"ts-", TraderCommand::TradeSpeedDown},
+    {"k+", TraderCommand::KafkaFeedStart}, {"k-", TraderCommand::KafkaFeedStop},
     {"q", TraderCommand::Shutdown}};
 
 } // namespace hft::trader

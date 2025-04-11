@@ -28,36 +28,33 @@ enum TimestampType : uint8_t {
   TimestampType_Received = 1,
   TimestampType_Fulfilled = 2,
   TimestampType_Notified = 3,
-  TimestampType_Closed = 4,
   TimestampType_MIN = TimestampType_Created,
-  TimestampType_MAX = TimestampType_Closed
+  TimestampType_MAX = TimestampType_Notified
 };
 
-inline const TimestampType (&EnumValuesTimestampType())[5] {
+inline const TimestampType (&EnumValuesTimestampType())[4] {
   static const TimestampType values[] = {
     TimestampType_Created,
     TimestampType_Received,
     TimestampType_Fulfilled,
-    TimestampType_Notified,
-    TimestampType_Closed
+    TimestampType_Notified
   };
   return values;
 }
 
 inline const char * const *EnumNamesTimestampType() {
-  static const char * const names[6] = {
+  static const char * const names[5] = {
     "Created",
     "Received",
     "Fulfilled",
     "Notified",
-    "Closed",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameTimestampType(TimestampType e) {
-  if (flatbuffers::IsOutRange(e, TimestampType_Created, TimestampType_Closed)) return "";
+  if (flatbuffers::IsOutRange(e, TimestampType_Created, TimestampType_Notified)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesTimestampType()[index];
 }

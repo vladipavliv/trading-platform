@@ -4,8 +4,7 @@ enum TimestampType : uint8 {
     Created,
     Received,
     Fulfilled,
-    Notified,
-    Closed
+    Notified
 }
 
 table OrderTimestamp {

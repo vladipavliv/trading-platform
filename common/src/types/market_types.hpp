@@ -77,12 +77,10 @@ struct alignas(8) OrderStatus {
   mutable TraderId traderId; // Server side
   SessionToken token;        // Server side
   OrderId orderId;
-  Timestamp timestamp;
   Ticker ticker;
   Quantity quantity;
   Price fillPrice;
   OrderState state;
-  OrderAction action;
 
   inline void setTraderId(TraderId id) const { traderId = id; }
 };
@@ -91,8 +89,6 @@ struct TickerPrice {
   const Ticker ticker;
   const Price price;
 };
-
-static_assert(sizeof(OrderStatus) == 48, "Unexpected size of OrderStatus!");
 
 } // namespace hft
 

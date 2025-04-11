@@ -32,7 +32,7 @@ broker_config = {
     "log.retention.check.interval.ms": "300000",
 }
 
-topics = ["order-timestamps", "server-commands"]
+topics = ["order-timestamps", "server-commands", "trader-commands"]
 
 def update_properties(path, config_dict, label):
     if not os.path.exists(path):

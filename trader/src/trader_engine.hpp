@@ -29,7 +29,7 @@ namespace hft::trader {
  */
 class TraderEngine {
 public:
-  using Tracker = RttTracker<20, 100>;
+  using Tracker = RttTracker<50>;
   using TickersData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
 
   explicit TraderEngine(Bus &bus)
@@ -79,7 +79,6 @@ public:
 private:
   void startWorkers() {
     // Design is not yet clear here so a single worker for now
-    const auto appCores = TraderConfig::cfg.coresApp.size();
     LOG_INFO_SYSTEM("Starting trade worker");
     worker_.start();
   }
@@ -145,9 +144,8 @@ private:
     const auto newPrice = fluctuateThePrice(p.second->getPrice());
     const auto action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     const auto quantity = RNG::rng<Quantity>(100);
-    const auto id = generateOrderId();
-    const auto stamp = getTimestamp();
-    Order order{0, 0, id, stamp, p.first, quantity, newPrice, action};
+    const auto id = getTimestamp(); // TODO(self)
+    Order order{0, 0, id, id, p.first, quantity, newPrice, action};
     LOG_DEBUG("Placing order {}", utils::toString(order));
 
     bus_.marketBus.post(order);
@@ -157,7 +155,7 @@ private:
   void onOrderStatus(CRef<OrderStatus> status) {
     LOG_DEBUG(utils::toString(status));
     // Track orders in TickerData
-    Tracker::logRtt(status.timestamp);
+    Tracker::logRtt(status.orderId);
     bus_.systemBus.post(
         OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Notified});
   }

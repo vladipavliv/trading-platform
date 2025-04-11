@@ -34,7 +34,6 @@ public:
   TraderControlCenter()
       : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus, kafkaCfg()},
         consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
-    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
 
     bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
       networkConnected_ = true;
@@ -43,6 +42,17 @@ public:
     bus_.systemBus.subscribe(TraderEvent::DisconnectedFromTheServer, [this]() {
       networkConnected_ = false;
       scheduleReconnect();
+    });
+
+    // commands
+    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
+    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStart, [this]() {
+      LOG_INFO_SYSTEM("Start kafka feed");
+      kafka_.start();
+    });
+    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStop, [this]() {
+      LOG_INFO_SYSTEM("Stop kafka feed");
+      kafka_.stop();
     });
 
     // kafka topics
@@ -64,7 +74,6 @@ public:
     if (TraderConfig::cfg.coreSystem.has_value()) {
       utils::pinThreadToCore(TraderConfig::cfg.coreSystem.value());
     }
-
     bus_.systemCtx().run();
   }
 
