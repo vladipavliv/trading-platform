@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "bus/system_bus.hpp"
-#include "template_types.hpp"
+
 #include "types.hpp"
 
 namespace hft {

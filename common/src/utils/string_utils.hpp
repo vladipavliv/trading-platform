@@ -11,28 +11,27 @@
 #include <sstream>
 #include <string>
 
+#include "boost_types.hpp"
+#include "domain_types.hpp"
 #include "logging.hpp"
-#include "market_types.hpp"
 #include "metadata_types.hpp"
-#include "network_types.hpp"
-#include "template_types.hpp"
+
 #include "types.hpp"
 
 namespace hft::utils {
 
 String toString(const auto &val) { return std::to_string(val); }
 
-String toString(const CredentialsLoginRequest &msg) {
-  return std::format("CredentialsLoginRequest {} {} {}", msg.socketId, msg.name, msg.password);
+String toString(const LoginRequest &msg) {
+  return std::format("LoginRequest {} {}", msg.name, msg.password);
 }
 
-String toString(const TokenLoginRequest &msg) {
-  return std::format("TokenLoginRequest {} {}", msg.socketId, msg.token);
+String toString(const TokenBindRequest &msg) {
+  return std::format("TokenBindRequest {}", msg.token);
 }
 
 String toString(const LoginResponse &msg) {
-  return std::format("LoginResponse {} {} {} {}", msg.socketId, msg.traderId, msg.token,
-                     msg.success);
+  return std::format("LoginResponse {} {} {}", msg.token, msg.ok, msg.error);
 }
 
 String toString(const OrderState &state) {
@@ -70,15 +69,14 @@ String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE
 
 String toString(const Order &o) {
   std::stringstream ss;
-  ss << o.traderId << " " << o.token << " " << o.id << " " << o.timestamp << " ";
-  ss << toString(o.ticker) << o.quantity << " " << o.price << " " << (uint8_t)o.action;
+  ss << o.id << " " << o.created << " " << toString(o.ticker);
+  ss << o.quantity << " " << o.price << " " << (uint8_t)o.action;
   return ss.str();
 }
 
 String toString(const OrderStatus &os) {
   std::stringstream ss;
-  ss << os.traderId << " " << os.orderId;
-  ss << toString(os.ticker) << os.quantity << " " << os.fillPrice << " ";
+  ss << os.orderId << os.quantity << " " << os.fillPrice << " ";
   ss << (uint8_t)os.state;
   return ss.str();
 }

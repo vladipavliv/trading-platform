@@ -11,9 +11,8 @@
 #include <typeinfo>
 
 #include "boost_types.hpp"
-#include "template_types.hpp"
+
 #include "types.hpp"
-#include "utils/template_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft {

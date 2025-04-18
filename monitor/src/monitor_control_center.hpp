@@ -8,13 +8,13 @@
 
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "bus/system_bus.hpp"
+#include "client_command.hpp"
 #include "config/monitor_config.hpp"
 #include "console_reader.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "monitor_command_parser.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
 #include "server_command.hpp"
-#include "trader_command.hpp"
 
 namespace hft::monitor {
 /**
@@ -32,7 +32,7 @@ public:
 
     // kafka setup
     kafka_.addProduceTopic<server::ServerCommand>("server-commands");
-    kafka_.addProduceTopic<trader::TraderCommand>("trader-commands");
+    kafka_.addProduceTopic<client::ClientCommand>("client-commands");
     kafka_.addConsumeTopic("order-timestamps");
   }
 

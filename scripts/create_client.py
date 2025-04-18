@@ -1,5 +1,5 @@
 """
-Creates a new trader
+Creates a new client
 TODO(self) encrypt password
 """
 
@@ -7,14 +7,14 @@ import psycopg2
 import sys
 from postgres_config import DB_CONFIG
 
-def create_trader(name, password):
+def create_CLIENT(name, password):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
-        # Insert the new trader
+        # Insert the new client
         insert_query = """
-        INSERT INTO traders (name, password) 
+        INSERT INTO clients (name, password) 
         VALUES (%s, %s)
         ON CONFLICT (name) DO NOTHING;
         """
@@ -23,7 +23,7 @@ def create_trader(name, password):
         # Commit the transaction
         conn.commit()
         
-        print(f"Trader '{name}' inserted successfully.")
+        print(f"Client '{name}' inserted successfully.")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -34,10 +34,10 @@ def create_trader(name, password):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python3 create_trader.py <name> <password>")
+        print("Usage: python3 create_client.py <name> <password>")
         sys.exit(1)
 
-    trader_name = sys.argv[1]
-    trader_password = sys.argv[2]
+    name = sys.argv[1]
+    password = sys.argv[2]
 
-    create_trader(trader_name, trader_password)
+    create_CLIENT(name, password)

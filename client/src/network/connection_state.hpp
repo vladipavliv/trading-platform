@@ -3,13 +3,13 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_TRADER_CONNECTIONSTATE_HPP
-#define HFT_TRADER_CONNECTIONSTATE_HPP
+#ifndef HFT_CLIENT_CONNECTIONSTATE_HPP
+#define HFT_CLIENT_CONNECTIONSTATE_HPP
 
 #include "utils/string_utils.hpp"
 
 namespace hft {
-namespace trader {
+namespace client {
 /**
  * @brief State of the connection with the server
  */
@@ -20,10 +20,10 @@ enum class ConnectionState : uint8_t {
   AuthenticatedUpstream,
   AuthenticatedDownstream
 };
-} // namespace trader
+} // namespace client
 namespace utils {
-String toString(const trader::ConnectionState &event) {
-  using namespace trader;
+String toString(const client::ConnectionState &event) {
+  using namespace client;
   switch (event) {
   case ConnectionState::Disconnected:
     return "disconnected";
@@ -42,4 +42,4 @@ String toString(const trader::ConnectionState &event) {
 } // namespace utils
 } // namespace hft
 
-#endif // HFT_TRADER_CONNECTIONSTATE_HPP
+#endif // HFT_CLIENT_CONNECTIONSTATE_HPP

@@ -12,7 +12,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 
 #include "constants.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "order_book.hpp"
 #include "types.hpp"
 

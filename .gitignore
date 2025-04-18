@@ -10,9 +10,9 @@ CMakeCache.txt
 cmake_install.cmake
 config.ini
 hft_server
-hft_trader
+hft_client
 libhft_common.a
 /server_config.ini
-/trader_config.ini
+/client_config.ini
 server_log.*
-trader_log.*
+client_log.*

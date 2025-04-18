@@ -6,12 +6,10 @@
 #ifndef HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 #define HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
 
-#include "bus/bus.hpp"
 #include "constants.hpp"
 #include "converter.hpp"
-#include "gen/marketdata_generated.h"
-#include "market_types.hpp"
-#include "template_types.hpp"
+#include "domain_types.hpp"
+#include "gen/domain_messages_generated.h"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -19,18 +17,15 @@ namespace hft::serialization::fbs {
 
 /**
  * @brief Flat buffers serializer
- * @details For simplicity posts deserialized messages directly to a bus
- * saves the trouble of type extraction, and performs slightly better
- * @todo improve
  */
-class MarketSerializer {
+class DomainSerializer {
 public:
-  using Message = gen::fbs::market::Message;
-  using MessageType = gen::fbs::market::MessageUnion;
+  using Message = gen::fbs::domain::Message;
+  using MessageType = gen::fbs::domain::MessageUnion;
   using BufferType = flatbuffers::DetachedBuffer;
 
-  using SupportedTypes = std::tuple<CredentialsLoginRequest, TokenLoginRequest, LoginResponse,
-                                    Order, OrderStatus, TickerPrice>;
+  using SupportedTypes =
+      std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
 
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
@@ -48,25 +43,24 @@ public:
     }
     const auto type = message->message_type();
     switch (type) {
-    case MessageType::MessageUnion_CredentialsLoginRequest: {
-      const auto msg = message->message_as_CredentialsLoginRequest();
+    case MessageType::MessageUnion_LoginRequest: {
+      const auto msg = message->message_as_LoginRequest();
       if (msg == nullptr) {
-        LOG_ERROR("Failed to extract CredentialsLoginRequest");
+        LOG_ERROR("Failed to extract LoginRequest");
         return false;
       }
-      const CredentialsLoginRequest request{0, fbStringToString(msg->name()),
-                                            fbStringToString(msg->password())};
+      const LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
       LOG_DEBUG("Deserialized {}", utils::toString(request));
       consumer.post(request);
       return true;
     }
-    case MessageType::MessageUnion_TokenLoginRequest: {
-      const auto msg = message->message_as_TokenLoginRequest();
+    case MessageType::MessageUnion_TokenBindRequest: {
+      const auto msg = message->message_as_TokenBindRequest();
       if (msg == nullptr) {
-        LOG_ERROR("Failed to extract TokenLoginRequest");
+        LOG_ERROR("Failed to extract TokenBindRequest");
         return false;
       }
-      const TokenLoginRequest response{0, msg->token()};
+      const TokenBindRequest response{msg->token()};
       LOG_DEBUG("Deserialized {}", utils::toString(response));
       consumer.post(response);
       return true;
@@ -77,7 +71,7 @@ public:
         LOG_ERROR("Failed to extract LoginResponse");
         return false;
       }
-      const LoginResponse response{0, 0, msg->token(), msg->success()};
+      const LoginResponse response{msg->token(), msg->ok(), fbStringToString(msg->error())};
       LOG_DEBUG("Deserialized {}", utils::toString(response));
       consumer.post(response);
       return true;
@@ -88,14 +82,9 @@ public:
         LOG_ERROR("Failed to extract Order");
         return false;
       }
-      const Order order{0,
-                        orderMsg->token(),
-                        orderMsg->id(),
-                        orderMsg->timestamp(),
-                        fbStringToTicker(orderMsg->ticker()),
-                        orderMsg->quantity(),
-                        orderMsg->price(),
-                        convert(orderMsg->action())};
+      const Order order{
+          orderMsg->id(),       orderMsg->created(), fbStringToTicker(orderMsg->ticker()),
+          orderMsg->quantity(), orderMsg->price(),   convert(orderMsg->action())};
       LOG_DEBUG("Deserialized {}", utils::toString(order));
       consumer.post(order);
       return true;
@@ -106,14 +95,8 @@ public:
         LOG_ERROR("Failed to extract OrderStatus");
         return false;
       }
-      const OrderStatus status{0,
-                               0,
-                               statusMsg->order_id(),
-                               statusMsg->fulfilled(),
-                               fbStringToTicker(statusMsg->ticker()),
-                               statusMsg->quantity(),
-                               statusMsg->fill_price(),
-                               convert(statusMsg->state())};
+      const OrderStatus status{statusMsg->order_id(), statusMsg->fulfilled(), statusMsg->quantity(),
+                               statusMsg->fill_price(), convert(statusMsg->state())};
       LOG_DEBUG("Deserialized {}", utils::toString(status));
       consumer.post(status);
       return true;
@@ -136,60 +119,61 @@ public:
     return false;
   }
 
-  static BufferType serialize(const CredentialsLoginRequest &request) {
+  static BufferType serialize(CRef<LoginRequest> request) {
     LOG_DEBUG("Serializing {}", utils::toString(request));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateCredentialsLoginRequest(
+    const auto msg = CreateLoginRequest(
         builder, builder.CreateString(request.name.c_str(), request.name.length()),
         builder.CreateString(request.password.c_str(), request.password.length()));
-    builder.Finish(CreateMessage(builder, MessageUnion_CredentialsLoginRequest, msg.Union()));
+    builder.Finish(CreateMessage(builder, MessageUnion_LoginRequest, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const TokenLoginRequest &request) {
+  static BufferType serialize(CRef<TokenBindRequest> request) {
     LOG_DEBUG("Serializing {}", utils::toString(request));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateTokenLoginRequest(builder, request.token);
-    builder.Finish(CreateMessage(builder, MessageUnion_TokenLoginRequest, msg.Union()));
+    const auto msg = CreateTokenBindRequest(builder, request.token);
+    builder.Finish(CreateMessage(builder, MessageUnion_TokenBindRequest, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const LoginResponse &response) {
+  static BufferType serialize(CRef<LoginResponse> response) {
     LOG_DEBUG("Serializing {}", utils::toString(response));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateLoginResponse(builder, response.token, response.success);
+    const auto msg =
+        CreateLoginResponse(builder, response.token, response.ok,
+                            builder.CreateString(response.error.c_str(), response.error.length()));
     builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const Order &order) {
+  static BufferType serialize(CRef<Order> order) {
     LOG_DEBUG("Serializing {}", utils::toString(order));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrder(builder, order.token, order.id, order.timestamp,
+    const auto msg = CreateOrder(builder, order.id, order.created,
                                  builder.CreateString(order.ticker.data(), TICKER_SIZE),
                                  order.quantity, order.price, convert(order.action));
     builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const OrderStatus &status) {
+  static BufferType serialize(CRef<OrderStatus> status) {
     LOG_DEBUG("Serializing {}", utils::toString(status));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrderStatus(builder, status.orderId, status.fulfilled,
-                                       builder.CreateString(status.ticker.data(), TICKER_SIZE),
-                                       status.quantity, status.fillPrice, convert(status.state));
+    const auto msg = CreateOrderStatus(builder, status.orderId, status.fulfilled, status.quantity,
+                                       status.fillPrice, convert(status.state));
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     return builder.Release();
   }
 
-  static BufferType serialize(const TickerPrice &price) {
+  static BufferType serialize(CRef<TickerPrice> price) {
     LOG_DEBUG("Serializing {}", utils::toString(price));
-    using namespace gen::fbs::market;
+    using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTickerPrice(
         builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);

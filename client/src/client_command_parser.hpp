@@ -3,23 +3,23 @@
  * @date 2025-04-10
  */
 
-#ifndef HFT_TRADER_COMMANDPARSER_HPP
-#define HFT_TRADER_COMMANDPARSER_HPP
+#ifndef HFT_CLIENT_COMMANDPARSER_HPP
+#define HFT_CLIENT_COMMANDPARSER_HPP
 
+#include "client_command.hpp"
 #include "logging.hpp"
-#include "trader_command.hpp"
 #include "types.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
 /**
- * @brief Maps strings to a trader command and postst it to a consumer
+ * @brief Maps strings to a client command and postst it to a consumer
  * For now incoming from kafka messages are simple strings so there is no need
  * of a full blown serializer.
  */
-class TraderCommandParser {
+class ClientCommandParser {
 public:
-  static const HashMap<String, TraderCommand> commands;
+  static const HashMap<String, ClientCommand> commands;
 
   template <typename Consumer>
   static bool parse(CRef<String> cmd, Consumer &&consumer) {
@@ -39,7 +39,7 @@ public:
     return parse(String(data, size), consumer);
   }
 
-  static ByteBuffer serialize(TraderCommand cmd) {
+  static ByteBuffer serialize(ClientCommand cmd) {
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {
@@ -50,12 +50,12 @@ public:
   }
 };
 
-const HashMap<String, TraderCommand> TraderCommandParser::commands{
-    {"t+", TraderCommand::TradeStart},     {"t-", TraderCommand::TradeStop},
-    {"ts+", TraderCommand::TradeSpeedUp},  {"ts-", TraderCommand::TradeSpeedDown},
-    {"k+", TraderCommand::KafkaFeedStart}, {"k-", TraderCommand::KafkaFeedStop},
-    {"q", TraderCommand::Shutdown}};
+const HashMap<String, ClientCommand> ClientCommandParser::commands{
+    {"t+", ClientCommand::TradeStart},     {"t-", ClientCommand::TradeStop},
+    {"ts+", ClientCommand::TradeSpeedUp},  {"ts-", ClientCommand::TradeSpeedDown},
+    {"k+", ClientCommand::KafkaFeedStart}, {"k-", ClientCommand::KafkaFeedStop},
+    {"q", ClientCommand::Shutdown}};
 
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_TRADER_COMMANDPARSER_HPP
+#endif // HFT_CLIENT_COMMANDPARSER_HPP

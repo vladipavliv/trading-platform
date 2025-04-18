@@ -3,37 +3,36 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_TRADER_NETWORKCLIENT_HPP
-#define HFT_TRADER_NETWORKCLIENT_HPP
+#ifndef HFT_CLIENT_NETWORKCLIENT_HPP
+#define HFT_CLIENT_NETWORKCLIENT_HPP
 
 #include <format>
 #include <memory>
 #include <vector>
 
 #include "boost_types.hpp"
-#include "bus/bus.hpp"
-#include "config/trader_config.hpp"
+#include "client_types.hpp"
+#include "config/client_config.hpp"
 #include "connection_state.hpp"
+#include "domain_types.hpp"
 #include "logging.hpp"
-#include "market_types.hpp"
 #include "network/socket_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
-#include "network_types.hpp"
-#include "template_types.hpp"
-#include "trader_command.hpp"
-#include "trader_events.hpp"
+
+#include "client_command.hpp"
+#include "client_events.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
 /**
  * @brief Manages all the Tcp and Udp connections to the server, handles authentication
  */
 class NetworkClient {
-  using TraderTcpTransport = TcpTransport<NetworkClient>;
-  using TraderUdpTransport = UdpTransport<>;
+  using ClientTcpTransport = TcpTransport<NetworkClient>;
+  using ClientUdpTransport = UdpTransport<Bus>;
 
 public:
   NetworkClient(Bus &bus)
@@ -46,7 +45,6 @@ public:
         LOG_ERROR_SYSTEM("Wrong state {}", utils::toString(state_));
         return;
       }
-      order.setToken(token_.value());
       upstreamTransport_.write(order);
     });
   }
@@ -70,13 +68,13 @@ public:
         }
       });
     };
-    const auto cores = TraderConfig::cfg.coresNetwork.size();
+    const auto cores = ClientConfig::cfg.coresNetwork.size();
     workerThreads_.reserve(cores == 0 ? 1 : cores);
     if (cores == 0) {
       addThread(0, false);
     }
     for (int i = 0; i < cores; ++i) {
-      addThread(i, true, TraderConfig::cfg.coresNetwork[i]);
+      addThread(i, true, ClientConfig::cfg.coresNetwork[i]);
     }
   }
 
@@ -102,17 +100,16 @@ public:
     bus_.post(message);
   }
 
-  void post(CRef<SocketStatusEvent> event) {
+  void post(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG(utils::toString(event));
-    if (event.status == SocketStatus::Connected) {
-      if (upstreamTransport_.status() == SocketStatus::Connected &&
-          downstreamTransport_.status() == SocketStatus::Connected &&
+    if (event.status == ConnectionStatus::Connected) {
+      if (upstreamTransport_.status() == ConnectionStatus::Connected &&
+          downstreamTransport_.status() == ConnectionStatus::Connected &&
           state_ == ConnectionState::Connecting) {
         LOG_DEBUG_SYSTEM("Connected to the server");
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
-        upstreamTransport_.write(
-            CredentialsLoginRequest{0, TraderConfig::cfg.name, TraderConfig::cfg.password});
+        upstreamTransport_.write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
       }
     } else {
       const auto prevState = state_;
@@ -121,14 +118,14 @@ public:
       upstreamTransport_.close();
       downstreamTransport_.close();
       if (prevState != ConnectionState::Disconnected) {
-        bus_.post(TraderEvent::DisconnectedFromTheServer);
+        bus_.post(ClientEvent::DisconnectedFromTheServer);
       }
     }
   }
 
   void post(CRef<LoginResponse> event) {
     LOG_DEBUG(utils::toString(event));
-    if (event.success) {
+    if (event.ok) {
       token_ = event.token;
     } else {
       LOG_ERROR_SYSTEM("Login failed");
@@ -138,14 +135,14 @@ public:
     case ConnectionState::Connected: {
       LOG_DEBUG_SYSTEM("Authenticated upstream");
       // Now authenticate downstream socket by sending token
-      downstreamTransport_.write(TokenLoginRequest{0, event.token});
+      downstreamTransport_.write(TokenBindRequest{event.token});
       state_ = ConnectionState::AuthenticatedUpstream;
       break;
     }
     case ConnectionState::AuthenticatedUpstream: {
       LOG_DEBUG_SYSTEM("Authenticated downstream");
       state_ = ConnectionState::AuthenticatedDownstream;
-      bus_.post(TraderEvent::ConnectedToTheServer);
+      bus_.post(ClientEvent::ConnectedToTheServer);
       break;
     }
     default:
@@ -154,21 +151,21 @@ public:
   }
 
 private:
-  TraderTcpTransport createUpstreamTransport() {
+  ClientTcpTransport createUpstreamTransport() {
     return {TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(TraderConfig::cfg.url), TraderConfig::cfg.portTcpUp},
+            TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpUp},
             *this};
   }
 
-  TraderTcpTransport createDownstreamTransport() {
+  ClientTcpTransport createDownstreamTransport() {
     return {TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(TraderConfig::cfg.url), TraderConfig::cfg.portTcpDown},
+            TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpDown},
             *this};
   }
 
-  TraderUdpTransport createPricesTransport() {
-    return {utils::createUdpSocket(ioCtx_, false, TraderConfig::cfg.portUdp),
-            UdpEndpoint(Udp::v4(), TraderConfig::cfg.portUdp), bus_};
+  ClientUdpTransport createPricesTransport() {
+    return {utils::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
+            UdpEndpoint(Udp::v4(), ClientConfig::cfg.portUdp), bus_};
   }
 
 private:
@@ -177,16 +174,16 @@ private:
 
   Bus &bus_;
 
-  TraderTcpTransport upstreamTransport_;
-  TraderTcpTransport downstreamTransport_;
-  TraderUdpTransport pricesTransport_;
+  ClientTcpTransport upstreamTransport_;
+  ClientTcpTransport downstreamTransport_;
+  ClientUdpTransport pricesTransport_;
 
   ConnectionState state_{ConnectionState::Disconnected};
-  Opt<SessionToken> token_;
+  Opt<Token> token_;
 
   std::vector<Thread> workerThreads_;
 };
 
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_TRADER_NETWORKCLIENT_HPP
+#endif // HFT_CLIENT_NETWORKCLIENT_HPP

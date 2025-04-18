@@ -66,18 +66,6 @@ Ticker generateTicker() {
   return ticker;
 }
 
-Order generateOrder() {
-  const OrderAction action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-  return Order{RNG::rng<uint64_t>(INT_MAX),
-               RNG::rng<uint64_t>(INT_MAX),
-               RNG::rng<uint64_t>(INT_MAX),
-               getTimestamp(),
-               generateTicker(),
-               RNG::rng<uint32_t>(100),
-               RNG::rng<uint32_t>(7000),
-               action};
-}
-
 TickerPrice generatePriceUpdate() { return {generateTicker(), RNG::rng<uint32_t>(700)}; }
 
 Timestamp getTimestamp() {
@@ -139,12 +127,12 @@ OrderId generateOrderId() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-SocketId generateSocketId() {
+ConnectionId generateConnectionId() {
   static std::atomic_uint64_t counter = 0;
   return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-SessionToken generateSessionToken() {
+Token generateToken() {
   static std::atomic_uint64_t counter = 0;
   return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
 }

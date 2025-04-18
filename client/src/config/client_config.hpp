@@ -3,20 +3,20 @@
  * @date 2025-02-10
  */
 
-#ifndef HFT_TRADER_CONFIG_HPP
-#define HFT_TRADER_CONFIG_HPP
+#ifndef HFT_CLIENT_CONFIG_HPP
+#define HFT_CLIENT_CONFIG_HPP
 
 #include <vector>
 
+#include "boost_types.hpp"
 #include "logging.hpp"
-#include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
-struct TraderConfig {
+struct ClientConfig {
   // Network
   String url;
   Port portTcpUp;
@@ -45,7 +45,7 @@ struct TraderConfig {
   LogLevel logLevel;
   String logOutput;
 
-  static TraderConfig cfg;
+  static ClientConfig cfg;
 
   static void logConfig() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
@@ -60,8 +60,8 @@ struct TraderConfig {
   }
 };
 
-TraderConfig TraderConfig::cfg;
+ClientConfig ClientConfig::cfg;
 
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_TRADER_CONFIG_HPP
+#endif // HFT_CLIENT_CONFIG_HPP

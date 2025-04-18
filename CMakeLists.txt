@@ -31,6 +31,6 @@ enable_testing()
 
 add_subdirectory(common)
 add_subdirectory(server)
-add_subdirectory(trader)
+add_subdirectory(client)
 add_subdirectory(monitor)
 add_subdirectory(test)

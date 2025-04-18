@@ -3,26 +3,24 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_TICKERDATA_HPP
-#define HFT_SERVER_TICKERDATA_HPP
+#ifndef HFT_CLIENT_TICKERDATA_HPP
+#define HFT_CLIENT_TICKERDATA_HPP
 
 #include <atomic>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
 #include "constants.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "types.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
 /**
  * @brief Holds only the price for now
  * @todo Later on would track all the opened orders
  */
 struct TickerData {
-  using UPtr = std::unique_ptr<TickerData>;
-
   explicit TickerData(Price price) : price_{price} {}
 
   inline void setPrice(Price price) { price_.store(price, std::memory_order_release); }
@@ -38,8 +36,8 @@ private:
   TickerData &operator=(TickerData &&other) = delete;
 };
 
-using MarketData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
+using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
 
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_SERVER_TICKERDATA_HPP
+#endif // HFT_CLIENT_TICKERDATA_HPP

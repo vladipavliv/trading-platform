@@ -8,10 +8,9 @@
 
 #include <algorithm>
 
-#include "market_types.hpp"
-#include "template_types.hpp"
+#include "domain_types.hpp"
 #include "types.hpp"
-#include "utils/template_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace hft {
 
@@ -21,8 +20,8 @@ struct TickerCmp {
 };
 
 template <typename Type>
-struct TraderIdCmp {
-  bool operator()(const Type &left, const Type &right) { return left.traderId < right.traderId; }
+struct clientIdCmp {
+  bool operator()(const Type &left, const Type &right) { return left.clientId < right.clientId; }
 };
 
 template <typename Type>

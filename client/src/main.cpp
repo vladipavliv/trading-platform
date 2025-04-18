@@ -5,20 +5,20 @@
 
 #include <iostream>
 
-#include "config/trader_config.hpp"
-#include "config/trader_config_reader.hpp"
+#include "client_control_center.hpp"
+#include "config/client_config.hpp"
+#include "config/client_config_reader.hpp"
 #include "logging.hpp"
-#include "trader_control_center.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;
-  using namespace trader;
+  using namespace client;
   try {
-    TraderConfigReader::readConfig("trader_config.ini");
-    LOG_INIT(TraderConfig::cfg.logOutput);
+    ClientConfigReader::readConfig("client_config.ini");
+    LOG_INIT(ClientConfig::cfg.logOutput);
 
-    TraderControlCenter traderCc;
-    traderCc.start();
+    ClientControlCenter clientCc;
+    clientCc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   } catch (...) {

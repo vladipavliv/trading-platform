@@ -3,13 +3,12 @@
  * @date 2025-04-08
  */
 
-#ifndef HFT_COMMON_SERIALIZATION_METADATASERIALIZER_HPP
-#define HFT_COMMON_SERIALIZATION_METADATASERIALIZER_HPP
+#ifndef HFT_COMMON_METADATASERIALIZER_HPP
+#define HFT_COMMON_METADATASERIALIZER_HPP
 
 #include "converter.hpp"
-#include "gen/metadata_generated.h"
+#include "gen/metadata_messages_generated.h"
 #include "metadata_types.hpp"
-#include "template_types.hpp"
 
 namespace hft::serialization::fbs {
 
@@ -17,7 +16,7 @@ class MetadataSerializer {
 public:
   using BufferType = flatbuffers::DetachedBuffer;
   using SupportedTypes = std::tuple<OrderTimestamp>;
-  using RootMessage = gen::fbs::meta::OrderTimestamp;
+  using RootMessage = gen::fbs::metadata::OrderTimestamp;
 
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
@@ -40,7 +39,7 @@ public:
 
   static BufferType serialize(CRef<OrderTimestamp> event) {
     LOG_DEBUG("Serializing {}", utils::toString(event));
-    using namespace gen::fbs::meta;
+    using namespace gen::fbs::metadata;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrderTimestamp(builder, event.orderId, event.created, event.fulfilled,
                                           event.notified);
@@ -51,4 +50,4 @@ public:
 
 } // namespace hft::serialization::fbs
 
-#endif // HFT_COMMON_SERIALIZATION_METADATASERIALIZER_HPP
+#endif // HFT_COMMON_METADATASERIALIZER_HPP

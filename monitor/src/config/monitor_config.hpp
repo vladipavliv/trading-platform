@@ -6,8 +6,8 @@
 #ifndef HFT_MONITOR_CONFIG_HPP
 #define HFT_MONITOR_CONFIG_HPP
 
+#include "boost_types.hpp"
 #include "logging.hpp"
-#include "network_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"

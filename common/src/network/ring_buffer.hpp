@@ -10,7 +10,6 @@
 
 #include "boost_types.hpp"
 #include "constants.hpp"
-#include "network_types.hpp"
 #include "types.hpp"
 
 namespace hft {

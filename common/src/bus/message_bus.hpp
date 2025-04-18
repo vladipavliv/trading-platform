@@ -10,9 +10,8 @@
 #include <map>
 #include <typeinfo>
 
-#include "template_types.hpp"
+#include "logging.hpp"
 #include "types.hpp"
-#include "utils/template_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft {

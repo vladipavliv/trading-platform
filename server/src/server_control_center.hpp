@@ -8,16 +8,17 @@
 
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
-#include "bus/bus.hpp"
 #include "config/server_config.hpp"
 #include "console_reader.hpp"
 #include "coordinator.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
+#include "network/authenticator.hpp"
 #include "network/network_server.hpp"
 #include "price_feed.hpp"
 #include "server_command.hpp"
 #include "server_command_parser.hpp"
 #include "server_events.hpp"
+#include "server_types.hpp"
 
 namespace hft::server {
 
@@ -31,9 +32,9 @@ public:
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
-      : dbAdapter_{bus_.systemBus}, networkServer_{bus_}, coordinator_{bus_, marketData_},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_},
-        kafka_{bus_.systemBus, kafkaCfg()} {
+      : networkServer_{bus_}, authenticator_{bus_.systemBus, dbAdapter_},
+        coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
+        priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus, kafkaCfg()} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
       LOG_INFO_SYSTEM("Server is ready");
@@ -107,6 +108,7 @@ private:
 
   PostgresAdapter dbAdapter_;
   NetworkServer networkServer_;
+  Authenticator authenticator_;
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;

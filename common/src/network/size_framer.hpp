@@ -9,11 +9,10 @@
 #include <ranges>
 
 #include "boost_types.hpp"
-#include "bus/bus.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
 #include "ring_buffer.hpp"
-#include "serialization/flat_buffers/market_serializer.hpp"
+#include "serialization/flat_buffers/domain_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -22,7 +21,7 @@ namespace hft {
 /**
  * @brief Frames messages by writing message size and then serialized data
  */
-template <typename SerializerType = serialization::fbs::MarketSerializer>
+template <typename SerializerType = serialization::fbs::DomainSerializer>
 class SizeFramer {
 public:
   using Serializer = SerializerType;

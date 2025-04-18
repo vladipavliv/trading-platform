@@ -9,7 +9,6 @@
 #include "boost_types.hpp"
 #include "config/server_config.hpp"
 #include "network/transport/udp_transport.hpp"
-#include "network_types.hpp"
 #include "types.hpp"
 
 namespace hft::server {
@@ -30,7 +29,7 @@ private:
   IoCtx &ioCtx_;
   Bus &bus_;
 
-  UdpTransport<> udpTransport_;
+  UdpTransport<Bus> udpTransport_;
 };
 
 } // namespace hft::server

@@ -13,7 +13,7 @@
 #include "logging.hpp"
 #include "metadata_types.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
-#include "template_types.hpp"
+
 #include "types.hpp"
 
 namespace hft {

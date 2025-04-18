@@ -1,4 +1,4 @@
-namespace hft.serialization.gen.fbs.meta;
+namespace hft.serialization.gen.fbs.metadata;
 
 table OrderTimestamp {
     order_id: uint64;

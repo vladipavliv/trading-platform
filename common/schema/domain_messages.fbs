@@ -1,4 +1,4 @@
-namespace hft.serialization.gen.fbs.market;
+namespace hft.serialization.gen.fbs.domain;
 
 enum OrderAction: byte {
     BUY = 0,
@@ -11,24 +11,24 @@ enum OrderState: int {
     Full = 2
 }
 
-table CredentialsLoginRequest {
+table LoginRequest {
     name: string;
     password: string;
 }
 
-table TokenLoginRequest {
+table TokenBindRequest {
     token: uint64;
 }
 
 table LoginResponse {
     token: uint64;
-    success: bool;
+    ok: bool;
+    error: string;
 }
 
 table Order {
-    token: uint64;
     id: uint64;
-    timestamp: uint64;
+    created: uint64;
     ticker: string;
     quantity: uint;
     price: uint;
@@ -38,7 +38,6 @@ table Order {
 table OrderStatus {
     order_id: uint64;
     fulfilled: uint64;
-    ticker: string;
     quantity: uint;
     fill_price: uint;
     state: OrderState;
@@ -50,9 +49,9 @@ table TickerPrice {
 }
 
 union MessageUnion {
-    CredentialsLoginRequest,
-    TokenLoginRequest,
+    LoginRequest,
     LoginResponse,
+    TokenBindRequest,
     Order,
     OrderStatus,
     TickerPrice

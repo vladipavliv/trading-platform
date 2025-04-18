@@ -8,8 +8,8 @@ from postgres_config import DB_CONFIG
 CREATE_DB_SQL = "CREATE DATABASE IF NOT EXISTS hft_db;"
 
 CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS traders (
-    trader_id BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS clients (
+    client_id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL
 );
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS tickers (
 
 CREATE TABLE IF NOT EXISTS orders (
     order_id BIGINT PRIMARY KEY,
-    trader_id BIGINT NOT NULL REFERENCES traders(trader_id),
+    client_id BIGINT NOT NULL REFERENCES clients(client_id),
     ticker TEXT NOT NULL REFERENCES tickers(ticker),
     quantity INTEGER NOT NULL,
     price INTEGER NOT NULL,

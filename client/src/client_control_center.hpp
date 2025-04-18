@@ -3,61 +3,60 @@
  * @date 2025-04-06
  */
 
-#ifndef HFT_SERVER_TRADERCONTROLCENTER_HPP
-#define HFT_SERVER_TRADERCONTROLCENTER_HPP
+#ifndef HFT_SERVER_CLIENTCONTROLCENTER_HPP
+#define HFT_SERVER_CLIENTCONTROLCENTER_HPP
 
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "boost_types.hpp"
-#include "bus/bus.hpp"
-#include "config/trader_config.hpp"
+#include "client_command.hpp"
+#include "client_command_parser.hpp"
+#include "client_events.hpp"
+#include "client_types.hpp"
+#include "config/client_config.hpp"
 #include "console_reader.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
-#include "trader_command.hpp"
-#include "trader_command_parser.hpp"
-#include "trader_engine.hpp"
-#include "trader_events.hpp"
+#include "trade_engine.hpp"
 #include "types.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
 /**
  * @brief Creates all the components and controls the flow
  */
-class TraderControlCenter {
+class ClientControlCenter {
 public:
-  using UPtr = std::unique_ptr<TraderControlCenter>;
-  using TraderConsoleReader = ConsoleReader<TraderCommandParser>;
-  using Kafka = KafkaAdapter<TraderCommandParser>;
+  using ClientConsoleReader = ConsoleReader<ClientCommandParser>;
+  using Kafka = KafkaAdapter<ClientCommandParser>;
 
-  TraderControlCenter()
+  ClientControlCenter()
       : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus, kafkaCfg()},
         consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
 
-    bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this]() {
+    bus_.systemBus.subscribe(ClientEvent::ConnectedToTheServer, [this]() {
       networkConnected_ = true;
       timer_.cancel();
     });
-    bus_.systemBus.subscribe(TraderEvent::DisconnectedFromTheServer, [this]() {
+    bus_.systemBus.subscribe(ClientEvent::DisconnectedFromTheServer, [this]() {
       networkConnected_ = false;
       scheduleReconnect();
     });
 
     // commands
-    bus_.systemBus.subscribe(TraderCommand::Shutdown, [this]() { stop(); });
-    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStart, [this]() {
+    bus_.systemBus.subscribe(ClientCommand::Shutdown, [this]() { stop(); });
+    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStart, [this]() {
       LOG_INFO_SYSTEM("Start kafka feed");
       kafka_.start();
     });
-    bus_.systemBus.subscribe(TraderCommand::KafkaFeedStop, [this]() {
+    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStop, [this]() {
       LOG_INFO_SYSTEM("Stop kafka feed");
       kafka_.stop();
     });
 
     // kafka topics
     kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
-    kafka_.addConsumeTopic("trader-commands");
+    kafka_.addConsumeTopic("client-commands");
   }
 
   void start() {
@@ -71,8 +70,8 @@ public:
     networkClient_.connect();
 
     utils::setTheadRealTime();
-    if (TraderConfig::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(TraderConfig::cfg.coreSystem.value());
+    if (ClientConfig::cfg.coreSystem.has_value()) {
+      utils::pinThreadToCore(ClientConfig::cfg.coreSystem.value());
     }
     bus_.systemCtx().run();
   }
@@ -88,15 +87,15 @@ public:
 
 private:
   void greetings() {
-    LOG_INFO_SYSTEM("Trader go stonks");
+    LOG_INFO_SYSTEM("Client go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    TraderConfig::cfg.logConfig();
+    ClientConfig::cfg.logConfig();
     consoleReader_.printCommands();
   }
 
   KafkaConfig kafkaCfg() const {
-    return KafkaConfig{TraderConfig::cfg.kafkaBroker, TraderConfig::cfg.kafkaConsumerGroup,
-                       TraderConfig::cfg.kafkaPollRate};
+    return KafkaConfig{ClientConfig::cfg.kafkaBroker, ClientConfig::cfg.kafkaConsumerGroup,
+                       ClientConfig::cfg.kafkaPollRate};
   }
 
   void scheduleReconnect() {
@@ -104,7 +103,7 @@ private:
       return;
     }
     LOG_ERROR_SYSTEM("Server is down, reconnecting...");
-    timer_.expires_after(TraderConfig::cfg.monitorRate);
+    timer_.expires_after(ClientConfig::cfg.monitorRate);
     timer_.async_wait([this](CRef<BoostError> ec) {
       if (ec) {
         LOG_ERROR("{}", ec.message());
@@ -118,13 +117,13 @@ private:
   Bus bus_;
 
   NetworkClient networkClient_;
-  TraderEngine engine_;
+  TradeEngine engine_;
   Kafka kafka_;
-  TraderConsoleReader consoleReader_;
+  ClientConsoleReader consoleReader_;
 
   std::atomic_bool networkConnected_{false};
   SteadyTimer timer_;
 };
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_SERVER_TRADERCONTROLCENTER_HPP
+#endif // HFT_SERVER_CLIENTCONTROLCENTER_HPP

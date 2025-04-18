@@ -6,10 +6,9 @@
 #ifndef HFT_COMMON_BUS_HPP
 #define HFT_COMMON_BUS_HPP
 
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "message_bus.hpp"
 #include "system_bus.hpp"
-#include "template_types.hpp"
 
 namespace hft {
 
@@ -18,8 +17,9 @@ namespace hft {
  * @details Routes message to market or system bus depending on
  * whether its routable by market bus or not
  */
-struct Bus {
-  using MarketBus = MessageBus<Order, OrderStatus, TickerPrice>;
+template <typename... MarketTypes>
+struct BusHolder {
+  using MarketBus = MessageBus<MarketTypes...>;
 
   SystemBus systemBus;
   MarketBus marketBus;
@@ -27,15 +27,15 @@ struct Bus {
   inline IoCtx &systemCtx() { return systemBus.ioCtx; }
 
   template <typename MessageType>
-    requires Bus::MarketBus::RoutedType<MessageType>
+    requires(MarketBus::template RoutedType<MessageType>)
   void post(CRef<MessageType> message) {
-    marketBus.post<MessageType>(message);
+    marketBus.template post<MessageType>(message);
   }
 
   template <typename MessageType>
-    requires(!Bus::MarketBus::RoutedType<MessageType>)
+    requires(!MarketBus::template RoutedType<MessageType>)
   void post(CRef<MessageType> message) {
-    systemBus.post<MessageType>(message);
+    systemBus.template post<MessageType>(message);
   }
 };
 } // namespace hft

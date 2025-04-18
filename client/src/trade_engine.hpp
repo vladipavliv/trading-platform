@@ -3,63 +3,62 @@
  * @date 2025-04-06
  */
 
-#ifndef HFT_SERVER_TRADERENGINE_HPP
-#define HFT_SERVER_TRADERENGINE_HPP
+#ifndef HFT_SERVER_CLIENTENGINE_HPP
+#define HFT_SERVER_CLIENTENGINE_HPP
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
 #include "adapters/postgres/postgres_adapter.hpp"
-#include "bus/bus.hpp"
-#include "config/trader_config.hpp"
+#include "client_ticker_data.hpp"
+#include "client_types.hpp"
+#include "config/client_config.hpp"
 #include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
-#include "ticker_data.hpp"
 #include "types.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
 #include "worker.hpp"
 
-namespace hft::trader {
+namespace hft::client {
 
 /**
  * @brief Performs the trading
  * @details For now generates random orders, tracks rtt and price updates
  * Later on maybe will add proper algorithms
  */
-class TraderEngine {
+class TradeEngine {
 public:
   using Tracker = RttTracker<50>;
-  using TickersData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
+  using TickersData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
 
-  explicit TraderEngine(Bus &bus)
-      : bus_{bus}, dbAdapter_{bus_.systemBus}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
-        statsTimer_{bus_.systemCtx()}, tradeRate_{TraderConfig::cfg.tradeRate},
-        monitorRate_{TraderConfig::cfg.monitorRate} {
+  explicit TradeEngine(Bus &bus)
+      : bus_{bus}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx}, statsTimer_{bus_.systemCtx()},
+        tradeRate_{ClientConfig::cfg.tradeRate}, monitorRate_{ClientConfig::cfg.monitorRate} {
     // Market connectors
     bus_.marketBus.setHandler<OrderStatus>(
         [this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.marketBus.setHandler<TickerPrice>(
         [this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe(TraderEvent::ConnectedToTheServer, [this] {
+    bus_.systemBus.subscribe(ClientEvent::ConnectedToTheServer, [this] {
       LOG_INFO_SYSTEM("Ready to start trade");
       operational_ = true;
     });
-    bus_.systemBus.subscribe(TraderEvent::DisconnectedFromTheServer, [this] {
+    bus_.systemBus.subscribe(ClientEvent::DisconnectedFromTheServer, [this] {
       operational_ = false;
       tradeStop();
     });
 
-    bus_.systemBus.subscribe(TraderCommand::TradeStart, [this] { tradeStart(); });
-    bus_.systemBus.subscribe(TraderCommand::TradeStop, [this] { tradeStop(); });
-    bus_.systemBus.subscribe(TraderCommand::TradeSpeedUp, [this] {
+    bus_.systemBus.subscribe(ClientCommand::TradeStart, [this] { tradeStart(); });
+    bus_.systemBus.subscribe(ClientCommand::TradeStop, [this] { tradeStop(); });
+    bus_.systemBus.subscribe(ClientCommand::TradeSpeedUp, [this] {
       if (tradeRate_ > Microseconds(1)) {
         tradeRate_ /= 2;
         LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
       }
     });
-    bus_.systemBus.subscribe(TraderCommand::TradeSpeedDown, [this] {
+    bus_.systemBus.subscribe(ClientCommand::TradeSpeedDown, [this] {
       tradeRate_ *= 2;
       LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
     });
@@ -145,7 +144,7 @@ private:
     const auto action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
     const auto quantity = RNG::rng<Quantity>(100);
     const auto id = getTimestamp(); // TODO(self)
-    Order order{0, 0, id, id, p.first, quantity, newPrice, action};
+    Order order{id, id, p.first, quantity, newPrice, action};
     LOG_DEBUG("Placing order {}", utils::toString(order));
     bus_.marketBus.post(order);
   }
@@ -184,10 +183,10 @@ private:
   }
 
   Worker makeWorker() {
-    if (TraderConfig::cfg.coresApp.empty()) {
+    if (ClientConfig::cfg.coresApp.empty()) {
       return Worker(0, false);
     } else {
-      return Worker(0, true, TraderConfig::cfg.coresApp[0]);
+      return Worker(0, true, ClientConfig::cfg.coresApp[0]);
     }
   }
 
@@ -208,6 +207,6 @@ private:
   std::atomic_bool operational_{false};
   std::atomic_bool trading_{false};
 };
-} // namespace hft::trader
+} // namespace hft::client
 
-#endif // HFT_SERVER_TRADERENGINE_HPP
+#endif // HFT_SERVER_CLIENTENGINE_HPP

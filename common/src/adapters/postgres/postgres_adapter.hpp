@@ -8,9 +8,7 @@
 
 #include <pqxx/pqxx>
 
-#include "bus/bus.hpp"
 #include "logging.hpp"
-#include "market_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -26,12 +24,10 @@ class PostgresAdapter {
       "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432 connect_timeout=1";
 
 public:
-  explicit PostgresAdapter(SystemBus &bus) : bus_{bus}, conn_{CONNECTION_STRING} {
+  PostgresAdapter() : conn_{CONNECTION_STRING} {
     if (!conn_.is_open()) {
       throw std::runtime_error("Failed to open db");
     }
-    bus_.subscribe<CredentialsLoginRequest>(
-        [this](CRef<CredentialsLoginRequest> request) { onAuthenticate(request); });
   }
 
   std::vector<TickerPrice> readTickers() {
@@ -71,41 +67,35 @@ public:
     }
   }
 
-private:
-  void onAuthenticate(CRef<CredentialsLoginRequest> request) {
+  Expected<ClientId> checkCredentials(CRef<String> name, CRef<String> password) {
+    LOG_DEBUG("Authenticating {} {}", name, password);
     try {
-      LOG_DEBUG("Authenticating {} {}", request.name, request.password);
       pqxx::work transaction(conn_);
       // Set small timeout, systemBus must be responsive.
       // Maybe later on make a separate DataBus for such operations
       transaction.exec("SET statement_timeout = 50");
 
-      const String query = "SELECT trader_id, password FROM traders WHERE name = $1";
-      const pqxx::result result = transaction.exec_params(query, request.name);
+      const String query = "SELECT client_id, password FROM clients WHERE name = $1";
+      const auto result = transaction.exec_params(query, name);
 
-      LoginResponse response{request.socketId, 0, 0, false};
       if (!result.empty()) {
-        TraderId traderId = result[0][0].as<TraderId>();
-        std::string password = result[0][1].as<std::string>(); // TODO(self) encrypt
-        if (request.password == password) {
+        const ClientId clientId = result[0][0].as<ClientId>();
+        const String realPassword = result[0][1].as<String>(); // TODO(self) encrypt
+        if (password == realPassword) {
           LOG_INFO("Authentication successfull");
-          response.traderId = traderId;
-          response.success = true;
+          return clientId;
         } else {
-          LOG_ERROR("Invalid password");
+          return std::unexpected("Invalid password");
         }
       } else {
-        LOG_ERROR("User not found");
+        return std::unexpected("User not found");
       }
-      bus_.post(response);
     } catch (const pqxx::sql_error &e) {
-      LOG_ERROR("onAuthenticate exception {}", e.what());
-      bus_.post(LoginResponse{request.socketId, 0, 0, false});
+      return std::unexpected(String(e.what()));
     }
   }
 
 private:
-  SystemBus &bus_;
   pqxx::connection conn_;
 };
 
