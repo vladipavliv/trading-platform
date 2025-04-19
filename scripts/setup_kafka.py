@@ -19,7 +19,7 @@ producer_config = {
     "compression.type": "snappy",
     "buffer.memory": "33554432",
     "max.in.flight.requests.per.connection": "1000",
-    "queue.buffering.max.messages": "100000",
+    "queue.buffering.max.messages": "1000000",
     "queue.buffering.max.kbytes": "10240",
 }
 
