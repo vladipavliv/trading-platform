@@ -10,6 +10,7 @@
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
+#include "kafka_callbacks.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
 #include "serialization/flat_buffers/metadata_serializer.hpp"
@@ -35,17 +36,6 @@ template <typename ConsumeSerializerType = serialization::fbs::MetadataSerialize
 class KafkaAdapter {
   static constexpr auto BROKER = "localhost:9092";
 
-  class DeliveryCallback : public RdKafka::DeliveryReportCb {
-  public:
-    void dr_cb(RdKafka::Message &message) override {
-      if (message.err()) {
-        LOG_ERROR("Kafka delivery failed: {}", message.errstr());
-      } else {
-        LOG_TRACE("Message delivered to the topic: {}", message.topic_name());
-      }
-    }
-  };
-
 public:
   using ConsumeSerializer = ConsumeSerializerType;
   using ProduceSerializer = ProduceSerializerType;
@@ -69,9 +59,6 @@ public:
   void addProduceTopic(CRef<String> topic) {
     using namespace RdKafka;
     LOG_DEBUG(topic);
-    // There is no real need to create Topic instances, there is interface for producer
-    // to pass topic name, but apparently doing it with Topic* is slightly faster
-    // And as i am aiming for 1m+/s throughput, thats better
     if (produceTopicMap_.count(topic) != 0) {
       LOG_ERROR("Topic already exist");
       return;
@@ -86,13 +73,11 @@ public:
   }
 
   void addConsumeTopic(CRef<String> topic) {
-    using namespace RdKafka;
     LOG_DEBUG(topic);
     consumeTopics_.push_back(topic);
   }
 
   void start() {
-    using namespace RdKafka;
     LOG_DEBUG("Starting kafka feed");
     if (state_ == State::Error) {
       throw std::runtime_error(error_);
@@ -106,11 +91,7 @@ public:
   }
 
   void stop() {
-    using namespace RdKafka;
     LOG_DEBUG("Stoping kafka feed");
-    if (state_ == State::Error) {
-      throw std::runtime_error(error_);
-    }
     state_ = State::Off;
     const auto res = consumer_->unsubscribe();
     if (res != RdKafka::ERR_NO_ERROR) {
@@ -126,7 +107,10 @@ private:
     if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
       throw std::runtime_error(error_);
     }
-    if (conf->set("dr_cb", &callback_, error_) != Conf::CONF_OK) {
+    if (conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK) {
+      throw std::runtime_error(error_);
+    }
+    if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
       throw std::runtime_error(error_);
     }
     producer_ = UPtr<Producer>(Producer::create(conf.get(), error_));
@@ -139,6 +123,9 @@ private:
     using namespace RdKafka;
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
     if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
+      throw std::runtime_error(error_);
+    }
+    if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
       throw std::runtime_error(error_);
     }
     if (conf->set("group.id", config_.consumerGroup, error_) != Conf::CONF_OK) {
@@ -215,7 +202,9 @@ private:
 
   State state_{State::Off};
   String error_;
-  DeliveryCallback callback_;
+
+  KafkaEventCallback eventCb_;
+  KafkaDeliveryCallback deliveryCb_;
 };
 } // namespace hft
 

@@ -8,9 +8,9 @@
 
 #include "domain_types.hpp"
 #include "logging.hpp"
+#include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
 #include "network/size_framer.hpp"
-#include "network/socket_status.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -25,8 +25,8 @@ public:
   using Consumer = ConsumerType;
   using Framer = FramerType;
 
-  UdpTransport(UdpSocket socket, UdpEndpoint endpoint, Consumer &consumer)
-      : socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, consumer_{consumer} {}
+  UdpTransport(ConnectionId id, UdpSocket socket, UdpEndpoint endpoint, Consumer &consumer)
+      : id_{id}, socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, consumer_{consumer} {}
 
   void read() {
     socket_.async_receive_from(
@@ -41,14 +41,16 @@ public:
                           [this, data](CRef<BoostError> code, size_t bytes) {
                             if (code) {
                               LOG_ERROR("Udp transport error {}", code.message());
-                              consumer_.post(ConnectionStatus::Error);
+                              consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
                             }
                             if (bytes != data->size()) {
                               LOG_ERROR("Failed to write {}, written {}", data->size(), bytes);
-                              consumer_.post(ConnectionStatus::Error);
+                              consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
                             }
                           });
   }
+
+  inline ConnectionId id() const { return id_; }
 
   inline void close() { socket_.close(); }
 
@@ -59,7 +61,7 @@ private:
       if (code != boost::asio::error::eof) {
         LOG_ERROR("{}", code.message());
       }
-      consumer_.post(ConnectionStatus::Error);
+      consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
       return;
     }
     buffer_.commitWrite(bytes);
@@ -68,6 +70,8 @@ private:
   }
 
 private:
+  const ConnectionId id_;
+
   UdpSocket socket_;
   UdpEndpoint endpoint_;
 

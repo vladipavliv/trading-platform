@@ -13,8 +13,8 @@
 #include "comparators.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
+#include "network/connection_status.hpp"
 #include "network/size_framer.hpp"
-#include "network/socket_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -44,8 +44,8 @@ public:
         [this](CRef<ServerLoginResponse> event) { onLoginResponse(event); });
     bus_.systemBus.subscribe<ServerTokenBindRequest>(
         [this](CRef<ServerTokenBindRequest> event) { onTokenBindRequest(event); });
-    bus_.systemBus.subscribe<ConnectionStatusEvent>(
-        [this](CRef<ConnectionStatusEvent> event) { onConnectionStatusEvent(event); });
+    bus_.systemBus.subscribe<ChannelStatusEvent>(
+        [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
 
   void acceptUpstream(TcpSocket socket) {
@@ -98,11 +98,15 @@ private:
       LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
-    LoginResponse response;
+    if (channelIter->second == nullptr) {
+      LOG_ERROR("Connection not initialized {}", loginResult.connectionId);
+      unauthorizedUpstreamMap_.erase(channelIter->first);
+      return;
+    }
     if (!loginResult.ok) {
       LOG_ERROR("Authentication failed for {}, closing channel", loginResult.connectionId);
+      channelIter->second->write(LoginResponse{0, false, loginResult.error});
       unauthorizedUpstreamMap_.erase(channelIter->first);
-      response.error = loginResult.error;
     } else {
       const auto token = utils::generateToken();
 
@@ -110,19 +114,21 @@ private:
       newSession.clientId = loginResult.clientId;
       newSession.token = token;
       newSession.upstreamChannel = std::move(channelIter->second);
+      unauthorizedUpstreamMap_.erase(channelIter->first);
+
+      auto &channelRef = *newSession.upstreamChannel;
+
       const auto result =
           sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)));
+
       if (!result.second) {
         LOG_ERROR("{} already authorized", loginResult.clientId);
-        unauthorizedUpstreamMap_.erase(channelIter->first);
-        response.error = "Already authorized";
+        channelRef.write(LoginResponse{0, false, "Already authorized"});
       } else {
-        response.token = token;
-        response.ok = true;
-        newSession.upstreamChannel->authenticate(loginResult.clientId);
+        channelRef.write(LoginResponse{token, true});
+        channelRef.authenticate(loginResult.clientId);
       }
     }
-    channelIter->second->write(response);
   }
 
   void onTokenBindRequest(CRef<ServerTokenBindRequest> request) {
@@ -154,14 +160,14 @@ private:
     }
   }
 
-  void onConnectionStatusEvent(CRef<ConnectionStatusEvent> event) {
+  void onChannelStatus(CRef<ChannelStatusEvent> event) {
     LOG_TRACE_SYSTEM(utils::toString(event));
-    if (event.status == ConnectionStatus::Connected) {
+    if (event.event.status == ConnectionStatus::Connected) {
       return;
     }
-    unauthorizedUpstreamMap_.erase(event.connectionId);
-    unauthorizedDownstreamMap_.erase(event.connectionId);
-    if (event.clientId.has_value()) {
+    unauthorizedUpstreamMap_.erase(event.event.connectionId);
+    unauthorizedDownstreamMap_.erase(event.event.connectionId);
+    if (event.clientId.has_value() && sessionsMap_.count(event.clientId.value()) > 0) {
       sessionsMap_.erase(event.clientId.value());
       LOG_INFO_SYSTEM("{} disconnected", event.clientId.value());
       printStats();

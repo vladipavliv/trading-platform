@@ -17,3 +17,5 @@ libhft_common.a
 server_log.*
 client_log.*
 __pycache__
+_deps
+lib

@@ -16,7 +16,7 @@
 #include "connection_state.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
-#include "network/socket_status.hpp"
+#include "network/connection_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
 
@@ -48,7 +48,7 @@ public:
       upstreamTransport_.write(order);
     });
     bus_.systemBus.subscribe<ConnectionStatusEvent>(
-        [this](CRef<ConnectionStatusEvent> event) { onConnectionStatusEvent(event); });
+        [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
     bus_.systemBus.subscribe<LoginResponse>(
         [this](CRef<LoginResponse> event) { onLoginResponse(event); });
   }
@@ -105,7 +105,7 @@ public:
   }
 
 private:
-  void onConnectionStatusEvent(CRef<ConnectionStatusEvent> event) {
+  void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG(utils::toString(event));
     if (event.status == ConnectionStatus::Connected) {
       if (upstreamTransport_.status() == ConnectionStatus::Connected &&
@@ -133,20 +133,20 @@ private:
     if (event.ok) {
       token_ = event.token;
     } else {
-      LOG_ERROR_SYSTEM("Login failed");
+      LOG_ERROR_SYSTEM("Login failed {}", event.error);
       state_ = ConnectionState::Disconnected;
       return;
     }
     switch (state_) {
     case ConnectionState::Connected: {
-      LOG_DEBUG_SYSTEM("Authenticated upstream");
+      LOG_INFO_SYSTEM("Login successfull, token: {}", event.token);
       // Now authenticate downstream socket by sending token
       state_ = ConnectionState::TokenReceived;
       downstreamTransport_.write(TokenBindRequest{event.token});
       break;
     }
     case ConnectionState::TokenReceived: {
-      LOG_DEBUG_SYSTEM("Authenticated downstream");
+      LOG_INFO_SYSTEM("Authenticated");
       bus_.post(ClientEvent::ConnectedToTheServer);
       state_ = ConnectionState::Authenticated;
       break;
@@ -158,19 +158,20 @@ private:
 
 private:
   ClientTcpTransport createUpstreamTransport() {
-    return {TcpSocket{ioCtx_},
+    return {utils::generateConnectionId(), TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpUp},
             bus_};
   }
 
   ClientTcpTransport createDownstreamTransport() {
-    return {TcpSocket{ioCtx_},
+    return {utils::generateConnectionId(), TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpDown},
             bus_};
   }
 
   ClientUdpTransport createPricesTransport() {
-    return {utils::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
+    return {utils::generateConnectionId(),
+            utils::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
             UdpEndpoint(Udp::v4(), ClientConfig::cfg.portUdp), bus_};
   }
 

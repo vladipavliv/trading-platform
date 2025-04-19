@@ -20,7 +20,7 @@ class BroadcastService {
 public:
   BroadcastService(IoCtx &ioCtx, Bus &bus)
       : ioCtx_{ioCtx}, bus_{bus},
-        udpTransport_{utils::createUdpSocket(ioCtx_),
+        udpTransport_{utils::generateConnectionId(), utils::createUdpSocket(ioCtx_),
                       UdpEndpoint{Ip::address_v4::broadcast(), ServerConfig::cfg.portUdp}, bus_} {
     bus_.marketBus.setHandler<TickerPrice>([this](CRef<TickerPrice> p) { udpTransport_.write(p); });
   }

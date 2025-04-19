@@ -22,11 +22,17 @@ public:
   using Transport = TcpTransport<SessionChannel>;
 
   SessionChannel(ConnectionId id, TcpSocket socket, Bus &bus)
-      : id_{id}, transport_{std::move(socket), *this}, bus_{bus} {
+      : id_{id}, transport_{id, std::move(socket), *this}, bus_{bus} {
     transport_.read();
   }
 
-  inline void authenticate(ClientId clientId) { clientId_ = clientId; }
+  inline void authenticate(ClientId clientId) {
+    if (clientId_.has_value()) {
+      LOG_ERROR("{} is already authenticated", id_);
+      return;
+    }
+    clientId_ = clientId;
+  }
 
   template <typename MessageType>
   inline void post(CRef<MessageType> message) {
@@ -35,10 +41,6 @@ public:
 
   template <typename Type>
   void write(CRef<Type> message) {
-    if (!clientId_.has_value()) {
-      LOG_ERROR("Channel {} is not authenticated", id_);
-      return;
-    }
     transport_.write(message);
   }
 
@@ -74,8 +76,8 @@ inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> messag
 }
 
 template <>
-inline void SessionChannel::post<ConnectionStatus>(CRef<ConnectionStatus> status) {
-  bus_.post(ConnectionStatusEvent{id_, clientId_, status});
+inline void SessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEvent> event) {
+  bus_.post(ChannelStatusEvent{clientId_, event});
 }
 
 template <>

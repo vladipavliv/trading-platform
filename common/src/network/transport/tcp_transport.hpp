@@ -8,9 +8,9 @@
 
 #include "domain_types.hpp"
 #include "logging.hpp"
+#include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
 #include "network/size_framer.hpp"
-#include "network/socket_status.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -25,11 +25,12 @@ public:
   using Consumer = ConsumerType;
   using Framer = FramerType;
 
-  TcpTransport(TcpSocket socket, Consumer &consumer)
-      : socket_{std::move(socket)}, consumer_{consumer}, status_{ConnectionStatus::Connected} {}
+  TcpTransport(ConnectionId id, TcpSocket socket, Consumer &consumer)
+      : id_{id}, socket_{std::move(socket)}, consumer_{consumer},
+        status_{ConnectionStatus::Connected} {}
 
-  TcpTransport(TcpSocket socket, TcpEndpoint endpoint, Consumer &consumer)
-      : TcpTransport(std::move(socket), consumer) {
+  TcpTransport(ConnectionId id, TcpSocket socket, TcpEndpoint endpoint, Consumer &consumer)
+      : TcpTransport(id, std::move(socket), consumer) {
     endpoint_ = std::move(endpoint);
     status_ = ConnectionStatus::Disconnected;
   }
@@ -70,6 +71,8 @@ public:
         [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
   }
 
+  inline ConnectionId id() const { return id_; }
+
   inline auto status() const -> ConnectionStatus { return status_; }
 
   inline void close() { socket_.close(); }
@@ -94,10 +97,12 @@ private:
 
   void onStatus(ConnectionStatus status) {
     status_.store(status);
-    consumer_.post(status);
+    consumer_.post(ConnectionStatusEvent{id_, status});
   }
 
 private:
+  const ConnectionId id_;
+
   TcpSocket socket_;
   TcpEndpoint endpoint_;
 

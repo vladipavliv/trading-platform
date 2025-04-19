@@ -4,6 +4,8 @@ clear
 
 ulimit -c unlimited
 
+./scripts/start_kafka.sh
+
 if [ "$1" == "s" ]; then
     cd build/server
     rm -f server_log*.txt

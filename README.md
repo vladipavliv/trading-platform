@@ -67,21 +67,24 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
 
 ## Performance
-Tested on localhost with 2 clients and 1us trade rate
+Tested on localhost with 1us trade rate
 
 Server:
 ```bash
-10:54:19.758093 [I] Orders: [opn|ttl] 4,826,034|22,285,931 | Rps: 153,804
+09:48:06.973117 [I] Orders: [opn|ttl] 1,395,606|6,380,093 | Rps: 130,272
 ```
 Client [0-1]:
 ```bash
-10:54:21.339249 [I] Rtt: [<50us|>50us] 96.31% avg:26us 3.69% avg:64us
-10:54:19.481263 [I] Rtt: [<50us|>50us] 93.74% avg:30us 6.26% avg:64us
+09:48:06.790729 [I] Rtt: [<50us|>50us] 99.58% avg:19us 0.42% avg:64us
 ```
 
 ## Roadmap
-- [ ] **Data persist and monitoring**  
-Offload all the data to kafka, persist it and make some monitoring frontend
+- [x] **Metadata monitoring**  
+Offload the latencies and other metadata to kafka
+- [ ] **Monitor the kafka metadata**  
+Make separate monitoring service
+- [ ] **Persist the data**  
+Persist metadata to ClickHouse and maybe currently opened orders to Postgres
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
 - [ ] **Testing**  

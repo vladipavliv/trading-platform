@@ -16,7 +16,6 @@ enum class ConnectionStatus : uint8_t { Disconnected, Connected, Error };
 
 struct ConnectionStatusEvent {
   ConnectionId connectionId;
-  Opt<ClientId> clientId;
   ConnectionStatus status;
 };
 
@@ -35,8 +34,7 @@ String toString(const ConnectionStatus &status) {
 }
 
 String toString(const ConnectionStatusEvent &event) {
-  return std::format("ConnectionStatusEvent {} {} {}", event.connectionId,
-                     event.clientId.value_or(0), toString(event.status));
+  return std::format("ConnectionStatusEvent {} {}", event.connectionId, toString(event.status));
 }
 
 } // namespace utils
