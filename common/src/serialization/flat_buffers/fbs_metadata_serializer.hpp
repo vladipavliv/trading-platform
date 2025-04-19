@@ -6,13 +6,13 @@
 #ifndef HFT_COMMON_METADATASERIALIZER_HPP
 #define HFT_COMMON_METADATASERIALIZER_HPP
 
-#include "converter.hpp"
-#include "gen/metadata_messages_generated.h"
+#include "fbs_converter.hpp"
+#include "gen/fbs/metadata_messages_generated.h"
 #include "metadata_types.hpp"
 
-namespace hft::serialization::fbs {
+namespace hft::serialization {
 
-class MetadataSerializer {
+class FbsMetadataSerializer {
 public:
   using BufferType = flatbuffers::DetachedBuffer;
   using SupportedTypes = std::tuple<OrderTimestamp>;
@@ -48,6 +48,6 @@ public:
   }
 };
 
-} // namespace hft::serialization::fbs
+} // namespace hft::serialization
 
 #endif // HFT_COMMON_METADATASERIALIZER_HPP

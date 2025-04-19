@@ -3,12 +3,12 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_CONVERTER_HPP
-#define HFT_COMMON_CONVERTER_HPP
+#ifndef HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP
+#define HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP
 
 #include "domain_types.hpp"
-#include "gen/domain_messages_generated.h"
-#include "gen/metadata_messages_generated.h"
+#include "gen/fbs/domain_messages_generated.h"
+#include "gen/fbs/metadata_messages_generated.h"
 #include "logging.hpp"
 #include "types.hpp"
 
@@ -77,4 +77,4 @@ gen::fbs::domain::OrderState convert(OrderState state) {
 
 } // namespace hft::serialization
 
-#endif // HFT_COMMON_CONVERTER_HPP
+#endif // HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP

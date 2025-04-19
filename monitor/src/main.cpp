@@ -6,7 +6,6 @@
 #include <iostream>
 
 #include "config/monitor_config.hpp"
-#include "config/monitor_config_reader.hpp"
 #include "logging.hpp"
 #include "monitor_control_center.hpp"
 
@@ -14,7 +13,7 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace monitor;
   try {
-    MonitorConfigReader::readConfig("monitor_config.ini");
+    MonitorConfig::load("monitor_config.ini");
     LOG_INIT(MonitorConfig::cfg.logOutput);
 
     MonitorControlCenter monitorCc;

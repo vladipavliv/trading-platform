@@ -3,22 +3,22 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
-#define HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
+#ifndef HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP
+#define HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP
 
 #include "constants.hpp"
-#include "converter.hpp"
 #include "domain_types.hpp"
-#include "gen/domain_messages_generated.h"
+#include "fbs_converter.hpp"
+#include "gen/fbs/domain_messages_generated.h"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::serialization::fbs {
+namespace hft::serialization {
 
 /**
  * @brief Flat buffers serializer
  */
-class DomainSerializer {
+class FbsDomainSerializer {
 public:
   using Message = gen::fbs::domain::Message;
   using MessageType = gen::fbs::domain::MessageUnion;
@@ -182,6 +182,6 @@ public:
   }
 };
 
-} // namespace hft::serialization::fbs
+} // namespace hft::serialization
 
-#endif // HFT_COMMON_SERIALIZATION_FBSERIALIZER_HPP
+#endif // HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP

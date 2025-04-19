@@ -68,6 +68,17 @@ Ticker generateTicker() {
 
 TickerPrice generatePriceUpdate() { return {generateTicker(), RNG::rng<uint32_t>(700)}; }
 
+ByteBuffer parse(CRef<String> input) {
+  ByteBuffer result;
+  std::stringstream ss(input);
+  std::string token;
+
+  while (std::getline(ss, token, ',')) {
+    result.push_back(static_cast<uint8_t>(std::stoi(token)));
+  }
+  return result;
+}
+
 Timestamp getTimestamp() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);

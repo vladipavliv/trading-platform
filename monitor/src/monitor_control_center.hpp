@@ -13,7 +13,7 @@
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "monitor_command_parser.hpp"
-#include "serialization/flat_buffers/metadata_serializer.hpp"
+#include "serialization/flat_buffers/fbs_metadata_serializer.hpp"
 #include "server_command.hpp"
 
 namespace hft::monitor {
@@ -21,11 +21,11 @@ namespace hft::monitor {
  * @brief CC
  */
 class MonitorControlCenter {
-  using Kafka = KafkaAdapter<serialization::fbs::MetadataSerializer, MonitorCommandParser>;
+  using Kafka = KafkaAdapter<serialization::FbsMetadataSerializer, MonitorCommandParser>;
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
 
 public:
-  MonitorControlCenter() : consoleReader_{bus_}, kafka_{bus_, kafkaCfg()} {
+  MonitorControlCenter() : consoleReader_{bus_}, kafka_{bus_} {
     // upstream subscriptions
     bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> stamp) { onOrderTimestamp(stamp); });
     bus_.subscribe<MonitorCommand>([this](CRef<MonitorCommand> cmd) { onCommand(cmd); });
@@ -60,7 +60,7 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Monitor go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    MonitorConfig::cfg.logConfig();
+    MonitorConfig::log();
     consoleReader_.printCommands();
   }
 
@@ -70,11 +70,6 @@ private:
   }
 
   void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG(utils::toString(cmd)); }
-
-  KafkaConfig kafkaCfg() const {
-    return KafkaConfig{MonitorConfig::cfg.kafkaBroker, MonitorConfig::cfg.kafkaConsumerGroup,
-                       MonitorConfig::cfg.kafkaPollRate};
-  }
 
 private:
   SystemBus bus_;

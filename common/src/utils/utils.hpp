@@ -44,6 +44,7 @@ UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0);
 OrderId generateOrderId();
 ConnectionId generateConnectionId();
 Token generateToken();
+ByteBuffer parse(CRef<String> input);
 
 /**
  * @brief Generic template helpers

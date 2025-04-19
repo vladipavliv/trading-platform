@@ -34,7 +34,7 @@ public:
   ServerControlCenter()
       : networkServer_{bus_}, authenticator_{bus_.systemBus, dbAdapter_},
         coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
-        priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus, kafkaCfg()} {
+        priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
       LOG_INFO_SYSTEM("Server is ready");
@@ -82,13 +82,8 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ServerConfig::cfg.logConfig();
+    ServerConfig::log();
     consoleReader_.printCommands();
-  }
-
-  KafkaConfig kafkaCfg() const {
-    return KafkaConfig{ServerConfig::cfg.kafkaBroker, ServerConfig::cfg.kafkaConsumerGroup,
-                       ServerConfig::cfg.kafkaPollRate};
   }
 
   void readMarketData() {
