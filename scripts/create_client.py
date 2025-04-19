@@ -7,7 +7,7 @@ import psycopg2
 import sys
 from postgres_config import DB_CONFIG
 
-def create_CLIENT(name, password):
+def create_client(name, password):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -40,4 +40,4 @@ if __name__ == "__main__":
     name = sys.argv[1]
     password = sys.argv[2]
 
-    create_CLIENT(name, password)
+    create_client(name, password)

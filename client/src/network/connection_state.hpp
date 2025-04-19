@@ -17,8 +17,8 @@ enum class ConnectionState : uint8_t {
   Disconnected,
   Connecting,
   Connected,
-  AuthenticatedUpstream,
-  AuthenticatedDownstream
+  TokenReceived,
+  Authenticated
 };
 } // namespace client
 namespace utils {
@@ -31,10 +31,10 @@ String toString(const client::ConnectionState &event) {
     return "connecting";
   case ConnectionState::Connected:
     return "connected";
-  case ConnectionState::AuthenticatedUpstream:
-    return "authenticated upstream";
-  case ConnectionState::AuthenticatedDownstream:
-    return "authenticated downstream";
+  case ConnectionState::TokenReceived:
+    return "token received";
+  case ConnectionState::Authenticated:
+    return "authenticated";
   default:
     return std::format("unknown event {}", static_cast<uint8_t>(event));
   }

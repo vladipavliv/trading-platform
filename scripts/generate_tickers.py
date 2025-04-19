@@ -14,7 +14,7 @@ def generate_ticker():
 def generate_price():
     return random.randint(10, 10000)
 
-def insert_tickers(amount):
+def generate_tickers(amount):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     try:
         amount = int(sys.argv[1])
-        insert_tickers(amount)
+        generate_tickers(amount)
     except ValueError:
         print("Error: Amount should be an integer.")
         sys.exit(1)

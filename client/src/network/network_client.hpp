@@ -31,7 +31,7 @@ namespace hft::client {
  * @brief Manages all the Tcp and Udp connections to the server, handles authentication
  */
 class NetworkClient {
-  using ClientTcpTransport = TcpTransport<NetworkClient>;
+  using ClientTcpTransport = TcpTransport<Bus>;
   using ClientUdpTransport = UdpTransport<Bus>;
 
 public:
@@ -41,12 +41,16 @@ public:
         downstreamTransport_{createDownstreamTransport()},
         pricesTransport_{createPricesTransport()} {
     bus_.marketBus.setHandler<Order>([this](CRef<Order> order) {
-      if (state_ != ConnectionState::AuthenticatedDownstream || !token_.has_value()) {
+      if (state_ != ConnectionState::Authenticated || !token_.has_value()) {
         LOG_ERROR_SYSTEM("Wrong state {}", utils::toString(state_));
         return;
       }
       upstreamTransport_.write(order);
     });
+    bus_.systemBus.subscribe<ConnectionStatusEvent>(
+        [this](CRef<ConnectionStatusEvent> event) { onConnectionStatusEvent(event); });
+    bus_.systemBus.subscribe<LoginResponse>(
+        [this](CRef<LoginResponse> event) { onLoginResponse(event); });
   }
 
   ~NetworkClient() { stop(); }
@@ -100,7 +104,8 @@ public:
     bus_.post(message);
   }
 
-  void post(CRef<ConnectionStatusEvent> event) {
+private:
+  void onConnectionStatusEvent(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG(utils::toString(event));
     if (event.status == ConnectionStatus::Connected) {
       if (upstreamTransport_.status() == ConnectionStatus::Connected &&
@@ -123,26 +128,27 @@ public:
     }
   }
 
-  void post(CRef<LoginResponse> event) {
+  void onLoginResponse(CRef<LoginResponse> event) {
     LOG_DEBUG(utils::toString(event));
     if (event.ok) {
       token_ = event.token;
     } else {
       LOG_ERROR_SYSTEM("Login failed");
+      state_ = ConnectionState::Disconnected;
       return;
     }
     switch (state_) {
     case ConnectionState::Connected: {
       LOG_DEBUG_SYSTEM("Authenticated upstream");
       // Now authenticate downstream socket by sending token
+      state_ = ConnectionState::TokenReceived;
       downstreamTransport_.write(TokenBindRequest{event.token});
-      state_ = ConnectionState::AuthenticatedUpstream;
       break;
     }
-    case ConnectionState::AuthenticatedUpstream: {
+    case ConnectionState::TokenReceived: {
       LOG_DEBUG_SYSTEM("Authenticated downstream");
-      state_ = ConnectionState::AuthenticatedDownstream;
       bus_.post(ClientEvent::ConnectedToTheServer);
+      state_ = ConnectionState::Authenticated;
       break;
     }
     default:
@@ -154,13 +160,13 @@ private:
   ClientTcpTransport createUpstreamTransport() {
     return {TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpUp},
-            *this};
+            bus_};
   }
 
   ClientTcpTransport createDownstreamTransport() {
     return {TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpDown},
-            *this};
+            bus_};
   }
 
   ClientUdpTransport createPricesTransport() {

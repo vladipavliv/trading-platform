@@ -16,3 +16,4 @@ libhft_common.a
 /client_config.ini
 server_log.*
 client_log.*
+__pycache__
