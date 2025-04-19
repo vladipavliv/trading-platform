@@ -30,7 +30,7 @@ public:
     }
   }
 
-  std::vector<TickerPrice> readTickers() {
+  Expected<std::vector<TickerPrice>> readTickers() {
     try {
       pqxx::work transaction(conn_);
       transaction.exec("SET statement_timeout = 1000");
@@ -39,13 +39,11 @@ public:
       const pqxx::result countResult = transaction.exec(countQuery);
 
       if (countResult.empty()) {
-        LOG_ERROR("Empty tickers table");
-        return {};
+        return std::unexpected("Empty tickers table");
       }
       const size_t count = countResult[0][0].as<size_t>();
       if (count == 0) {
-        LOG_ERROR("Empty tickers table");
-        return {};
+        return std::unexpected("Empty tickers table");
       }
 
       std::vector<TickerPrice> tickers;
@@ -63,7 +61,7 @@ public:
       return tickers;
     } catch (const std::exception &e) {
       LOG_ERROR("Exception during tickers read {}", e.what());
-      return {};
+      return std::unexpected(e.what());
     }
   }
 
@@ -91,7 +89,7 @@ public:
         return std::unexpected("User not found");
       }
     } catch (const pqxx::sql_error &e) {
-      return std::unexpected(String(e.what()));
+      return std::unexpected(e.what());
     }
   }
 

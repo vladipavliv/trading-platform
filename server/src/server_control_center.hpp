@@ -92,15 +92,19 @@ private:
   }
 
   void readMarketData() {
-    auto prices = dbAdapter_.readTickers();
-
+    const auto result = dbAdapter_.readTickers();
+    if (!result) {
+      LOG_ERROR("Failed to load ticker data {}", result.error());
+      throw std::runtime_error(result.error());
+    }
+    const auto &prices = result.value();
     const auto workers = ServerConfig::cfg.coresApp.size();
     ThreadId roundRobin = 0;
     for (auto &item : prices) {
       marketData_.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
       roundRobin = (++roundRobin < workers) ? roundRobin : 0;
     }
-    LOG_INFO_SYSTEM("Market data loaded for {} tickers", marketData_.size());
+    LOG_INFO_SYSTEM("Data loaded for {} tickers", marketData_.size());
   }
 
 private:

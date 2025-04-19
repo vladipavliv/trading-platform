@@ -66,12 +66,16 @@ inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
 
 template <>
 inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
+  if (clientId_.has_value()) {
+    LOG_ERROR("Channel {} is already authenticated", id_);
+    return;
+  }
   bus_.post(ServerTokenBindRequest{id_, message});
 }
 
 template <>
-inline void SessionChannel::post<ConnectionStatus>(CRef<ConnectionStatus> message) {
-  bus_.post(ConnectionStatusEvent{id_, message});
+inline void SessionChannel::post<ConnectionStatus>(CRef<ConnectionStatus> status) {
+  bus_.post(ConnectionStatusEvent{id_, clientId_, status});
 }
 
 template <>

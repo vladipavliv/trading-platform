@@ -15,8 +15,9 @@ namespace hft {
 enum class ConnectionStatus : uint8_t { Disconnected, Connected, Error };
 
 struct ConnectionStatusEvent {
-  const ConnectionId connectionId;
-  const ConnectionStatus status;
+  ConnectionId connectionId;
+  Opt<ClientId> clientId;
+  ConnectionStatus status;
 };
 
 namespace utils {
@@ -34,8 +35,8 @@ String toString(const ConnectionStatus &status) {
 }
 
 String toString(const ConnectionStatusEvent &event) {
-  return std::format("ConnectionStatusEvent connectionId:{} Status:{}", event.connectionId,
-                     toString(event.status));
+  return std::format("ConnectionStatusEvent {} {} {}", event.connectionId,
+                     event.clientId.value_or(0), toString(event.status));
 }
 
 } // namespace utils

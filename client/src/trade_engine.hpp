@@ -122,15 +122,17 @@ private:
 
   void loadMarketData() {
     LOG_DEBUG("Loading data");
-    const auto prices = dbAdapter_.readTickers();
-    if (prices.empty()) {
-      throw std::runtime_error("Failed to laod market data");
+    const auto result = dbAdapter_.readTickers();
+    if (!result) {
+      LOG_ERROR("Failed to load ticker data {}", result.error());
+      throw std::runtime_error(result.error());
     }
+    const auto &prices = result.value();
     tickersData_.reserve(prices.size());
     for (auto &price : prices) {
       tickersData_[price.ticker] = std::make_unique<TickerData>(price.price);
     }
-    LOG_DEBUG("Market data loaded for {} tickers", tickersData_.size());
+    LOG_DEBUG("Data loaded for {} tickers", tickersData_.size());
   }
 
   void tradeSomething() {

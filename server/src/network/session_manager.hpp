@@ -24,28 +24,20 @@
 namespace hft::server {
 
 /**
- * @brief Manages sessions, accepts messages only from authorized connections
- * @details Login flow is the following:
- * - Client sends credentials via upstream socket
- * - Credentials login request gets posted over the system bus
- * - Postgres adapter handles request and sends response back to the system bus
- * - If auth successfull - session token gets generated and sent back to the client
- * - Client sends token via downstream socket, and session is fully operational
+ * @brief
  */
 class SessionManager {
   struct Session {
+    ClientId clientId;
     Token token;
-    Opt<ConnectionId> upstreamId;
-    Opt<ConnectionId> downstreamId;
+    UPtr<SessionChannel> upstreamChannel;
+    UPtr<SessionChannel> downstreamChannel;
   };
-
-  using ChannelMap = folly::AtomicHashMap<ConnectionId, UPtr<SessionChannel>>;
-  using SessionMap = folly::AtomicHashMap<ClientId, Session>;
 
 public:
   explicit SessionManager(Bus &bus)
-      : bus_{bus}, upstreamMap_{MAX_CONNECTIONS}, downstreamMap_{MAX_CONNECTIONS},
-        sessionsMap_{MAX_CONNECTIONS} {
+      : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
+        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     bus_.marketBus.setHandler<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
     bus_.systemBus.subscribe<ServerLoginResponse>(
@@ -57,13 +49,14 @@ public:
   }
 
   void acceptUpstream(TcpSocket socket) {
-    if (upstreamMap_.size() >= MAX_CONNECTIONS) {
-      LOG_ERROR("Upstream connection limit reached");
+    if (sessionsMap_.size() >= MAX_CONNECTIONS) {
+      LOG_ERROR("Connection limit reached");
       return;
     }
     const auto id = utils::generateConnectionId();
     auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
-    const auto result = upstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    const auto result =
+        unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     if (!result.second) {
       LOG_ERROR("Failed to insert new upstream connection");
     } else {
@@ -72,13 +65,14 @@ public:
   }
 
   void acceptDownstream(TcpSocket socket) {
-    if (downstreamMap_.size() >= MAX_CONNECTIONS) {
-      LOG_ERROR("Downstream connection limit reached");
+    if (sessionsMap_.size() >= MAX_CONNECTIONS) {
+      LOG_ERROR("Connection limit reached");
       return;
     }
     const auto id = utils::generateConnectionId();
     auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
-    const auto result = downstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    const auto result =
+        unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     if (!result.second) {
       LOG_ERROR("Failed to insert new downstream connection");
     } else {
@@ -89,48 +83,43 @@ public:
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     LOG_DEBUG(utils::toString(status));
-
-    const auto sessionIt = sessionsMap_.find(status.clientId);
-    if (sessionIt == sessionsMap_.end() || !sessionIt->second.downstreamId.has_value()) {
+    const auto sessionIter = sessionsMap_.find(status.clientId);
+    if (sessionIter == sessionsMap_.end() || sessionIter->second.downstreamChannel == nullptr) {
       LOG_INFO("Client {} is offline", status.clientId);
     } else {
-      const auto downstreamId = sessionIt->second.downstreamId.value();
-      const auto channelIter = downstreamMap_.find(downstreamId);
-      if (channelIter != downstreamMap_.end()) {
-        channelIter->second->write(status.orderStatus);
-      } else {
-        LOG_ERROR("Downstream socket not found {}", downstreamId);
-      }
+      sessionIter->second.downstreamChannel->write(status.orderStatus);
     }
   }
 
-  void onLoginResponse(CRef<ServerLoginResponse> serverResponse) {
-    LOG_DEBUG("onLoginResponse {} {}", serverResponse.ok, serverResponse.token);
-    const auto channelIter = upstreamMap_.find(serverResponse.connectionId);
-    if (channelIter == upstreamMap_.end()) {
-      LOG_ERROR("Connection not found {}", serverResponse.connectionId);
+  void onLoginResponse(CRef<ServerLoginResponse> loginResult) {
+    LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.token);
+    const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
+    if (channelIter == unauthorizedUpstreamMap_.end()) {
+      LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
     LoginResponse response;
-    if (!serverResponse.ok) {
-      LOG_ERROR("Authentication failed for {}, closing channel", serverResponse.connectionId);
-      upstreamMap_.erase(channelIter->first);
-      response.error = serverResponse.error;
+    if (!loginResult.ok) {
+      LOG_ERROR("Authentication failed for {}, closing channel", loginResult.connectionId);
+      unauthorizedUpstreamMap_.erase(channelIter->first);
+      response.error = loginResult.error;
     } else {
       const auto token = utils::generateToken();
 
       Session newSession;
+      newSession.clientId = loginResult.clientId;
       newSession.token = token;
-      newSession.upstreamId = channelIter->first;
+      newSession.upstreamChannel = std::move(channelIter->second);
       const auto result =
-          sessionsMap_.insert(std::make_pair(serverResponse.clientId, std::move(newSession)));
+          sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)));
       if (!result.second) {
-        LOG_ERROR("Failed to insert new session");
-        upstreamMap_.erase(channelIter->first);
-        response.error = "Internal error";
+        LOG_ERROR("{} already authorized", loginResult.clientId);
+        unauthorizedUpstreamMap_.erase(channelIter->first);
+        response.error = "Already authorized";
       } else {
         response.token = token;
         response.ok = true;
+        newSession.upstreamChannel->authenticate(loginResult.clientId);
       }
     }
     channelIter->second->write(response);
@@ -138,36 +127,31 @@ private:
 
   void onTokenBindRequest(CRef<ServerTokenBindRequest> request) {
     LOG_DEBUG("Token bind request {} {}", request.connectionId, request.request.token);
-
-    LoginResponse response;
-    const auto channelIter = downstreamMap_.find(request.connectionId);
-    if (channelIter == downstreamMap_.end()) {
+    const auto channelIter = unauthorizedDownstreamMap_.find(request.connectionId);
+    if (channelIter == unauthorizedDownstreamMap_.end()) {
       LOG_WARN("Client already disconnected");
       return;
     }
-    const auto sessionIter =
-        std::find_if(sessionsMap_.begin(), sessionsMap_.end(),
-                     [token = request.request.token](const SessionMap::value_type &session) {
-                       return session.second.token == token;
-                     });
+    // Token lookup is only needed at the initial authorization stage
+    const auto sessionIter = std::find_if(sessionsMap_.begin(), sessionsMap_.end(),
+                                          [token = request.request.token](const auto &session) {
+                                            return session.second.token == token;
+                                          });
     if (sessionIter == sessionsMap_.end()) {
       LOG_ERROR("Invalid token received from {}", request.connectionId);
-      response.error = "Invalid token";
-    } else if (sessionIter->second.downstreamId.has_value()) {
-      LOG_ERROR("Downstream channel {} is already authenticated", request.connectionId);
-      response.error = "Already authenticated";
+      channelIter->second->write(LoginResponse{0, false, "Invalid token"});
+    } else if (sessionIter->second.downstreamChannel != nullptr) {
+      LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
+      channelIter->second->write(LoginResponse{0, false, "Already connected"});
     } else {
-      sessionIter->second.downstreamId = request.connectionId;
-      response.ok = true;
-      response.token = request.request.token;
+      auto &session = sessionIter->second;
+      session.downstreamChannel = std::move(channelIter->second);
+      session.downstreamChannel->authenticate(session.clientId);
+      session.downstreamChannel->write(LoginResponse{request.request.token, true});
+      unauthorizedDownstreamMap_.erase(channelIter->first);
+      LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
+      printStats();
     }
-
-    channelIter->second->write(response);
-    LOG_INFO_SYSTEM("Session started clientId: {} Token: {}, UpId: {}, DownId: {}",
-                    sessionIter->first, request.request.token,
-                    sessionIter->second.upstreamId.value_or(0),
-                    sessionIter->second.downstreamId.value_or(0));
-    printStats();
   }
 
   void onConnectionStatusEvent(CRef<ConnectionStatusEvent> event) {
@@ -175,30 +159,11 @@ private:
     if (event.status == ConnectionStatus::Connected) {
       return;
     }
-    Opt<ClientId> clientId;
-    // Cleanup disconnected channel from connections map and session map
-    // Event could be of either up or downstream channel
-    const auto upstreamIter = upstreamMap_.find(event.connectionId);
-    if (upstreamIter != upstreamMap_.end()) {
-      clientId = upstreamIter->second->clientId();
-      upstreamMap_.erase(upstreamIter->first);
-    }
-    const auto downstreamIter = downstreamMap_.find(event.connectionId);
-    if (downstreamIter != downstreamMap_.end()) {
-      clientId = downstreamIter->second->clientId();
-      downstreamMap_.erase(downstreamIter->first);
-    }
-    // If session was already started - clean it up
-    if (clientId.has_value()) {
-      const auto sessionIter = sessionsMap_.find(clientId.value());
-      if (sessionIter->second.downstreamId.has_value()) {
-        downstreamMap_.erase(sessionIter->second.downstreamId.value());
-      }
-      if (sessionIter->second.upstreamId.has_value()) {
-        upstreamMap_.erase(sessionIter->second.upstreamId.value());
-      }
-      sessionsMap_.erase(clientId.value());
-      LOG_INFO_SYSTEM("{} disconnected", clientId.value());
+    unauthorizedUpstreamMap_.erase(event.connectionId);
+    unauthorizedDownstreamMap_.erase(event.connectionId);
+    if (event.clientId.has_value()) {
+      sessionsMap_.erase(event.clientId.value());
+      LOG_INFO_SYSTEM("{} disconnected", event.clientId.value());
       printStats();
     }
   }
@@ -208,9 +173,10 @@ private:
 private:
   Bus &bus_;
 
-  ChannelMap upstreamMap_;
-  ChannelMap downstreamMap_;
-  SessionMap sessionsMap_;
+  folly::AtomicHashMap<ConnectionId, UPtr<SessionChannel>> unauthorizedUpstreamMap_;
+  folly::AtomicHashMap<ConnectionId, UPtr<SessionChannel>> unauthorizedDownstreamMap_;
+
+  folly::AtomicHashMap<ClientId, Session> sessionsMap_;
 };
 
 } // namespace hft::server
