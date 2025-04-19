@@ -12,10 +12,10 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
+#include "boost_types.hpp"
 #include "monitor_config.hpp"
-#include "network_types.hpp"
 #include "types.hpp"
-#include "utils/template_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::monitor {
 

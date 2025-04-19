@@ -11,16 +11,16 @@
 #include "monitor_command.hpp"
 #include "server_command.hpp"
 #include "server_command_parser.hpp"
-#include "template_types.hpp"
-#include "trader_command.hpp"
-#include "trader_command_parser.hpp"
+
+#include "client_command.hpp"
+#include "client_command_parser.hpp"
 #include "types.hpp"
 
 namespace hft::monitor {
 
 /**
- * @brief Parser/Serializer for MonitorCommand as well as Server/Trader commands
- * MonitorCommand for native control, Server/Trader commands to send them over the kafka
+ * @brief Parser/Serializer for MonitorCommand as well as Server/Client commands
+ * MonitorCommand for native control, Server/Client commands to send them over the kafka
  */
 class MonitorCommandParser {
 public:
@@ -28,7 +28,7 @@ public:
 
   template <typename Consumer>
   static bool parse(CRef<String> cmd, Consumer &&consumer) {
-    // first try to parse with native command map, then server/trader
+    // first try to parse with native command map, then server/client
     bool ret{false};
     const auto cmdIt = commands.find(cmd);
     if (cmdIt != commands.end()) {
@@ -36,7 +36,7 @@ public:
       ret = true;
     }
     if (server::ServerCommandParser::parse(cmd, consumer) |
-        trader::TraderCommandParser::parse(cmd, consumer)) {
+        client::ClientCommandParser::parse(cmd, consumer)) {
       ret = true;
     }
     return ret;
@@ -64,8 +64,8 @@ public:
     return server::ServerCommandParser::serialize(cmd);
   }
 
-  static ByteBuffer serialize(CRef<trader::TraderCommand> cmd) {
-    return trader::TraderCommandParser::serialize(cmd);
+  static ByteBuffer serialize(CRef<client::ClientCommand> cmd) {
+    return client::ClientCommandParser::serialize(cmd);
   }
 };
 

@@ -1,0 +1,64 @@
+namespace hft.serialization.gen.fbs.domain;
+
+enum OrderAction: byte {
+    BUY = 0,
+    SELL = 1
+}
+
+enum OrderState: int {
+    Accepted = 0,
+    Partial = 1,
+    Full = 2
+}
+
+table LoginRequest {
+    name: string;
+    password: string;
+}
+
+table TokenBindRequest {
+    token: uint64;
+}
+
+table LoginResponse {
+    token: uint64;
+    ok: bool;
+    error: string;
+}
+
+table Order {
+    id: uint64;
+    created: uint64;
+    ticker: string;
+    quantity: uint;
+    price: uint;
+    action: OrderAction;
+}
+
+table OrderStatus {
+    order_id: uint64;
+    fulfilled: uint64;
+    quantity: uint;
+    fill_price: uint;
+    state: OrderState;
+}
+
+table TickerPrice {
+    ticker: string;
+    price: uint;
+}
+
+union MessageUnion {
+    LoginRequest,
+    LoginResponse,
+    TokenBindRequest,
+    Order,
+    OrderStatus,
+    TickerPrice
+}
+
+table Message {
+    message: MessageUnion;
+}
+
+root_type Message;

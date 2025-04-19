@@ -11,7 +11,6 @@
 #include <set>
 #include <vector>
 
-#include "template_types.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 

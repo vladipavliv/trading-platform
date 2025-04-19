@@ -7,7 +7,7 @@
 #define HFT_COMMON_MARKETUTILS_HPP
 
 #include "constants.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "rng.hpp"
 #include "types.hpp"
 

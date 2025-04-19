@@ -7,10 +7,10 @@
 #define HFT_SERVER_PRICEFEED_HPP
 
 #include "boost_types.hpp"
-#include "bus/bus.hpp"
 #include "config/server_config.hpp"
 #include "server_command.hpp"
-#include "ticker_data.hpp"
+#include "server_ticker_data.hpp"
+#include "server_types.hpp"
 #include "utils/market_utils.hpp"
 
 namespace hft::server {

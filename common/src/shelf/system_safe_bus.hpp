@@ -8,9 +8,9 @@
 
 #include <list>
 
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "message_bus.hpp"
-#include "template_types.hpp"
+
 #include "types.hpp"
 
 namespace hft {

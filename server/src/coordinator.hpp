@@ -9,12 +9,12 @@
 #include <map>
 #include <vector>
 
-#include "bus/bus.hpp"
 #include "config/server_config.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
-#include "ticker_data.hpp"
+#include "server_ticker_data.hpp"
+#include "server_types.hpp"
 #include "worker.hpp"
 
 namespace hft::server {
@@ -28,7 +28,8 @@ public:
   Coordinator(Bus &bus, const MarketData &data)
       : bus_{bus}, data_{data}, timer_{bus_.systemCtx()},
         statsRate_{ServerConfig::cfg.monitorRate} {
-    bus_.marketBus.setHandler<Order>([this](CRef<Order> order) { processOrder(order); });
+    bus_.marketBus.setHandler<ServerOrder>(
+        [this](CRef<ServerOrder> order) { processOrder(order); });
   }
 
   void start() {
@@ -57,22 +58,15 @@ private:
     }
   }
 
-  void processOrder(CRef<Order> order) {
+  void processOrder(CRef<ServerOrder> order) {
     LOG_TRACE(utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    bus_.systemBus.post(OrderTimestamp{order.id, utils::getTimestamp(), TimestampType::Received});
-
-    const auto &data = data_.at(order.ticker);
+    const auto &data = data_.at(order.order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       // Send timestamp to kafka
       data->orderBook.add(order);
-      data->orderBook.match([this](CRef<OrderStatus> status) {
-        bus_.marketBus.post(status);
-        if (status.state == OrderState::Full) {
-          bus_.systemBus.post(
-              OrderTimestamp{status.orderId, utils::getTimestamp(), TimestampType::Fulfilled});
-        }
-      });
+      data->orderBook.match(
+          [this](CRef<ServerOrderStatus> status) { bus_.marketBus.post(status); });
     });
   }
 

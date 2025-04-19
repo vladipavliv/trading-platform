@@ -31,29 +31,29 @@ target_link_libraries(hft_common PRIVATE
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
 # Generate flatbuffers code from the schema
-set(MARKET_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/marketdata.fbs)
-set(META_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/metadata.fbs)
+set(DOMAIN_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/domain_messages.fbs)
+set(METADATA_SCHEMA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/schema/metadata_messages.fbs)
 
 set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
 
 add_custom_command(
-    OUTPUT ${GEN_DIR}/marketdata_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${MARKET_SCHEMA_FILE}
-    DEPENDS ${MARKET_SCHEMA_FILE}
-    COMMENT "Generating market FlatBuffers code from schema"
+    OUTPUT ${GEN_DIR}/domain_messages_generated.h
+    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${DOMAIN_SCHEMA_FILE}
+    DEPENDS ${DOMAIN_SCHEMA_FILE}
+    COMMENT "Generating domain messages FlatBuffers code from schema"
 )
 add_custom_command(
-    OUTPUT ${GEN_DIR}/metadata_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${META_SCHEMA_FILE}
-    DEPENDS ${META_SCHEMA_FILE}
-    COMMENT "Generating metadata FlatBuffers code from schema"
+    OUTPUT ${GEN_DIR}/metadata_messages_generated.h
+    COMMAND flatc --cpp --gen-object-api -o ${GEN_DIR} ${METADATA_SCHEMA_FILE}
+    DEPENDS ${METADATA_SCHEMA_FILE}
+    COMMENT "Generating metadata messages FlatBuffers code from schema"
 )
 
-add_custom_target(fbs_market_code_generator DEPENDS ${GEN_DIR}/marketdata_generated.h)
-add_custom_target(fbs_meta_code_generator DEPENDS ${GEN_DIR}/metadata_generated.h)
+add_custom_target(fbs_domain_code_generator DEPENDS ${GEN_DIR}/domain_messages_generated.h)
+add_custom_target(fbs_metadata_code_generator DEPENDS ${GEN_DIR}/metadata_messages_generated.h)
 
-add_dependencies(hft_common fbs_market_code_generator)
-add_dependencies(hft_common fbs_meta_code_generator)
+add_dependencies(hft_common fbs_domain_code_generator)
+add_dependencies(hft_common fbs_metadata_code_generator)
 
 # Make library
 set(CMAKE_AR "/usr/bin/ar")

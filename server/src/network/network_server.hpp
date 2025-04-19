@@ -12,17 +12,14 @@
 
 #include "boost_types.hpp"
 #include "broadcast_service.hpp"
-#include "bus/bus.hpp"
 #include "config/server_config.hpp"
-#include "gateway.hpp"
-#include "market_types.hpp"
+#include "domain_types.hpp"
 #include "network/transport/udp_transport.hpp"
-#include "network_types.hpp"
 #include "server_command.hpp"
 #include "server_events.hpp"
-#include "template_types.hpp"
+#include "server_types.hpp"
+#include "session_manager.hpp"
 #include "types.hpp"
-#include "utils/template_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::server {
@@ -34,7 +31,7 @@ namespace hft::server {
 class NetworkServer {
 public:
   NetworkServer(Bus &bus)
-      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, gateway_{bus_},
+      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, sessionManager_{bus_},
         broadcast_{ioCtx_, bus_}, upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
 
   ~NetworkServer() { stop(); }
@@ -90,7 +87,7 @@ private:
         return;
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
-      gateway_.acceptUpstream(std::move(socket));
+      sessionManager_.acceptUpstream(std::move(socket));
       acceptUpstream();
     });
   }
@@ -111,7 +108,7 @@ private:
         return;
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
-      gateway_.acceptDownstream(std::move(socket));
+      sessionManager_.acceptDownstream(std::move(socket));
       acceptDownstream();
     });
   }
@@ -121,7 +118,7 @@ private:
   ContextGuard guard_;
 
   Bus &bus_;
-  Gateway gateway_;
+  SessionManager sessionManager_;
   BroadcastService broadcast_;
 
   TcpAcceptor upstreamAcceptor_;
