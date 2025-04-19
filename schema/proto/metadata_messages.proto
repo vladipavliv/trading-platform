@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package hft.serialization.gen.proto.metadata;
+
+message OrderTimestamp {
+  uint64 order_id = 1;
+  uint64 created = 2;
+  uint64 fulfilled = 3;
+  uint64 notified = 4;
+}

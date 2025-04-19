@@ -3,8 +3,8 @@
  * @date 2025-04-19
  */
 
-#ifndef HFT_COMMON_DB_KAFKACALLBACKS_HPP
-#define HFT_COMMON_DB_KAFKACALLBACKS_HPP
+#ifndef HFT_COMMON_KAFKACALLBACKS_HPP
+#define HFT_COMMON_KAFKACALLBACKS_HPP
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -62,4 +62,4 @@ public:
 
 } // namespace hft
 
-#endif // HFT_COMMON_DB_KAFKACALLBACKS_HPP
+#endif // HFT_COMMON_KAFKACALLBACKS_HPP

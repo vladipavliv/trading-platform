@@ -6,7 +6,6 @@
 #include <iostream>
 
 #include "config/server_config.hpp"
-#include "config/server_config_reader.hpp"
 #include "logging.hpp"
 #include "server_control_center.hpp"
 
@@ -14,7 +13,7 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace server;
   try {
-    ServerConfigReader::readConfig("server_config.ini");
+    ServerConfig::load("server_config.ini");
     LOG_INIT(ServerConfig::cfg.logOutput);
 
     ServerControlCenter serverCc;

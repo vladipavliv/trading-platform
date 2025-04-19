@@ -31,8 +31,8 @@ public:
   using Kafka = KafkaAdapter<ClientCommandParser>;
 
   ClientControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus, kafkaCfg()},
-        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
+      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus}, consoleReader_{bus_.systemBus},
+        timer_{bus_.systemCtx()} {
 
     bus_.systemBus.subscribe(ClientEvent::ConnectedToTheServer, [this]() {
       networkConnected_ = true;
@@ -89,13 +89,8 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Client go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ClientConfig::cfg.logConfig();
+    ClientConfig::log();
     consoleReader_.printCommands();
-  }
-
-  KafkaConfig kafkaCfg() const {
-    return KafkaConfig{ClientConfig::cfg.kafkaBroker, ClientConfig::cfg.kafkaConsumerGroup,
-                       ClientConfig::cfg.kafkaPollRate};
   }
 
   void scheduleReconnect() {

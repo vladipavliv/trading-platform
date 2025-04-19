@@ -15,27 +15,23 @@
 
 namespace hft {
 
-class Config {
-public:
-  static void load(CRef<String> fileName) {
-    boost::property_tree::read_ini(fileName, propertyTree_);
+struct Config {
+  static void load(CRef<String> fileName) { boost::property_tree::read_ini(fileName, data); }
+
+  template <typename Type>
+  static Type get(CRef<String> name) {
+    return data.get<Type>(name);
   }
 
-  template <typename PropertyType>
-  Expected<PropertyType> get(CRef<String> name) {
-    try {
-      return propertyTree_.get<PropertyType>(name, PropertyType{});
-    } catch (const boost::property_tree::ptree_error &e) {
-      LOG_ERROR_SYSTEM("Failed to read property {} error: {}", name, e.what());
-      return std::unexpected(e.what());
-    }
+  template <typename Type>
+  static auto get_optional(CRef<String> name) {
+    return data.get_optional<Type>(name);
   }
 
-private:
-  static boost::property_tree::ptree propertyTree_;
+  static boost::property_tree::ptree data;
 };
 
-boost::property_tree::ptree Config::propertyTree_;
+boost::property_tree::ptree Config::data;
 
 } // namespace hft
 

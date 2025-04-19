@@ -3,27 +3,22 @@
  * @date 2025-04-07
  */
 
-#ifndef HFT_COMMON_DB_KAFKAPRODUCER_HPP
-#define HFT_COMMON_DB_KAFKAPRODUCER_HPP
+#ifndef HFT_COMMON_KAFKAADAPTER_HPP
+#define HFT_COMMON_KAFKAADAPTER_HPP
 
 #include <librdkafka/rdkafkacpp.h>
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
+#include "config/config.hpp"
 #include "kafka_callbacks.hpp"
+#include "kafka_event.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
-#include "serialization/flat_buffers/metadata_serializer.hpp"
-
+#include "serialization/protobuf/proto_metadata_serializer.hpp"
 #include "types.hpp"
 
 namespace hft {
-
-struct KafkaConfig {
-  const String broker;
-  const String consumerGroup;
-  const Milliseconds pollRate;
-};
 
 /**
  * @brief Kafka adapter
@@ -31,17 +26,17 @@ struct KafkaConfig {
  * so adapter can subscribe for the messages in a SystemBus
  * For consuming serializer takes case of the types and routing to a SystemBus
  */
-template <typename ConsumeSerializerType = serialization::fbs::MetadataSerializer,
-          typename ProduceSerializerType = serialization::fbs::MetadataSerializer>
+template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
+          typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
 class KafkaAdapter {
-  static constexpr auto BROKER = "localhost:9092";
-
 public:
   using ConsumeSerializer = ConsumeSerializerType;
   using ProduceSerializer = ProduceSerializerType;
 
-  KafkaAdapter(SystemBus &bus, CRef<KafkaConfig> config)
-      : bus_{bus}, config_{config}, timer_{bus_.ioCtx} {
+  explicit KafkaAdapter(SystemBus &bus)
+      : bus_{bus}, broker_{Config::get<String>("kafka.kafka_broker")},
+        consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
+        pollRate_{Milliseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
     LOG_DEBUG("Starting kafka adapter");
     createProducer();
     createConsumer();
@@ -65,8 +60,8 @@ public:
     }
     UPtr<Topic> topicPtr{Topic::create(producer_.get(), topic, nullptr, error_)};
     if (!topicPtr) {
-      LOG_ERROR("Failed to create topic {}: {}", topic, error_);
-      throw std::runtime_error(error_);
+      onFatalError(std::format("Failed to create topic {}: {}", topic, error_));
+      return;
     }
     produceTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
     bus_.subscribe<EventType>([this, topic](CRef<EventType> event) { produce(topic, event); });
@@ -80,7 +75,8 @@ public:
   void start() {
     LOG_DEBUG("Starting kafka feed");
     if (state_ == State::Error) {
-      throw std::runtime_error(error_);
+      LOG_ERROR("KafkaAdapter is in error state {}", error_);
+      return;
     }
     state_ = State::On;
     const auto res = consumer_->subscribe(consumeTopics_);
@@ -92,6 +88,10 @@ public:
 
   void stop() {
     LOG_DEBUG("Stoping kafka feed");
+    if (state_ == State::Error) {
+      LOG_ERROR("KafkaAdapter is in error state {}", error_);
+      return;
+    }
     state_ = State::Off;
     const auto res = consumer_->unsubscribe();
     if (res != RdKafka::ERR_NO_ERROR) {
@@ -104,36 +104,44 @@ private:
   void createProducer() {
     using namespace RdKafka;
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
-    if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK) {
+      onFatalError();
+      return;
     }
     if (conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+      onFatalError();
+      return;
     }
     if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+      onFatalError();
+      return;
     }
     producer_ = UPtr<Producer>(Producer::create(conf.get(), error_));
     if (!producer_) {
-      throw std::runtime_error(error_);
+      onFatalError();
+      return;
     }
   }
 
   void createConsumer() {
     using namespace RdKafka;
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
-    if (conf->set("bootstrap.servers", config_.broker, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK) {
+      onFatalError();
+      return;
     }
     if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+      onFatalError();
+      return;
     }
-    if (conf->set("group.id", config_.consumerGroup, error_) != Conf::CONF_OK) {
-      throw std::runtime_error(error_);
+    if (conf->set("group.id", consumerGroup_, error_) != Conf::CONF_OK) {
+      onFatalError();
+      return;
     }
     consumer_ = UPtr<KafkaConsumer>(KafkaConsumer::create(conf.get(), error_));
     if (!consumer_) {
-      throw std::runtime_error(error_);
+      onFatalError();
+      return;
     }
   }
 
@@ -148,10 +156,10 @@ private:
   }
 
   void schedulePoll() {
-    timer_.expires_after(config_.pollRate);
+    timer_.expires_after(pollRate_);
     timer_.async_wait([this](CRef<BoostError> code) {
       if (code) {
-        LOG_ERROR("{}", code.message());
+        onFatalError(code.message());
         return;
       }
       pollConsume();
@@ -174,23 +182,32 @@ private:
       return;
     }
     // librdkafka requires message be of a type void*
-    // TODO(self): instead of RK_MSG_COPY one can do RK_MSG_FREE, but kafka would take
-    // ownership, so serialization should be done into a heap
     auto serializedMsg = ProduceSerializer::serialize(msg);
     const ErrorCode result =
         producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
                            serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
     if (result != RdKafka::ERR_NO_ERROR) {
-      LOG_ERROR("Failed to produce message {}", RdKafka::err2str(result));
+      onFatalError(RdKafka::err2str(result));
     } else {
       LOG_DEBUG("Order sent to kafka");
     }
   }
 
+  void onFatalError(CRef<String> error = "") {
+    if (!error.empty()) {
+      error_ = error;
+    }
+    LOG_ERROR_SYSTEM("{}", error_);
+    state_ = State::Error;
+    bus_.post(KafkaEvent{KafkaStatus::Error, error_});
+  }
+
 private:
   SystemBus &bus_;
 
-  const KafkaConfig config_;
+  const String broker_;
+  const String consumerGroup_;
+  const Milliseconds pollRate_;
 
   UPtr<RdKafka::Producer> producer_;
   UPtr<RdKafka::KafkaConsumer> consumer_;
@@ -208,4 +225,4 @@ private:
 };
 } // namespace hft
 
-#endif // HFT_COMMON_DB_KAFKAPRODUCER_HPP
+#endif // HFT_COMMON_KAFKAADAPTER_HPP
