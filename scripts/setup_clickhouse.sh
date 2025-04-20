@@ -9,6 +9,27 @@ CLICKHOUSE_PORT="9000"
 CLICKHOUSE_USER="default"
 CLICKHOUSE_PASSWORD="password"
 
+# Copy proto file to ClickHouse internal dir
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_PROTO_FILE="$SCRIPT_DIR/../schema/proto/metadata_messages.proto"
+DEST_PROTO_DIR="/var/lib/clickhouse/format_schemas"
+DEST_PROTO_FILE="$DEST_PROTO_DIR/metadata_messages.proto"
+
+if [ ! -f "$DEST_PROTO_FILE" ]; then
+  if [ ! -d "$DEST_PROTO_DIR" ]; then
+    sudo mkdir -p "$DEST_PROTO_DIR"
+  fi
+
+  echo "Copying $SRC_PROTO_FILE to $DEST_PROTO_DIR..."
+  sudo cp "$SRC_PROTO_FILE" "$DEST_PROTO_DIR"
+
+  echo "Setting proper permissions for the copied file..."
+  sudo chown clickhouse:clickhouse "$DEST_PROTO_FILE"
+  sudo chmod 644 "$DEST_PROTO_FILE"
+
+  echo "Proto file setup complete."
+fi
+
 # Create Kafka table in ClickHouse
 cat <<EOF | clickhouse-client --host=$CLICKHOUSE_HOST --port=$CLICKHOUSE_PORT --user=$CLICKHOUSE_USER --password=$CLICKHOUSE_PASSWORD
 CREATE TABLE IF NOT EXISTS order_timestamps_kafka
@@ -59,5 +80,4 @@ SELECT
 FROM order_timestamps_kafka;
 EOF
 
-# Inform the user that the setup is complete
-echo "ClickHouse Kafka integration and table setup is complete!"
+echo "ClickHouse Kafka integration and table setup is complete"

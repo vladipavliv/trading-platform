@@ -10,14 +10,15 @@
 
 #include <cstdint>
 #include <expected>
+#include <map>
 #include <memory>
 #include <span>
-#include <stdint.h>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "constants.hpp"
+#include "status_code.hpp"
 
 namespace hft {
 
@@ -59,6 +60,7 @@ using Opt = std::optional<Type>;
  */
 template <typename Type>
 using Span = std::span<Type>;
+using ByteSpan = Span<uint8_t>;
 
 template <typename K, typename V>
 using HashMap = std::unordered_map<K, V>;
@@ -67,7 +69,7 @@ template <typename Type>
 using Atomic = std::atomic<Type>;
 
 template <typename Type>
-using Expected = std::expected<Type, std::string>;
+using Expected = std::expected<Type, StatusCode>;
 
 /**
  * Function types

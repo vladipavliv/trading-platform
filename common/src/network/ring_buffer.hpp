@@ -18,7 +18,7 @@ namespace hft {
  * @brief Wrapper for a ring buffer to use with boost sockets
  */
 class RingBuffer {
-  static constexpr size_t MIN_READ_CAPACITY = MAX_SERIALIZED_MESSAGE_SIZE * 5;
+  static constexpr size_t MIN_READ_CAPACITY = 512;
 
 public:
   explicit RingBuffer(size_t capacity = BUFFER_SIZE) : capacity_{capacity} {
@@ -38,9 +38,9 @@ public:
     return MutableBuffer(buffer_.data() + head_, capacity_ - head_);
   }
 
-  auto data() const -> Span<const uint8_t> {
+  auto data() -> ByteSpan {
     assert(tail_ <= head_);
-    return Span<const uint8_t>(buffer_.data() + tail_, head_ - tail_);
+    return ByteSpan(buffer_.data() + tail_, head_ - tail_);
   }
 
   void commitWrite(size_t bytes) {

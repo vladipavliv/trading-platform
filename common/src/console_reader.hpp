@@ -40,7 +40,7 @@ public:
 private:
   void scheduleInputCheck() {
     timer_.expires_after(Milliseconds(200));
-    timer_.async_wait([this](CRef<BoostError> ec) {
+    timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         return;
       }

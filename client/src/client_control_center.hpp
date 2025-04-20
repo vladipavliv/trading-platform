@@ -34,13 +34,22 @@ public:
       : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus}, consoleReader_{bus_.systemBus},
         timer_{bus_.systemCtx()} {
 
-    bus_.systemBus.subscribe(ClientEvent::ConnectedToTheServer, [this]() {
-      networkConnected_ = true;
-      timer_.cancel();
-    });
-    bus_.systemBus.subscribe(ClientEvent::DisconnectedFromTheServer, [this]() {
-      networkConnected_ = false;
-      scheduleReconnect();
+    bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
+      switch (event) {
+      case ClientEvent::Connected:
+        LOG_INFO_SYSTEM("Connected to the server");
+        networkConnected_ = true;
+        timer_.cancel();
+        break;
+      case ClientEvent::Disconnected:
+      case ClientEvent::ConnectionFailed:
+      case ClientEvent::InternalError:
+        networkConnected_ = false;
+        scheduleReconnect();
+        break;
+      default:
+        break;
+      }
     });
 
     // commands
@@ -99,7 +108,7 @@ private:
     }
     LOG_ERROR_SYSTEM("Server is down, reconnecting...");
     timer_.expires_after(ClientConfig::cfg.monitorRate);
-    timer_.async_wait([this](CRef<BoostError> ec) {
+    timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR("{}", ec.message());
         return;

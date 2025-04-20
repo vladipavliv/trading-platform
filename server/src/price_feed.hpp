@@ -45,7 +45,7 @@ private:
       return;
     }
     timer_.expires_after(rate_);
-    timer_.async_wait([this](CRef<BoostError> ec) {
+    timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         return;
       }

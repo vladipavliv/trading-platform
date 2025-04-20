@@ -72,7 +72,7 @@ private:
 
   void scheduleStatsTimer() {
     timer_.expires_after(statsRate_);
-    timer_.async_wait([this](CRef<BoostError> ec) {
+    timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR_SYSTEM("Error {}", ec.message());
         return;

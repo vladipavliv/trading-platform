@@ -65,11 +65,11 @@ private:
   }
 
   void onOrderTimestamp(CRef<OrderTimestamp> stamp) {
-    LOG_DEBUG(utils::toString(stamp));
+    LOG_DEBUG("onOrderTimestamp {}", utils::toString(stamp));
     //
   }
 
-  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG(utils::toString(cmd)); }
+  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG("{}", utils::toString(cmd)); }
 
 private:
   SystemBus bus_;

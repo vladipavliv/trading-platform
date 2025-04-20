@@ -15,12 +15,30 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
-
+#include "status_code.hpp"
 #include "types.hpp"
 
 namespace hft::utils {
 
 String toString(const auto &val) { return std::to_string(val); }
+
+String toString(const StatusCode &code) {
+  switch (code) {
+  case StatusCode::Ok:
+    return "ok";
+  case StatusCode::Error:
+    return "error";
+  case StatusCode::DbError:
+    return "database error";
+  case StatusCode::AuthInvalidPassword:
+    return "invalid password";
+  case StatusCode::AuthUserNotFound:
+    return "user not found";
+  default:
+    LOG_ERROR("Unknown StatusCode {}", (uint8_t)code);
+  }
+  return "";
+}
 
 String toString(const LoginRequest &msg) {
   return std::format("LoginRequest {} {}", msg.name, msg.password);

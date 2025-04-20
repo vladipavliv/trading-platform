@@ -71,11 +71,11 @@ Tested on localhost with 1us trade rate
 
 Server:
 ```bash
-09:48:06.973117 [I] Orders: [opn|ttl] 1,395,606|6,380,093 | Rps: 130,272
+23:09:06.759313 [I] Orders: [opn|ttl] 1,339,716|6,121,796 | Rps: 138,647
 ```
-Client [0-1]:
+Client:
 ```bash
-09:48:06.790729 [I] Rtt: [<50us|>50us] 99.58% avg:19us 0.42% avg:64us
+23:09:06.926566 [I] Rtt: [<50us|>50us] 99.82% avg:17us 0.18% avg:59us
 ```
 
 ## Roadmap

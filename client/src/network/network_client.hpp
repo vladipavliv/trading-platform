@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "boost_types.hpp"
+#include "client_command.hpp"
+#include "client_events.hpp"
 #include "client_types.hpp"
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
@@ -19,10 +21,8 @@
 #include "network/connection_status.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
-
-#include "client_command.hpp"
-#include "client_events.hpp"
 #include "types.hpp"
+#include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::client {
@@ -42,10 +42,15 @@ public:
         pricesTransport_{createPricesTransport()} {
     bus_.marketBus.setHandler<Order>([this](CRef<Order> order) {
       if (state_ != ConnectionState::Authenticated || !token_.has_value()) {
-        LOG_ERROR_SYSTEM("Wrong state {}", utils::toString(state_));
+        LOG_ERROR_SYSTEM("Failed to process Order: wrong state {}", utils::toString(state_));
+        bus_.post(ClientEvent::InternalError);
         return;
       }
-      upstreamTransport_.write(order);
+      const auto res = upstreamTransport_.write(order);
+      if (res != StatusCode::Ok) {
+        LOG_ERROR_SYSTEM("Failed to process Order: {}", utils::toString(res));
+        bus_.post(ClientEvent::InternalError);
+      }
     });
     bus_.systemBus.subscribe<ConnectionStatusEvent>(
         [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
@@ -91,7 +96,6 @@ public:
     }
     ioCtx_.post([this]() {
       LOG_DEBUG("Connecting to the server");
-      state_ = ConnectionState::Connecting;
       upstreamTransport_.connect();
       downstreamTransport_.connect();
       pricesTransport_.read();
@@ -100,20 +104,20 @@ public:
 
   template <typename MessageType>
   void post(CRef<MessageType> message) {
-    LOG_DEBUG(utils::toString(message));
+    LOG_DEBUG("{}", utils::toString(message));
     bus_.post(message);
   }
 
 private:
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
-    LOG_DEBUG(utils::toString(event));
+    LOG_DEBUG("{}", utils::toString(event));
     if (event.status == ConnectionStatus::Connected) {
       if (upstreamTransport_.status() == ConnectionStatus::Connected &&
           downstreamTransport_.status() == ConnectionStatus::Connected &&
-          state_ == ConnectionState::Connecting) {
-        LOG_DEBUG_SYSTEM("Connected to the server");
+          state_ == ConnectionState::Disconnected) {
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
+        bus_.post(ClientEvent::Connected);
         upstreamTransport_.write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
       }
     } else {
@@ -123,13 +127,15 @@ private:
       upstreamTransport_.close();
       downstreamTransport_.close();
       if (prevState != ConnectionState::Disconnected) {
-        bus_.post(ClientEvent::DisconnectedFromTheServer);
+        bus_.post(ClientEvent::Disconnected);
+      } else {
+        bus_.post(ClientEvent::ConnectionFailed);
       }
     }
   }
 
   void onLoginResponse(CRef<LoginResponse> event) {
-    LOG_DEBUG(utils::toString(event));
+    LOG_DEBUG("{}", utils::toString(event));
     if (event.ok) {
       token_ = event.token;
     } else {
@@ -147,7 +153,7 @@ private:
     }
     case ConnectionState::TokenReceived: {
       LOG_INFO_SYSTEM("Authenticated");
-      bus_.post(ClientEvent::ConnectedToTheServer);
+      bus_.post(ClientEvent::Connected);
       state_ = ConnectionState::Authenticated;
       break;
     }
