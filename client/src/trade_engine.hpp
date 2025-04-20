@@ -41,13 +41,21 @@ public:
     bus_.marketBus.setHandler<TickerPrice>(
         [this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe(ClientEvent::ConnectedToTheServer, [this] {
-      LOG_INFO_SYSTEM("Ready to start trade");
-      operational_ = true;
-    });
-    bus_.systemBus.subscribe(ClientEvent::DisconnectedFromTheServer, [this] {
-      operational_ = false;
-      tradeStop();
+    bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
+      switch (event) {
+      case ClientEvent::Connected:
+        LOG_INFO_SYSTEM("Ready to start trade");
+        operational_ = true;
+        break;
+      case ClientEvent::ConnectionFailed:
+      case ClientEvent::Disconnected:
+      case ClientEvent::InternalError:
+        operational_ = false;
+        tradeStop();
+        break;
+      default:
+        break;
+      }
     });
 
     bus_.systemBus.subscribe(ClientCommand::TradeStart, [this] { tradeStart(); });
@@ -110,7 +118,7 @@ private:
       return;
     }
     tradeTimer_.expires_after(tradeRate_);
-    tradeTimer_.async_wait([this](CRef<BoostError> ec) {
+    tradeTimer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR_SYSTEM("{}", ec.message());
         return;
@@ -124,8 +132,8 @@ private:
     LOG_DEBUG("Loading data");
     const auto result = dbAdapter_.readTickers();
     if (!result) {
-      LOG_ERROR("Failed to load ticker data {}", result.error());
-      throw std::runtime_error(result.error());
+      LOG_ERROR("Failed to load ticker data");
+      throw std::runtime_error(utils::toString(result.error()));
     }
     const auto &prices = result.value();
     tickersData_.reserve(prices.size());
@@ -152,7 +160,7 @@ private:
   }
 
   void onOrderStatus(CRef<OrderStatus> status) {
-    LOG_DEBUG(utils::toString(status));
+    LOG_DEBUG("{}", utils::toString(status));
     // Track orders in TickerData
     Tracker::logRtt(status.orderId);
     bus_.systemBus.post(
@@ -160,7 +168,7 @@ private:
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {
-    LOG_DEBUG(utils::toString(price));
+    LOG_DEBUG("{}", utils::toString(price));
     auto dataIt = tickersData_.find(price.ticker);
     if (dataIt == tickersData_.end()) {
       LOG_ERROR("Ticker {} not found", utils::toString(price.ticker));
@@ -174,7 +182,7 @@ private:
       return;
     }
     statsTimer_.expires_after(monitorRate_);
-    statsTimer_.async_wait([this](CRef<BoostError> ec) {
+    statsTimer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR_SYSTEM("{}", ec.message());
         return;

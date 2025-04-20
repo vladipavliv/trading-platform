@@ -81,7 +81,7 @@ private:
   }
 
   void acceptUpstream() {
-    upstreamAcceptor_.async_accept([this](CRef<BoostError> ec, TcpSocket socket) {
+    upstreamAcceptor_.async_accept([this](BoostErrorCode ec, TcpSocket socket) {
       if (ec) {
         LOG_ERROR("Failed to accept connection {}", ec.message());
         return;
@@ -102,7 +102,7 @@ private:
   }
 
   void acceptDownstream() {
-    downstreamAcceptor_.async_accept([this](CRef<BoostError> ec, TcpSocket socket) {
+    downstreamAcceptor_.async_accept([this](BoostErrorCode ec, TcpSocket socket) {
       if (ec) {
         LOG_ERROR("Failed to accept connection: {}", ec.message());
         return;

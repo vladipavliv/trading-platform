@@ -9,8 +9,8 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
+#include "network/framing/fixed_size_framer.hpp"
 #include "network/ring_buffer.hpp"
-#include "network/size_framer.hpp"
 #include "types.hpp"
 
 namespace hft {
@@ -19,7 +19,7 @@ namespace hft {
  * @brief Asynchronous UdpSocket wrapper
  * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
-template <typename ConsumerType, typename FramerType = SizeFramer<>>
+template <typename ConsumerType, typename FramerType = FixedSizeFramer<>>
 class UdpTransport {
 public:
   using Consumer = ConsumerType;
@@ -31,23 +31,30 @@ public:
   void read() {
     socket_.async_receive_from(
         buffer_.buffer(), endpoint_,
-        [this](CRef<BoostError> code, size_t bytes) { readHandler(code, bytes); });
+        [this](BoostErrorCode code, size_t bytes) { readHandler(code, bytes); });
   }
 
   template <typename Type>
-  void write(CRef<Type> messages) {
-    const auto data = Framer::frame(messages);
-    socket_.async_send_to(ConstBuffer{data->data(), data->size()}, endpoint_,
-                          [this, data](CRef<BoostError> code, size_t bytes) {
+  StatusCode write(CRef<Type> message) {
+    const auto buffer = std::make_shared<ByteBuffer>();
+    const auto framingRes = Framer::frame(message, *buffer);
+    if (!framingRes) {
+      LOG_ERROR("{}", utils::toString(framingRes.error()));
+      return framingRes.error();
+    }
+    LOG_DEBUG("Send {} bytes", *framingRes);
+    socket_.async_send_to(boost::asio::buffer(buffer->data(), *framingRes), endpoint_,
+                          [this, buffer](BoostErrorCode code, size_t bytes) {
                             if (code) {
                               LOG_ERROR("Udp transport error {}", code.message());
                               consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
                             }
-                            if (bytes != data->size()) {
-                              LOG_ERROR("Failed to write {}, written {}", data->size(), bytes);
+                            if (bytes != buffer->size()) {
+                              LOG_ERROR("Failed to write {}, written {}", buffer->size(), bytes);
                               consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
                             }
                           });
+    return StatusCode::Ok;
   }
 
   inline ConnectionId id() const { return id_; }
@@ -55,7 +62,7 @@ public:
   inline void close() { socket_.close(); }
 
 private:
-  void readHandler(CRef<BoostError> code, size_t bytes) {
+  void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
       if (code != boost::asio::error::eof) {
@@ -65,7 +72,15 @@ private:
       return;
     }
     buffer_.commitWrite(bytes);
-    Framer::unframe(buffer_, consumer_);
+    const auto res = Framer::unframe(buffer_.data(), consumer_);
+    if (res) {
+      buffer_.commitRead(*res);
+    } else {
+      LOG_ERROR("{}", utils::toString(res.error()));
+      buffer_.reset();
+      consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+      return;
+    }
     read();
   }
 

@@ -80,5 +80,4 @@ SELECT
 FROM order_timestamps_kafka;
 EOF
 
-# Inform the user that the setup is complete
-echo "ClickHouse Kafka integration and table setup is complete!"
+echo "ClickHouse Kafka integration and table setup is complete"

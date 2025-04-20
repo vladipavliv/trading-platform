@@ -29,8 +29,8 @@ private:
       response.clientId = *result;
       response.ok = true;
     } else {
-      LOG_ERROR("Failed to authenticacte {} {}", r.request.name, result.error());
-      response.error = result.error();
+      response.error = utils::toString(result.error());
+      LOG_ERROR("Authentication failed {}", r.request.name, response.error);
     }
     bus_.post(response);
   }

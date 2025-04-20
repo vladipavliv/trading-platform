@@ -20,7 +20,7 @@ using UPtrIoCtx = std::unique_ptr<boost::asio::io_context>;
 using ContextGuard = boost::asio::executor_work_guard<IoCtx::executor_type>;
 using UPtrContextGuard = std::unique_ptr<ContextGuard>;
 
-using BoostError = boost::system::error_code; // TODO
+using BoostErrorCode = boost::system::error_code;
 
 using SteadyTimer = boost::asio::steady_timer;
 using Seconds = boost::asio::chrono::seconds;
@@ -47,8 +47,8 @@ using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
 
-using SocketCallback = std::function<void(const BoostError &, size_t)>;
-using SocketStatusCallback = std::function<void(const BoostError &)>;
+using SocketCallback = std::function<void(const BoostErrorCode &, size_t)>;
+using SocketStatusCallback = std::function<void(const BoostErrorCode &)>;
 
 using MessageSize = uint16_t;
 

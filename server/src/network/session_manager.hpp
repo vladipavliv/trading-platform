@@ -14,7 +14,6 @@
 #include "constants.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
-#include "network/size_framer.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -82,7 +81,7 @@ public:
 
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
-    LOG_DEBUG(utils::toString(status));
+    LOG_DEBUG("{}", utils::toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end() || sessionIter->second.downstreamChannel == nullptr) {
       LOG_INFO("Client {} is offline", status.clientId);
@@ -92,7 +91,7 @@ private:
   }
 
   void onLoginResponse(CRef<ServerLoginResponse> loginResult) {
-    LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.token);
+    LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
     const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
     if (channelIter == unauthorizedUpstreamMap_.end()) {
       LOG_ERROR("Connection not found {}", loginResult.connectionId);

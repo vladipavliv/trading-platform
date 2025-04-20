@@ -38,15 +38,17 @@ public:
       const String countQuery = "SELECT COUNT(*) FROM tickers";
       const pqxx::result countResult = transaction.exec(countQuery);
 
+      std::vector<TickerPrice> tickers;
       if (countResult.empty()) {
-        return std::unexpected("Empty tickers table");
+        LOG_WARN("Empty tickers table");
+        return tickers;
       }
       const size_t count = countResult[0][0].as<size_t>();
       if (count == 0) {
-        return std::unexpected("Empty tickers table");
+        LOG_WARN("Empty tickers table");
+        return tickers;
       }
 
-      std::vector<TickerPrice> tickers;
       tickers.reserve(count);
 
       const String query = "SELECT * FROM tickers";
@@ -61,7 +63,7 @@ public:
       return tickers;
     } catch (const std::exception &e) {
       LOG_ERROR("Exception during tickers read {}", e.what());
-      return std::unexpected(e.what());
+      return std::unexpected(StatusCode::DbError);
     }
   }
 
@@ -83,13 +85,14 @@ public:
           LOG_INFO("Authentication successfull");
           return clientId;
         } else {
-          return std::unexpected("Invalid password");
+          return std::unexpected(StatusCode::AuthInvalidPassword);
         }
       } else {
-        return std::unexpected("User not found");
+        return std::unexpected(StatusCode::AuthUserNotFound);
       }
     } catch (const pqxx::sql_error &e) {
-      return std::unexpected(e.what());
+      LOG_ERROR("{}", e.what());
+      return std::unexpected(StatusCode::DbError);
     }
   }
 

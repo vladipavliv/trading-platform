@@ -13,13 +13,7 @@ namespace client {
 /**
  * @brief State of the connection with the server
  */
-enum class ConnectionState : uint8_t {
-  Disconnected,
-  Connecting,
-  Connected,
-  TokenReceived,
-  Authenticated
-};
+enum class ConnectionState : uint8_t { Disconnected, Connected, TokenReceived, Authenticated };
 } // namespace client
 namespace utils {
 String toString(const client::ConnectionState &event) {
@@ -27,8 +21,6 @@ String toString(const client::ConnectionState &event) {
   switch (event) {
   case ConnectionState::Disconnected:
     return "disconnected";
-  case ConnectionState::Connecting:
-    return "connecting";
   case ConnectionState::Connected:
     return "connected";
   case ConnectionState::TokenReceived:

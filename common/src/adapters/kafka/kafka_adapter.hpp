@@ -53,7 +53,7 @@ public:
   template <typename EventType>
   void addProduceTopic(CRef<String> topic) {
     using namespace RdKafka;
-    LOG_DEBUG(topic);
+    LOG_DEBUG("Adding produce topic {}", topic);
     if (produceTopicMap_.count(topic) != 0) {
       LOG_ERROR("Topic already exist");
       return;
@@ -68,7 +68,7 @@ public:
   }
 
   void addConsumeTopic(CRef<String> topic) {
-    LOG_DEBUG(topic);
+    LOG_DEBUG("Adding consume topic {}", topic);
     consumeTopics_.push_back(topic);
   }
 
@@ -157,7 +157,7 @@ private:
 
   void schedulePoll() {
     timer_.expires_after(pollRate_);
-    timer_.async_wait([this](CRef<BoostError> code) {
+    timer_.async_wait([this](BoostErrorCode code) {
       if (code) {
         onFatalError(code.message());
         return;

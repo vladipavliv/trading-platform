@@ -9,9 +9,10 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
+#include "network/framing/fixed_size_framer.hpp"
 #include "network/ring_buffer.hpp"
-#include "network/size_framer.hpp"
 #include "types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft {
 
@@ -19,7 +20,7 @@ namespace hft {
  * @brief Asynchronous TcpSocket wrapper
  * @details Reads from the socket, unframes with FramerType, and posts to consumer
  */
-template <typename ConsumerType, typename FramerType = SizeFramer<>>
+template <typename ConsumerType, typename FramerType = FixedSizeFramer<>>
 class TcpTransport {
 public:
   using Consumer = ConsumerType;
@@ -37,7 +38,7 @@ public:
 
   void connect() {
     LOG_DEBUG("TcpTransport connect");
-    socket_.async_connect(endpoint_, [this](CRef<BoostError> code) {
+    socket_.async_connect(endpoint_, [this](BoostErrorCode code) {
       if (!code) {
         socket_.set_option(TcpSocket::protocol_type::no_delay(true));
         onStatus(ConnectionStatus::Connected);
@@ -56,19 +57,25 @@ public:
 
   void read() {
     LOG_DEBUG("TcpTransport read");
-    socket_.async_read_some(buffer_.buffer(), [this](CRef<BoostError> code, size_t bytes) {
-      readHandler(code, bytes);
-    });
+    socket_.async_read_some(
+        buffer_.buffer(), [this](BoostErrorCode code, size_t bytes) { readHandler(code, bytes); });
   }
 
   template <typename Type>
     requires(Framer::template Framable<Type>)
-  void write(CRef<Type> message) {
+  StatusCode write(CRef<Type> msg) {
     LOG_DEBUG("TcpTransport write");
-    const auto data = Framer::frame(message);
+    const auto buffer = std::make_shared<ByteBuffer>();
+    const auto framingRes = Framer::frame(msg, *buffer);
+    if (!framingRes) {
+      LOG_ERROR("Failed to frame {} {}", utils::toString(msg), utils::toString(framingRes.error()));
+      return framingRes.error();
+    }
+    LOG_DEBUG("Send {} bytes", *framingRes);
     boost::asio::async_write(
-        socket_, boost::asio::buffer(data->data(), data->size()),
-        [this, data](CRef<BoostError> code, size_t bytes) { writeHandler(code, bytes); });
+        socket_, boost::asio::buffer(buffer->data(), *framingRes),
+        [this, buffer](BoostErrorCode code, size_t bytes) { writeHandler(code, bytes); });
+    return StatusCode::Ok;
   }
 
   inline ConnectionId id() const { return id_; }
@@ -78,18 +85,26 @@ public:
   inline void close() { socket_.close(); }
 
 private:
-  void readHandler(CRef<BoostError> code, size_t bytes) {
+  void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
       onStatus(ConnectionStatus::Error);
       return;
     }
     buffer_.commitWrite(bytes);
-    Framer::unframe(buffer_, consumer_);
+    const auto res = Framer::unframe(buffer_.data(), consumer_);
+    if (res) {
+      buffer_.commitRead(*res);
+    } else {
+      LOG_ERROR("{}", utils::toString(res.error()));
+      buffer_.reset();
+      onStatus(ConnectionStatus::Error);
+      return;
+    }
     read();
   }
 
-  void writeHandler(CRef<BoostError> code, size_t bytes) {
+  void writeHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       onStatus(ConnectionStatus::Error);
     }

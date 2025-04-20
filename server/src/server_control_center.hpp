@@ -89,8 +89,8 @@ private:
   void readMarketData() {
     const auto result = dbAdapter_.readTickers();
     if (!result) {
-      LOG_ERROR("Failed to load ticker data {}", result.error());
-      throw std::runtime_error(result.error());
+      LOG_ERROR("Failed to load ticker data");
+      throw std::runtime_error(utils::toString(result.error()));
     }
     const auto &prices = result.value();
     const auto workers = ServerConfig::cfg.coresApp.size();
