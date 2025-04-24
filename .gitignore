@@ -19,3 +19,4 @@ client_log.*
 __pycache__
 _deps
 lib
+Testing

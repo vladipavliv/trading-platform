@@ -7,6 +7,7 @@
     - [Setup database](#setup-database)
     - [Run server](#run-server)
     - [Run client](#run-client)
+- [Testing](#testing)
 - [Performance](#performance)
 - [Roadmap](#roadmap)
 
@@ -69,6 +70,10 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
+## Testing
+The main goal for the project was performance, so interfaces and inheritance have not been used. Instead everything is templated.
+Interfaces, however, have been implemented for tests to inject a proper mock and use gmock capabilities for advanced mocking.
+
 ## Performance
 Tested on localhost with 1us trade rate
 
@@ -82,12 +87,12 @@ Client:
 ```
 
 ## Roadmap
-- [x] **Metadata monitoring**  
+- [x] **Stream metrics to kafka**  
 Offload the latencies and other metadata to kafka
-- [ ] **Monitor the kafka metadata**  
-Make separate monitoring service
+- [ ] **Monitor the metrics**  
+Make separate monitoring service, maybe using Go
 - [ ] **Persist the data**  
-Persist metadata to ClickHouse and maybe currently opened orders to Postgres
+Persist metadata to ClickHouse and maybe currently opened orders to Postgres on a shutdown
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
 - [ ] **Testing**  
@@ -99,4 +104,6 @@ And price fluctuations
 - [ ] **Optimize**  
 Profile cache misses, try SBE serialization
 - [ ] **Improve metrics streaming**  
-Make separate DataBus, investigate possibility to add flatbuffers support to ClickHouse - kafka communication
+Make separate DataBus
+- [ ] **Contribute to ClickHouse**  
+Investigate the possibility to add flatbuffers support to ClickHouse for direct consuming from kafka
