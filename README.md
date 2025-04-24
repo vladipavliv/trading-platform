@@ -32,6 +32,9 @@ Client and server use separate config files to setup url, ports, core ids for ne
 - **Folly**
 - **spdlog**
 - **Flatbuffers**
+- **Protobuf**
+- **libpqxx**
+- **librdkafka**
 
 ### Setup repository
 ```bash
@@ -41,12 +44,12 @@ cd trading-platform
 ```
 
 ## Usage
-### Setup database
-Create db, tables, and generate some data
+### Setup environment
+Install Postgres, Kafka and ClickHouse. Set them up with the scripts
 ```bash
-python3 ./scripts/create_tables.sh
-python3 ./scripts/generate_tickers.sh 1000
-python3 ./scripts/create_client.sh client0 password0
+python3 ./scripts/setup_postgres.sh
+python3 ./scripts/setup_kafka.sh
+python3 ./scripts/setup_clickhouse.sh
 ```
 
 ### Configuration
@@ -56,15 +59,15 @@ Adjust the network, cores, credentials and other settings in
 
 ### Run server
 ```bash
-./scripts/run.sh s
+./run.sh s
 ```
 Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 
 ### Run client
 ```bash
-./scripts/run.sh t
+./run.sh t
 ```
-Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `q` to shutdown.
+Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
 ## Performance
 Tested on localhost with 1us trade rate
@@ -95,3 +98,5 @@ Dynamically rerout the tickers to a different worker, add/remove workers, load b
 And price fluctuations
 - [ ] **Optimize**  
 Profile cache misses, try SBE serialization
+- [ ] **Improve metrics streaming**  
+Make separate DataBus, investigate possibility to add flatbuffers support to ClickHouse - kafka communication
