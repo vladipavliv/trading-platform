@@ -44,6 +44,10 @@ struct alignas(8) Order {
   mutable Quantity quantity;
   Price price;
   OrderAction action;
+
+  // TODO() Orders would be stored on the server as ServerOrder, so maybe not use padding here
+  // with or without this padding it would push it beyond 32 bytes
+  // TODO() Try separating hot and cold data on the server side
   char padding[3] = {0};
 
   inline void partialFill(Quantity amount) const {
