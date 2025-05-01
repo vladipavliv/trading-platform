@@ -8,6 +8,7 @@
 
 #include "boost_types.hpp"
 #include "logging.hpp"
+#include "network/network_layer.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "server_types.hpp"
 #include "types.hpp"

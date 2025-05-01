@@ -19,6 +19,7 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
+#include "network/network_layer.hpp"
 #include "network/transport/tcp_transport.hpp"
 #include "network/transport/udp_transport.hpp"
 #include "types.hpp"
@@ -164,21 +165,21 @@ private:
 
 private:
   ClientTcpTransport createUpstreamTransport() {
-    return {utils::generateConnectionId(), TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpUp},
+    return {utils::generateConnectionId(), NetworkFactory::createTcpSocket(ioCtx_),
+            NetworkFactory::createTcpEndpoint(ClientConfig::cfg.url, ClientConfig::cfg.portTcpUp),
             bus_};
   }
 
   ClientTcpTransport createDownstreamTransport() {
-    return {utils::generateConnectionId(), TcpSocket{ioCtx_},
-            TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpDown},
+    return {utils::generateConnectionId(), NetworkFactory::createTcpSocket(ioCtx_),
+            NetworkFactory::createTcpEndpoint(ClientConfig::cfg.url, ClientConfig::cfg.portTcpDown),
             bus_};
   }
 
   ClientUdpTransport createPricesTransport() {
     return {utils::generateConnectionId(),
-            utils::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
-            UdpEndpoint(Udp::v4(), ClientConfig::cfg.portUdp), bus_};
+            NetworkFactory::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
+            NetworkFactory::createUdpEndpoint(false, ClientConfig::cfg.portUdp), bus_};
   }
 
 private:

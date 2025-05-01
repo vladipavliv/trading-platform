@@ -5,6 +5,8 @@ file(GLOB_RECURSE COMMON_TEST_SOURCES
 
 add_executable(test_common_unit ${COMMON_TEST_SOURCES})
 
+target_compile_definitions(test_common_unit PRIVATE UNIT_TEST)
+
 target_link_libraries(test_common_unit 
     PRIVATE
     GTest::gtest

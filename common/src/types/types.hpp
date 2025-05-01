@@ -6,8 +6,6 @@
 #ifndef HFT_COMMON_TYPES_HPP
 #define HFT_COMMON_TYPES_HPP
 
-#include <spdlog/common.h>
-
 #include <cstdint>
 #include <expected>
 #include <map>
@@ -16,6 +14,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <spdlog/common.h>
 
 #include "constants.hpp"
 #include "status_code.hpp"
@@ -34,6 +34,12 @@ using Thread = std::jthread;
 using Timestamp = uint64_t;
 using LogLevel = spdlog::level::level_enum;
 using Token = uint64_t;
+using Port = uint16_t;
+using MessageSize = uint16_t;
+
+using Seconds = std::chrono::seconds;
+using Milliseconds = std::chrono::milliseconds;
+using Microseconds = std::chrono::microseconds;
 
 enum class State : uint8_t { On, Off, Error };
 
@@ -42,16 +48,12 @@ enum class State : uint8_t { On, Off, Error };
  */
 template <typename Type>
 using SPtr = std::shared_ptr<Type>;
-
 template <typename Type>
 using WPtr = std::weak_ptr<Type>;
-
 template <typename Type>
 using UPtr = std::unique_ptr<Type>;
-
 template <typename Type>
 using CRef = const Type &;
-
 template <typename Type>
 using Opt = std::optional<Type>;
 
@@ -61,13 +63,10 @@ using Opt = std::optional<Type>;
 template <typename Type>
 using Span = std::span<Type>;
 using ByteSpan = Span<uint8_t>;
-
 template <typename K, typename V>
 using HashMap = std::unordered_map<K, V>;
-
 template <typename Type>
 using Atomic = std::atomic<Type>;
-
 template <typename Type>
 using Expected = std::expected<Type, StatusCode>;
 

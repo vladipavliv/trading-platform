@@ -122,17 +122,6 @@ std::string getScaleNs(size_t nanoSec) {
   return getScaleUs(nanoSec / 1000);
 }
 
-UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast, Port port) {
-  UdpSocket socket(ctx, Udp::v4());
-  socket.set_option(boost::asio::socket_base::reuse_address{true});
-  if (broadcast) {
-    socket.set_option(boost::asio::socket_base::broadcast(true));
-  } else {
-    socket.bind(UdpEndpoint(Udp::v4(), port));
-  }
-  return socket;
-}
-
 OrderId generateOrderId() {
   static std::atomic_uint64_t counter = 0;
   return counter.fetch_add(1, std::memory_order_relaxed);

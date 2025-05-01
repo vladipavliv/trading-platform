@@ -10,6 +10,7 @@
 #include "logging.hpp"
 #include "network/connection_status.hpp"
 #include "network/framing/fixed_size_framer.hpp"
+#include "network/network_layer.hpp"
 #include "network/ring_buffer.hpp"
 #include "types.hpp"
 

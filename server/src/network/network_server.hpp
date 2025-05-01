@@ -6,15 +6,11 @@
 #ifndef HFT_SERVER_NETWORKSERVER_HPP
 #define HFT_SERVER_NETWORKSERVER_HPP
 
-#include <algorithm>
-#include <format>
-#include <memory>
-
 #include "boost_types.hpp"
 #include "broadcast_service.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
-#include "network/transport/udp_transport.hpp"
+#include "network/network_layer.hpp"
 #include "server_command.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -72,7 +68,7 @@ public:
 
 private:
   void startUpstream() {
-    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpUp);
+    TcpEndpoint endpoint = NetworkFactory::createTcpEndpoint(ServerConfig::cfg.portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -93,7 +89,7 @@ private:
   }
 
   void startDownstream() {
-    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpDown);
+    TcpEndpoint endpoint = NetworkFactory::createTcpEndpoint(ServerConfig::cfg.portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);
