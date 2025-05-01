@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "config/server_config.hpp"
+#include "ctx_runner.hpp"
 #include "domain_types.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
 #include "server_types.hpp"
-#include "worker.hpp"
 
 namespace hft::server {
 
@@ -49,12 +49,12 @@ private:
     const auto appCores = ServerConfig::cfg.coresApp.size();
     workers_.reserve(appCores == 0 ? 1 : appCores);
     if (appCores == 0) {
-      workers_.emplace_back(std::make_unique<Worker>(0, false));
-      workers_[0]->start();
+      workers_.emplace_back(std::make_unique<CtxRunner>(0, false));
+      workers_[0]->run();
     }
     for (int i = 0; i < appCores; ++i) {
-      workers_.emplace_back(std::make_unique<Worker>(i, true, ServerConfig::cfg.coresApp[i]));
-      workers_[i]->start();
+      workers_.emplace_back(std::make_unique<CtxRunner>(i, true, ServerConfig::cfg.coresApp[i]));
+      workers_[i]->run();
     }
   }
 
@@ -110,7 +110,7 @@ private:
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;
 
-  std::vector<Worker::UPtr> workers_;
+  std::vector<UPtr<CtxRunner>> workers_;
 };
 
 } // namespace hft::server

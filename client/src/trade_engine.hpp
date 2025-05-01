@@ -12,13 +12,13 @@
 #include "client_ticker_data.hpp"
 #include "client_types.hpp"
 #include "config/client_config.hpp"
+#include "ctx_runner.hpp"
 #include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
 #include "types.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
-#include "worker.hpp"
 
 namespace hft::client {
 
@@ -87,7 +87,7 @@ private:
   void startWorkers() {
     // Design is not yet clear here so a single worker for now
     LOG_INFO_SYSTEM("Starting trade worker");
-    worker_.start();
+    worker_.run();
   }
 
   void tradeStart() {
@@ -192,11 +192,11 @@ private:
     });
   }
 
-  Worker makeWorker() {
+  CtxRunner makeWorker() {
     if (ClientConfig::cfg.coresApp.empty()) {
-      return Worker(0, false);
+      return CtxRunner(0, false);
     } else {
-      return Worker(0, true, ClientConfig::cfg.coresApp[0]);
+      return CtxRunner(0, true, ClientConfig::cfg.coresApp[0]);
     }
   }
 
@@ -207,7 +207,7 @@ private:
   TickersData tickersData_;
 
   // For now a single worker
-  Worker worker_;
+  CtxRunner worker_;
 
   SteadyTimer tradeTimer_;
   SteadyTimer statsTimer_;

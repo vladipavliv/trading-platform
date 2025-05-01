@@ -15,7 +15,9 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Channel that acts as a gateway for messages
+ * First waits for authentication, then starts routing messages
+ * Converts server domain types to/from routed types
  */
 class SessionChannel {
 public:

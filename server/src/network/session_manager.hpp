@@ -10,11 +10,9 @@
 #include <folly/container/F14Map.h>
 
 #include "boost_types.hpp"
-#include "comparators.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
-#include "network/transport/tcp_transport.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
 #include "session_channel.hpp"
@@ -23,7 +21,11 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Manages sessions, generates tokens, authenticates channels
+ * TODO() Make sure atomic hashmap is enough for thread-safe session management
+ * messages from the socket are processed one by one, and connection close is initiated
+ * only by client, so currently it is thread-safe, but if it ever initiated by the server side
+ * additional measures would be needed
  */
 class SessionManager {
   struct Session {
