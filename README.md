@@ -96,7 +96,9 @@ Persist metadata to ClickHouse and maybe currently opened orders to Postgres on 
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
 - [ ] **Testing**  
-Add unit, integration and stress tests and run the cicd pipeline
+Add unit, integration and stress tests
+- [x] **Setup CICD**  
+Pipeline
 - [ ] **Ticker rerouting**  
 Dynamically rerout the tickers to a different worker, add/remove workers, load balancing
 - [ ] **Proper trading strategy**  

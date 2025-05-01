@@ -1,4 +1,4 @@
-name: CI - Build and Test
+name: CI Pipeline
 
 on:
   push:
@@ -9,65 +9,39 @@ on:
       - main
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      # Step 2: Install dependencies
-      - name: Install dependencies
-        run: |
-          # Update package list and install build tools
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake git
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      with:
+        driver: docker-container
 
-          # Install common dependencies
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake git
-          sudo apt-get install -y libboost-all-dev libspdlog-dev librdkafka-dev
-          sudo apt-get install -y libdouble-conversion-dev
-          sudo apt-get install -y libiberty-dev
-          sudo apt-get install -y binutils-dev
-          sudo apt-get install -y libgoogle-glog-dev
-          sudo apt-get install -y libpqxx-dev
+    - name: Ensure cache directory exists
+      run: mkdir -p ${{ github.workspace }}/.buildx-cache
 
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/fastfloat/fast_float.git
-          cd fast_float
-          mkdir build && cd build
-          cmake ..
-          make -j$(nproc)
-          sudo make install
-          cd ../..
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile', '**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
 
-          # Install Folly
-          git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/facebook/folly.git
-          cd folly
-          git submodule update --init --recursive
-          mkdir -p build && cd build
-          cmake ..
-          make -j$(nproc)
-          sudo make install
-          cd ../..
+    - name: Build Docker image
+      run: |
+        docker buildx build \
+          --progress=plain \
+          --cache-from type=local,src=${{ github.workspace }}/.buildx-cache \
+          --cache-to type=local,dest=${{ github.workspace }}/.buildx-cache,mode=max \
+          -t my-app \
+          --load \
+          .
 
-          # Install FlatBuffers
-          sudo apt-get install -y flatbuffers-compiler libflatbuffers-dev
-
-          # Install Protobuf
-          sudo apt-get install -y protobuf-compiler
-
-      # Step 3: Create a build directory and configure the project with CMake
-      - name: Build with CMake
-        run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          make  # Or "cmake --build ."
-
-      # Step 4: Run tests using CTest (part of CMake)
-      - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure
+    - name: Run tests in Docker container
+      run: |
+        docker run --rm my-app /bin/bash -c "cd /app/build && ctest"

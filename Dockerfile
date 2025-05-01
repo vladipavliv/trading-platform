@@ -12,6 +12,7 @@ RUN apt-get update && \
     libspdlog-dev \
     librdkafka-dev \
     libdouble-conversion-dev \
+    libiberty-dev \
     binutils-dev \
     libgoogle-glog-dev \
     libpqxx-dev \
@@ -20,10 +21,11 @@ RUN apt-get update && \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-ARG GITHUB_TOKEN
+ARG BUILD_TYPE=Release
+ENV BUILD_TYPE=${BUILD_TYPE}
 
 # fast_float needed by folly
-RUN git clone https://x-access-token:${GITHUB_TOKEN}@github.com/fastfloat/fast_float.git /fast_float && \
+RUN git clone https://github.com/fastfloat/fast_float.git /fast_float && \
     cd /fast_float && \
     mkdir build && cd build && \
     cmake .. && \
@@ -32,7 +34,7 @@ RUN git clone https://x-access-token:${GITHUB_TOKEN}@github.com/fastfloat/fast_f
     rm -rf /fast_float
 
 # folly
-RUN git clone --branch main --single-branch https://x-access-token:${GITHUB_TOKEN}@github.com/facebook/folly.git /folly && \
+RUN git clone --branch main --single-branch https://github.com/facebook/folly.git /folly && \
     cd /folly && \
     git submodule update --init --recursive && \
     mkdir -p build && cd build && \
@@ -46,7 +48,7 @@ WORKDIR /app
 COPY . /app
 
 RUN mkdir build && cd build && \
-    cmake .. && \
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE .. && \
     make -j$(nproc)
 
 # Run tests with CTest
