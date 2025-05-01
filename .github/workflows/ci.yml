@@ -1,0 +1,73 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Install dependencies
+      - name: Install dependencies
+        run: |
+          # Update package list and install build tools
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git
+
+          # Install common dependencies
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git
+          sudo apt-get install -y libboost-all-dev libspdlog-dev librdkafka-dev
+          sudo apt-get install -y libdouble-conversion-dev
+          sudo apt-get install -y libiberty-dev
+          sudo apt-get install -y binutils-dev
+          sudo apt-get install -y libgoogle-glog-dev
+          sudo apt-get install -y libpqxx-dev
+
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/fastfloat/fast_float.git
+          cd fast_float
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+          cd ../..
+
+          # Install Folly
+          git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/facebook/folly.git
+          cd folly
+          git submodule update --init --recursive
+          mkdir -p build && cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+          cd ../..
+
+          # Install FlatBuffers
+          sudo apt-get install -y flatbuffers-compiler libflatbuffers-dev
+
+          # Install Protobuf
+          sudo apt-get install -y protobuf-compiler
+
+      # Step 3: Create a build directory and configure the project with CMake
+      - name: Build with CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make  # Or "cmake --build ."
+
+      # Step 4: Run tests using CTest (part of CMake)
+      - name: Run tests
+        run: |
+          cd build
+          ctest --output-on-failure
