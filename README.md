@@ -7,7 +7,6 @@
     - [Setup database](#setup-database)
     - [Run server](#run-server)
     - [Run client](#run-client)
-- [Testing](#testing)
 - [Performance](#performance)
 - [Roadmap](#roadmap)
 
@@ -19,9 +18,6 @@ Runs a separate network io_context, a number of workers for order processing wit
 
 ### Client
 Runs a separate network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
-
-### Logging
-Logging is done with macros for compile-time exclusion and easy implementation swap. Currently spdlog is used. Main logs are written to a file, system logs are written to the console.
 
 ### Configuration
 Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
@@ -70,10 +66,6 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
-## Testing
-The main goal for the project was performance, so interfaces and inheritance have not been used. Instead everything is templated.
-Interfaces, however, have been implemented for tests to inject a proper mock and use gmock capabilities for advanced mocking.
-
 ## Performance
 Tested on localhost with 1us trade rate
 
@@ -95,8 +87,6 @@ Make separate monitoring service, maybe using Go
 Persist metadata to ClickHouse and maybe currently opened orders to Postgres on a shutdown
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
-- [ ] **Testing**  
-Add unit, integration and stress tests and run the cicd pipeline
 - [ ] **Ticker rerouting**  
 Dynamically rerout the tickers to a different worker, add/remove workers, load balancing
 - [ ] **Proper trading strategy**  
