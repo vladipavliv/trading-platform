@@ -47,6 +47,12 @@ public:
     ioCtx.post([event]() { onEvent(event); });
   }
 
+private:
+  SystemBus(const SystemBus &) = delete;
+  SystemBus(SystemBus &&) = delete;
+  SystemBus &operator=(const SystemBus &) = delete;
+  SystemBus &operator=(const SystemBus &&) = delete;
+
   template <typename EventType>
   static void onEvent(CRef<EventType> event) {
     // First notify generic subscribers for EventType
@@ -63,12 +69,6 @@ public:
       }
     }
   }
-
-private:
-  SystemBus(const SystemBus &) = delete;
-  SystemBus(SystemBus &&) = delete;
-  SystemBus &operator=(const SystemBus &) = delete;
-  SystemBus &operator=(const SystemBus &&) = delete;
 
   template <typename EventType>
   using EventSubscribers = std::vector<CRefHandler<EventType>>;

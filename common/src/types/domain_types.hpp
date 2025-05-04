@@ -37,6 +37,13 @@ struct LoginResponse {
   String error{};
 };
 
+/**
+ * @todo On the server side each OrderBook processes single ticker
+ * Also in the current implementation separate container is used for bids and asks
+ * So ticker and action could be thrown away to reduce memory footprint
+ * Would complicate things a little bit, but it would help keeping order under 32 bytes
+ * Which might improve performance even further having 2 orders in a single cache line
+ */
 struct alignas(8) Order {
   OrderId id;
   Timestamp created;
@@ -45,9 +52,6 @@ struct alignas(8) Order {
   Price price;
   OrderAction action;
 
-  // TODO() Orders would be stored on the server as ServerOrder, so maybe not use padding here
-  // with or without this padding it would push it beyond 32 bytes
-  // TODO() Try separating hot and cold data on the server side
   char padding[3] = {0};
 
   inline void partialFill(Quantity amount) const {

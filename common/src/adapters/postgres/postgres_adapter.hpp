@@ -17,7 +17,9 @@ namespace hft {
 
 /**
  * @brief Postgres adapter
- * @details Handles auth requests over the system bus
+ * @details Interface-type communication feels more natural here as opposed to bus-type
+ * @todo Make interfaces and adapter factory, these adapters wont participate in the hot paths,
+ * so extra configurability and testability is more prefferable here
  */
 class PostgresAdapter {
   static constexpr auto CONNECTION_STRING =

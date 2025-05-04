@@ -22,9 +22,14 @@ namespace hft {
 
 /**
  * @brief Kafka adapter
- * @details For message producing the type of each message is set explicitly
+ * @details This is a reactive adapter, so all communication goes through the bus
+ * For message producing the type of each message is set explicitly
  * so adapter can subscribe for the messages in a SystemBus
  * For consuming serializer takes case of the types and routing to a SystemBus
+ * @todo Make separate DataBus here, SystemBus should be responsive and not overwhelmed
+ * by the kafka messages. Even though some priorities could be implemented in the system bus
+ * and important events go dispatch instead of post, i think its better to make separate bus
+ * altogether that we wont care about responsiveness at all.
  */
 template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
           typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
