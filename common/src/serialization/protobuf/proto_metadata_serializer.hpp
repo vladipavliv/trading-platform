@@ -12,6 +12,16 @@
 
 namespace hft::serialization {
 
+/**
+ * @brief Protobuf serializer
+ * @details ClickHouse doesn't support flatbuffers for direct consuming from kafka
+ * protobuf is slightly slower then flatbuffers, in theory a monitor service could
+ * consume kafka messages, deserialize them and then insert the data to ClickHouse
+ * which would work with fbs serialization, but connecting Kafka to ClickHouse
+ * directly is convenient, and almost certainly would end up even more efficient
+ * @todo ClickHouse requires messagesto be framed with varint, so a quick framing
+ * was made here directly, need to split it to separate VarintSizeFramer
+ */
 class ProtoMetadataSerializer {
 public:
   static String serialize(CRef<OrderTimestamp> msg) {

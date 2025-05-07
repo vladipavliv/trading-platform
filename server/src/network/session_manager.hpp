@@ -22,12 +22,29 @@ namespace hft::server {
 
 /**
  * @brief Manages sessions, generates tokens, authenticates channels
- * TODO() Make sure atomic hashmap is enough for thread-safe session management
+ * @details Bus message handling is done by the long-living objects with a lifetime of the whole app
+ * When order is fulfilled - proper downstream channel should be used to send order status
+ * Channels dont subscribe to messages themselves, as this would offload the routing to the bus, and
+ * there are many things to consider:
+ * - routing should be thread safe, as multiple workers process orders in parallel, and new clients
+ *   connecting and changing the channel container
+ * - it should be efficient and handle new client sessions,
+ *   client connects -> sends order -> disconnects -> connects back -> order gets fulfilled
+ * So Bus could be adjusted to handle subscribers by ids so that upstream channels subscribe to
+ * events of a certain ClientId, but all these questions feels more for a SessionManager to answer
+ * Also, authenticating channels is important stuff, so it is done in more explicit way manually
+ * @todo Make sure atomic hashmap is enough for thread-safe session management
  * messages from the socket are processed one by one, and connection close is initiated
- * only by client, so currently it is thread-safe, but if it ever initiated by the server side
- * additional measures would be needed
+ * only by the client, so currently it is thread-safe, but if it ever initiated by the server side
+ * additional thread-safety measures would be needed
  */
 class SessionManager {
+  /**
+   * @brief Client session info
+   * @todo Add rate limiting with some simple counter, timer goes through the sessions every second
+   * seting it to RPS_LIMIT, incoming messages decrement it, if it gets to 0 - message aint handled
+   * Should be handled by SessionChannel though, as it routes messages automatically
+   */
   struct Session {
     ClientId clientId;
     Token token;
@@ -56,13 +73,8 @@ public:
     }
     const auto id = utils::generateConnectionId();
     auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
-    const auto result =
-        unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
-    if (!result.second) {
-      LOG_ERROR("Failed to insert new upstream connection");
-    } else {
-      LOG_INFO_SYSTEM("New upstream connection id:{}", id);
-    }
+    unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    LOG_INFO_SYSTEM("New upstream connection id:{}", id);
   }
 
   void acceptDownstream(TcpSocket socket) {
@@ -72,13 +84,8 @@ public:
     }
     const auto id = utils::generateConnectionId();
     auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
-    const auto result =
-        unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
-    if (!result.second) {
-      LOG_ERROR("Failed to insert new downstream connection");
-    } else {
-      LOG_INFO_SYSTEM("New downstream connection Id:{}", id);
-    }
+    unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
+    LOG_INFO_SYSTEM("New downstream connection Id:{}", id);
   }
 
 private:
@@ -118,11 +125,8 @@ private:
       unauthorizedUpstreamMap_.erase(channelIter->first);
 
       auto &channelRef = *newSession.upstreamChannel;
-
-      const auto result =
-          sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)));
-
-      if (!result.second) {
+      if (!sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)))
+               .second) {
         LOG_ERROR("{} already authorized", loginResult.clientId);
         channelRef.write(LoginResponse{0, false, "Already authorized"});
       } else {
@@ -139,11 +143,14 @@ private:
       LOG_WARN("Client already disconnected");
       return;
     }
-    // Token lookup is only needed at the initial authorization stage
-    const auto sessionIter = std::find_if(sessionsMap_.begin(), sessionsMap_.end(),
-                                          [token = request.request.token](const auto &session) {
-                                            return session.second.token == token;
-                                          });
+    // Token lookup is only needed at the initial authorization stage, so maintaining a separate
+    // lookup container for that might not be needed. More moving parts = more things to break
+    const auto sessionIter = std::find_if(
+        // formatting comment
+        sessionsMap_.begin(), sessionsMap_.end(),
+        [token = request.request.token](const auto &session) {
+          return session.second.token == token;
+        });
     if (sessionIter == sessionsMap_.end()) {
       LOG_ERROR("Invalid token received from {}", request.connectionId);
       channelIter->second->write(LoginResponse{0, false, "Invalid token"});
@@ -155,23 +162,32 @@ private:
       session.downstreamChannel = std::move(channelIter->second);
       session.downstreamChannel->authenticate(session.clientId);
       session.downstreamChannel->write(LoginResponse{request.request.token, true});
-      unauthorizedDownstreamMap_.erase(channelIter->first);
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
       printStats();
     }
+    unauthorizedDownstreamMap_.erase(channelIter->first);
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
     LOG_TRACE_SYSTEM(utils::toString(event));
-    if (event.event.status == ConnectionStatus::Connected) {
-      return;
-    }
-    unauthorizedUpstreamMap_.erase(event.event.connectionId);
-    unauthorizedDownstreamMap_.erase(event.event.connectionId);
-    if (event.clientId.has_value() && sessionsMap_.count(event.clientId.value()) > 0) {
-      sessionsMap_.erase(event.clientId.value());
-      LOG_INFO_SYSTEM("{} disconnected", event.clientId.value());
-      printStats();
+    switch (event.event.status) {
+    case ConnectionStatus::Connected:
+      // Nothing to do here for now
+      break;
+    case ConnectionStatus::Disconnected:
+    case ConnectionStatus::Error:
+      // No info about whether it was upstream or downstream event, but all ids are unique
+      // so erase both unauthorized containers, and cleanup session if it was started
+      unauthorizedUpstreamMap_.erase(event.event.connectionId);
+      unauthorizedDownstreamMap_.erase(event.event.connectionId);
+      if (event.clientId.has_value() && sessionsMap_.count(event.clientId.value()) > 0) {
+        sessionsMap_.erase(event.clientId.value());
+        LOG_INFO_SYSTEM("{} disconnected", event.clientId.value());
+        printStats();
+      }
+      break;
+    default:
+      break;
     }
   }
 

@@ -3,8 +3,8 @@
  * @date 2025-04-07
  */
 
-#ifndef HFT_COMMON_KAFKAADAPTER_HPP
-#define HFT_COMMON_KAFKAADAPTER_HPP
+#ifndef HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP
+#define HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -27,9 +27,11 @@ namespace hft {
  * so adapter can subscribe for the messages in a SystemBus
  * For consuming serializer takes case of the types and routing to a SystemBus
  * @todo Make separate DataBus here, SystemBus should be responsive and not overwhelmed
- * by the kafka messages. Even though some priorities could be implemented in the system bus
- * and important events go dispatch instead of post, i think its better to make separate bus
+ * by the kafka traffic. Even though some priorities could be implemented in the system bus
+ * and important events go ::dispatch instead of ::post, i think its better to make separate bus
  * altogether that we wont care about responsiveness at all.
+ * If DataBus would end up multithreaded, this adapter should probably work fine anyway,
+ * but needs to be tested
  */
 template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
           typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
@@ -86,8 +88,7 @@ public:
     state_ = State::On;
     const auto res = consumer_->subscribe(consumeTopics_);
     if (res != RdKafka::ERR_NO_ERROR) {
-      const String errMsg = RdKafka::err2str(res);
-      throw std::runtime_error(errMsg);
+      onFatalError(RdKafka::err2str(res));
     }
   }
 
@@ -100,8 +101,7 @@ public:
     state_ = State::Off;
     const auto res = consumer_->unsubscribe();
     if (res != RdKafka::ERR_NO_ERROR) {
-      const String errMsg = RdKafka::err2str(res);
-      throw std::runtime_error(errMsg);
+      onFatalError(RdKafka::err2str(res));
     }
   }
 
@@ -180,7 +180,7 @@ private:
     if (state_ != State::On) {
       return;
     }
-    // Kafka producer is thread-safe, as well as topic, as long as its not changed
+    // Both Kafka producer and Topic are thread-safe, as long as they are not changed
     const auto topicIt = produceTopicMap_.find(topic);
     if (topicIt == produceTopicMap_.end()) {
       LOG_ERROR("Not connected to the topic {}", topic);
@@ -193,8 +193,6 @@ private:
                            serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
     if (result != RdKafka::ERR_NO_ERROR) {
       onFatalError(RdKafka::err2str(result));
-    } else {
-      LOG_DEBUG("Order sent to kafka");
     }
   }
 
@@ -230,4 +228,4 @@ private:
 };
 } // namespace hft
 
-#endif // HFT_COMMON_KAFKAADAPTER_HPP
+#endif // HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP

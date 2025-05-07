@@ -3,8 +3,8 @@
  * @date 2025-04-19
  */
 
-#ifndef HFT_COMMON_KAFKACALLBACKS_HPP
-#define HFT_COMMON_KAFKACALLBACKS_HPP
+#ifndef HFT_COMMON_ADAPTERS_KAFKACALLBACKS_HPP
+#define HFT_COMMON_ADAPTERS_KAFKACALLBACKS_HPP
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -20,6 +20,7 @@ public:
       LOG_ERROR_SYSTEM("{}", RdKafka::err2str(event.err()));
       break;
     case RdKafka::Event::Type::EVENT_LOG:
+      // Map the kafka log levels to local log levels
       switch (event.severity()) {
       case RdKafka::Event::Severity::EVENT_SEVERITY_EMERG:
       case RdKafka::Event::Severity::EVENT_SEVERITY_ALERT:
@@ -54,7 +55,7 @@ public:
 class KafkaDeliveryCallback : public RdKafka::DeliveryReportCb {
 public:
   void dr_cb(RdKafka::Message &message) override {
-    if (message.err()) {
+    if (message.err() != RdKafka::ERR_NO_ERROR) {
       LOG_ERROR("Kafka delivery failed: {}", message.errstr());
     }
   }
@@ -62,4 +63,4 @@ public:
 
 } // namespace hft
 
-#endif // HFT_COMMON_KAFKACALLBACKS_HPP
+#endif // HFT_COMMON_ADAPTERS_KAFKACALLBACKS_HPP

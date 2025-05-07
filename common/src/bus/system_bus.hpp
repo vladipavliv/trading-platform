@@ -20,7 +20,9 @@ namespace hft {
 /**
  * @brief Bus for system commands and events.
  * Allows subscribing to both event in general and specific values
- * @details All the callbacks are executed in a system io context
+ * @details All the callbacks are executed in a single-threaded system io context
+ * It helpes to minimize effect on the hot path if system events happen there,
+ * and avoids any microdelays as event handling is immediately offloaded to a separate thread
  */
 class SystemBus {
 public:
@@ -43,7 +45,7 @@ public:
   }
 
   template <typename EventType>
-  void post(CRef<EventType> event) {
+  inline void post(CRef<EventType> event) {
     ioCtx.post([event]() { onEvent(event); });
   }
 

@@ -14,8 +14,11 @@ namespace hft {
 
 /**
  * @brief Holds MarketBus and SystemBus
- * @details Routes message to market or system bus depending on
- * whether its routable by market bus or not
+ * @details MarketBus has the types explicitly specified via variadics, so events of those types
+ * are routed to MarketBus, other events are routed to SystemBus
+ * @todo As of now all bus subscribers are long living objects, so unsub mechanism is not needed
+ * Hot market message routing path should be carefully thought-through, thread safety, container
+ * efficiency, the current downstream connection changes, all this should be handled elsewhere
  */
 template <typename... MarketTypes>
 struct BusHolder {
@@ -28,13 +31,13 @@ struct BusHolder {
 
   template <typename MessageType>
     requires(MarketBus::template RoutedType<MessageType>)
-  void post(CRef<MessageType> message) {
+  inline void post(CRef<MessageType> message) {
     marketBus.template post<MessageType>(message);
   }
 
   template <typename MessageType>
     requires(!MarketBus::template RoutedType<MessageType>)
-  void post(CRef<MessageType> message) {
+  inline void post(CRef<MessageType> message) {
     systemBus.template post<MessageType>(message);
   }
 };

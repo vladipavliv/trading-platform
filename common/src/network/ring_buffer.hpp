@@ -33,22 +33,22 @@ public:
    * @details read/write are not used in the interface to avoid confusion
    * whos reading and whos writing. Socket is reading from network but writing to a buffer
    */
-  auto buffer() -> MutableBuffer {
+  inline auto buffer() -> MutableBuffer {
     rotate();
     return MutableBuffer(buffer_.data() + head_, capacity_ - head_);
   }
 
-  auto data() -> ByteSpan {
+  inline auto data() -> ByteSpan {
     assert(tail_ <= head_);
     return ByteSpan(buffer_.data() + tail_, head_ - tail_);
   }
 
-  void commitWrite(size_t bytes) {
+  inline void commitWrite(size_t bytes) {
     assert(head_ + bytes <= capacity_);
     head_ += bytes;
   }
 
-  void commitRead(size_t bytes) {
+  inline void commitRead(size_t bytes) {
     assert(tail_ + bytes <= head_);
     tail_ += bytes;
     if (tail_ == head_) {
@@ -56,12 +56,12 @@ public:
     }
   }
 
-  void reset() { tail_ = head_ = 0; }
+  inline void reset() { tail_ = head_ = 0; }
 
   inline size_t size() const { return capacity_; };
 
 private:
-  void rotate() {
+  inline void rotate() {
     if (tail_ > 0 && capacity_ - head_ < MIN_READ_CAPACITY) {
       std::memmove(buffer_.data(), buffer_.data() + tail_, head_ - tail_);
       head_ = head_ - tail_;

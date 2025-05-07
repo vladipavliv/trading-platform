@@ -3,8 +3,8 @@
  * @date 2025-04-19
  */
 
-#ifndef HFT_COMMON_KAFKAEVENT_HPP
-#define HFT_COMMON_KAFKAEVENT_HPP
+#ifndef HFT_COMMON_ADAPTERS_KAFKAEVENT_HPP
+#define HFT_COMMON_ADAPTERS_KAFKAEVENT_HPP
 
 #include <stdint.h>
 
@@ -35,4 +35,4 @@ String toString(const KafkaEvent &event) {
 
 } // namespace hft
 
-#endif // HFT_COMMON_KAFKAEVENT_HPP
+#endif // HFT_COMMON_ADAPTERS_KAFKAEVENT_HPP

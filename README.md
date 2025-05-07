@@ -7,11 +7,16 @@
     - [Setup database](#setup-database)
     - [Run server](#run-server)
     - [Run client](#run-client)
+- [Testing](#testing)    
 - [Performance](#performance)
 - [Roadmap](#roadmap)
 
 ## Introduction
-C++ hft platform based on boost.asio.
+C++ hft platform based on boost.asio, with the main focus on performance, simplicity and configurability. Key design choices:
+- Use templates instead of polymorphism to maximize cache locality and inlining
+- Fully lock-free design, no thread ever waits for another
+- Event bus for simple, decoupled communication
+- Efficient serialization with flatbuffers
 
 ### Server
 Runs a separate network io_context, a number of workers for order processing with a separate io_context each, and a separate io_context for system tasks. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
@@ -66,16 +71,25 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
+## Testing
+Testing strategy is still in consideration. As interfaces have not been used for maximum blazing fastness, and only some components are templated, mocking possibilities are quite limited.
+
+The current ideas:
+- Communication is highly decoupled via the bus, so alot of stuff could be tested without mocks
+- Not every component needs to be mocked, hot paths could be tested as is
+- Performance-critical components, like the network layer, could be templated and mocked
+- Less performance-critical components, like adapters, could use interfaces for higher configurability
+
 ## Performance
 Tested on localhost with 1us trade rate
 
 Server:
 ```bash
-23:09:06.759313 [I] Orders: [opn|ttl] 1,339,716|6,121,796 | Rps: 138,647
+01:36:13.608573 [I] Orders: [opn|ttl] 2,066,553|9,492,642 | Rps: 136,410
 ```
 Client:
 ```bash
-23:09:06.926566 [I] Rtt: [<50us|>50us] 99.82% avg:17us 0.18% avg:59us
+01:36:12.287540 [I] Rtt: [<50us|>50us] 99.76% avg:17us 0.24% avg:66us
 ```
 
 ## Roadmap
@@ -94,6 +108,6 @@ And price fluctuations
 - [ ] **Optimize**  
 Profile cache misses, try SBE serialization
 - [ ] **Improve metrics streaming**  
-Make separate DataBus
+Make separate DataBus to offload intense metadata streaming traffic from SystemBus
 - [ ] **Contribute to ClickHouse**  
-Investigate the possibility to add flatbuffers support to ClickHouse for direct consuming from kafka
+Investigate the possibility of adding FlatBuffers support to ClickHouse for direct consumption from kafka
