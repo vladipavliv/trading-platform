@@ -3,8 +3,8 @@
  * @date 2025-04-07
  */
 
-#ifndef HFT_COMMON_DB_POSTGRESADAPTER_HPP
-#define HFT_COMMON_DB_POSTGRESADAPTER_HPP
+#ifndef HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
+#define HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
 
 #include <pqxx/pqxx>
 
@@ -20,8 +20,17 @@ namespace hft {
  * @details Interface-type communication feels more natural here as opposed to bus-type
  * @todo Make interfaces and adapter factory, these adapters wont participate in the hot paths,
  * so extra configurability and testability is more prefferable here
+ * @todo At the moment adapters operate over SystemBus, which is single-threaded, so no need
+ * to worry about thread safety in adapters. Later on if separate DataBus is made to keep
+ * SystemBus responsive, thread safety of adapters should be reconsidered.
+ * This adapter probably could use some mutex, it handles initial data read and creds verification,
+ * which are not the hottest paths. But maybe postgres adapter could work over SystemBus anyway
+ * as it shouldn't have overwhelming traffic. Think it through.
  */
 class PostgresAdapter {
+  /**
+   * @todo Move to config file
+   */
   static constexpr auto CONNECTION_STRING =
       "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432 connect_timeout=1";
 
@@ -32,7 +41,7 @@ public:
     }
   }
 
-  Expected<std::vector<TickerPrice>> readTickers() {
+  auto readTickers() -> Expected<std::vector<TickerPrice>> {
     try {
       pqxx::work transaction(conn_);
       transaction.exec("SET statement_timeout = 1000");
@@ -69,7 +78,7 @@ public:
     }
   }
 
-  Expected<ClientId> checkCredentials(CRef<String> name, CRef<String> password) {
+  auto checkCredentials(CRef<String> name, CRef<String> password) -> Expected<ClientId> {
     LOG_DEBUG("Authenticating {} {}", name, password);
     try {
       pqxx::work transaction(conn_);
@@ -104,4 +113,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_DB_POSTGRESADAPTER_HPP
+#endif // HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP

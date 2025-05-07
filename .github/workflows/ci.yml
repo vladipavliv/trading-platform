@@ -21,23 +21,20 @@ jobs:
       with:
         driver: docker-container
 
-    - name: Ensure cache directory exists
-      run: mkdir -p ${{ github.workspace }}/.buildx-cache
-
     - name: Cache Docker layers
       uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile', '**/CMakeLists.txt') }}
+        key: ${{ runner.os }}-buildx-deps-${{ hashFiles('Dockerfile') }}
         restore-keys: |
-          ${{ runner.os }}-buildx-
+          ${{ runner.os }}-buildx-deps-
 
     - name: Build Docker image
       run: |
         docker buildx build \
           --progress=plain \
-          --cache-from type=local,src=${{ github.workspace }}/.buildx-cache \
-          --cache-to type=local,dest=${{ github.workspace }}/.buildx-cache,mode=max \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache,mode=max \
           -t my-app \
           --load \
           .

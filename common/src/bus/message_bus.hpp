@@ -42,7 +42,7 @@ public:
 
   template <typename EventType>
     requires RoutedType<EventType>
-  void post(CRef<EventType> event) {
+  inline void post(CRef<EventType> event) {
     auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
     assert(handlerRef != nullptr && "Handler not registered for event type");
     handlerRef(event);
