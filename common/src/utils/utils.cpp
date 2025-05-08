@@ -40,89 +40,28 @@ void setTheadRealTime() {
   }
 }
 
-void unblockConsole() {
-  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-  std::cout << std::unitbuf;
+auto generateOrderId() -> OrderId {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-std::string getConsoleInput() {
-  std::string cmd;
-  struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
-  if (poll(&fds, 1, 0) == 1) {
-    std::getline(std::cin, cmd);
-  }
-  return cmd;
+auto generateConnectionId() -> ConnectionId {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-size_t getTickerHash(const Ticker &ticker) {
-  return std::hash<std::string_view>{}(std::string_view(ticker.data(), ticker.size()));
+auto generateToken() -> Token {
+  static std::atomic_uint64_t counter = 0;
+  return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-Ticker generateTicker() {
-  Ticker ticker{};
-  for (int i = 0; i < TICKER_SIZE; ++i) {
-    ticker[i] = 'A' + RNG::rng(26);
-  }
-  return ticker;
-}
-
-TickerPrice generatePriceUpdate() { return {generateTicker(), RNG::rng<uint32_t>(700)}; }
-
-ByteBuffer parse(CRef<String> input) {
-  ByteBuffer result;
-  std::stringstream ss(input);
-  std::string token;
-
-  while (std::getline(ss, token, ',')) {
-    result.push_back(static_cast<uint8_t>(std::stoi(token)));
-  }
-  return result;
-}
-
-Timestamp getTimestamp() {
+auto getTimestamp() -> Timestamp {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
 }
 
-void printRawBuffer(const uint8_t *buffer, size_t size) {
-  for (size_t i = 0; i < size; ++i) {
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(buffer[i])
-              << " ";
-  }
-  std::cout << std::dec << std::endl;
-}
-
-std::string getScaleMs(size_t milliSec) {
-  if (milliSec < 1000) {
-    return std::to_string(milliSec) + "ms";
-  }
-  milliSec /= 1000;
-  if (milliSec < 60) {
-    return std::to_string(milliSec) + "s";
-  }
-  milliSec /= 60;
-  if (milliSec < 60) {
-    return std::to_string(milliSec) + "m";
-  }
-  return "eternity";
-}
-
-std::string getScaleUs(size_t microSec) {
-  if (microSec < 1000) {
-    return std::to_string(microSec) + "us";
-  }
-  return getScaleMs(microSec / 1000);
-}
-
-std::string getScaleNs(size_t nanoSec) {
-  if (nanoSec < 1000) {
-    return std::to_string(nanoSec) + "ns";
-  }
-  return getScaleUs(nanoSec / 1000);
-}
-
-UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast, Port port) {
+auto createUdpSocket(IoCtx &ctx, bool broadcast, Port port) -> UdpSocket {
   UdpSocket socket(ctx, Udp::v4());
   socket.set_option(boost::asio::socket_base::reuse_address{true});
   if (broadcast) {
@@ -133,19 +72,15 @@ UdpSocket createUdpSocket(IoCtx &ctx, bool broadcast, Port port) {
   return socket;
 }
 
-OrderId generateOrderId() {
-  static std::atomic_uint64_t counter = 0;
-  return counter.fetch_add(1, std::memory_order_relaxed);
-}
+auto split(CRef<String> input) -> ByteBuffer {
+  ByteBuffer result;
+  std::stringstream ss(input);
+  std::string token;
 
-ConnectionId generateConnectionId() {
-  static std::atomic_uint64_t counter = 0;
-  return counter.fetch_add(1, std::memory_order_relaxed);
-}
-
-Token generateToken() {
-  static std::atomic_uint64_t counter = 0;
-  return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
+  while (std::getline(ss, token, ',')) {
+    result.push_back(static_cast<uint8_t>(std::stoi(token)));
+  }
+  return result;
 }
 
 } // namespace hft::utils

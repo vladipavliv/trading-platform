@@ -6,7 +6,9 @@
 #ifndef HFT_COMMON_CONSOLEREADER_HPP
 #define HFT_COMMON_CONSOLEREADER_HPP
 
-#include <map>
+#include <fcntl.h>
+#include <iostream>
+#include <unistd.h>
 
 #include "boost_types.hpp"
 #include "bus/system_bus.hpp"
@@ -24,7 +26,10 @@ class ConsoleReader {
 public:
   using Parser = ParserType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} { utils::unblockConsole(); }
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} {
+    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+    std::cout << std::unitbuf;
+  }
 
   void start() { scheduleInputCheck(); }
 
@@ -50,9 +55,13 @@ private:
   }
 
   void inputCheck() {
-    const auto input = utils::getConsoleInput();
-    if (!input.empty()) {
-      Parser::parse(input, bus_);
+    struct pollfd fds = {STDIN_FILENO, POLLIN, 0};
+    if (poll(&fds, 1, 0) == 1) {
+      String input;
+      std::getline(std::cin, input);
+      if (!input.empty()) {
+        Parser::parse(input, bus_);
+      }
     }
   }
 
