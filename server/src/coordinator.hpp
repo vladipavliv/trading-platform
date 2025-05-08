@@ -6,7 +6,6 @@
 #ifndef HFT_SERVER_COORDINATOR_HPP
 #define HFT_SERVER_COORDINATOR_HPP
 
-#include <map>
 #include <vector>
 
 #include "config/server_config.hpp"
@@ -35,7 +34,6 @@ public:
   void start() {
     startWorkers();
     scheduleStatsTimer();
-    bus_.systemBus.post(ServerEvent::Ready);
   }
 
   void stop() {
@@ -46,15 +44,30 @@ public:
 
 private:
   void startWorkers() {
-    const auto appCores = ServerConfig::cfg.coresApp.size();
-    workers_.reserve(appCores == 0 ? 1 : appCores);
-    if (appCores == 0) {
+    const auto appCores =
+        ServerConfig::cfg.coresApp.empty() ? 1 : ServerConfig::cfg.coresApp.size();
+
+    workers_.reserve(appCores);
+    // Notify the system when all the workers have started
+    auto startCounter = std::make_shared<std::atomic_size_t>();
+    auto notifyClb = [this, startCounter, appCores]() {
+      startCounter->fetch_add(1);
+      if (startCounter->load() == appCores) {
+        // Simplified notification for now that server is operational
+        // ideally all the components start asynchronously and cc tracks the status
+        bus_.systemBus.post(ServerEvent::Operational);
+      };
+    };
+    if (ServerConfig::cfg.coresApp.empty()) {
       workers_.emplace_back(std::make_unique<CtxRunner>(0, false));
       workers_[0]->run();
-    }
-    for (int i = 0; i < appCores; ++i) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(i, true, ServerConfig::cfg.coresApp[i]));
-      workers_[i]->run();
+      workers_[0]->ioCtx.post(notifyClb);
+    } else {
+      for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
+        workers_.emplace_back(std::make_unique<CtxRunner>(i, true, ServerConfig::cfg.coresApp[i]));
+        workers_[i]->run();
+        workers_[i]->ioCtx.post(notifyClb);
+      }
     }
   }
 
@@ -63,7 +76,6 @@ private:
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
-      // Send timestamp to kafka
       data->orderBook.add(order);
       data->orderBook.match(
           [this](CRef<ServerOrderStatus> status) { bus_.marketBus.post(status); });
@@ -78,13 +90,14 @@ private:
         return;
       }
       static uint64_t lastTtl = 0;
-      uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
-      uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
+      const uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
+      const uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
 
-      auto rpsStr = utils::thousandify(rps);
-      auto opnStr = utils::thousandify(countOpenedOrders());
-      auto ttlStr = utils::thousandify(currentTtl);
       if (rps != 0) {
+        const auto rpsStr = utils::thousandify(rps);
+        const auto opnStr = utils::thousandify(countOpenedOrders());
+        const auto ttlStr = utils::thousandify(currentTtl);
+
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
       }
       lastTtl = currentTtl;

@@ -6,12 +6,8 @@
 #ifndef HFT_COMMON_SYSTEMBUS_HPP
 #define HFT_COMMON_SYSTEMBUS_HPP
 
-#include <functional>
-#include <map>
-#include <typeinfo>
-
 #include "boost_types.hpp"
-
+#include "config/config.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -48,6 +44,17 @@ public:
   inline void post(CRef<EventType> event) {
     ioCtx.post([event]() { onEvent(event); });
   }
+
+  void run() {
+    utils::setTheadRealTime();
+    const auto coreId = Config::get_optional<int>("cpu.core_system");
+    if (coreId.has_value()) {
+      utils::pinThreadToCore(coreId.value());
+    }
+    ioCtx.run();
+  }
+
+  void stop() { ioCtx.stop(); }
 
 private:
   SystemBus(const SystemBus &) = delete;

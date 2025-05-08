@@ -6,8 +6,6 @@
 #ifndef HFT_COMMON_TYPES_HPP
 #define HFT_COMMON_TYPES_HPP
 
-#include <spdlog/common.h>
-
 #include <cstdint>
 #include <expected>
 #include <map>
@@ -16,6 +14,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <spdlog/common.h>
 
 #include "constants.hpp"
 #include "status_code.hpp"
