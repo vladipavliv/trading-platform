@@ -25,7 +25,7 @@ ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=${BUILD_TYPE}
 
 # fast_float needed by folly
-RUN git clone https://github.com/fastfloat/fast_float.git /fast_float && \
+RUN git clone --branch main --single-branch https://github.com/fastfloat/fast_float.git /fast_float && \
     cd /fast_float && \
     mkdir build && cd build && \
     cmake .. && \
