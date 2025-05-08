@@ -18,7 +18,7 @@ namespace server {
 enum class ServerEvent : uint8_t { Operational, InternalError };
 
 struct ChannelStatusEvent {
-  Opt<ClientId> clientId;
+  Optional<ClientId> clientId;
   ConnectionStatusEvent event;
 };
 } // namespace server

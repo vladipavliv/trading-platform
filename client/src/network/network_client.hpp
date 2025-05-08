@@ -192,7 +192,7 @@ private:
   ClientUdpTransport pricesTransport_;
 
   ConnectionState state_{ConnectionState::Disconnected};
-  Opt<Token> token_;
+  Optional<Token> token_;
 
   std::vector<Thread> workerThreads_;
 };

@@ -18,6 +18,8 @@ namespace hft::server {
  * @brief Channel that acts as a gateway for messages
  * First waits for authentication, then starts routing messages
  * Converts server domain types to/from routed types
+ * @todo Don't quite like having public ::post interface here, alternative with
+ * generic lambda with auto parameter does nto want to work
  */
 class SessionChannel {
 public:
@@ -46,9 +48,9 @@ public:
     transport_.write(message);
   }
 
-  inline ConnectionId connectionId() const { return id_; }
+  inline auto connectionId() -> ConnectionId const { return id_; }
 
-  inline Opt<ClientId> clientId() const { return clientId_; }
+  inline auto clientId() -> Optional<ClientId> const { return clientId_; }
 
 private:
   const ConnectionId id_;
@@ -56,7 +58,7 @@ private:
   Bus &bus_;
 
   Transport transport_;
-  Opt<ClientId> clientId_;
+  Optional<ClientId> clientId_;
 };
 
 template <>
