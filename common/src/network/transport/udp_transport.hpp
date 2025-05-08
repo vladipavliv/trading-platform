@@ -35,25 +35,21 @@ public:
   }
 
   template <typename Type>
-  StatusCode write(CRef<Type> message) {
+  auto write(CRef<Type> message) -> StatusCode {
     const auto buffer = std::make_shared<ByteBuffer>();
-    const auto framingRes = Framer::frame(message, *buffer);
-    if (!framingRes) {
-      LOG_ERROR("{}", utils::toString(framingRes.error()));
-      return framingRes.error();
-    }
-    LOG_DEBUG("Send {} bytes", *framingRes);
-    socket_.async_send_to(boost::asio::buffer(buffer->data(), *framingRes), endpoint_,
-                          [this, buffer](BoostErrorCode code, size_t bytes) {
-                            if (code) {
-                              LOG_ERROR("Udp transport error {}", code.message());
-                              consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
-                            }
-                            if (bytes != buffer->size()) {
-                              LOG_ERROR("Failed to write {}, written {}", buffer->size(), bytes);
-                              consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
-                            }
-                          });
+    Framer::frame(message, *buffer);
+    socket_.async_send_to( // format
+        boost::asio::buffer(buffer->data(), buffer->size()), endpoint_,
+        [this, buffer](BoostErrorCode code, size_t bytes) {
+          if (code) {
+            LOG_ERROR("Udp transport error {}", code.message());
+            consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+          }
+          if (bytes != buffer->size()) {
+            LOG_ERROR("Failed to write {}, written {}", buffer->size(), bytes);
+            consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+          }
+        });
     return StatusCode::Ok;
   }
 

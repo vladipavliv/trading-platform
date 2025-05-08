@@ -17,7 +17,7 @@ namespace hft::monitor {
 
 struct MonitorConfig {
   // cores
-  Opt<CoreId> coreSystem;
+  Optional<CoreId> coreSystem;
 
   // kafka
   String kafkaBroker;

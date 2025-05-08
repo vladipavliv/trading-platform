@@ -52,9 +52,6 @@ using UPtr = std::unique_ptr<Type>;
 template <typename Type>
 using CRef = const Type &;
 
-template <typename Type>
-using Opt = std::optional<Type>;
-
 /**
  * General template types
  */
@@ -70,6 +67,9 @@ using Atomic = std::atomic<Type>;
 
 template <typename Type>
 using Expected = std::expected<Type, StatusCode>;
+
+template <typename Type>
+using Optional = std::optional<Type>;
 
 /**
  * Function types

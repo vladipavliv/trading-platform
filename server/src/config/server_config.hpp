@@ -24,7 +24,7 @@ struct ServerConfig {
   Port portUdp;
 
   // Cores
-  Opt<CoreId> coreSystem;
+  Optional<CoreId> coreSystem;
   std::vector<CoreId> coresNetwork;
   std::vector<CoreId> coresApp;
 

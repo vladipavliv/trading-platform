@@ -66,14 +66,9 @@ public:
   StatusCode write(CRef<Type> msg) {
     LOG_DEBUG("TcpTransport write");
     const auto buffer = std::make_shared<ByteBuffer>();
-    const auto framingRes = Framer::frame(msg, *buffer);
-    if (!framingRes) {
-      LOG_ERROR("Failed to frame {} {}", utils::toString(msg), utils::toString(framingRes.error()));
-      return framingRes.error();
-    }
-    LOG_DEBUG("Send {} bytes", *framingRes);
+    Framer::frame(msg, *buffer);
     boost::asio::async_write(
-        socket_, boost::asio::buffer(buffer->data(), *framingRes),
+        socket_, boost::asio::buffer(buffer->data(), buffer->size()),
         [this, buffer](BoostErrorCode code, size_t bytes) { writeHandler(code, bytes); });
     return StatusCode::Ok;
   }

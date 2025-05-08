@@ -29,7 +29,7 @@ public:
   static constexpr size_t HEADER_SIZE = sizeof(MessageSize);
 
   template <typename Type>
-  static Expected<size_t> frame(CRef<Type> message, ByteBuffer &buffer) {
+  static void frame(CRef<Type> message, ByteBuffer &buffer) {
     LOG_DEBUG("frame {}", utils::toString(message));
 
     const auto serializedMsg = Serializer::serialize(message);
@@ -38,12 +38,10 @@ public:
     const LittleEndianUInt16 bodySize = static_cast<MessageSize>(serializedMsg.size());
     std::memcpy(buffer.data(), &bodySize, sizeof(bodySize));
     std::memcpy(buffer.data() + sizeof(bodySize), serializedMsg.data(), serializedMsg.size());
-
-    return buffer.size();
   }
 
   template <typename Consumer>
-  static Expected<size_t> unframe(ByteSpan dataBuffer, Consumer &&consumer) {
+  static auto unframe(ByteSpan dataBuffer, Consumer &&consumer) -> Expected<size_t> {
     LOG_DEBUG("unframe");
 
     const auto dataPtr = dataBuffer.data();
