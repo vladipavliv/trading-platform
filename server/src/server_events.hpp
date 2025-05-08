@@ -15,7 +15,7 @@ namespace server {
 /**
  * @brief Server event
  */
-enum class ServerEvent : uint8_t { Ready };
+enum class ServerEvent : uint8_t { Operational, InternalError };
 
 struct ChannelStatusEvent {
   Opt<ClientId> clientId;
@@ -27,13 +27,15 @@ namespace utils {
 String toString(const server::ServerEvent &event) {
   using namespace server;
   switch (event) {
-  case ServerEvent::Ready:
-    return "ready";
+  case ServerEvent::Operational:
+    return "server is fully operational";
+  case ServerEvent::InternalError:
+    return "internal error";
   default:
     return std::format("unknown server event {}", static_cast<uint8_t>(event));
   }
 }
-String toString(const server::ChannelStatusEvent &event) {
+String toString(CRef<server::ChannelStatusEvent> event) {
   using namespace server;
   return std::format("ChannelStatusEvent {} {}", event.clientId.value_or(0),
                      utils::toString(event.event));

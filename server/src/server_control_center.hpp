@@ -36,7 +36,8 @@ public:
         coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
         priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
     // System bus subscriptions
-    bus_.systemBus.subscribe(ServerEvent::Ready, [this] {
+    bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
+      // start the network server only after internal components are fully operational
       LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
@@ -63,18 +64,14 @@ public:
     coordinator_.start();
     consoleReader_.start();
 
-    utils::setTheadRealTime();
-    if (ServerConfig::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(ServerConfig::cfg.coreSystem.value());
-    }
-    bus_.systemBus.ioCtx.run();
+    bus_.run();
   }
 
   void stop() {
     networkServer_.stop();
     coordinator_.stop();
     consoleReader_.stop();
-    bus_.systemBus.ioCtx.stop();
+    bus_.stop();
     LOG_INFO_SYSTEM("stonk");
   }
 

@@ -40,6 +40,10 @@ struct BusHolder {
   inline void post(CRef<MessageType> message) {
     systemBus.template post<MessageType>(message);
   }
+
+  void run() { systemBus.run(); }
+
+  void stop() { systemBus.stop(); }
 };
 } // namespace hft
 

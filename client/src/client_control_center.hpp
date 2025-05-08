@@ -78,19 +78,14 @@ public:
     LOG_INFO_SYSTEM("Connecting to the server");
     networkClient_.connect();
 
-    utils::setTheadRealTime();
-    if (ClientConfig::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(ClientConfig::cfg.coreSystem.value());
-    }
-    bus_.systemCtx().run();
+    bus_.run();
   }
 
   void stop() {
-    networkClient_.stop();
     consoleReader_.stop();
+    networkClient_.stop();
     engine_.stop();
-
-    bus_.systemCtx().stop();
+    bus_.stop();
     LOG_INFO_SYSTEM("stonk");
   }
 

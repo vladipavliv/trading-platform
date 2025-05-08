@@ -42,7 +42,7 @@ Client and server use separate config files to setup url, ports, core ids for ne
 ```bash
 git clone https://github.com/vladipavliv/trading-platform.git
 cd trading-platform
-./scripts/build.sh
+./build.sh
 ```
 
 ## Usage
@@ -67,7 +67,7 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 
 ### Run client
 ```bash
-./run.sh t
+./run.sh c
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
