@@ -55,10 +55,10 @@ struct ClientConfig {
       ClientConfig::cfg.coreSystem = *core;
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
-      ClientConfig::cfg.coresNetwork = utils::parse(*cores);
+      ClientConfig::cfg.coresNetwork = utils::split(*cores);
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
-      ClientConfig::cfg.coresApp = utils::parse(*cores);
+      ClientConfig::cfg.coresApp = utils::split(*cores);
     }
 
     // Rates
