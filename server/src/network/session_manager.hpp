@@ -95,7 +95,7 @@ private:
     if (sessionIter == sessionsMap_.end() || sessionIter->second.downstreamChannel == nullptr) {
       LOG_INFO("Client {} is offline", status.clientId);
     } else {
-      sessionIter->second.downstreamChannel->write(status.orderStatus);
+      sessionIter->second.downstreamChannel->post(status.orderStatus);
     }
   }
 
@@ -113,7 +113,7 @@ private:
     }
     if (!loginResult.ok) {
       LOG_ERROR("Authentication failed for {}, closing channel", loginResult.connectionId);
-      channelIter->second->write(LoginResponse{0, false, loginResult.error});
+      channelIter->second->post(LoginResponse{0, false, loginResult.error});
       unauthorizedUpstreamMap_.erase(channelIter->first);
     } else {
       const auto token = utils::generateToken();
@@ -128,9 +128,9 @@ private:
       if (!sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)))
                .second) {
         LOG_ERROR("{} already authorized", loginResult.clientId);
-        channelRef.write(LoginResponse{0, false, "Already authorized"});
+        channelRef.post(LoginResponse{0, false, "Already authorized"});
       } else {
-        channelRef.write(LoginResponse{token, true});
+        channelRef.post(LoginResponse{token, true});
         channelRef.authenticate(loginResult.clientId);
       }
     }
@@ -153,15 +153,15 @@ private:
         });
     if (sessionIter == sessionsMap_.end()) {
       LOG_ERROR("Invalid token received from {}", request.connectionId);
-      channelIter->second->write(LoginResponse{0, false, "Invalid token"});
+      channelIter->second->post(LoginResponse{0, false, "Invalid token"});
     } else if (sessionIter->second.downstreamChannel != nullptr) {
       LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
-      channelIter->second->write(LoginResponse{0, false, "Already connected"});
+      channelIter->second->post(LoginResponse{0, false, "Already connected"});
     } else {
       auto &session = sessionIter->second;
       session.downstreamChannel = std::move(channelIter->second);
       session.downstreamChannel->authenticate(session.clientId);
-      session.downstreamChannel->write(LoginResponse{request.request.token, true});
+      session.downstreamChannel->post(LoginResponse{request.request.token, true});
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
       printStats();
     }

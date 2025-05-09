@@ -15,11 +15,9 @@
 namespace hft::server {
 
 /**
- * @brief Channel that acts as a gateway for messages
- * First waits for authentication, then starts routing messages
- * Converts server domain types to/from routed types
- * @todo Don't quite like having public ::post interface here, alternative with
- * generic lambda with auto parameter does nto want to work
+ * @brief Channel that acts as a gateway/sink for messages
+ * First waits for authentication, then starts routing converted messages to the bus
+ * Has bidirectional bus-like ::post interface and routes messages depending on the type
  */
 class SessionChannel {
 public:
@@ -40,12 +38,8 @@ public:
 
   template <typename MessageType>
   inline void post(CRef<MessageType> message) {
+    // Supports only the explicitly specialized types
     LOG_ERROR("Invalid message type received at {}", id_);
-  }
-
-  template <typename Type>
-  void write(CRef<Type> message) {
-    transport_.write(message);
   }
 
   inline auto connectionId() -> ConnectionId const { return id_; }
@@ -91,6 +85,15 @@ inline void SessionChannel::post<Order>(CRef<Order> message) {
     return;
   }
   bus_.post(ServerOrder{clientId_.value(), message});
+}
+
+template <>
+inline void SessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
+  if (!clientId_.has_value()) {
+    LOG_ERROR("Channel {} is not authenticated", id_);
+    return;
+  }
+  transport_.write(message);
 }
 
 } // namespace hft::server
