@@ -29,8 +29,9 @@ public:
   }
 
   inline void authenticate(ClientId clientId) {
+    LOG_INFO_SYSTEM("Authenticate channel {} {}", id_, clientId);
     if (clientId_.has_value()) {
-      LOG_ERROR("{} is already authenticated", id_);
+      LOG_ERROR_SYSTEM("{} is already authenticated", id_);
       return;
     }
     clientId_ = clientId;
@@ -39,7 +40,7 @@ public:
   template <typename MessageType>
   inline void post(CRef<MessageType> message) {
     // Supports only the explicitly specialized types
-    LOG_ERROR("Invalid message type received at {}", id_);
+    LOG_ERROR_SYSTEM("Invalid message type received at {}", id_);
   }
 
   inline auto connectionId() -> ConnectionId const { return id_; }
@@ -58,7 +59,7 @@ private:
 template <>
 inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
   if (clientId_.has_value()) {
-    LOG_ERROR("Channel {} is already authenticated", id_);
+    LOG_ERROR_SYSTEM("Invalid login request: channel {} is already authenticated", id_);
     return;
   }
   bus_.post(ServerLoginRequest{id_, message});
@@ -67,7 +68,7 @@ inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
 template <>
 inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
   if (clientId_.has_value()) {
-    LOG_ERROR("Channel {} is already authenticated", id_);
+    LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", id_);
     return;
   }
   bus_.post(ServerTokenBindRequest{id_, message});
@@ -81,16 +82,21 @@ inline void SessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEve
 template <>
 inline void SessionChannel::post<Order>(CRef<Order> message) {
   if (!clientId_.has_value()) {
-    LOG_ERROR("Channel {} is not authenticated", id_);
+    LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
   }
   bus_.post(ServerOrder{clientId_.value(), message});
 }
 
 template <>
+inline void SessionChannel::post<LoginResponse>(CRef<LoginResponse> message) {
+  transport_.write(message);
+}
+
+template <>
 inline void SessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
   if (!clientId_.has_value()) {
-    LOG_ERROR("Channel {} is not authenticated", id_);
+    LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
   }
   transport_.write(message);
