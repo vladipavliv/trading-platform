@@ -21,16 +21,16 @@ public:
 
 private:
   void onAuthenticate(CRef<ServerLoginRequest> r) {
-    LOG_DEBUG("Authenticating {} {}", r.request.name, r.request.password);
+    LOG_INFO_SYSTEM("Authenticating {} {}", r.request.name, r.request.password);
     ServerLoginResponse response{r.connectionId};
     const auto result = postgres_.checkCredentials(r.request.name, r.request.password);
     if (result) {
-      LOG_INFO("Authentication successfull");
+      LOG_INFO_SYSTEM("Authentication successfull");
       response.clientId = *result;
       response.ok = true;
     } else {
       response.error = utils::toString(result.error());
-      LOG_ERROR("Authentication failed {}", r.request.name, response.error);
+      LOG_ERROR_SYSTEM("Authentication failed {}", r.request.name, response.error);
     }
     bus_.post(response);
   }
