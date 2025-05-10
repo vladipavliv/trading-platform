@@ -22,34 +22,16 @@ namespace hft::server {
 
 /**
  * @brief Manages sessions, generates tokens, authenticates channels
- * @details Bus message handling is done by the long-living objects with a lifetime of the whole app
- * When order is fulfilled - proper downstream channel should be used to send order status
- * Channels dont subscribe to messages themselves, as this would offload the routing to the bus, and
- * there are many things to consider:
- * - routing should be thread safe, as multiple workers process orders in parallel, and new clients
- *   connecting and changing the channel container
- * - it should be efficient and handle new client sessions,
- *   client connects -> sends order -> disconnects -> connects back -> order gets fulfilled
- * So Bus could be adjusted to handle subscribers by ids so that upstream channels subscribe to
- * events of a certain ClientId, but all these questions feels more for a SessionManager to answer
- * Also, authenticating channels is important stuff, so it is done in more explicit way manually
- * @todo Make sure atomic hashmap is enough for thread-safe session management
- * messages from the socket are processed one by one, and connection close is initiated
- * only by the client, so currently it is thread-safe, but if it ever initiated by the server side
- * additional thread-safety measures would be needed
  */
 class SessionManager {
   /**
    * @brief Client session info
-   * @todo Add rate limiting with some simple counter, timer goes through the sessions every second
-   * seting it to RPS_LIMIT, incoming messages decrement it, if it gets to 0 - message aint handled
-   * Should be handled by SessionChannel though, as it routes messages automatically
    */
   struct Session {
     ClientId clientId;
     Token token;
-    UPtr<SessionChannel> upstreamChannel;
-    UPtr<SessionChannel> downstreamChannel;
+    SPtr<SessionChannel> upstreamChannel;
+    SPtr<SessionChannel> downstreamChannel;
   };
 
 public:
@@ -72,7 +54,7 @@ public:
       return;
     }
     const auto id = utils::generateConnectionId();
-    auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
+    auto newTransport = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
     unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     LOG_INFO_SYSTEM("New upstream connection id:{}", id);
   }
@@ -83,7 +65,7 @@ public:
       return;
     }
     const auto id = utils::generateConnectionId();
-    auto newTransport = std::make_unique<SessionChannel>(id, std::move(socket), bus_);
+    auto newTransport = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
     unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
     LOG_INFO_SYSTEM("New downstream connection Id:{}", id);
   }
@@ -92,10 +74,15 @@ private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", utils::toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
-    if (sessionIter == sessionsMap_.end() || sessionIter->second.downstreamChannel == nullptr) {
+    if (sessionIter == sessionsMap_.end()) {
       LOG_INFO("Client {} is offline", status.clientId);
+      return;
+    }
+    auto session = sessionIter->second;
+    if (session->downstreamChannel != nullptr) {
+      session->downstreamChannel->post(status.orderStatus);
     } else {
-      sessionIter->second.downstreamChannel->post(status.orderStatus);
+      LOG_INFO("No downstream connection for {}", status.clientId);
     }
   }
 
@@ -106,32 +93,31 @@ private:
       LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
-    if (channelIter->second == nullptr) {
+    // copy right away so iterator wont get invalidated
+    auto channel = channelIter->second;
+    unauthorizedUpstreamMap_.erase(channelIter->first);
+
+    if (channel == nullptr) {
       LOG_ERROR("Connection not initialized {}", loginResult.connectionId);
-      unauthorizedUpstreamMap_.erase(channelIter->first);
       return;
     }
     if (!loginResult.ok) {
       LOG_ERROR("Authentication failed for {}, closing channel", loginResult.connectionId);
-      channelIter->second->post(LoginResponse{0, false, loginResult.error});
-      unauthorizedUpstreamMap_.erase(channelIter->first);
+      channel->post(LoginResponse{0, false, loginResult.error});
     } else {
       const auto token = utils::generateToken();
 
-      Session newSession;
-      newSession.clientId = loginResult.clientId;
-      newSession.token = token;
-      newSession.upstreamChannel = std::move(channelIter->second);
-      unauthorizedUpstreamMap_.erase(channelIter->first);
+      auto newSession = std::make_shared<Session>();
+      newSession->clientId = loginResult.clientId;
+      newSession->token = token;
+      newSession->upstreamChannel = channel;
 
-      auto &channelRef = *newSession.upstreamChannel;
-      if (!sessionsMap_.insert(std::make_pair(loginResult.clientId, std::move(newSession)))
-               .second) {
+      if (!sessionsMap_.insert(std::make_pair(loginResult.clientId, newSession)).second) {
         LOG_ERROR("{} already authorized", loginResult.clientId);
-        channelRef.post(LoginResponse{0, false, "Already authorized"});
+        channel->post(LoginResponse{0, false, "Already authorized"});
       } else {
-        channelRef.post(LoginResponse{token, true});
-        channelRef.authenticate(loginResult.clientId);
+        newSession->upstreamChannel->post(LoginResponse{token, true});
+        newSession->upstreamChannel->authenticate(loginResult.clientId);
       }
     }
   }
@@ -143,29 +129,33 @@ private:
       LOG_WARN("Client already disconnected");
       return;
     }
+    auto downstreamChannel = channelIter->second;
+    unauthorizedDownstreamMap_.erase(channelIter->first);
+
     // Token lookup is only needed at the initial authorization stage, so maintaining a separate
     // lookup container for that might not be needed. More moving parts = more things to break
     const auto sessionIter = std::find_if(
         // formatting comment
         sessionsMap_.begin(), sessionsMap_.end(),
         [token = request.request.token](const auto &session) {
-          return session.second.token == token;
+          return session.second->token == token;
         });
     if (sessionIter == sessionsMap_.end()) {
       LOG_ERROR("Invalid token received from {}", request.connectionId);
-      channelIter->second->post(LoginResponse{0, false, "Invalid token"});
-    } else if (sessionIter->second.downstreamChannel != nullptr) {
-      LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
-      channelIter->second->post(LoginResponse{0, false, "Already connected"});
+      downstreamChannel->post(LoginResponse{0, false, "Invalid token"});
     } else {
-      auto &session = sessionIter->second;
-      session.downstreamChannel = std::move(channelIter->second);
-      session.downstreamChannel->authenticate(session.clientId);
-      session.downstreamChannel->post(LoginResponse{request.request.token, true});
-      LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
-      printStats();
+      auto session = sessionIter->second;
+      if (session->downstreamChannel != nullptr) {
+        LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
+        downstreamChannel->post(LoginResponse{0, false, "Already connected"});
+      } else {
+        session->downstreamChannel = std::move(downstreamChannel);
+        session->downstreamChannel->authenticate(session->clientId);
+        session->downstreamChannel->post(LoginResponse{request.request.token, true});
+        LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
+        printStats();
+      }
     }
-    unauthorizedDownstreamMap_.erase(channelIter->first);
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
@@ -196,10 +186,10 @@ private:
 private:
   Bus &bus_;
 
-  folly::AtomicHashMap<ConnectionId, UPtr<SessionChannel>> unauthorizedUpstreamMap_;
-  folly::AtomicHashMap<ConnectionId, UPtr<SessionChannel>> unauthorizedDownstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
 
-  folly::AtomicHashMap<ClientId, Session> sessionsMap_;
+  folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
 };
 
 } // namespace hft::server
