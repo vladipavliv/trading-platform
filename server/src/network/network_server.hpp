@@ -37,7 +37,7 @@ public:
   ~NetworkServer() { stop(); }
 
   void start() {
-    auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
+    const auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
       workerThreads_.emplace_back([this, workerId, pinToCore, coreId]() {
         try {
           utils::setTheadRealTime();
@@ -58,7 +58,7 @@ public:
     if (cores == 0) {
       addThread(0, false);
     }
-    for (int i = 0; i < cores; ++i) {
+    for (size_t i = 0; i < cores; ++i) {
       addThread(i, true, ServerConfig::cfg.coresNetwork[i]);
     }
     ioCtx_.post([this]() {
@@ -72,7 +72,7 @@ public:
 
 private:
   void startUpstream() {
-    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpUp);
+    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -93,7 +93,7 @@ private:
   }
 
   void startDownstream() {
-    TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpDown);
+    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);

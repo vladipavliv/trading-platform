@@ -169,7 +169,7 @@ private:
 
   void onTickerPrice(CRef<TickerPrice> price) {
     LOG_DEBUG("{}", utils::toString(price));
-    auto dataIt = tickersData_.find(price.ticker);
+    const auto dataIt = tickersData_.find(price.ticker);
     if (dataIt == tickersData_.end()) {
       LOG_ERROR("Ticker {} not found", utils::toString(price.ticker));
       return;

@@ -19,7 +19,7 @@ namespace hft {
 
 /**
  * @brief Performs non blocking console input check at a certain rate
- * Checks the input over the commands map and and posts parsed commands to the system bus
+ * Uses ParserType to parse commands and post them over the system bus
  */
 template <typename ParserType>
 class ConsoleReader {
@@ -35,7 +35,7 @@ public:
 
   void stop() { timer_.cancel(); }
 
-  void printCommands() {
+  void printCommands() const {
     LOG_INFO_SYSTEM("Commands:");
     for (auto &command : Parser::commands) {
       LOG_INFO_SYSTEM("> {:3} => {}", command.first, utils::toString(command.second));

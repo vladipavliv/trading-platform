@@ -83,6 +83,9 @@ struct ServerConfig {
         cfg.coresNetwork.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
+    if (cfg.monitorRate.count() == 0) {
+      throw std::runtime_error("Invalid rates configuration");
+    }
     if (cfg.logOutput.empty()) {
       throw std::runtime_error("Invalid log file");
     }

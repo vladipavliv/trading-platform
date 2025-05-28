@@ -16,9 +16,7 @@ namespace hft {
 namespace Ip = boost::asio::ip;
 
 using IoCtx = boost::asio::io_context;
-using UPtrIoCtx = std::unique_ptr<boost::asio::io_context>;
 using ContextGuard = boost::asio::executor_work_guard<IoCtx::executor_type>;
-using UPtrContextGuard = std::unique_ptr<ContextGuard>;
 
 using BoostErrorCode = boost::system::error_code;
 

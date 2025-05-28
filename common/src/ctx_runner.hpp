@@ -20,8 +20,6 @@ namespace hft {
  */
 class CtxRunner {
 public:
-  using UPtr = std::unique_ptr<CtxRunner>;
-
   IoCtx ioCtx;
 
   CtxRunner(ThreadId id, bool pinToCore, CoreId coreId = 0)

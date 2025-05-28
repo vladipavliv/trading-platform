@@ -26,6 +26,7 @@ namespace hft::server {
 class SessionManager {
   /**
    * @brief Client session info
+   * @todo Make rate limiting counter
    */
   struct Session {
     ClientId clientId;
@@ -93,7 +94,7 @@ private:
       LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
-    // copy right away so iterator wont get invalidated
+    // Copy right away to dodge iterator invalidation
     auto channel = channelIter->second;
     unauthorizedUpstreamMap_.erase(channelIter->first);
 

@@ -56,15 +56,13 @@ private:
 
   void adjustPrices() {
     static auto cursor = data_.begin();
-    for (int i = 0; i < PRICE_UPDATE_CHUNK; ++i) {
-      if (cursor == data_.end()) {
-        cursor = data_.begin();
-      }
-      const auto &tickerData = *cursor++;
-      Price newPrice = utils::fluctuateThePrice(tickerData.second->getPrice());
-      tickerData.second->setPrice(newPrice);
-      bus_.marketBus.post(TickerPrice{tickerData.first, newPrice});
+    if (cursor == data_.end()) {
+      cursor = data_.begin();
     }
+    const auto &tickerData = *cursor++;
+    const Price newPrice = utils::fluctuateThePrice(tickerData.second->getPrice());
+    tickerData.second->setPrice(newPrice);
+    bus_.marketBus.post(TickerPrice{tickerData.first, newPrice});
   }
 
 private:

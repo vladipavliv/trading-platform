@@ -52,16 +52,16 @@ public:
   };
 
   static Timestamp logRtt(Timestamp timestamp) {
-    thread_local AtomicRttStats stats;
+    thread_local RttStats stats;
     thread_local Timestamp lastFlushed = utils::getTimestamp();
-    Timestamp current = utils::getTimestamp();
-    auto rtt = (current - timestamp) / 1000;
+    const Timestamp current = utils::getTimestamp();
+    const auto rtt = (current - timestamp) / 1000;
 
-    uint8_t scale = getRange(rtt);
+    const uint8_t scale = getRange(rtt);
     stats.samples[scale].sum += rtt;
     stats.samples[scale].size++;
     if (current - lastFlushed > FlushTimeoutMs) {
-      for (int i = 0; i < RangeCount; ++i) {
+      for (size_t i = 0; i < RangeCount; ++i) {
         sGlobalStats.samples[i].sum.fetch_add(stats.samples[i].sum, std::memory_order_relaxed);
         sGlobalStats.samples[i].size.fetch_add(stats.samples[i].size, std::memory_order_relaxed);
         stats.samples[i].sum = 0;
@@ -74,18 +74,18 @@ public:
 
   static RttStats getStats() {
     RttStats stats;
-    for (int i = 0; i < RangeCount; ++i) {
+    for (size_t i = 0; i < RangeCount; ++i) {
       stats.samples[i].sum = sGlobalStats.samples[i].sum.load(std::memory_order_relaxed);
       stats.samples[i].size = sGlobalStats.samples[i].size.load(std::memory_order_relaxed);
     }
     return stats;
   }
 
-  static std::string getRttStats() {
-    auto rttStats = getStats();
-    auto &rtt = rttStats.samples;
+  static String getRttStats() {
+    const auto rttStats = getStats();
+    const auto &rtt = rttStats.samples;
     auto sizeTotal = 0;
-    for (int i = 0; i < RangeCount; ++i) {
+    for (size_t i = 0; i < RangeCount; ++i) {
       sizeTotal += rtt[i].size;
     }
     if (sizeTotal == 0) {
@@ -94,7 +94,7 @@ public:
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2);
     ss << "[";
-    for (int i = 0; i < RangeCount; ++i) {
+    for (size_t i = 0; i < RangeCount; ++i) {
       if (i < RangeCount - 1) {
         ss << "<" << toScale(rangeValues[i]) << "|";
       } else {
@@ -102,7 +102,7 @@ public:
       }
     }
     ss << " ";
-    for (int i = 0; i < RangeCount; ++i) {
+    for (size_t i = 0; i < RangeCount; ++i) {
       auto avg = ((rtt[i].size != 0) ? (rtt[i].sum / rtt[i].size) : 0);
       if (avg == 0) {
         ss << "0%";
@@ -119,15 +119,15 @@ public:
 
 private:
   static constexpr inline uint8_t getRange(Timestamp value) {
-    for (int i = 0; i < RangeCount - 1; ++i) {
+    for (size_t i = 0; i < RangeCount - 1; ++i) {
       if (value < rangeValues[i]) {
         return i;
       }
     }
     return RangeCount - 1;
   }
-  static inline std::string toScale(Timestamp value) {
-    bool us = value < 1000;
+  static inline String toScale(Timestamp value) {
+    const bool us = value < 1000;
     if (!us) {
       value /= 1000;
     }

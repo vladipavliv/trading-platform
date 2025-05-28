@@ -29,10 +29,7 @@ struct ConsumerSpy {
     if (index >= data.size()) {
       return false;
     }
-    if (data[index].type() != typeid(EventType)) {
-      return false;
-    }
-    return true;
+    return data[index].type() == typeid(EventType);
   }
 
   template <typename EventType>

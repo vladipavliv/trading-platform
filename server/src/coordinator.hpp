@@ -49,8 +49,8 @@ private:
 
     workers_.reserve(appCores);
     // Notify the system when all the workers have started
-    auto startCounter = std::make_shared<std::atomic_size_t>();
-    auto notifyClb = [this, startCounter, appCores]() {
+    const auto startCounter = std::make_shared<std::atomic_size_t>();
+    const auto notifyClb = [this, startCounter, appCores]() {
       startCounter->fetch_add(1);
       if (startCounter->load() == appCores) {
         // Simplified notification for now that server is operational
@@ -105,7 +105,7 @@ private:
     });
   }
 
-  size_t countOpenedOrders() {
+  size_t countOpenedOrders() const {
     size_t orders = 0;
     for (auto &tickerData : data_) {
       orders += tickerData.second->orderBook.openedOrders();

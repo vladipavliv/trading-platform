@@ -91,7 +91,7 @@ struct ClientConfig {
                                                 cfg.coreSystem.value()) != cfg.coresNetwork.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    if (cfg.tradeRate.count() == 0 || cfg.monitorRate.count() == 0) {
+    if (cfg.monitorRate.count() == 0) {
       throw std::runtime_error("Invalid rates configuration");
     }
     if (cfg.name.empty() || cfg.password.empty()) {

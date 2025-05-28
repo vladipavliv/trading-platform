@@ -23,8 +23,6 @@ namespace hft::server {
  * @todo Add atomic flag to lock the book for rerouting
  */
 struct TickerData {
-  using UPtr = std::unique_ptr<TickerData>;
-
   TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
 
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
@@ -46,7 +44,7 @@ private:
   TickerData &operator=(TickerData &&other) = delete;
 };
 
-using MarketData = boost::unordered_flat_map<Ticker, TickerData::UPtr, TickerHash>;
+using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
 
 } // namespace hft::server
 

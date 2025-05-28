@@ -27,7 +27,6 @@ namespace hft::server {
  */
 class ServerControlCenter {
 public:
-  using UPtr = std::unique_ptr<ServerControlCenter>;
   using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
