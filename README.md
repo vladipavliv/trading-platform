@@ -81,15 +81,24 @@ The current ideas:
 - Less performance-critical components, like adapters, could use interfaces for higher configurability
 
 ## Performance
-Tested on localhost with 1us trade rate
+Localhost, single client, all threads pinned to cores, 1us trade rate:
 
+```bash
 Server:
-```bash
 01:36:13.608573 [I] Orders: [opn|ttl] 2,066,553|9,492,642 | Rps: 136,410
-```
 Client:
-```bash
 01:36:12.287540 [I] Rtt: [<50us|>50us] 99.76% avg:17us 0.24% avg:66us
+```
+
+Localhost, 3 clients, client threads not pinned, 6us trade rate:
+
+```bash
+Server:
+23:10:23.747329 [I] Orders: [opn|ttl] 20,439,753|94,833,660 | Rps: 213,990
+Client:
+23:10:23.241168 [I] Rtt: [<50us|>50us] 98.35% avg:23us 1.65% avg:72us
+23:10:23.670371 [I] Rtt: [<50us|>50us] 98.19% avg:25us 1.81% avg:76us
+23:10:23.814607 [I] Rtt: [<50us|>50us] 98.53% avg:23us 1.47% avg:76us
 ```
 
 ## Roadmap

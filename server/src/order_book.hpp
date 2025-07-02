@@ -50,7 +50,7 @@ public:
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    lastAdded_.insert(order.order.id);
+    lastAdded_ = order.order.id;
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
@@ -66,10 +66,10 @@ public:
       bestBid.order.partialFill(quantity);
       bestAsk.order.partialFill(quantity);
 
-      if (lastAdded_.contains(bestBid.order.id)) {
+      if (lastAdded_ == bestBid.order.id) {
         consumer(getMatch(bestBid, quantity, bestAsk.order.price));
       }
-      if (lastAdded_.contains(bestAsk.order.id)) {
+      if (lastAdded_ == bestAsk.order.id) {
         consumer(getMatch(bestAsk, quantity, bestAsk.order.price));
       }
 
@@ -82,7 +82,7 @@ public:
         asks_.pop_back();
       }
     }
-    lastAdded_.clear();
+    lastAdded_ = 0;
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
@@ -98,7 +98,7 @@ private:
 private:
   std::vector<ServerOrder> bids_;
   std::vector<ServerOrder> asks_;
-  std::set<OrderId> lastAdded_;
+  OrderId lastAdded_;
   std::atomic_uint64_t openedOrders_;
 };
 
