@@ -75,15 +75,8 @@ using Optional = std::optional<Type>;
  * Function types
  */
 using Callback = std::function<void()>;
-using WeakCallback = std::weak_ptr<Callback>;
-using SharedCallback = std::shared_ptr<Callback>;
-using Predicate = std::function<bool()>;
-template <typename ArgType>
-using Handler = std::function<void(ArgType)>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
-template <typename ArgType>
-using SpanHandler = std::function<void(Span<ArgType>)>;
 
 /**
  * Concepts
