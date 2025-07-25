@@ -38,11 +38,10 @@ struct LoginResponse {
 };
 
 /**
- * @todo On the server side each OrderBook processes single ticker
- * Also in the current implementation separate container is used for bids and asks
+ * @todo OrderBook works with the single ticker, and has separate container for bids and asks
  * So ticker and action could be thrown away to reduce memory footprint
- * Would complicate things a little bit, but it would help keeping order under 32 bytes
- * Which might improve performance even further having 2 orders in a single cache line
+ * Would complicate things a bit, but help keeping order under 32 bytes and have 2 orders
+ * in a single cache line
  */
 struct alignas(8) Order {
   OrderId id;
