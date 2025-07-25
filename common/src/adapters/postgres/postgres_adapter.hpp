@@ -17,15 +17,10 @@ namespace hft {
 
 /**
  * @brief Postgres adapter
- * @details Interface-type communication feels more natural here as opposed to bus-type
- * @todo Make interfaces and adapter factory, these adapters wont participate in the hot paths,
- * so extra configurability and testability is more prefferable here
- * @todo At the moment adapters operate over SystemBus, which is single-threaded, so no need
- * to worry about thread safety in adapters. Later on if separate DataBus is made to keep
- * SystemBus responsive, thread safety of adapters should be reconsidered.
- * This adapter probably could use some mutex, it handles initial data read and creds verification,
- * which are not the hottest paths. But maybe postgres adapter could work over SystemBus anyway
- * as it shouldn't have overwhelming traffic. Think it through.
+ * @todo For better configurability and because adapters won't participate in hot paths,
+ * its better to use interfaces here and make adapter factory.
+ * @todo Currently adapters operate over the SystemBus, which is single-threaded, so
+ * thread-safety of adapters is not a concern.
  */
 class PostgresAdapter {
   /**
@@ -33,6 +28,9 @@ class PostgresAdapter {
    */
   static constexpr auto CONNECTION_STRING =
       "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432 connect_timeout=1";
+  static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
+  static constexpr auto TICKERS_COUNT_QUERY = "SELECT COUNT(*) FROM tickers";
+  static constexpr auto SET_TIMEOUT_QUERY = "SET statement_timeout = 1000";
 
 public:
   PostgresAdapter() : conn_{CONNECTION_STRING} {
@@ -44,10 +42,8 @@ public:
   auto readTickers() -> Expected<std::vector<TickerPrice>> {
     try {
       pqxx::work transaction(conn_);
-      transaction.exec("SET statement_timeout = 1000");
-
-      const String countQuery = "SELECT COUNT(*) FROM tickers";
-      const pqxx::result countResult = transaction.exec(countQuery);
+      transaction.exec(SET_TIMEOUT_QUERY);
+      const pqxx::result countResult = transaction.exec(TICKERS_COUNT_QUERY);
 
       std::vector<TickerPrice> tickers;
       if (countResult.empty()) {
@@ -61,12 +57,10 @@ public:
       }
 
       tickers.reserve(count);
+      const pqxx::result tickersResult = transaction.exec(SELECT_TICKERS_QUERY);
 
-      const String query = "SELECT * FROM tickers";
-      const pqxx::result res = transaction.exec(query);
-
-      for (auto row : res) {
-        std::string ticker = row["ticker"].as<std::string>();
+      for (auto row : tickersResult) {
+        const String ticker = row["ticker"].as<String>();
         Price price = row["price"].as<size_t>();
         tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
       }

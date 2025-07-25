@@ -16,8 +16,13 @@ namespace hft::server {
 
 /**
  * @brief Channel that acts as a gateway/sink for messages
- * First waits for authentication, then starts routing converted messages to the bus
- * Has bidirectional bus-like ::post interface and routes messages depending on the type
+ * First waits for authentication message, then accepts other supported messages
+ * Converts the domain messages to server-side wrappers with the message specific ids
+ * Bidirectional interface routes messages in/out depending on the type
+ * @todo which i am not sure is a good idea as it hides the direction of the message
+ * Done for convenience. Probably better idea is to make a separate consumer
+ * that is a wrapper for SessionChannel to avoid exposing consumer interface, and
+ * expose only the interface to send the message downstream.
  */
 class SessionChannel {
 public:
