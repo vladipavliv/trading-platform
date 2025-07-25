@@ -118,7 +118,7 @@ private:
   const MarketData &data_;
 
   SteadyTimer timer_;
-  Seconds statsRate_;
+  const Seconds statsRate_;
 
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;

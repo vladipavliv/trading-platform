@@ -31,7 +31,7 @@ RUN git clone --branch main --single-branch https://github.com/fastfloat/fast_fl
     cmake .. && \
     make -j$(nproc) && \
     make install && \
-    rm -rf /fast_float
+    cd / && rm -rf /fast_float
 
 # folly
 RUN git clone --branch main --single-branch https://github.com/facebook/folly.git /folly && \

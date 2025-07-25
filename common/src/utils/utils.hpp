@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <concepts>
 #include <cstdint>
 #include <cxxabi.h>
 #include <pthread.h>
@@ -56,7 +57,13 @@ bool hasIntersection(const std::vector<ValueType> &left, const std::vector<Value
   });
 }
 
-template <typename Number>
+template <typename T>
+concept Arithmetic = std::integral<T> || std::floating_point<T>;
+
+/**
+ * @todo Make custom spdlog formatter instead
+ */
+template <Arithmetic Number>
 auto thousandify(Number input) -> String {
   std::stringstream ss;
   ss.imbue(std::locale("en_US.UTF-8"));

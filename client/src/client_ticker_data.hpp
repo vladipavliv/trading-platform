@@ -23,7 +23,7 @@ namespace hft::client {
 struct TickerData {
   explicit TickerData(Price price) : price_{price} {}
 
-  inline void setPrice(Price price) { price_.store(price, std::memory_order_release); }
+  inline void setPrice(Price price) const { price_.store(price, std::memory_order_release); }
   inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
 
 private:
