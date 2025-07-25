@@ -73,6 +73,10 @@ using Optional = std::optional<Type>;
 
 /**
  * Function types
+ * @todo std::function is not efficient for hot paths, either
+ * - Make custom callable for hot paths
+ * - Use FunctionRef in the bus, and each subscriber holds its
+ *   subscription callback by its native lambda type
  */
 using Callback = std::function<void()>;
 template <typename ArgType>
@@ -80,6 +84,7 @@ using CRefHandler = std::function<void(const ArgType &)>;
 
 /**
  * Concepts
+ * @todo Properly define all the concepts, for Consumer and other templated types
  */
 template <typename EventType>
 concept UnorderedMapKey = requires(EventType event) {

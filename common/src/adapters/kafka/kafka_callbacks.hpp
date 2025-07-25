@@ -15,12 +15,12 @@ namespace hft {
 class KafkaEventCallback : public RdKafka::EventCb {
 public:
   void event_cb(RdKafka::Event &event) override {
+    // Map the kafka log levels to local log levels
     switch (event.type()) {
     case RdKafka::Event::Type::EVENT_ERROR:
       LOG_ERROR_SYSTEM("{}", RdKafka::err2str(event.err()));
       break;
     case RdKafka::Event::Type::EVENT_LOG:
-      // Map the kafka log levels to local log levels
       switch (event.severity()) {
       case RdKafka::Event::Severity::EVENT_SEVERITY_EMERG:
       case RdKafka::Event::Severity::EVENT_SEVERITY_ALERT:

@@ -16,7 +16,6 @@ C++ hft platform based on boost.asio, with the main focus on performance, simpli
 - Use templates instead of polymorphism to maximize cache locality and inlining
 - Fully lock-free design, no thread ever waits for another
 - Event bus for simple, decoupled communication
-- Efficient serialization with flatbuffers
 
 ### Server
 Runs a separate network io_context, a number of workers for order processing with a separate io_context each, and a separate io_context for system tasks. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
@@ -72,10 +71,10 @@ Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
 ## Testing
-Testing strategy is still in consideration. As interfaces have not been used for maximum blazing fastness, and only some components are templated, mocking possibilities are quite limited.
+Testing strategy is still in consideration. As interfaces have not been used for maximum blazing fastness, and only some components are templated, mocking possibilities are limited.
 
-The current ideas:
-- Communication is highly decoupled via the bus, so alot of stuff could be tested without mocks
+Current ideas:
+- Communication is decoupled via the bus, so alot of stuff could be tested without mocks
 - Not every component needs to be mocked, hot paths could be tested as is
 - Performance-critical components, like the network layer, could be templated and mocked
 - Less performance-critical components, like adapters, could use interfaces for higher configurability
@@ -105,18 +104,16 @@ Client:
 - [x] **Stream metrics to kafka**  
 Offload the latencies and other metadata to kafka
 - [ ] **Monitor the metrics**  
-Make separate monitoring service, maybe using Go
+Make separate monitoring service
 - [ ] **Persist the data**  
-Persist metadata to ClickHouse and maybe currently opened orders to Postgres on a shutdown
+Persist metadata to ClickHouse, opened orders to Postgres at a shutdown
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
 - [ ] **Ticker rerouting**  
-Dynamically rerout the tickers to a different worker, add/remove workers, load balancing
+Load balance workers by rerouting tickers, dynamic workers add/remove
 - [ ] **Proper trading strategy**  
 And price fluctuations
 - [ ] **Optimize**  
 Profile cache misses, try SBE serialization
 - [ ] **Improve metrics streaming**  
-Make separate DataBus to offload intense metadata streaming traffic from SystemBus
-- [ ] **Contribute to ClickHouse**  
-Investigate the possibility of adding FlatBuffers support to ClickHouse for direct consumption from kafka
+Make separate DataBus to offload intense metadata streaming traffic from system bus

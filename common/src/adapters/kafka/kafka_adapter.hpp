@@ -22,15 +22,12 @@ namespace hft {
 
 /**
  * @brief Kafka adapter
- * @details This is a reactive adapter, so all communication goes through the bus
- * For message producing the type of each message is set explicitly
- * so adapter can subscribe for the messages in a SystemBus
- * For consuming serializer takes case of the types and routing to a SystemBus
- * @todo Make separate DataBus here, SystemBus should be responsive and not overwhelmed
- * by the kafka traffic. Even though some priorities could be implemented in the system bus
- * and important events go ::dispatch instead of ::post, i think its better to make separate bus
- * altogether that we wont care about responsiveness at all.
- * If DataBus would end up multithreaded, this adapter should probably work fine anyway,
+ * @details Reactive adapter, all communication goes through the bus
+ * @todo Make separate DataBus, SystemBus should be responsive and not overwhelmed
+ * by the kafka traffic. Even though priorities could be implemented in the system bus
+ * so important events go ::dispatch instead of ::post, its better to make separate bus
+ * with no responsiveness requirements.
+ * If DataBus ends up multithreaded, this adapter should probably work fine,
  * but needs to be tested
  */
 template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,

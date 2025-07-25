@@ -14,11 +14,11 @@
 namespace hft::server {
 
 /**
- * @brief These server side wrappers are convenient, but they do introduce
- * additional copy after parsing the domain message. To avoid this, and not polute
- * the messages with server-side values, a separate parsers could be made for
- * server and client side. This way on the server side it would parse domain types
- * directly into server local types and server-side ids would be filled later
+ * @brief These server side wrappers are convenient and help keeping domain
+ * types clean, but they do introduce additional copy converting domain message
+ * to a server-side message. To avoid this - separate serializers could be made
+ * so on the server side message gets deserialized directly to a server local type
+ * and all the server side fields would get filled afterwards
  */
 struct ServerLoginRequest {
   ConnectionId connectionId;
