@@ -14,30 +14,19 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
-      with:
-        driver: docker-container
 
-    - name: Cache Docker layers
-      uses: actions/cache@v4
+    - name: Build Docker image with cache
+      uses: docker/build-push-action@v5
       with:
-        path: ${{ github.workspace }}/.buildx-cache
-        key: ${{ runner.os }}-buildx-deps-${{ hashFiles('Dockerfile') }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-deps-
-
-    - name: Build Docker image
-      run: |
-        docker buildx build \
-          --progress=plain \
-          --cache-from type=local,src=${{ github.workspace }}/.buildx-cache \
-          --cache-to type=local,dest=${{ github.workspace }}/.buildx-cache,mode=max \
-          -t my-app \
-          --load \
-          .
+        context: .
+        tags: my-app:latest
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Run tests in Docker container
       run: |
