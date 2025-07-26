@@ -12,10 +12,19 @@
 namespace hft {
 
 struct OrderTimestamp {
-  const OrderId orderId;
-  const Timestamp created;
-  const Timestamp fulfilled;
-  const Timestamp notified;
+  OrderId orderId;
+  Timestamp created;
+  Timestamp fulfilled;
+  Timestamp notified;
+};
+
+struct RuntimeMetrics {
+  enum Source : uint8_t { Unknown, Client, Server };
+
+  Source source;
+  Timestamp timeStamp;
+  size_t rps;
+  size_t avgLatencyUs;
 };
 
 } // namespace hft

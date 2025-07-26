@@ -53,6 +53,5 @@ message RuntimeMetrics {
   Source source = 1;
   int64 timestamp_us = 2;
   double rps = 3;
-  int32 open_connections = 4;
-  double avg_latency_us = 5;
+  double avg_latency_us = 4;
 }

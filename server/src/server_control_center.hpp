@@ -53,7 +53,8 @@ public:
     });
 
     // kafka topics and commands
-    kafka_.addConsumeTopic("server-commands");
+    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_server_cmd_topic"));
+    kafka_.addProduceTopic<RuntimeMetrics>(Config::get<String>("kafka.kafka_metrics_topic"));
   }
 
   void start() {
