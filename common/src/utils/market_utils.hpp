@@ -15,7 +15,7 @@ namespace hft::utils {
 
 Price fluctuateThePrice(Price price) {
   const int32_t delta = price * PRICE_FLUCTUATION_RATE / 100;
-  const int32_t fluctuation = RNG::rng(delta * 2) - delta;
+  const int32_t fluctuation = RNG::generate(0, delta * 2) - delta;
   return price + fluctuation;
 }
 

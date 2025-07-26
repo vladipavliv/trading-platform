@@ -55,7 +55,7 @@ public:
     thread_local RttStats stats;
     thread_local Timestamp lastFlushed = utils::getTimestamp();
     const Timestamp current = utils::getTimestamp();
-    const auto rtt = (current - timestamp) / 1000;
+    const auto rtt = current - timestamp;
 
     const uint8_t scale = getRange(rtt);
     stats.samples[scale].sum += rtt;

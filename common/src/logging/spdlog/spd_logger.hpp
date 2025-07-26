@@ -56,7 +56,7 @@ private:
   static void initFileLogger(const std::string &filename) {
     spdlog::init_thread_pool(8192, 1);
     auto rotatingSink =
-        std::make_shared<spdlog::sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 3);
+        std::make_shared<spdlog::sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 10);
     fileLogger = std::make_shared<spdlog::async_logger>(
         "async_file_logger", rotatingSink, spdlog::thread_pool(),
         spdlog::async_overflow_policy::overrun_oldest);

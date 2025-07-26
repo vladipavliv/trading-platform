@@ -24,8 +24,9 @@ namespace hft::server {
  * so every match would come with two notifications, about recent order and a previous one
  * To avoid this the last added order ids are saved to a set and only those get notifications
  * @todo At some point it might make sense to split Order to hot and cold data
- * Currently all the data is hot, matching iterates through orders and sends OrderStatus
- * for each one, and all the data is needed.
+ * Currently for simple limit orders all the data is hot, and there is not iterations
+ * without sending status, so separating it doesnt make sense for now.
+ * Reconsider for more complex order types later on.
  */
 class OrderBook {
   static inline bool compareBids(CRef<ServerOrder> left, CRef<ServerOrder> right) {

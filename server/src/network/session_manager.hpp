@@ -16,6 +16,7 @@
 #include "server_events.hpp"
 #include "server_types.hpp"
 #include "session_channel.hpp"
+#include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::server {
@@ -75,12 +76,12 @@ private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", utils::toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
-    if (sessionIter == sessionsMap_.end()) {
+    if (sessionIter == sessionsMap_.end()) [[unlikely]] {
       LOG_INFO("Client {} is offline", status.clientId);
       return;
     }
-    auto session = sessionIter->second;
-    if (session->downstreamChannel != nullptr) {
+    const auto session = sessionIter->second;
+    if (session->downstreamChannel != nullptr) [[likely]] {
       session->downstreamChannel->post(status.orderStatus);
     } else {
       LOG_INFO("No downstream connection for {}", status.clientId);
@@ -90,15 +91,15 @@ private:
   void onLoginResponse(CRef<ServerLoginResponse> loginResult) {
     LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
     const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
-    if (channelIter == unauthorizedUpstreamMap_.end()) {
+    if (channelIter == unauthorizedUpstreamMap_.end()) [[unlikely]] {
       LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
     // Copy right away to dodge iterator invalidation
-    auto channel = channelIter->second;
+    const auto channel = channelIter->second;
     unauthorizedUpstreamMap_.erase(channelIter->first);
 
-    if (channel == nullptr) {
+    if (channel == nullptr) [[unlikely]] {
       LOG_ERROR("Connection not initialized {}", loginResult.connectionId);
       return;
     }
@@ -130,7 +131,7 @@ private:
       LOG_WARN("Client already disconnected");
       return;
     }
-    auto downstreamChannel = channelIter->second;
+    const auto downstreamChannel = channelIter->second;
     unauthorizedDownstreamMap_.erase(channelIter->first);
 
     // Token lookup is only needed at the initial authorization stage, so maintaining a separate
@@ -145,7 +146,7 @@ private:
       LOG_ERROR("Invalid token received from {}", request.connectionId);
       downstreamChannel->post(LoginResponse{0, false, "Invalid token"});
     } else {
-      auto session = sessionIter->second;
+      const auto session = sessionIter->second;
       if (session->downstreamChannel != nullptr) {
         LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
         downstreamChannel->post(LoginResponse{0, false, "Already connected"});
@@ -160,7 +161,7 @@ private:
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
-    LOG_TRACE_SYSTEM(utils::toString(event));
+    LOG_TRACE_SYSTEM("{}", utils::toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:
       // Nothing to do here for now

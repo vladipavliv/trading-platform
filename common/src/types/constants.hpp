@@ -6,14 +6,12 @@
 #ifndef HFT_COMMON_CONSTANTS_HPP
 #define HFT_COMMON_CONSTANTS_HPP
 
-#include <cstdint>
-
 namespace hft {
 
 constexpr size_t BUFFER_SIZE = 1024 * 8;
 constexpr size_t ORDER_BOOK_LIMIT = 5000;
 constexpr size_t CACHE_LINE_SIZE = 64;
-constexpr size_t LOG_FILE_SIZE = 5 * 1024 * 1024;
+constexpr size_t LOG_FILE_SIZE = 25 * 1024 * 1024;
 constexpr size_t MAX_CONNECTIONS = 1000;
 constexpr size_t PRICE_FLUCTUATION_RATE = 5;
 

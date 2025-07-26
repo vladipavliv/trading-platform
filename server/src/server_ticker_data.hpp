@@ -28,7 +28,7 @@ struct TickerData {
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }
 
-  inline void setPrice(Price price) { price_.store(price, std::memory_order_release); }
+  inline void setPrice(Price price) const { price_.store(price, std::memory_order_release); }
   inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
 
   OrderBook orderBook;

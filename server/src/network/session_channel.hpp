@@ -35,7 +35,7 @@ public:
 
   inline void authenticate(ClientId clientId) {
     LOG_INFO_SYSTEM("Authenticate channel {} {}", id_, clientId);
-    if (clientId_.has_value()) {
+    if (isAuthenticated()) {
       LOG_ERROR_SYSTEM("{} is already authenticated", id_);
       return;
     }
@@ -47,6 +47,8 @@ public:
     // Supports only the explicitly specialized types
     LOG_ERROR_SYSTEM("Invalid message type received at {}", id_);
   }
+
+  inline auto isAuthenticated() -> bool const { return clientId_.has_value(); }
 
   inline auto connectionId() -> ConnectionId const { return id_; }
 
@@ -63,7 +65,7 @@ private:
 
 template <>
 inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
-  if (clientId_.has_value()) {
+  if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid login request: channel {} is already authenticated", id_);
     return;
   }
@@ -72,7 +74,7 @@ inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
 
 template <>
 inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
-  if (clientId_.has_value()) {
+  if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", id_);
     return;
   }
@@ -86,7 +88,7 @@ inline void SessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEve
 
 template <>
 inline void SessionChannel::post<Order>(CRef<Order> message) {
-  if (!clientId_.has_value()) {
+  if (!isAuthenticated()) [[unlikely]] {
     LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
   }
@@ -100,7 +102,7 @@ inline void SessionChannel::post<LoginResponse>(CRef<LoginResponse> message) {
 
 template <>
 inline void SessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
-  if (!clientId_.has_value()) {
+  if (!isAuthenticated()) [[unlikely]] {
     LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
   }
