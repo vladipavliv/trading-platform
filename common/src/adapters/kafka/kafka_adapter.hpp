@@ -17,6 +17,7 @@
 #include "metadata_types.hpp"
 #include "serialization/protobuf/proto_metadata_serializer.hpp"
 #include "types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft {
 
@@ -205,7 +206,7 @@ private:
   template <typename MessageType>
   void produce(CRef<String> topic, CRef<MessageType> msg) {
     using namespace RdKafka;
-    LOG_TRACE("{} {}", topic, msg);
+    LOG_TRACE("{} {}", topic, utils::toString(msg));
     if (state_ != State::On) {
       return;
     }

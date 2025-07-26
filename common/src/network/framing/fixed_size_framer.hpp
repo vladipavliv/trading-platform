@@ -30,7 +30,7 @@ public:
 
   template <typename Type>
   static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    LOG_DEBUG("frame {}", utils::toString(message));
+    LOG_TRACE("frame {}", utils::toString(message));
 
     const auto serializedMsg = Serializer::serialize(message);
     buffer.resize(serializedMsg.size() + HEADER_SIZE);
@@ -42,8 +42,6 @@ public:
 
   template <typename Consumer>
   static auto unframe(ByteSpan dataBuffer, Consumer &&consumer) -> Expected<size_t> {
-    LOG_DEBUG("unframe");
-
     const auto dataPtr = dataBuffer.data();
     size_t cursor{0};
 

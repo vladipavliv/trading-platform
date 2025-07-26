@@ -151,29 +151,29 @@ private:
     }
     auto &p = *cursor++;
     const auto newPrice = fluctuateThePrice(p.second->getPrice());
-    const auto action = RNG::rng<uint8_t>(1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    const auto quantity = RNG::rng<Quantity>(100);
+    const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
+    const auto quantity = RNG::generate<Quantity>(0, 100);
     const auto id = getTimestamp(); // TODO(self)
     Order order{id, id, p.first, quantity, newPrice, action};
-    LOG_DEBUG("Placing order {}", utils::toString(order));
+    LOG_TRACE("Placing order {}", utils::toString(order));
     bus_.marketBus.post(order);
   }
 
-  void onOrderStatus(CRef<OrderStatus> status) {
-    LOG_DEBUG("{}", utils::toString(status));
+  void onOrderStatus(CRef<OrderStatus> s) {
+    LOG_DEBUG("{}", utils::toString(s));
     // Track orders in TickerData
-    Tracker::logRtt(status.orderId);
-    bus_.systemBus.post(
-        OrderTimestamp{status.orderId, status.orderId, status.fulfilled, utils::getTimestamp()});
+    Tracker::logRtt(s.orderId);
+    bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.fulfilled, utils::getTimestamp()});
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {
-    LOG_DEBUG("{}", utils::toString(price));
     const auto dataIt = tickersData_.find(price.ticker);
     if (dataIt == tickersData_.end()) {
       LOG_ERROR("Ticker {} not found", utils::toString(price.ticker));
       return;
     }
+    const Price oldPrice = dataIt->second->getPrice();
+    LOG_DEBUG("Price change {}: {} => {}", utils::toString(price.ticker), oldPrice, price.price);
     dataIt->second->setPrice(price.price);
   }
 

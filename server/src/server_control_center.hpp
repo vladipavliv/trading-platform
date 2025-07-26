@@ -31,9 +31,9 @@ public:
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
-      : networkServer_{bus_}, authenticator_{bus_.systemBus, dbAdapter_},
-        coordinator_{bus_, marketData_}, consoleReader_{bus_.systemBus},
-        priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
+      : marketData_{readMarketData()}, networkServer_{bus_},
+        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, marketData_},
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
       // start the network server only after internal components are fully operational
@@ -58,7 +58,6 @@ public:
 
   void start() {
     greetings();
-    readMarketData();
 
     coordinator_.start();
     consoleReader_.start();
@@ -82,34 +81,39 @@ private:
     consoleReader_.printCommands();
   }
 
-  void readMarketData() {
+  MarketData readMarketData() {
     const auto result = dbAdapter_.readTickers();
     if (!result) {
       LOG_ERROR("Failed to load ticker data");
       throw std::runtime_error(utils::toString(result.error()));
     }
     const auto &prices = result.value();
+    MarketData data;
+    data.reserve(prices.size());
     const auto workers = ServerConfig::cfg.coresApp.size();
     ThreadId roundRobin = 0;
     for (auto &item : prices) {
-      marketData_.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
+      LOG_TRACE("{}: ${}", utils::toString(item.ticker), item.price);
+      data.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
       roundRobin = (++roundRobin < workers) ? roundRobin : 0;
     }
-    LOG_INFO_SYSTEM("Data loaded for {} tickers", marketData_.size());
+    LOG_INFO_SYSTEM("Data loaded for {} tickers", data.size());
+    return data;
   }
 
 private:
+  PostgresAdapter dbAdapter_;
+
+  const MarketData marketData_;
+
   Bus bus_;
 
-  PostgresAdapter dbAdapter_;
   NetworkServer networkServer_;
   Authenticator authenticator_;
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
   Kafka kafka_;
-
-  MarketData marketData_;
 };
 
 } // namespace hft::server

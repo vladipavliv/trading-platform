@@ -15,6 +15,7 @@
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
 #include "server_types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::server {
 
@@ -72,7 +73,7 @@ private:
   }
 
   void processOrder(CRef<ServerOrder> order) {
-    LOG_TRACE(utils::toString(order));
+    LOG_TRACE("{}", utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {

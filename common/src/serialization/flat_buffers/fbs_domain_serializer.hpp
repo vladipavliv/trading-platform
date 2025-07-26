@@ -50,7 +50,7 @@ public:
         return false;
       }
       const LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
-      LOG_DEBUG("Deserialized {}", utils::toString(request));
+      LOG_TRACE("Deserialized {}", utils::toString(request));
       consumer.post(request);
       return true;
     }
@@ -61,7 +61,7 @@ public:
         return false;
       }
       const TokenBindRequest response{msg->token()};
-      LOG_DEBUG("Deserialized {}", utils::toString(response));
+      LOG_TRACE("Deserialized {}", utils::toString(response));
       consumer.post(response);
       return true;
     }
@@ -72,7 +72,7 @@ public:
         return false;
       }
       const LoginResponse response{msg->token(), msg->ok(), fbStringToString(msg->error())};
-      LOG_DEBUG("Deserialized {}", utils::toString(response));
+      LOG_TRACE("Deserialized {}", utils::toString(response));
       consumer.post(response);
       return true;
     }
@@ -85,7 +85,7 @@ public:
       const Order order{
           orderMsg->id(),       orderMsg->created(), fbStringToTicker(orderMsg->ticker()),
           orderMsg->quantity(), orderMsg->price(),   convert(orderMsg->action())};
-      LOG_DEBUG("Deserialized {}", utils::toString(order));
+      LOG_TRACE("Deserialized {}", utils::toString(order));
       consumer.post(order);
       return true;
     }
@@ -97,7 +97,7 @@ public:
       }
       const OrderStatus status{statusMsg->order_id(), statusMsg->fulfilled(), statusMsg->quantity(),
                                statusMsg->fill_price(), convert(statusMsg->state())};
-      LOG_DEBUG("Deserialized {}", utils::toString(status));
+      LOG_TRACE("Deserialized {}", utils::toString(status));
       consumer.post(status);
       return true;
     }
@@ -108,7 +108,7 @@ public:
         return false;
       }
       const TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
-      LOG_DEBUG("Deserialized {}", utils::toString(price));
+      LOG_TRACE("Deserialized {}", utils::toString(price));
       consumer.post(price);
       return true;
     }
@@ -120,7 +120,7 @@ public:
   }
 
   static BufferType serialize(CRef<LoginRequest> request) {
-    LOG_DEBUG("Serializing {}", utils::toString(request));
+    LOG_TRACE("Serializing {}", utils::toString(request));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateLoginRequest(
@@ -131,7 +131,7 @@ public:
   }
 
   static BufferType serialize(CRef<TokenBindRequest> request) {
-    LOG_DEBUG("Serializing {}", utils::toString(request));
+    LOG_TRACE("Serializing {}", utils::toString(request));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTokenBindRequest(builder, request.token);
@@ -140,7 +140,7 @@ public:
   }
 
   static BufferType serialize(CRef<LoginResponse> response) {
-    LOG_DEBUG("Serializing {}", utils::toString(response));
+    LOG_TRACE("Serializing {}", utils::toString(response));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg =
@@ -151,7 +151,7 @@ public:
   }
 
   static BufferType serialize(CRef<Order> order) {
-    LOG_DEBUG("Serializing {}", utils::toString(order));
+    LOG_TRACE("Serializing {}", utils::toString(order));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrder(builder, order.id, order.created,
@@ -162,7 +162,7 @@ public:
   }
 
   static BufferType serialize(CRef<OrderStatus> status) {
-    LOG_DEBUG("Serializing {}", utils::toString(status));
+    LOG_TRACE("Serializing {}", utils::toString(status));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrderStatus(builder, status.orderId, status.fulfilled, status.quantity,
@@ -172,7 +172,7 @@ public:
   }
 
   static BufferType serialize(CRef<TickerPrice> price) {
-    LOG_DEBUG("Serializing {}", utils::toString(price));
+    LOG_TRACE("Serializing {}", utils::toString(price));
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTickerPrice(

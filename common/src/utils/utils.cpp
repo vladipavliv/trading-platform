@@ -58,7 +58,7 @@ auto generateToken() -> Token {
 auto getTimestamp() -> Timestamp {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
+  return static_cast<uint64_t>(ts.tv_sec) * 1'000'000 + ts.tv_nsec / 1'000;
 }
 
 auto createUdpSocket(IoCtx &ctx, bool broadcast, Port port) -> UdpSocket {
