@@ -39,11 +39,11 @@ public:
   using ProduceSerializer = ProduceSerializerType;
 
   explicit KafkaAdapter(SystemBus &bus)
-      : bus_{bus}, enabled_{Config::get<bool>("kafka.kafka_feed")},
+      : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_feed")},
         broker_{Config::get<String>("kafka.kafka_broker")},
         consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
         pollRate_{Milliseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
-    if (!enabled_) {
+    if (!enabled()) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -53,7 +53,7 @@ public:
   };
 
   ~KafkaAdapter() {
-    if (!enabled_) {
+    if (!enabled()) {
       return;
     }
     consumer_->unsubscribe();
@@ -65,7 +65,7 @@ public:
 
   template <typename EventType>
   void addProduceTopic(CRef<String> topic) {
-    if (!enabled_) {
+    if (!enabled()) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -85,7 +85,7 @@ public:
   }
 
   void addConsumeTopic(CRef<String> topic) {
-    if (!enabled_) {
+    if (!enabled()) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -94,7 +94,7 @@ public:
   }
 
   void start() {
-    if (!enabled_) {
+    if (!enabled()) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -111,7 +111,7 @@ public:
   }
 
   void stop() {
-    if (!enabled_) {
+    if (!enabled()) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -235,10 +235,12 @@ private:
     bus_.post(KafkaEvent{KafkaStatus::Error, error_});
   }
 
+  bool enabled() const { return enabled_.has_value() && enabled_.value(); }
+
 private:
   SystemBus &bus_;
 
-  const bool enabled_;
+  const std::optional<bool> enabled_;
   const String broker_;
   const String consumerGroup_;
   const Milliseconds pollRate_;
