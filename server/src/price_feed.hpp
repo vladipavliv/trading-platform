@@ -32,7 +32,7 @@ class PriceFeed {
     static constexpr double MAX_FLUCTUATION_RATE_US = // 100% per day in us
         100.0 / 86400.0 / 1000.0 / 1000.0;
 
-    Fluctuation(Ticker ticker, const TickerData &data) : ticker{ticker}, data{data} {
+    Fluctuation(CRef<Ticker> ticker, CRef<TickerData> data) : ticker{ticker}, data{data} {
       randomize();
     };
 
@@ -86,7 +86,7 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(Bus &bus, const MarketData &marketData)
+  PriceFeed(Bus &bus, CRef<MarketData> marketData)
       : bus_{bus}, timer_{bus_.systemCtx()}, rate_{ServerConfig::cfg.priceFeedRate} {
     data_.reserve(marketData.size());
     for (auto &value : marketData) {

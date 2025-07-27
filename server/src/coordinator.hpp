@@ -45,7 +45,7 @@ namespace hft::server {
  */
 class Coordinator {
 public:
-  Coordinator(Bus &bus, const MarketData &data)
+  Coordinator(Bus &bus, CRef<MarketData> data)
       : bus_{bus}, data_{data}, timer_{bus_.systemCtx()},
         statsRate_{ServerConfig::cfg.monitorRate} {
     bus_.marketBus.setHandler<ServerOrder>(
