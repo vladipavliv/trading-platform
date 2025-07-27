@@ -54,14 +54,6 @@ public:
 
     // commands
     bus_.systemBus.subscribe(ClientCommand::Shutdown, [this]() { stop(); });
-    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStart, [this]() {
-      LOG_INFO_SYSTEM("Start kafka feed");
-      kafka_.start();
-    });
-    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStop, [this]() {
-      LOG_INFO_SYSTEM("Stop kafka feed");
-      kafka_.stop();
-    });
 
     // kafka topics
     kafka_.addProduceTopic<OrderTimestamp>(Config::get<String>("kafka.kafka_timestamps_topic"));
@@ -75,6 +67,7 @@ public:
     networkClient_.start();
     engine_.start();
     consoleReader_.start();
+    kafka_.start();
 
     LOG_INFO_SYSTEM("Connecting to the server");
     networkClient_.connect();
@@ -83,10 +76,12 @@ public:
   }
 
   void stop() {
+    kafka_.stop();
     consoleReader_.stop();
     networkClient_.stop();
     engine_.stop();
     bus_.stop();
+
     LOG_INFO_SYSTEM("stonk");
   }
 

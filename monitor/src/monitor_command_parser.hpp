@@ -26,17 +26,17 @@ class MonitorCommandParser {
 public:
   static const HashMap<String, MonitorCommand> commands;
 
-  template <typename Consumer>
+  template <Busable Consumer>
   static bool parse(CRef<String> cmd, Consumer &&consumer) {
     // first try to parse with native command map, then server/client
     bool ret{false};
+    if (server::ServerCommandParser::parse(cmd, consumer) |
+        client::ClientCommandParser::parse(cmd, consumer)) {
+      ret = true;
+    }
     const auto cmdIt = commands.find(cmd);
     if (cmdIt != commands.end()) {
       consumer.post(cmdIt->second);
-      ret = true;
-    }
-    if (server::ServerCommandParser::parse(cmd, consumer) |
-        client::ClientCommandParser::parse(cmd, consumer)) {
       ret = true;
     }
     return ret;
@@ -45,7 +45,7 @@ public:
   /**
    * @brief Interface for usage as a serializer when simple string map is sufficient
    */
-  template <typename Consumer>
+  template <Busable Consumer>
   static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
     return parse(String(data, size), consumer);
   }

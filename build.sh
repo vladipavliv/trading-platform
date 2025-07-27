@@ -17,7 +17,7 @@ cd "$BUILD_DIR"
 
 echo "⚙️ Running CMake..."
 if [ "$1" == "d" ]; then
-    cmake .. -DCMAKE_BUILD_TYPE=Debug
+    cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
 else
     cmake .. -DCMAKE_BUILD_TYPE=Release
 fi

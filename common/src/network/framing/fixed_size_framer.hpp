@@ -40,7 +40,7 @@ public:
     std::memcpy(buffer.data() + sizeof(bodySize), serializedMsg.data(), serializedMsg.size());
   }
 
-  template <typename Consumer>
+  template <Busable Consumer>
   static auto unframe(ByteSpan dataBuffer, Consumer &&consumer) -> Expected<size_t> {
     const auto dataPtr = dataBuffer.data();
     size_t cursor{0};

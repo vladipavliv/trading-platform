@@ -18,6 +18,7 @@ FetchContent_MakeAvailable(googletest)
 
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto=8 -DNDEBUG -fomit-frame-pointer") # -fno-rtti -fno-exceptions
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O1 -g3 -march=native -fno-omit-frame-pointer")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fno-omit-frame-pointer")
 
 find_package(Boost 1.83 REQUIRED COMPONENTS thread)

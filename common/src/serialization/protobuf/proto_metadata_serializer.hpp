@@ -10,6 +10,7 @@
 
 #include "gen/proto/metadata_messages.pb.h"
 #include "metadata_types.hpp"
+#include "proto_converter.hpp"
 #include "types.hpp"
 
 namespace hft::serialization {
@@ -24,18 +25,13 @@ namespace hft::serialization {
  * @todo ClickHouse requires messages to be framed with varint, so a quick framing
  * was made here directly, need to split it to separate VarintSizeFramer
  */
-
-template <typename MessageType>
-concept ProtoSerializableType =
-    std::same_as<MessageType, OrderTimestamp> || std::same_as<MessageType, RuntimeMetrics>;
-
-template <typename MessageType>
-concept ProtoDeserializableType = // format
-    std::same_as<MessageType, gen::proto::metadata::OrderTimestamp> ||
-    std::same_as<MessageType, gen::proto::metadata::RuntimeMetrics>;
-
 class ProtoMetadataSerializer {
 public:
+  using SupportedTypes = std::tuple<OrderTimestamp, RuntimeMetrics>;
+
+  template <typename EventType>
+  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+
   static String serialize(CRef<OrderTimestamp> msg) {
     using namespace google::protobuf::io;
 
@@ -54,17 +50,7 @@ public:
 
     gen::proto::metadata::RuntimeMetrics protoMsg;
 
-    gen::proto::metadata::Source source{gen::proto::metadata::Source::UNKNOWN};
-    switch (msg.source) {
-    case RuntimeMetrics::Source::Client:
-      source = gen::proto::metadata::Source::CLIENT;
-      break;
-    case RuntimeMetrics::Source::Server:
-      source = gen::proto::metadata::Source::SERVER;
-      break;
-    }
-
-    protoMsg.set_source(source);
+    protoMsg.set_source(convert(msg.source));
     protoMsg.set_timestamp_us(utils::getTimestamp());
     protoMsg.set_rps(msg.rps);
     protoMsg.set_avg_latency_us(msg.avgLatencyUs);
@@ -72,7 +58,7 @@ public:
     return frame<gen::proto::metadata::RuntimeMetrics>(protoMsg);
   }
 
-  template <ProtoDeserializableType MessageType>
+  template <typename MessageType>
   static String frame(CRef<MessageType> message) {
     using namespace google::protobuf::io;
 
@@ -92,7 +78,7 @@ public:
     return result;
   }
 
-  template <ProtoSerializableType MessageType, typename Consumer>
+  template <Busable Consumer>
   static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
     using namespace google::protobuf::io;
 
@@ -107,8 +93,8 @@ public:
 
     CodedInputStream::Limit msgLimit = codedInputStream.PushLimit(messageLength);
 
-    MessageType protoMsg;
-    if (!protoMsg.ParseFromCodedStream(&codedInputStream) ||
+    gen::proto::metadata::Envelope envelope;
+    if (!envelope.ParseFromCodedStream(&codedInputStream) ||
         !codedInputStream.ConsumedEntireMessage()) {
       LOG_ERROR("Failed to parse delimited protobuf message");
       return false;
@@ -116,34 +102,43 @@ public:
 
     codedInputStream.PopLimit(msgLimit);
 
-    if constexpr (std::same_as<MessageType, OrderTimestamp>) {
+    switch (envelope.payload_case()) {
+    case gen::proto::metadata::Envelope::kOrderTimestamp: {
+      const auto &protoMsg = envelope.order_timestamp();
       OrderTimestamp stamp;
       stamp.orderId = protoMsg.order_id();
       stamp.created = protoMsg.created();
       stamp.fulfilled = protoMsg.fulfilled();
       stamp.notified = protoMsg.notified();
-
       consumer.post(stamp);
-    } else if constexpr (std::same_as<MessageType, RuntimeMetrics>) {
+      break;
+    }
+    case gen::proto::metadata::Envelope::kRuntimeMetrics: {
+      const auto &protoMsg = envelope.runtime_metrics();
       RuntimeMetrics metrics;
-      switch (protoMsg.source()) {
-      case gen::proto::metadata::Source::CLIENT:
-        metrics.source = RuntimeMetrics::Source::Client;
-        break;
-      case gen::proto::metadata::Source::SERVER:
-        metrics.source = RuntimeMetrics::Source::Server;
-        break;
-      default:
-        metrics.source = RuntimeMetrics::Source::Unknown;
-        break;
-      }
+
+      metrics.source = convert(protoMsg.source());
       metrics.rps = protoMsg.rps();
       metrics.timeStamp = protoMsg.timestamp_us();
-      metrics.avgLatencyUs = protoMsg.avg_latency();
-
+      metrics.avgLatencyUs = protoMsg.avg_latency_us();
       consumer.post(metrics);
+      break;
     }
+    case gen::proto::metadata::Envelope::kLogEntry: {
+      const auto &protoMsg = envelope.log_entry();
+      LogEntry entry;
 
+      entry.source = convert(protoMsg.source());
+      entry.message = protoMsg.message();
+      entry.level = protoMsg.level();
+      consumer.post(entry);
+      break;
+    }
+    case gen::proto::metadata::Envelope::PAYLOAD_NOT_SET:
+    default:
+      LOG_ERROR("Envelope has no recognized payload");
+      return false;
+    }
     return true;
   }
 };
