@@ -5,6 +5,7 @@ Creates topics
 
 import os
 import subprocess
+import time
 
 KAFKA_DIR = "/home/vladimir/src/kafka_2.13-4.0.0"
 KAFKA_BIN = f"{KAFKA_DIR}/bin"
@@ -31,10 +32,17 @@ broker_config = {
     "socket.request.max.bytes": "104857600",
     "log.retention.hours": "168",
     "log.segment.bytes": "1073741824",
-    "log.retention.check.interval.ms": "300000",
+    "log.retention.check.interval.ms": "1000",
 }
 
 topics = ["order-timestamps", "server-commands", "client-commands", "runtime-metrics"]
+
+ephemeral_topic_config = {
+    "cleanup.policy": "delete",
+    "retention.ms": "1000",
+    "segment.ms": "100",
+    "retention.check.interval.ms": "1000"
+}
 
 def update_properties(path, config_dict, label):
     if not os.path.exists(path):
@@ -68,9 +76,30 @@ def update_properties(path, config_dict, label):
     print(f"{label} properties updated successfully in {path}")
 
 def create_topics():
+    topic_configs = {
+        "cleanup.policy": "delete",
+        "retention.ms": "1000",
+        "segment.ms": "100"
+    }
+
     for topic in topics:
+        print(f"Deleting topic if exists: {topic}")
+        delete_cmd = [
+            f"{KAFKA_BIN}/kafka-topics.sh",
+            "--delete",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", topic
+        ]
+        try:
+            subprocess.run(delete_cmd, check=True)
+            print(f"Topic '{topic}' deleted successfully (or did not exist).")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Could not delete topic '{topic}': {e}")
+
+        time.sleep(5)
+
         print(f"Creating topic: {topic}")
-        command = [
+        create_cmd = [
             f"{KAFKA_BIN}/kafka-topics.sh",
             "--create",
             "--bootstrap-server", "localhost:9092",
@@ -79,11 +108,15 @@ def create_topics():
             "--topic", topic,
             "--if-not-exists"
         ]
+        for key, value in topic_configs.items():
+            create_cmd += ["--config", f"{key}={value}"]
+
         try:
-            subprocess.run(command, check=True)
+            subprocess.run(create_cmd, check=True)
             print(f"Topic '{topic}' created successfully.")
         except subprocess.CalledProcessError as e:
             print(f"Error creating topic '{topic}': {e}")
+
 
 if __name__ == "__main__":
     update_properties(PRODUCER_PROPERTIES, producer_config, "Producer")

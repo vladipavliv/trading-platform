@@ -39,25 +39,26 @@ public:
   using ProduceSerializer = ProduceSerializerType;
 
   explicit KafkaAdapter(SystemBus &bus)
-      : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_feed")},
+      : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_enabled").value_or(true)},
         broker_{Config::get<String>("kafka.kafka_broker")},
         consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
         pollRate_{Milliseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
-    if (!enabled()) {
-      LOG_DEBUG("Kafka is disabled");
+    if (!enabled_) {
+      LOG_INFO_SYSTEM("Kafka is disabled");
       return;
     }
-    LOG_DEBUG("Starting kafka adapter");
     createProducer();
     createConsumer();
   };
 
   ~KafkaAdapter() {
-    if (!enabled()) {
+    if (!enabled_) {
       return;
     }
-    consumer_->unsubscribe();
-    while (producer_->outq_len() > 0) {
+    if (consumer_ != nullptr) {
+      consumer_->unsubscribe();
+    }
+    while (producer_ != nullptr && producer_->outq_len() > 0) {
       LOG_INFO_SYSTEM("Flushing {} messages to kafka", producer_->outq_len());
       producer_->flush(1000);
     }
@@ -65,7 +66,7 @@ public:
 
   template <typename EventType>
   void addProduceTopic(CRef<String> topic) {
-    if (!enabled()) {
+    if (!enabled_) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -85,7 +86,7 @@ public:
   }
 
   void addConsumeTopic(CRef<String> topic) {
-    if (!enabled()) {
+    if (!enabled_) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
@@ -94,33 +95,32 @@ public:
   }
 
   void start() {
-    if (!enabled()) {
+    if (!enabled_) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
-    LOG_DEBUG("Starting kafka feed");
-    if (state_ != State::Off) {
-      LOG_ERROR("Invalid state to start KafkaAdapter {}", error_);
+    if (error() || consumer_ == nullptr || producer_ == nullptr) {
+      LOG_ERROR_SYSTEM("Unable to start kafka {}", error_);
       return;
     }
-    state_ = State::On;
+    LOG_DEBUG("Starting kafka feed");
     const auto res = consumer_->subscribe(consumeTopics_);
+    schedulePoll();
     if (res != RdKafka::ERR_NO_ERROR) {
       onFatalError(RdKafka::err2str(res));
     }
   }
 
   void stop() {
-    if (!enabled()) {
+    if (!enabled_) {
       LOG_DEBUG("Kafka is disabled");
       return;
     }
-    if (state_ != State::On) {
-      LOG_ERROR("Invalid state to stop KafkaAdapter {}", error_);
+    if (consumer_ == nullptr || producer_ == nullptr) {
+      LOG_ERROR("Unable to stop kafka {}", error_);
       return;
     }
     LOG_DEBUG("Stoping kafka feed");
-    state_ = State::Off;
     const auto res = consumer_->unsubscribe();
     if (res != RdKafka::ERR_NO_ERROR) {
       onFatalError(RdKafka::err2str(res));
@@ -135,15 +135,9 @@ private:
       return;
     }
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
-    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK) {
-      onFatalError();
-      return;
-    }
-    if (conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK) {
-      onFatalError();
-      return;
-    }
-    if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
+    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK ||
+        conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK ||
+        conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
       onFatalError();
       return;
     }
@@ -161,15 +155,13 @@ private:
       return;
     }
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
-    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK) {
-      onFatalError();
-      return;
-    }
-    if (conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
-      onFatalError();
-      return;
-    }
-    if (conf->set("group.id", consumerGroup_, error_) != Conf::CONF_OK) {
+    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK ||
+        conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK ||
+        conf->set("group.id", consumerGroup_, error_) != Conf::CONF_OK ||
+        conf->set("fetch.wait.max.ms", "10", error_) != Conf::CONF_OK ||
+        conf->set("fetch.min.bytes", "1", error_) != Conf::CONF_OK ||
+        conf->set("session.timeout.ms", "6000", error_) != Conf::CONF_OK ||
+        conf->set("heartbeat.interval.ms", "2000", error_) != Conf::CONF_OK) {
       onFatalError();
       return;
     }
@@ -184,7 +176,8 @@ private:
     using namespace RdKafka;
     const UPtr<Message> msg{consumer_->consume(0)};
     if (msg->err() == RdKafka::ERR_NO_ERROR) {
-      ConsumeSerializer::deserialize(msg->payload(), msg->len(), bus_);
+      LOG_DEBUG("Incoming kafka message");
+      ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
     } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
       LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
     }
@@ -207,9 +200,6 @@ private:
   void produce(CRef<String> topic, CRef<MessageType> msg) {
     using namespace RdKafka;
     LOG_TRACE("{} {}", topic, utils::toString(msg));
-    if (state_ != State::On) {
-      return;
-    }
     // Both Kafka producer and Topic are thread-safe, as long as they are not changed
     const auto topicIt = produceTopicMap_.find(topic);
     if (topicIt == produceTopicMap_.end()) {
@@ -230,17 +220,16 @@ private:
     if (!error.empty()) {
       error_ = error;
     }
-    LOG_ERROR_SYSTEM("{}", error_);
-    state_ = State::Error;
     bus_.post(KafkaEvent{KafkaStatus::Error, error_});
   }
 
-  bool enabled() const { return enabled_.has_value() && enabled_.value(); }
+private:
+  bool error() const { return !error_.empty(); }
 
 private:
   SystemBus &bus_;
 
-  const std::optional<bool> enabled_;
+  const bool enabled_;
   const String broker_;
   const String consumerGroup_;
   const Milliseconds pollRate_;
@@ -253,7 +242,6 @@ private:
 
   SteadyTimer timer_;
 
-  State state_{State::Off};
   String error_;
 
   KafkaEventCallback eventCb_;

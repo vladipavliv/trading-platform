@@ -6,11 +6,30 @@
 #ifndef HFT_COMMON_BUS_HPP
 #define HFT_COMMON_BUS_HPP
 
+#include <concepts>
+
 #include "domain_types.hpp"
 #include "message_bus.hpp"
 #include "system_bus.hpp"
 
 namespace hft {
+
+namespace detail {
+struct ProbeType {};
+} // namespace detail
+
+/**
+ * @brief Defines a concept for a bus with templated ::post
+ * There are no better ways that I'm aware of to do it, it would have been better if
+ * ProbeType could be defined inside the concept guaraneeing that the only way ::post works
+ * with this type - is if it has templated ::post. But this way works too. Beter then nothing
+ */
+template <typename Consumer>
+concept Busable = requires(Consumer consumer) {
+  {
+    consumer.template post<detail::ProbeType>(std::declval<detail::ProbeType>())
+  } -> std::same_as<void>;
+};
 
 /**
  * @brief Holds different types of buses, Routes messages to a proper one

@@ -4,7 +4,9 @@ clear
 
 ulimit -c unlimited
 
-if [[ "$1" == "k" || "$2" == "k" ]]; then
+args=("$@")
+
+if [[ " ${args[@]} " =~ " k " ]]; then
     if ! pgrep -f 'kafka.Kafka' > /dev/null; then
         echo "Starting Kafka..."
         gnome-terminal -- bash -c "~/src/kafka_2.13-4.0.0/bin/kafka-server-start.sh ~/src/kafka_2.13-4.0.0/config/server.properties; exec bash"
@@ -15,17 +17,22 @@ if [[ "$1" == "k" || "$2" == "k" ]]; then
     fi
 fi
 
-if [[ "$1" == "s" || "$2" == "s" ]]; then
+if [[ " ${args[@]} " =~ " s " ]]; then
     cd build/server
     rm -f server_log*.txt
     sudo ./hft_server
-elif [[ "$1" == "c" || "$2" == "c" ]]; then
+elif [[ " ${args[@]} " =~ " c " ]]; then
     cd build/client
     rm -f client_log*.txt
     sudo ./hft_client
+elif [[ " ${args[@]} " =~ " m " ]]; then
+    cd build/monitor
+    rm -f monitor_log*.txt
+    sudo ./hft_monitor
 else
-    echo "Usage: $0 [k] [s|c]"
+    echo "Usage: $0 [k] [s|c|m]"
     echo "k - start Kafka"
     echo "s - start server"
     echo "c - start client"
+    echo "m - start monitor"
 fi

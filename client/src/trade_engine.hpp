@@ -70,6 +70,14 @@ public:
       tradeRate_ *= 2;
       LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
     });
+    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStart, [this]() {
+      LOG_INFO_SYSTEM("Start kafka metrics stream");
+      kafkaFeed_ = true;
+    });
+    bus_.systemBus.subscribe(ClientCommand::KafkaFeedStop, [this]() {
+      LOG_INFO_SYSTEM("Stop kafka metrics stream");
+      kafkaFeed_ = false;
+    });
   }
 
   void start() {
@@ -161,9 +169,10 @@ private:
 
   void onOrderStatus(CRef<OrderStatus> s) {
     LOG_DEBUG("{}", utils::toString(s));
-    // Track orders in TickerData
     Tracker::logRtt(s.orderId);
-    bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.fulfilled, utils::getTimestamp()});
+    if (kafkaFeed_) {
+      bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.fulfilled, utils::getTimestamp()});
+    }
   }
 
   void onTickerPrice(CRef<TickerPrice> price) {
@@ -216,6 +225,7 @@ private:
   Seconds monitorRate_;
   std::atomic_bool operational_{false};
   std::atomic_bool trading_{false};
+  std::atomic_bool kafkaFeed_{false};
 };
 } // namespace hft::client
 

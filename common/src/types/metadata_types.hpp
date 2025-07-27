@@ -18,13 +18,19 @@ struct OrderTimestamp {
   Timestamp notified;
 };
 
-struct RuntimeMetrics {
-  enum Source : uint8_t { Unknown, Client, Server };
+enum MetadataSource : uint8_t { Unknown, Client, Server };
 
-  Source source;
+struct RuntimeMetrics {
+  MetadataSource source;
   Timestamp timeStamp;
   size_t rps;
   size_t avgLatencyUs;
+};
+
+struct LogEntry {
+  MetadataSource source;
+  String message;
+  String level;
 };
 
 } // namespace hft

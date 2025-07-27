@@ -13,7 +13,7 @@
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "monitor_command_parser.hpp"
-#include "serialization/flat_buffers/fbs_metadata_serializer.hpp"
+#include "serialization/protobuf/proto_metadata_serializer.hpp"
 #include "server_command.hpp"
 
 namespace hft::monitor {
@@ -21,7 +21,7 @@ namespace hft::monitor {
  * @brief CC
  */
 class MonitorControlCenter {
-  using Kafka = KafkaAdapter<serialization::FbsMetadataSerializer, MonitorCommandParser>;
+  using Kafka = KafkaAdapter<serialization::ProtoMetadataSerializer, MonitorCommandParser>;
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
 
 public:
@@ -29,6 +29,7 @@ public:
     // upstream subscriptions
     bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> stamp) { onOrderTimestamp(stamp); });
     bus_.subscribe<MonitorCommand>([this](CRef<MonitorCommand> cmd) { onCommand(cmd); });
+    bus_.subscribe(MonitorCommand::Shutdown, [this] { stop(); });
 
     // kafka setup
     kafka_.addProduceTopic<server::ServerCommand>("server-commands");
@@ -65,11 +66,11 @@ private:
   }
 
   void onOrderTimestamp(CRef<OrderTimestamp> stamp) {
-    LOG_DEBUG("onOrderTimestamp {}", utils::toString(stamp));
+    LOG_DEBUG_SYSTEM("onOrderTimestamp {}", utils::toString(stamp));
     //
   }
 
-  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG("{}", utils::toString(cmd)); }
+  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG_SYSTEM("{}", utils::toString(cmd)); }
 
 private:
   SystemBus bus_;

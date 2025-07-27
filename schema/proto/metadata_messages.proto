@@ -55,3 +55,13 @@ message RuntimeMetrics {
   double rps = 3;
   double avg_latency_us = 4;
 }
+
+message Envelope {
+  oneof payload {
+    OrderTimestamp order_timestamp = 1;
+    ClientCommand client_command = 2;
+    ServerCommand server_command = 3;
+    LogEntry log_entry = 4;
+    RuntimeMetrics runtime_metrics = 5;
+  }
+}
