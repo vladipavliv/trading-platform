@@ -2,9 +2,56 @@ syntax = "proto3";
 
 package hft.serialization.gen.proto.metadata;
 
+enum Source {
+  UNKNOWN = 0;
+  CLIENT = 1;
+  SERVER = 2;
+}
+
 message OrderTimestamp {
   uint64 order_id = 1;
   uint64 created = 2;
   uint64 fulfilled = 3;
   uint64 notified = 4;
+}
+
+message ClientCommand {
+  enum Type {
+    UNKNOWN = 0;
+    TRADE_START = 1;
+    TRADE_STOP = 2;
+    TRADE_SPEED_UP = 3;
+    TRADE_SPEED_DOWN = 4;
+    KAFKA_FEED_START = 5;
+    KAFKA_FEED_STOP = 6;
+    STOP = 7;
+  }
+
+  Type type = 1;
+}
+
+message ServerCommand {
+  enum Type {
+    UNKNOWN = 0;
+    PRICE_FEED_START = 1;
+    PRICE_FEED_STOP = 2;
+    KAFKA_FEED_START = 3;
+    KAFKA_FEED_STOP = 4;
+    STOP = 5;
+  }
+
+  Type type = 1;
+}
+
+message LogEntry {
+  Source source = 1;
+  string message = 2;
+  string level = 3;
+}
+
+message RuntimeMetrics {
+  Source source = 1;
+  int64 timestamp_us = 2;
+  double rps = 3;
+  double avg_latency_us = 4;
 }

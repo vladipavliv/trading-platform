@@ -2,6 +2,7 @@
 **/cmake-build-*/
 **/CMakeFiles/
 **/.vscode/
+common/src/gen/
 Makefile
 Makefile.*
 CMakeCache.txt

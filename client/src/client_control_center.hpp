@@ -64,8 +64,9 @@ public:
     });
 
     // kafka topics
-    kafka_.addProduceTopic<OrderTimestamp>("order-timestamps");
-    kafka_.addConsumeTopic("client-commands");
+    kafka_.addProduceTopic<OrderTimestamp>(Config::get<String>("kafka.kafka_timestamps_topic"));
+    kafka_.addProduceTopic<RuntimeMetrics>(Config::get<String>("kafka.kafka_metrics_topic"));
+    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_client_cmd_topic"));
   }
 
   void start() {
