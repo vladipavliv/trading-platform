@@ -30,8 +30,6 @@ public:
 
   template <typename Type>
   static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    LOG_TRACE("frame {}", utils::toString(message));
-
     const auto serializedMsg = Serializer::serialize(message);
     buffer.resize(serializedMsg.size() + HEADER_SIZE);
 

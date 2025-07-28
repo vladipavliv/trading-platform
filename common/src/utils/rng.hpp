@@ -20,7 +20,9 @@ public:
   template <std::integral Type>
   static Type generate(Type min, Type max) {
     thread_local std::mt19937 generator{std::random_device{}()};
-
+    if (min > max) {
+      std::swap(min, max);
+    }
     std::uniform_int_distribution<Type> distribution(min, max);
     return distribution(generator);
   }
@@ -28,7 +30,9 @@ public:
   template <std::floating_point Type>
   static Type generate(Type min, Type max) {
     thread_local std::mt19937 generator{std::random_device{}()};
-
+    if (min > max) {
+      std::swap(min, max);
+    }
     std::uniform_real_distribution<Type> distribution(min, max);
     return distribution(generator);
   }
