@@ -19,6 +19,8 @@ def generate_tickers(amount):
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
+        cursor.execute("DELETE FROM tickers")
+
         for _ in range(amount):
             ticker = generate_ticker()
             price = generate_price()

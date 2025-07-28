@@ -27,70 +27,69 @@ class PriceFeed {
         1000000;
     static constexpr size_t MAX_DURATION_US = // max period of 60s
         60000000;
-    static constexpr double MIN_FLUCTUATION_RATE_US = // 1% per day in us
-        1.0 / 86400.0 / 1000.0 / 1000.0;
-    static constexpr double MAX_FLUCTUATION_RATE_US = // 100% per day in us
-        100.0 / 86400.0 / 1000.0 / 1000.0;
+    static constexpr double MAX_FLUCTUATION_RATE_US = // 10000% per day in us
+        100 / 86400.0 / 1000.0 / 1000.0;
 
-    Fluctuation(CRef<Ticker> ticker, CRef<TickerData> data) : ticker{ticker}, data{data} {
-      randomize();
+    Fluctuation(CRef<Ticker> ticker, CRef<TickerData> data)
+        : ticker{ticker}, data{data}, currentPrice{static_cast<double>(data.getPrice())},
+          globalDrift{utils::RNG::generate<double>(-0.1 * MAX_FLUCTUATION_RATE_US / 365,
+                                                   0.1 * MAX_FLUCTUATION_RATE_US / 365)} {
+      randomize(utils::getTimestamp());
     };
 
-    bool update() {
+    void randomize(Timestamp now) {
       using namespace utils;
-      if (durationUs == 0) {
-        randomize();
-        return false;
-      }
-      const auto timeStamp = getTimestamp();
-      const auto timeDelta = timeStamp - lastUpdate;
-      const auto priceDelta = speed * timeDelta;
-      if (direction) {
-        accumulatedPrice += priceDelta;
-      } else {
-        accumulatedPrice -= priceDelta;
-      }
-      if (durationUs > timeDelta) {
-        durationUs -= timeDelta;
-      } else {
-        durationUs = 0;
-      }
-      LOG_DEBUG("{} Time delta:{} Price delta:{} accumulatedPrice:{}, durationUs:{}",
-                utils::toString(ticker), timeDelta, priceDelta, accumulatedPrice, durationUs);
-      lastUpdate = timeStamp;
-      return data.getPrice() != currentPrice();
+
+      drift = currentPrice * RNG::generate<double>(-1 * MAX_FLUCTUATION_RATE_US + globalDrift,
+                                                   MAX_FLUCTUATION_RATE_US + globalDrift);
+      duration = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
+      lastUpdate = now;
+      LOG_DEBUG("{} price:{} drift:{} duration:{}", utils::toString(ticker), currentPrice, drift,
+                duration);
     }
 
-    void randomize() {
+    bool update(Timestamp timeStamp) {
       using namespace utils;
-      direction = RNG::generate<uint8_t>(0, 1) == 0;
-      accumulatedPrice = static_cast<double>(data.getPrice());
-      speed = accumulatedPrice *
-              RNG::generate<double>(MIN_FLUCTUATION_RATE_US, MAX_FLUCTUATION_RATE_US);
-      durationUs = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
-      lastUpdate = getTimestamp();
-      LOG_DEBUG("{} price:{} step:{} duration:{}", utils::toString(ticker), accumulatedPrice, speed,
-                durationUs);
+
+      auto timeDelta = timeStamp - lastUpdate;
+      if (duration > timeDelta) {
+        duration -= timeDelta;
+      } else {
+        timeDelta = duration;
+        duration = 0;
+      }
+      currentPrice += drift * timeDelta;
+
+      LOG_DEBUG("{} Δt:{} base price:{} current price:{}, duration:{}", utils::toString(ticker),
+                timeDelta, data.getPrice(), currentPrice, duration);
+
+      if (duration == 0) {
+        randomize(timeStamp);
+      } else {
+        lastUpdate = timeStamp;
+      }
+      return data.getPrice() != getPrice();
     }
 
-    Price currentPrice() const { return static_cast<Price>(std::round(accumulatedPrice)); }
+    Price getPrice() const { return static_cast<Price>(std::round(currentPrice)); }
 
     const Ticker ticker;
     const TickerData &data;
 
-    bool direction{true};
-    double accumulatedPrice{0};
-    double speed{0};
-    size_t durationUs{0};
+    double currentPrice{0};
+    double drift{0};
+    const double globalDrift{0};
+    size_t duration{0};
     Timestamp lastUpdate{0};
   };
 
 public:
   PriceFeed(Bus &bus, CRef<MarketData> marketData)
-      : bus_{bus}, timer_{bus_.systemCtx()}, rate_{ServerConfig::cfg.priceFeedRate} {
-    data_.reserve(marketData.size());
+      : bus_{bus}, priceUpdateTimer_{bus_.systemCtx()},
+        updateInterval_{ServerConfig::cfg.priceFeedRate} {
+    fluctuations_.reserve(marketData.size());
     for (auto &value : marketData) {
-      data_.push_back(Fluctuation(value.first, *value.second));
+      fluctuations_.push_back(Fluctuation(value.first, *value.second));
     }
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStart, [this] { start(); });
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStop, [this] { stop(); });
@@ -98,23 +97,23 @@ public:
 
   void start() {
     LOG_INFO_SYSTEM("Start broadcasting price changes");
-    broadcasting_ = true;
+    updating_ = true;
     schedulePriceUpdate();
   }
 
   void stop() {
     LOG_INFO_SYSTEM("Stop broadcasting price changes");
-    timer_.cancel();
-    broadcasting_ = false;
+    priceUpdateTimer_.cancel();
+    updating_ = false;
   }
 
 private:
   void schedulePriceUpdate() {
-    if (!broadcasting_) {
+    if (!updating_) {
       return;
     }
-    timer_.expires_after(rate_);
-    timer_.async_wait([this](BoostErrorCode ec) {
+    priceUpdateTimer_.expires_after(updateInterval_);
+    priceUpdateTimer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         return;
       }
@@ -124,11 +123,12 @@ private:
   }
 
   void updatePrices() {
-    for (auto &item : data_) {
-      if (item.update()) {
+    const auto timeStamp = utils::getTimestamp();
+    for (auto &item : fluctuations_) {
+      if (item.update(timeStamp)) {
         LOG_DEBUG("Price changed for {}: {}=>{}", utils::toString(item.ticker),
-                  item.data.getPrice(), item.currentPrice());
-        const auto newPrice = item.currentPrice();
+                  item.data.getPrice(), item.getPrice());
+        const auto newPrice = item.getPrice();
         item.data.setPrice(newPrice);
         bus_.marketBus.post(TickerPrice{item.ticker, newPrice});
       }
@@ -138,12 +138,12 @@ private:
 private:
   Bus &bus_;
 
-  std::vector<Fluctuation> data_;
+  std::vector<Fluctuation> fluctuations_;
 
-  SteadyTimer timer_;
-  const Microseconds rate_;
+  SteadyTimer priceUpdateTimer_;
+  const Microseconds updateInterval_;
 
-  std::atomic_bool broadcasting_{false};
+  std::atomic_bool updating_{false};
 };
 
 } // namespace hft::server

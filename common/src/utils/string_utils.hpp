@@ -78,8 +78,33 @@ String toString(const OrderAction &state) {
 
 String toString(CRef<OrderTimestamp> event) {
   std::stringstream ss;
-  ss << "OrderTimestamp " << event.orderId << " " << event.created << " " << event.fulfilled << " "
-     << event.notified;
+  ss << "OrderTimestamp id:" << event.orderId << " created:" << event.created
+     << " fulfilled:" << event.fulfilled << " notified:" << event.notified;
+  return ss.str();
+}
+
+String toString(CRef<MetadataSource> event) {
+  switch (event) {
+  case MetadataSource::Client:
+    return "Client";
+  case MetadataSource::Server:
+    return "Server";
+  default:
+    return "Unknown";
+  }
+}
+
+String toString(CRef<RuntimeMetrics> event) {
+  std::stringstream ss;
+  ss << "RuntimeMetrics source:" << toString(event.source) << " timestamp:" << event.timeStamp
+     << " rps:" << event.rps << " avg latency:" << event.avgLatencyUs;
+  return ss.str();
+}
+
+String toString(CRef<LogEntry> event) {
+  std::stringstream ss;
+  ss << "LogEntry source:" << toString(event.source) << " message:" << event.message
+     << " level:" << event.level;
   return ss.str();
 }
 
