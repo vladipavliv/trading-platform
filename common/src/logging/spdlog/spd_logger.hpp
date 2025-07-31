@@ -43,7 +43,6 @@ public:
     initFileLogger(fileName);
 
     spdlog::set_level(logLevel);
-    spdlog::flush_on(spdlog::level::err);
   }
 
 private:

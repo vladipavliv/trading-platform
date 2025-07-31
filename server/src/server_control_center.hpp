@@ -43,10 +43,6 @@ public:
 
     // commands
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart,
-                             [this] { /*TODO(self): start metrics stream*/ });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop,
-                             [this] { /*TODO(self): start metrics stream*/ });
 
     // kafka topics and commands
     kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_server_cmd_topic"));
@@ -57,7 +53,6 @@ public:
     greetings();
 
     coordinator_.start();
-    consoleReader_.start();
     kafka_.start();
 
     bus_.run();
@@ -67,7 +62,6 @@ public:
     kafka_.stop();
     networkServer_.stop();
     coordinator_.stop();
-    consoleReader_.stop();
     bus_.stop();
 
     LOG_INFO_SYSTEM("stonk");

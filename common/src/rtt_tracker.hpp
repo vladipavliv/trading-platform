@@ -72,7 +72,7 @@ public:
     return rtt;
   }
 
-  static RttStats getStats() {
+  static auto getStats() -> RttStats {
     RttStats stats;
     for (size_t i = 0; i < RangeCount; ++i) {
       stats.samples[i].sum = sGlobalStats.samples[i].sum.load(std::memory_order_relaxed);
@@ -81,7 +81,7 @@ public:
     return stats;
   }
 
-  static String getRttStats() {
+  static auto getStatsString() -> String {
     const auto rttStats = getStats();
     const auto &rtt = rttStats.samples;
     auto sizeTotal = 0;

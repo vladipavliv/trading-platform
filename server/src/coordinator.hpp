@@ -12,6 +12,7 @@
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
 #include "order_book.hpp"
+#include "server_command.hpp"
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
 #include "server_types.hpp"
@@ -41,7 +42,6 @@ namespace hft::server {
  * update, and it can spin for a few cycles waiting when worker id changes. This, supposedly,
  * would not have much effect on the workers performance and it wont have to spin for long.
  * Once worker id changes - old worker reposts the order to a new one.
- * This load balancing would require some smoothness
  */
 class Coordinator {
 public:
@@ -50,6 +50,14 @@ public:
         statsRate_{ServerConfig::cfg.monitorRate} {
     bus_.marketBus.setHandler<ServerOrder>(
         [this](CRef<ServerOrder> order) { processOrder(order); });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] {
+      LOG_INFO_SYSTEM("Start kafka feed");
+      kafkaFeed_ = true;
+    });
+    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] {
+      LOG_INFO_SYSTEM("Stop kafka feed");
+      kafkaFeed_ = false;
+    });
   }
 
   void start() {
@@ -103,6 +111,8 @@ private:
   }
 
   void scheduleStatsTimer() {
+    using namespace utils;
+
     timer_.expires_after(statsRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
@@ -114,11 +124,16 @@ private:
       const uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
 
       if (rps != 0) {
-        const auto rpsStr = utils::thousandify(rps);
-        const auto opnStr = utils::thousandify(countOpenedOrders());
-        const auto ttlStr = utils::thousandify(currentTtl);
+        const auto opnStr = thousandify(countOpenedOrders());
+        const auto ttlStr = thousandify(currentTtl);
+        const auto rpsStr = thousandify(rps);
 
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
+
+        if (kafkaFeed_) {
+          // TODO(self): add avg latency
+          bus_.post(RuntimeMetrics{MetadataSource::Server, getTimestamp(), rps, 0});
+        }
       }
       lastTtl = currentTtl;
       scheduleStatsTimer();
@@ -142,6 +157,8 @@ private:
 
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;
+
+  bool kafkaFeed_{true};
 
   std::vector<UPtr<CtxRunner>> workers_;
 };

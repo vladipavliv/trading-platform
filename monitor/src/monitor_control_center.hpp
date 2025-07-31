@@ -12,6 +12,7 @@
 #include "config/monitor_config.hpp"
 #include "console_reader.hpp"
 #include "domain_types.hpp"
+#include "latency_tracker.hpp"
 #include "monitor_command_parser.hpp"
 #include "serialization/protobuf/proto_metadata_serializer.hpp"
 #include "server_command.hpp"
@@ -25,35 +26,26 @@ class MonitorControlCenter {
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
 
 public:
-  MonitorControlCenter() : consoleReader_{bus_}, kafka_{bus_} {
-    // upstream subscriptions
-    bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> stamp) { onOrderTimestamp(stamp); });
-    bus_.subscribe<MonitorCommand>([this](CRef<MonitorCommand> cmd) { onCommand(cmd); });
+  MonitorControlCenter() : consoleReader_{bus_}, kafka_{bus_}, tracker_{bus_} {
     bus_.subscribe(MonitorCommand::Shutdown, [this] { stop(); });
 
-    // kafka setup
-    kafka_.addProduceTopic<server::ServerCommand>("server-commands");
-    kafka_.addProduceTopic<client::ClientCommand>("client-commands");
-    kafka_.addConsumeTopic("order-timestamps");
+    kafka_.addProduceTopic<server::ServerCommand>(
+        Config::get<String>("kafka.kafka_server_cmd_topic"));
+    kafka_.addProduceTopic<client::ClientCommand>(
+        Config::get<String>("kafka.kafka_client_cmd_topic"));
+    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_timestamps_topic"));
+    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_metrics_topic"));
   }
 
   void start() {
     greetings();
-
-    consoleReader_.start();
     kafka_.start();
-
-    utils::setTheadRealTime();
-    if (MonitorConfig::cfg.coreSystem.has_value()) {
-      utils::pinThreadToCore(MonitorConfig::cfg.coreSystem.value());
-    }
-    bus_.ioCtx.run();
+    bus_.run();
   }
 
   void stop() {
-    consoleReader_.stop();
     kafka_.stop();
-    bus_.ioCtx.stop();
+    bus_.stop();
     LOG_INFO_SYSTEM("stonk");
   }
 
@@ -65,18 +57,12 @@ private:
     consoleReader_.printCommands();
   }
 
-  void onOrderTimestamp(CRef<OrderTimestamp> stamp) {
-    LOG_DEBUG_SYSTEM("onOrderTimestamp {}", utils::toString(stamp));
-    //
-  }
-
-  void onCommand(CRef<MonitorCommand> cmd) { LOG_DEBUG_SYSTEM("{}", utils::toString(cmd)); }
-
 private:
   SystemBus bus_;
 
   MonitorConsoleReader consoleReader_;
   Kafka kafka_;
+  LatencyTracker tracker_;
 };
 } // namespace hft::monitor
 

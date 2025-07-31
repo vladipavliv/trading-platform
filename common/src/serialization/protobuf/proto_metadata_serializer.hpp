@@ -35,27 +35,29 @@ public:
   static String serialize(CRef<OrderTimestamp> msg) {
     using namespace google::protobuf::io;
 
-    gen::proto::metadata::OrderTimestamp protoMsg;
+    gen::proto::metadata::Envelope envelope;
+    auto *protoMsg = envelope.mutable_order_timestamp();
 
-    protoMsg.set_order_id(msg.orderId);
-    protoMsg.set_created(msg.created);
-    protoMsg.set_accepted(msg.accepted);
-    protoMsg.set_notified(msg.notified);
+    protoMsg->set_order_id(msg.orderId);
+    protoMsg->set_created(msg.created);
+    protoMsg->set_accepted(msg.accepted);
+    protoMsg->set_notified(msg.notified);
 
-    return frame<gen::proto::metadata::OrderTimestamp>(protoMsg);
+    return frame<gen::proto::metadata::Envelope>(envelope);
   }
 
   static String serialize(CRef<RuntimeMetrics> msg) {
     using namespace google::protobuf::io;
 
-    gen::proto::metadata::RuntimeMetrics protoMsg;
+    gen::proto::metadata::Envelope envelope;
+    auto *protoMsg = envelope.mutable_runtime_metrics();
 
-    protoMsg.set_source(convert(msg.source));
-    protoMsg.set_timestamp_us(utils::getTimestamp());
-    protoMsg.set_rps(msg.rps);
-    protoMsg.set_avg_latency_us(msg.avgLatencyUs);
+    protoMsg->set_source(convert(msg.source));
+    protoMsg->set_timestamp_us(utils::getTimestamp());
+    protoMsg->set_rps(msg.rps);
+    protoMsg->set_avg_latency_us(msg.avgLatencyUs);
 
-    return frame<gen::proto::metadata::RuntimeMetrics>(protoMsg);
+    return frame<gen::proto::metadata::Envelope>(envelope);
   }
 
   template <typename MessageType>
@@ -106,10 +108,14 @@ public:
     case gen::proto::metadata::Envelope::kOrderTimestamp: {
       const auto &protoMsg = envelope.order_timestamp();
       OrderTimestamp stamp;
+
       stamp.orderId = protoMsg.order_id();
       stamp.created = protoMsg.created();
       stamp.accepted = protoMsg.accepted();
       stamp.notified = protoMsg.notified();
+
+      LOG_DEBUG("{}", utils::toString(stamp));
+
       consumer.post(stamp);
       break;
     }
@@ -121,6 +127,9 @@ public:
       metrics.rps = protoMsg.rps();
       metrics.timeStamp = protoMsg.timestamp_us();
       metrics.avgLatencyUs = protoMsg.avg_latency_us();
+
+      LOG_DEBUG("{}", utils::toString(metrics));
+
       consumer.post(metrics);
       break;
     }
@@ -131,6 +140,9 @@ public:
       entry.source = convert(protoMsg.source());
       entry.message = protoMsg.message();
       entry.level = protoMsg.level();
+
+      LOG_DEBUG("{}", utils::toString(entry));
+
       consumer.post(entry);
       break;
     }

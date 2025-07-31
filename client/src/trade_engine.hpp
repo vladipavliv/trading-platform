@@ -54,11 +54,11 @@ public:
       LOG_INFO_SYSTEM("Trade rate: {}", tradeRate_.count());
     });
     bus_.systemBus.subscribe(ClientCommand::KafkaFeedStart, [this]() {
-      LOG_INFO_SYSTEM("Start kafka metrics stream");
+      LOG_INFO_SYSTEM("Start kafka feed");
       kafkaFeed_ = true;
     });
     bus_.systemBus.subscribe(ClientCommand::KafkaFeedStop, [this]() {
-      LOG_INFO_SYSTEM("Stop kafka metrics stream");
+      LOG_INFO_SYSTEM("Stop kafka feed");
       kafkaFeed_ = false;
     });
   }
@@ -75,6 +75,9 @@ public:
   }
 
   void tradeStart() {
+    if (trading_) {
+      return;
+    }
     LOG_INFO_SYSTEM("Trade start");
     trading_ = true;
     scheduleTradeTimer();
@@ -83,10 +86,11 @@ public:
 
   void tradeStop() {
     tradeTimer_.cancel();
-    if (trading_) {
-      LOG_INFO_SYSTEM("Trade stop");
-      trading_ = false;
+    if (!trading_) {
+      return;
     }
+    LOG_INFO_SYSTEM("Trade stop");
+    trading_ = false;
   }
 
 private:
@@ -101,9 +105,9 @@ private:
       return;
     }
     tradeTimer_.expires_after(tradeRate_);
-    tradeTimer_.async_wait([this](BoostErrorCode ec) {
-      if (ec) {
-        LOG_ERROR_SYSTEM("{}", ec.message());
+    tradeTimer_.async_wait([this](BoostErrorCode code) {
+      if (code && code != boost::asio::error::operation_aborted) {
+        LOG_ERROR_SYSTEM("{}", code.message());
         return;
       }
       tradeSomething();
@@ -146,7 +150,7 @@ private:
     LOG_DEBUG("{}", utils::toString(s));
     Tracker::logRtt(s.orderId);
     if (kafkaFeed_) {
-      bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestamp()});
+      bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestamp()});
     }
   }
 
@@ -171,7 +175,7 @@ private:
         LOG_ERROR_SYSTEM("{}", ec.message());
         return;
       }
-      LOG_INFO_SYSTEM("Rtt: {}", Tracker::getRttStats());
+      LOG_INFO_SYSTEM("Rtt: {}", Tracker::getStatsString());
       scheduleStatsTimer();
     });
   }
@@ -198,9 +202,9 @@ private:
 
   Microseconds tradeRate_;
   Seconds monitorRate_;
-  std::atomic_bool operational_{false};
-  std::atomic_bool trading_{false};
-  std::atomic_bool kafkaFeed_{false};
+
+  bool trading_{false};
+  bool kafkaFeed_{true};
 };
 } // namespace hft::client
 

@@ -65,7 +65,6 @@ public:
 
     networkClient_.start();
     engine_.start();
-    consoleReader_.start();
     kafka_.start();
 
     LOG_INFO_SYSTEM("Connecting to the server");
@@ -76,7 +75,6 @@ public:
 
   void stop() {
     kafka_.stop();
-    consoleReader_.stop();
     networkClient_.stop();
     engine_.stop();
     bus_.stop();

@@ -56,7 +56,7 @@ public:
   }
 
   void read() {
-    LOG_DEBUG("TcpTransport read");
+    LOG_TRACE("TcpTransport read");
     socket_.async_read_some(
         buffer_.buffer(), [this](BoostErrorCode code, size_t bytes) { readHandler(code, bytes); });
   }
@@ -64,7 +64,7 @@ public:
   template <typename Type>
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
-    LOG_DEBUG("TcpTransport write");
+    LOG_TRACE("TcpTransport write");
     const auto buffer = std::make_shared<ByteBuffer>();
     Framer::frame(msg, *buffer);
     boost::asio::async_write(
@@ -108,7 +108,7 @@ private:
   }
 
   void writeHandler(BoostErrorCode code, size_t bytes) {
-    if (code) {
+    if (code && code != boost::asio::error::operation_aborted) {
       onStatus(ConnectionStatus::Error);
     }
   }

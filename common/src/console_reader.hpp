@@ -29,11 +29,8 @@ public:
   ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
+    scheduleInputCheck();
   }
-
-  void start() { scheduleInputCheck(); }
-
-  void stop() { timer_.cancel(); }
 
   void printCommands() const {
     LOG_INFO_SYSTEM("Commands:");

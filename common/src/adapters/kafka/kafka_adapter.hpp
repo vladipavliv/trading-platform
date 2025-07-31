@@ -42,7 +42,7 @@ public:
       : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_enabled").value_or(true)},
         broker_{Config::get<String>("kafka.kafka_broker")},
         consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
-        pollRate_{Milliseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
+        pollRate_{Microseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
     if (!enabled_) {
       LOG_INFO_SYSTEM("Kafka is disabled");
       return;
@@ -57,6 +57,7 @@ public:
     }
     if (consumer_ != nullptr) {
       consumer_->unsubscribe();
+      consumer_->close();
     }
     while (producer_ != nullptr && producer_->outq_len() > 0) {
       LOG_INFO_SYSTEM("Flushing {} messages to kafka", producer_->outq_len());
@@ -71,7 +72,7 @@ public:
       return;
     }
     using namespace RdKafka;
-    LOG_DEBUG("Adding produce topic {}", topic);
+    LOG_INFO_SYSTEM("Adding produce topic {}", topic);
     if (produceTopicMap_.count(topic) != 0) {
       LOG_ERROR("Topic already exist");
       return;
@@ -90,7 +91,7 @@ public:
       LOG_DEBUG("Kafka is disabled");
       return;
     }
-    LOG_DEBUG("Adding consume topic {}", topic);
+    LOG_INFO_SYSTEM("Adding consume topic {}", topic);
     consumeTopics_.push_back(topic);
   }
 
@@ -174,12 +175,16 @@ private:
 
   void pollConsume() {
     using namespace RdKafka;
-    const UPtr<Message> msg{consumer_->consume(0)};
-    if (msg->err() == RdKafka::ERR_NO_ERROR) {
-      LOG_DEBUG("Incoming kafka message");
-      ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
-    } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
-      LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
+    for (size_t i = 0; i < 100; ++i) {
+      const UPtr<Message> msg{consumer_->consume(0)};
+      if (msg->err() == RdKafka::ERR_NO_ERROR) {
+        ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
+      } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
+        LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
+        break;
+      } else {
+        break;
+      }
     }
   }
 
@@ -199,7 +204,7 @@ private:
   template <typename MessageType>
   void produce(CRef<String> topic, CRef<MessageType> msg) {
     using namespace RdKafka;
-    LOG_TRACE("{} {}", topic, utils::toString(msg));
+    LOG_DEBUG("{} {}", topic, utils::toString(msg));
     // Both Kafka producer and Topic are thread-safe, as long as they are not changed
     const auto topicIt = produceTopicMap_.find(topic);
     if (topicIt == produceTopicMap_.end()) {
@@ -232,7 +237,7 @@ private:
   const bool enabled_;
   const String broker_;
   const String consumerGroup_;
-  const Milliseconds pollRate_;
+  const Microseconds pollRate_;
 
   UPtr<RdKafka::Producer> producer_;
   UPtr<RdKafka::KafkaConsumer> consumer_;
