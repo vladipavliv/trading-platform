@@ -20,10 +20,13 @@ C++ hft platform based on boost.asio, with the main focus on performance, simpli
 - Event bus for simple, decoupled communication
 
 ### Server
-Runs a separate network io_context, a number of workers for order processing with a separate io_context each, and a separate io_context for system tasks. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
+Runs a network io_context, a number of workers for order processing with a separate io_context each, and system io_context for system tasks and events. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
 
 ### Client
-Runs a separate network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
+Runs a network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
+
+### Monitor
+Sends commands to client/server and monitors telemetry via kafka messages.
 
 ## Installation
 
@@ -54,12 +57,12 @@ python3 ./scripts/setup_clickhouse.sh
 
 ### Configuration
 Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
-Adjust the network, cores, credentials and other settings in 
+Adjust the settings in 
 
 ```bash
-server/server_config.ini
-client/client_config.ini
-monitor/monitor_config.ini
+build/server/server_config.ini
+build/client/client_config.ini
+build/monitor/monitor_config.ini
 ```
 
 ### Run server

@@ -51,23 +51,35 @@ public:
     std::array<RttSample, RangeCount> samples{};
   };
 
-  static Timestamp logRtt(Timestamp timestamp) {
+  static Timestamp logRtt(Timestamp first, bool multiThreaded = true) {
+    return logRtt(first, utils::getTimestamp(), multiThreaded);
+  }
+
+  static Timestamp logRtt(Timestamp first, Timestamp second, bool multiThreaded = true) {
     thread_local RttStats stats;
     thread_local Timestamp lastFlushed = utils::getTimestamp();
-    const Timestamp current = utils::getTimestamp();
-    const auto rtt = current - timestamp;
+    if (first > second) {
+      std::swap(first, second);
+    }
+
+    const auto rtt = second - first;
 
     const uint8_t scale = getRange(rtt);
-    stats.samples[scale].sum += rtt;
-    stats.samples[scale].size++;
-    if (current - lastFlushed > FlushTimeoutMs) {
-      for (size_t i = 0; i < RangeCount; ++i) {
-        sGlobalStats.samples[i].sum.fetch_add(stats.samples[i].sum, std::memory_order_relaxed);
-        sGlobalStats.samples[i].size.fetch_add(stats.samples[i].size, std::memory_order_relaxed);
-        stats.samples[i].sum = 0;
-        stats.samples[i].size = 0;
+    if (multiThreaded) {
+      stats.samples[scale].sum += rtt;
+      stats.samples[scale].size++;
+      if (second - lastFlushed > FlushTimeoutMs) {
+        for (size_t i = 0; i < RangeCount; ++i) {
+          sGlobalStats.samples[i].sum.fetch_add(stats.samples[i].sum, std::memory_order_relaxed);
+          sGlobalStats.samples[i].size.fetch_add(stats.samples[i].size, std::memory_order_relaxed);
+          stats.samples[i].sum = 0;
+          stats.samples[i].size = 0;
+        }
+        lastFlushed = second;
       }
-      lastFlushed = current;
+    } else {
+      sGlobalStats.samples[scale].sum.fetch_add(rtt, std::memory_order_relaxed);
+      sGlobalStats.samples[scale].size.fetch_add(1, std::memory_order_relaxed);
     }
     return rtt;
   }

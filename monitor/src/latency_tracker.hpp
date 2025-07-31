@@ -13,7 +13,9 @@
 
 namespace hft::monitor {
 /**
- * @brief CC
+ * @brief Tracks the latencies
+ * @todo Use HdrHistogram. This tracker is single-threaded, so no
+ * histogram-merge complications here for multi-threaded tracking
  */
 class LatencyTracker {
 

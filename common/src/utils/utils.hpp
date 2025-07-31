@@ -61,7 +61,11 @@ template <typename T>
 concept Arithmetic = std::integral<T> || std::floating_point<T>;
 
 /**
- * @todo Make custom spdlog formatter instead
+ * @brief Funny function doing funny things
+ * @returns thousandified number. A number, that has gone through some
+ * complex thousandification procedures
+ * @todo Could make a custom formatter for spdlog, but that equals time
+ * This ain't a hot path so for now a funny function it is
  */
 template <Arithmetic Number>
 auto thousandify(Number input) -> String {
