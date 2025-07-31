@@ -40,18 +40,8 @@ public:
         upstreamTransport_{createUpstreamTransport()},
         downstreamTransport_{createDownstreamTransport()},
         pricesTransport_{createPricesTransport()} {
-    bus_.marketBus.setHandler<Order>([this](CRef<Order> order) {
-      if (state_ != ConnectionState::Authenticated || !token_.has_value()) {
-        LOG_ERROR_SYSTEM("Failed to process Order: wrong state {}", utils::toString(state_));
-        bus_.post(ClientEvent::InternalError);
-        return;
-      }
-      const auto res = upstreamTransport_.write(order);
-      if (res != StatusCode::Ok) {
-        LOG_ERROR_SYSTEM("Failed to process Order: {}", utils::toString(res));
-        bus_.post(ClientEvent::InternalError);
-      }
-    });
+    bus_.marketBus.setHandler<Order>(
+        [this](CRef<Order> order) { upstreamTransport_.write(order); });
     bus_.systemBus.subscribe<ConnectionStatusEvent>(
         [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
     bus_.systemBus.subscribe<LoginResponse>(
@@ -112,8 +102,7 @@ private:
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG("{}", utils::toString(event));
     if (event.status == ConnectionStatus::Connected) {
-      if (upstreamTransport_.status() == ConnectionStatus::Connected &&
-          downstreamTransport_.status() == ConnectionStatus::Connected &&
+      if (upstreamTransport_.isConnected() && downstreamTransport_.isConnected() &&
           state_ == ConnectionState::Disconnected) {
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
@@ -124,12 +113,14 @@ private:
       const auto prevState = state_;
       state_ = ConnectionState::Disconnected;
       token_.reset();
-      upstreamTransport_.close();
-      downstreamTransport_.close();
-      if (prevState != ConnectionState::Disconnected) {
-        bus_.post(ClientEvent::Disconnected);
-      } else {
-        bus_.post(ClientEvent::ConnectionFailed);
+      if (upstreamTransport_.isError() || downstreamTransport_.isError()) {
+        upstreamTransport_.close();
+        downstreamTransport_.close();
+        if (prevState != ConnectionState::Disconnected) {
+          bus_.post(ClientEvent::Disconnected);
+        } else {
+          bus_.post(ClientEvent::ConnectionFailed);
+        }
       }
     }
   }

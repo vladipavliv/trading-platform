@@ -6,6 +6,8 @@
 #ifndef HFT_COMMON_CONFIG_HPP
 #define HFT_COMMON_CONFIG_HPP
 
+#include <filesystem>
+
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
@@ -16,7 +18,13 @@
 namespace hft {
 
 struct Config {
-  static void load(CRef<String> fileName) { boost::property_tree::read_ini(fileName, data); }
+  static void load(CRef<String> fileName) {
+    if (!std::filesystem::exists(fileName)) {
+      throw std::runtime_error(std::format("{} does not exist in {}", fileName,
+                                           std::filesystem::current_path().string()));
+    }
+    boost::property_tree::read_ini(fileName, data);
+  }
 
   template <typename Type>
   static Type get(CRef<String> name) {

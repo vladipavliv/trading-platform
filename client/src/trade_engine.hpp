@@ -41,23 +41,6 @@ public:
     bus_.marketBus.setHandler<TickerPrice>(
         [this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
-      switch (event) {
-      case ClientEvent::Connected:
-        LOG_INFO_SYSTEM("Ready to start trade");
-        operational_ = true;
-        break;
-      case ClientEvent::ConnectionFailed:
-      case ClientEvent::Disconnected:
-      case ClientEvent::InternalError:
-        operational_ = false;
-        tradeStop();
-        break;
-      default:
-        break;
-      }
-    });
-
     bus_.systemBus.subscribe(ClientCommand::TradeStart, [this] { tradeStart(); });
     bus_.systemBus.subscribe(ClientCommand::TradeStop, [this] { tradeStop(); });
     bus_.systemBus.subscribe(ClientCommand::TradeSpeedUp, [this] {
@@ -91,19 +74,8 @@ public:
     worker_.stop();
   }
 
-private:
-  void startWorkers() {
-    // Design is not yet clear here so a single worker for now
-    LOG_INFO_SYSTEM("Starting trade worker");
-    worker_.run();
-  }
-
   void tradeStart() {
     LOG_INFO_SYSTEM("Trade start");
-    if (!operational_) {
-      LOG_ERROR_SYSTEM("Not connected to the server");
-      return;
-    }
     trading_ = true;
     scheduleTradeTimer();
     scheduleStatsTimer();
@@ -117,11 +89,14 @@ private:
     }
   }
 
+private:
+  void startWorkers() {
+    // Design is not yet clear here so a single worker for now
+    LOG_INFO_SYSTEM("Starting trade worker");
+    worker_.run();
+  }
+
   void scheduleTradeTimer() {
-    if (!operational_) {
-      LOG_ERROR_SYSTEM("Not connected to the server");
-      return;
-    }
     if (!trading_) {
       return;
     }
@@ -171,7 +146,7 @@ private:
     LOG_DEBUG("{}", utils::toString(s));
     Tracker::logRtt(s.orderId);
     if (kafkaFeed_) {
-      bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.fulfilled, utils::getTimestamp()});
+      bus_.systemBus.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestamp()});
     }
   }
 
@@ -187,7 +162,7 @@ private:
   }
 
   void scheduleStatsTimer() {
-    if (!trading_ || !operational_ || monitorRate_.count() == 0) {
+    if (!trading_) {
       return;
     }
     statsTimer_.expires_after(monitorRate_);

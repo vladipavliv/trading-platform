@@ -23,29 +23,27 @@ class PriceFeed {
    * @brief Local price trend for the given ticker
    */
   struct Fluctuation {
-    static constexpr size_t MIN_DURATION_US = // min period of 1s
-        1000000;
-    static constexpr size_t MAX_DURATION_US = // max period of 60s
-        60000000;
-    static constexpr double MAX_FLUCTUATION_RATE_US = // 10000% per day in us
+    static constexpr size_t MIN_DURATION_US = // min period of 100ms
+        100000;
+    static constexpr size_t MAX_DURATION_US = // max period of 5s
+        5000000;
+    static constexpr double MAX_RATE_US = // 10000% per day in us
         100 / 86400.0 / 1000.0 / 1000.0;
 
     Fluctuation(CRef<Ticker> ticker, CRef<TickerData> data)
-        : ticker{ticker}, data{data}, currentPrice{static_cast<double>(data.getPrice())},
-          globalDrift{utils::RNG::generate<double>(-0.1 * MAX_FLUCTUATION_RATE_US / 365,
-                                                   0.1 * MAX_FLUCTUATION_RATE_US / 365)} {
+        : ticker{ticker}, data{data}, price{static_cast<double>(data.getPrice())},
+          drift{utils::RNG::generate<double>(-MAX_RATE_US / 365, MAX_RATE_US / 365)} {
       randomize(utils::getTimestamp());
     };
 
     void randomize(Timestamp now) {
       using namespace utils;
 
-      drift = currentPrice * RNG::generate<double>(-1 * MAX_FLUCTUATION_RATE_US + globalDrift,
-                                                   MAX_FLUCTUATION_RATE_US + globalDrift);
+      rate = price * RNG::generate<double>(-MAX_RATE_US + drift, MAX_RATE_US + drift);
       duration = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
       lastUpdate = now;
-      LOG_DEBUG("{} price:{} drift:{} duration:{}", utils::toString(ticker), currentPrice, drift,
-                duration);
+      LOG_DEBUG("{} price:{} rate:{} duration:{}", // format
+                utils::toString(ticker), price, rate, duration);
     }
 
     bool update(Timestamp timeStamp) {
@@ -58,10 +56,9 @@ class PriceFeed {
         timeDelta = duration;
         duration = 0;
       }
-      currentPrice += drift * timeDelta;
+      price += rate * timeDelta;
 
-      LOG_DEBUG("{} Δt:{} base price:{} current price:{}, duration:{}", utils::toString(ticker),
-                timeDelta, data.getPrice(), currentPrice, duration);
+      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(ticker), timeDelta, price, duration);
 
       if (duration == 0) {
         randomize(timeStamp);
@@ -71,14 +68,14 @@ class PriceFeed {
       return data.getPrice() != getPrice();
     }
 
-    Price getPrice() const { return static_cast<Price>(std::round(currentPrice)); }
+    Price getPrice() const { return static_cast<Price>(std::round(price)); }
 
     const Ticker ticker;
     const TickerData &data;
 
-    double currentPrice{0};
-    double drift{0};
-    const double globalDrift{0};
+    double price{0};
+    double rate{0};
+    const double drift{0};
     size_t duration{0};
     Timestamp lastUpdate{0};
   };

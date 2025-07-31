@@ -98,8 +98,7 @@ private:
     const auto &data = data_.at(order.order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
       data->orderBook.add(order);
-      data->orderBook.match(
-          [this](CRef<ServerOrderStatus> status) { bus_.marketBus.post(status); });
+      data->orderBook.match();
     });
   }
 
