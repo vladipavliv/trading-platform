@@ -38,13 +38,12 @@ public:
       switch (event) {
       case ClientEvent::Connected:
         LOG_INFO_SYSTEM("Connected to the server");
-        networkConnected_ = true;
         timer_.cancel();
         break;
       case ClientEvent::Disconnected:
       case ClientEvent::ConnectionFailed:
       case ClientEvent::InternalError:
-        networkConnected_ = false;
+        engine_.tradeStop();
         scheduleReconnect();
         break;
       default:
@@ -94,9 +93,10 @@ private:
   }
 
   void scheduleReconnect() {
-    if (networkConnected_) {
+    if (reconnecting_) {
       return;
     }
+    reconnecting_ = true;
     LOG_ERROR_SYSTEM("Server is down, reconnecting...");
     timer_.expires_after(ClientConfig::cfg.monitorRate);
     timer_.async_wait([this](BoostErrorCode ec) {
@@ -104,6 +104,7 @@ private:
         LOG_ERROR("{}", ec.message());
         return;
       }
+      reconnecting_ = false;
       networkClient_.connect();
     });
   }
@@ -116,7 +117,7 @@ private:
   Kafka kafka_;
   ClientConsoleReader consoleReader_;
 
-  std::atomic_bool networkConnected_{false};
+  bool reconnecting_{false};
   SteadyTimer timer_;
 };
 } // namespace hft::client

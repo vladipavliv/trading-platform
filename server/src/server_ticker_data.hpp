@@ -23,7 +23,7 @@ namespace hft::server {
  * @todo Add atomic flag to lock the book for rerouting
  */
 struct TickerData {
-  TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
+  TickerData(Bus &bus, ThreadId id, Price price) : orderBook{bus}, threadId_{id}, price_{price} {}
 
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }

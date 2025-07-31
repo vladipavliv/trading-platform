@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_METADATASERIALIZER_HPP
 #define HFT_COMMON_METADATASERIALIZER_HPP
 
+#include "bus/bus.hpp"
 #include "fbs_converter.hpp"
 #include "gen/fbs/metadata_messages_generated.h"
 #include "metadata_types.hpp"
@@ -33,7 +34,7 @@ public:
       return false;
     }
     consumer.post(
-        OrderTimestamp{msg->order_id(), msg->created(), msg->fulfilled(), msg->notified()});
+        OrderTimestamp{msg->order_id(), msg->created(), msg->accepted(), msg->notified()});
     return true;
   }
 
@@ -41,8 +42,8 @@ public:
     LOG_DEBUG("Serializing {}", utils::toString(event));
     using namespace gen::fbs::metadata;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrderTimestamp(builder, event.orderId, event.created, event.fulfilled,
-                                          event.notified);
+    const auto msg =
+        CreateOrderTimestamp(builder, event.orderId, event.created, event.accepted, event.notified);
     builder.Finish(msg);
     return builder.Release();
   }

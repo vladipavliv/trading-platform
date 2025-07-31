@@ -63,27 +63,35 @@ public:
 
   template <typename Type>
     requires(Framer::template Framable<Type>)
-  StatusCode write(CRef<Type> msg) {
+  void write(CRef<Type> msg) {
     LOG_DEBUG("TcpTransport write");
     const auto buffer = std::make_shared<ByteBuffer>();
     Framer::frame(msg, *buffer);
     boost::asio::async_write(
         socket_, boost::asio::buffer(buffer->data(), buffer->size()),
         [this, buffer](BoostErrorCode code, size_t bytes) { writeHandler(code, bytes); });
-    return StatusCode::Ok;
   }
 
   inline ConnectionId id() const { return id_; }
 
   inline auto status() const -> ConnectionStatus { return status_; }
 
-  inline void close() { socket_.close(); }
+  inline auto isConnected() const -> bool { return status_ == ConnectionStatus::Connected; }
+
+  inline auto isError() const -> bool { return status_ == ConnectionStatus::Error; }
+
+  inline void close() {
+    socket_.close();
+    status_ = ConnectionStatus::Disconnected;
+  }
 
 private:
   void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
-      onStatus(ConnectionStatus::Error);
+      if (code != boost::asio::error::operation_aborted) {
+        onStatus(ConnectionStatus::Error);
+      }
       return;
     }
     buffer_.commitWrite(bytes);

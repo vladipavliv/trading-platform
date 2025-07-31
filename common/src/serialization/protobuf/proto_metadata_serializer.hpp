@@ -39,7 +39,7 @@ public:
 
     protoMsg.set_order_id(msg.orderId);
     protoMsg.set_created(msg.created);
-    protoMsg.set_fulfilled(msg.fulfilled);
+    protoMsg.set_accepted(msg.accepted);
     protoMsg.set_notified(msg.notified);
 
     return frame<gen::proto::metadata::OrderTimestamp>(protoMsg);
@@ -108,7 +108,7 @@ public:
       OrderTimestamp stamp;
       stamp.orderId = protoMsg.order_id();
       stamp.created = protoMsg.created();
-      stamp.fulfilled = protoMsg.fulfilled();
+      stamp.accepted = protoMsg.accepted();
       stamp.notified = protoMsg.notified();
       consumer.post(stamp);
       break;

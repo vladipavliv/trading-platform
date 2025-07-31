@@ -60,7 +60,7 @@ struct alignas(8) Order {
 
 struct alignas(8) OrderStatus {
   OrderId orderId;
-  Timestamp fulfilled;
+  Timestamp timeStamp;
   Quantity quantity;
   Price fillPrice;
   OrderState state;

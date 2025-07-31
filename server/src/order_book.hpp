@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "bus/bus.hpp"
 #include "constants.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
@@ -22,7 +23,7 @@ namespace hft::server {
  * @brief Flat order book
  * @details Since testing is done locally, all the orders have the same client id
  * so every match would come with two notifications, about recent order and a previous one
- * To avoid this the last added order ids are saved to a set and only those get notifications
+ * To avoid this the order status is sent only about the most recent order
  * @todo At some point it might make sense to split Order to hot and cold data
  * Currently for simple limit orders all the data is hot, and there are no iterations
  * without sending status, so separating it doesnt make sense for now.
@@ -35,9 +36,18 @@ class OrderBook {
   static inline bool compareAsks(CRef<ServerOrder> left, CRef<ServerOrder> right) {
     return left.order.price > right.order.price;
   }
+  static inline ServerOrderStatus getStatus(CRef<ServerOrder> o, Quantity quantity, Price price,
+                                            OrderState state) {
+    return ServerOrderStatus(
+        o.clientId, OrderStatus{o.order.id, utils::getTimestamp(), quantity, price, state});
+  }
 
 public:
-  OrderBook() {
+  /**
+   * @note Not sure about passing bus here, but its convenient. Need to send status
+   * not only for fulfillment, but also right away after receiving order.
+   */
+  explicit OrderBook(Bus &bus) : bus_{bus} {
     bids_.reserve(ORDER_BOOK_LIMIT);
     asks_.reserve(ORDER_BOOK_LIMIT);
   }
@@ -51,12 +61,15 @@ public:
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    lastAdded_ = order.order.id;
+    // TODO(self): Sending Accepted notification right away causes numbers to drop
+    // - rtt drops 0.20% avg:66us => 11.91% avg:79us
+    // - rps drops 139,019 => 128,476
+    // Try not to send Accepted notification if order is fulfilled right away
+    // bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
-  template <typename Consumer>
-  void match(Consumer &&consumer) {
+  void match() {
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -67,11 +80,15 @@ public:
       bestBid.order.partialFill(quantity);
       bestAsk.order.partialFill(quantity);
 
-      if (lastAdded_ == bestBid.order.id) {
-        consumer(getMatch(bestBid, quantity, bestAsk.order.price));
+      if ((bestBid.clientId != bestAsk.clientId) ||
+          (bestBid.order.created > bestAsk.order.created)) {
+        const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
+        bus_.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
       }
-      if (lastAdded_ == bestAsk.order.id) {
-        consumer(getMatch(bestAsk, quantity, bestAsk.order.price));
+      if ((bestBid.clientId != bestAsk.clientId) ||
+          (bestAsk.order.created > bestBid.order.created)) {
+        const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
+        bus_.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
       }
 
       if (bestBid.order.quantity == 0) {
@@ -83,23 +100,17 @@ public:
         asks_.pop_back();
       }
     }
-    lastAdded_ = 0;
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
 private:
-  ServerOrderStatus getMatch(CRef<ServerOrder> o, Quantity quantity, Price price) {
-    return ServerOrderStatus(
-        o.clientId, OrderStatus{o.order.id, utils::getTimestamp(), quantity, price,
-                                (o.order.quantity == 0) ? OrderState::Full : OrderState::Partial});
-  }
+  Bus &bus_;
 
-private:
   std::vector<ServerOrder> bids_;
   std::vector<ServerOrder> asks_;
-  OrderId lastAdded_;
+
   std::atomic_uint64_t openedOrders_;
 };
 

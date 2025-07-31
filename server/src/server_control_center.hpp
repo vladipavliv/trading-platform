@@ -81,7 +81,7 @@ private:
     consoleReader_.printCommands();
   }
 
-  MarketData readMarketData() {
+  auto readMarketData() -> MarketData {
     const auto result = dbAdapter_.readTickers();
     if (!result) {
       LOG_ERROR("Failed to load ticker data");
@@ -91,11 +91,14 @@ private:
     MarketData data;
     data.reserve(prices.size());
     const auto workers = ServerConfig::cfg.coresApp.size();
-    ThreadId roundRobin = 0;
-    for (auto &item : prices) {
+
+    size_t idx{0};
+    const size_t tickerPerWorker{prices.size() / workers};
+    for (const auto &item : prices) {
       LOG_TRACE("{}: ${}", utils::toString(item.ticker), item.price);
-      data.emplace(item.ticker, std::make_unique<TickerData>(roundRobin, item.price));
-      roundRobin = (++roundRobin < workers) ? roundRobin : 0;
+      data.emplace(item.ticker,
+                   std::make_unique<TickerData>(bus_, idx / tickerPerWorker, item.price));
+      ++idx;
     }
     LOG_INFO_SYSTEM("Data loaded for {} tickers", data.size());
     return data;

@@ -91,7 +91,7 @@ public:
         LOG_ERROR("Failed to extract OrderStatus");
         return false;
       }
-      const OrderStatus status{statusMsg->order_id(), statusMsg->fulfilled(), statusMsg->quantity(),
+      const OrderStatus status{statusMsg->order_id(), statusMsg->timestamp(), statusMsg->quantity(),
                                statusMsg->fill_price(), convert(statusMsg->state())};
       consumer.post(status);
       return true;
@@ -154,7 +154,7 @@ public:
   static BufferType serialize(CRef<OrderStatus> status) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrderStatus(builder, status.orderId, status.fulfilled, status.quantity,
+    const auto msg = CreateOrderStatus(builder, status.orderId, status.timeStamp, status.quantity,
                                        status.fillPrice, convert(status.state));
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     return builder.Release();

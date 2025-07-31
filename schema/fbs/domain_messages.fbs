@@ -37,7 +37,7 @@ table Order {
 
 table OrderStatus {
     order_id: uint64;
-    fulfilled: uint64;
+    timestamp: uint64;
     quantity: uint;
     fill_price: uint;
     state: OrderState;
