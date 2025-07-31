@@ -4,9 +4,11 @@
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Usage](#usage)
-    - [Setup database](#setup-database)
+    - [Setup environment](#setup-environment)
+    - [Configuration](#configuration)
     - [Run server](#run-server)
     - [Run client](#run-client)
+    - [Run monitor](#run-monitor)
 - [Testing](#testing)    
 - [Performance](#performance)
 - [Roadmap](#roadmap)
@@ -22,9 +24,6 @@ Runs a separate network io_context, a number of workers for order processing wit
 
 ### Client
 Runs a separate network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
-
-### Configuration
-Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
 
 ## Installation
 
@@ -54,21 +53,32 @@ python3 ./scripts/setup_clickhouse.sh
 ```
 
 ### Configuration
+Client and server use separate config files to setup url, ports, core ids for network, application, and system threads, log file name and other settings.
 Adjust the network, cores, credentials and other settings in 
 
-`build/server/server_config.ini` and `build/client/client_config.ini`.
+```bash
+server/server_config.ini
+client/client_config.ini
+monitor/monitor_config.ini
+```
 
 ### Run server
 ```bash
-./run.sh s
+./run.sh s k
 ```
 Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 
 ### Run client
 ```bash
-./run.sh c
+./run.sh c k
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
+
+### Run monitor
+```bash
+./run.sh m k
+```
+Enter client or server command, kafka should be running and enabled in configuration.
 
 ## Testing
 Testing strategy is still in consideration. As interfaces have not been used for maximum blazing fastness, and only some components are templated, mocking possibilities are limited.
@@ -103,7 +113,7 @@ Client:
 ## Roadmap
 - [x] **Stream metrics to kafka**  
 Offload the latencies and other metadata to kafka
-- [ ] **Monitor the metrics**  
+- [x] **Monitor the metrics**  
 Make separate monitoring service
 - [ ] **Persist the data**  
 Persist metadata to ClickHouse, opened orders to Postgres at a shutdown
