@@ -13,4 +13,4 @@ if __name__ == "__main__":
     create_client("client0", "password0")
     create_client("client1", "password1")
 
-    generate_tickers(1000)
+    generate_tickers(100)

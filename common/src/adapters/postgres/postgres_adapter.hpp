@@ -23,8 +23,7 @@ namespace hft {
  * its better to use interfaces here and make adapter factory.
  * @todo Currently adapters operate over the SystemBus, which is single-threaded, so
  * thread-safety of adapters is not a concern.
- * @todo For write/read, instead of this concept approach, it would be better to make
- * TableStream, and overload streaming operators for TableReader and TableWriter.
+ * @todo For write/read, add some stream operations for TableReader and TableWriter.
  * So then it could go like this:
  *
  * auto stream = dbAdapter_.openTableStream("orders");
@@ -41,7 +40,8 @@ class PostgresAdapter {
       "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432 connect_timeout=1";
   static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
   static constexpr auto TICKERS_COUNT_QUERY = "SELECT COUNT(*) FROM tickers";
-  static constexpr auto SET_TIMEOUT_QUERY = "SET statement_timeout = 1000";
+  static constexpr auto SELECT_CLIENT_QUERY =
+      "SELECT client_id, password FROM clients WHERE name = $1";
 
 public:
   PostgresAdapter() : conn_{CONNECTION_STRING} {
@@ -53,7 +53,7 @@ public:
   auto readTickers() -> Expected<std::vector<TickerPrice>> {
     try {
       pqxx::work transaction(conn_);
-      transaction.exec(SET_TIMEOUT_QUERY);
+      transaction.exec("SET statement_timeout = 1000");
       const pqxx::result countResult = transaction.exec(TICKERS_COUNT_QUERY);
 
       std::vector<TickerPrice> tickers;
@@ -78,21 +78,19 @@ public:
       transaction.commit();
       return tickers;
     } catch (const std::exception &e) {
-      LOG_ERROR("Exception during tickers read {}", e.what());
+      LOG_ERROR_SYSTEM("Exception during tickers read {}", e.what());
       return std::unexpected(StatusCode::DbError);
     }
   }
 
   auto checkCredentials(CRef<String> name, CRef<String> password) -> Expected<ClientId> {
-    LOG_DEBUG("Authenticating {} {}", name, password);
+    LOG_DEBUG("Sensitive information, please look away. Authenticating {} {}", name, password);
     try {
       pqxx::work transaction(conn_);
       // Set small timeout, systemBus must be responsive.
       // Maybe later on make a separate DataBus for such operations
       transaction.exec("SET statement_timeout = 50");
-
-      const String query = "SELECT client_id, password FROM clients WHERE name = $1";
-      const auto result = transaction.exec_params(query, name);
+      const auto result = transaction.exec_params(SELECT_CLIENT_QUERY, name);
 
       if (!result.empty()) {
         const ClientId clientId = result[0][0].as<ClientId>();
@@ -129,10 +127,10 @@ public:
       transaction.commit();
       return true;
     } catch (CRef<pqxx::sql_error> e) {
-      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+      LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
       return false;
     } catch (CRef<std::exception> e) {
-      LOG_ERROR_SYSTEM("std::exception", e.what());
+      LOG_ERROR_SYSTEM("std::exception {}", e.what());
       return false;
     }
   }
@@ -141,17 +139,13 @@ public:
   bool read(TableReader &reader) {
     try {
       pqxx::work transaction(conn_);
-      const auto table = reader.table();
-
-      const auto query = "SELECT * FROM " + table + ";";
-      const pqxx::result result = transaction.exec(query);
+      const pqxx::result result = transaction.exec("SELECT * FROM " + reader.table() + ";");
 
       if (result.empty()) {
         return true;
       }
 
       reader.reserve(result.size());
-
       for (const auto &row : result) {
         std::vector<String> values;
         values.reserve(row.size());
@@ -169,10 +163,10 @@ public:
       transaction.commit();
       return true;
     } catch (CRef<pqxx::sql_error> e) {
-      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+      LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
       return false;
     } catch (CRef<std::exception> e) {
-      LOG_ERROR_SYSTEM("std::exception", e.what());
+      LOG_ERROR_SYSTEM("std::exception {}", e.what());
       return false;
     }
   }
@@ -184,9 +178,9 @@ public:
       transaction.exec(query);
       transaction.commit();
     } catch (CRef<pqxx::sql_error> e) {
-      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+      LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
     } catch (CRef<std::exception> e) {
-      LOG_ERROR_SYSTEM("std::exception", e.what());
+      LOG_ERROR_SYSTEM("std::exception {}", e.what());
     }
   }
 

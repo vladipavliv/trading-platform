@@ -15,6 +15,11 @@ namespace hft::server {
 template <typename T>
 struct DbTypeMapper;
 
+template <typename MessageType>
+concept HasTable = requires {
+  { DbTypeMapper<MessageType>::table() } -> std::same_as<String>;
+};
+
 template <>
 struct DbTypeMapper<Order> {
   static auto toRow(CRef<Order> order) -> std::vector<String> {
@@ -40,6 +45,8 @@ struct DbTypeMapper<Order> {
 
 template <>
 struct DbTypeMapper<ServerOrder> {
+  static auto table() -> String { return "orders"; }
+
   static auto toRow(CRef<ServerOrder> order) -> std::vector<String> {
     const auto orderRow = DbTypeMapper<Order>::toRow(order.order);
     std::vector<String> row;
