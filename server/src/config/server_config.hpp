@@ -8,6 +8,7 @@
 
 #include "boost_types.hpp"
 #include "config/config.hpp"
+#include "constants.hpp"
 #include "logging.hpp"
 #include "server_config.hpp"
 #include "types.hpp"
@@ -31,7 +32,10 @@ struct ServerConfig {
   // Rates
   Microseconds priceFeedRate;
   Seconds monitorRate;
+
+  // Data
   size_t orderBookLimit;
+  bool orderBookPersist;
 
   // Logging
   LogLevel logLevel;
@@ -60,9 +64,16 @@ struct ServerConfig {
     }
 
     // Rates
-    ServerConfig::cfg.priceFeedRate = Microseconds(Config::get<size_t>("rates.price_feed_rate_us"));
-    ServerConfig::cfg.monitorRate = Seconds(Config::get<size_t>("rates.monitor_rate_s"));
-    ServerConfig::cfg.orderBookLimit = Config::get<size_t>("rates.order_book_limit");
+    ServerConfig::cfg.priceFeedRate =
+        Microseconds(Config::get_optional<size_t>("rates.price_feed_rate_us").value_or(1));
+    ServerConfig::cfg.monitorRate =
+        Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
+
+    // Data
+    ServerConfig::cfg.orderBookLimit =
+        Config::get_optional<size_t>("data.order_book_limit").value_or(ORDER_BOOK_LIMIT);
+    ServerConfig::cfg.orderBookPersist =
+        Config::get_optional<bool>("data.order_book_persist").value_or(false);
 
     // Logging
     ServerConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));

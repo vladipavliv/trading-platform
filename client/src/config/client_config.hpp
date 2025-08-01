@@ -62,8 +62,10 @@ struct ClientConfig {
     }
 
     // Rates
-    ClientConfig::cfg.tradeRate = Microseconds(Config::get<size_t>("rates.trade_rate_us"));
-    ClientConfig::cfg.monitorRate = Seconds(Config::get<size_t>("rates.monitor_rate_s"));
+    ClientConfig::cfg.tradeRate =
+        Microseconds(Config::get_optional<size_t>("rates.trade_rate_us").value_or(1));
+    ClientConfig::cfg.monitorRate =
+        Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
 
     // Credentials
     ClientConfig::cfg.name = Config::get<String>("credentials.name");
