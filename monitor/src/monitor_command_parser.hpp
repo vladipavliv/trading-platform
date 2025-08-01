@@ -30,8 +30,8 @@ public:
   static bool parse(CRef<String> cmd, Consumer &&consumer) {
     // first try to parse with native command map, then server/client
     bool ret{false};
-    if (server::ServerCommandParser::parse(cmd, consumer) |
-        client::ClientCommandParser::parse(cmd, consumer)) {
+    if (client::ClientCommandParser::parse(cmd, consumer) |
+        server::ServerCommandParser::parse(cmd, consumer)) {
       ret = true;
     }
     const auto cmdIt = commands.find(cmd);

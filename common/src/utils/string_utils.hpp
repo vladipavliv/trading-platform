@@ -54,10 +54,14 @@ String toString(const LoginResponse &msg) {
 
 String toString(const OrderState &state) {
   switch (state) {
-  case OrderState::Full:
-    return "Full";
+  case OrderState::Accepted:
+    return "Accepted";
+  case OrderState::Rejected:
+    return "Rejected";
   case OrderState::Partial:
     return "Partial";
+  case OrderState::Full:
+    return "Full";
   default:
     LOG_ERROR("Unknown OrderState {}", (uint8_t)state);
   }
@@ -78,8 +82,8 @@ String toString(const OrderAction &state) {
 
 String toString(CRef<OrderTimestamp> event) {
   std::stringstream ss;
-  ss << "OrderTimestamp id:" << event.orderId << " created:" << event.created
-     << " accepted:" << event.accepted << " notified:" << event.notified;
+  ss << "OrderTimestamp: " << event.orderId << " " << event.created << " " << event.accepted << " "
+     << event.notified;
   return ss.str();
 }
 
@@ -96,15 +100,14 @@ String toString(CRef<MetadataSource> event) {
 
 String toString(CRef<RuntimeMetrics> event) {
   std::stringstream ss;
-  ss << "RuntimeMetrics source:" << toString(event.source) << " timestamp:" << event.timeStamp
-     << " rps:" << event.rps << " avg latency:" << event.avgLatencyUs;
+  ss << "RuntimeMetrics: " << toString(event.source) << " " << event.timeStamp << " " << event.rps
+     << " " << event.avgLatencyUs;
   return ss.str();
 }
 
 String toString(CRef<LogEntry> event) {
   std::stringstream ss;
-  ss << "LogEntry source:" << toString(event.source) << " message:" << event.message
-     << " level:" << event.level;
+  ss << "LogEntry: " << toString(event.source) << " " << event.message << " " << event.level;
   return ss.str();
 }
 
@@ -112,15 +115,15 @@ String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE
 
 String toString(const Order &o) {
   std::stringstream ss;
-  ss << o.id << " " << o.created << " " << toString(o.ticker);
-  ss << o.quantity << " " << o.price << " " << (uint8_t)o.action;
+  ss << "Order: " << o.id << " " << o.created << " " << toString(o.ticker);
+  ss << o.quantity << " " << o.price << " " << toString(o.action);
   return ss.str();
 }
 
-String toString(const OrderStatus &os) {
+String toString(const OrderStatus &status) {
   std::stringstream ss;
-  ss << os.orderId << os.quantity << " " << os.fillPrice << " ";
-  ss << (uint8_t)os.state;
+  ss << "OrderStatus: " << status.orderId << " " << status.timeStamp << " " << status.quantity
+     << " " << status.fillPrice << " " << toString(status.state);
   return ss.str();
 }
 

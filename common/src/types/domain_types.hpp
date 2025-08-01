@@ -20,7 +20,7 @@ using Price = uint32_t; // 1cent precision
 
 enum class OrderAction : uint8_t { Buy, Sell };
 
-enum class OrderState : uint8_t { Accepted, Partial, Full };
+enum class OrderState : uint8_t { Accepted, Rejected, Partial, Full };
 
 struct LoginRequest {
   String name;

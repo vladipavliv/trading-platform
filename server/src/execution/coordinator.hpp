@@ -71,6 +71,14 @@ public:
     }
   }
 
+  size_t countOpenedOrders() const {
+    size_t orders = 0;
+    for (auto &tickerData : data_) {
+      orders += tickerData.second->orderBook.openedOrders();
+    }
+    return orders;
+  }
+
 private:
   void startWorkers() {
     const auto appCores =
@@ -138,14 +146,6 @@ private:
       lastTtl = currentTtl;
       scheduleStatsTimer();
     });
-  }
-
-  size_t countOpenedOrders() const {
-    size_t orders = 0;
-    for (auto &tickerData : data_) {
-      orders += tickerData.second->orderBook.openedOrders();
-    }
-    return orders;
   }
 
 private:

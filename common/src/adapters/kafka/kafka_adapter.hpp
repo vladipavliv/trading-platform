@@ -42,7 +42,8 @@ public:
       : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_enabled").value_or(true)},
         broker_{Config::get<String>("kafka.kafka_broker")},
         consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
-        pollRate_{Microseconds(Config::get<int>("kafka.kafka_poll_rate"))}, timer_{bus_.ioCtx} {
+        pollRate_{Microseconds(Config::get<size_t>("kafka.kafka_poll_rate_us"))},
+        timer_{bus_.ioCtx} {
     if (!enabled_) {
       LOG_INFO_SYSTEM("Kafka is disabled");
       return;
@@ -72,7 +73,7 @@ public:
       return;
     }
     using namespace RdKafka;
-    LOG_INFO_SYSTEM("Adding produce topic {}", topic);
+    LOG_INFO("Adding produce topic {}", topic);
     if (produceTopicMap_.count(topic) != 0) {
       LOG_ERROR("Topic already exist");
       return;
@@ -91,7 +92,7 @@ public:
       LOG_DEBUG("Kafka is disabled");
       return;
     }
-    LOG_INFO_SYSTEM("Adding consume topic {}", topic);
+    LOG_INFO("Adding consume topic {}", topic);
     consumeTopics_.push_back(topic);
   }
 

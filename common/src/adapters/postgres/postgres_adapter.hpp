@@ -7,7 +7,9 @@
 #define HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
 
 #include <pqxx/pqxx>
+#include <pqxx/stream_to>
 
+#include "injectors.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -21,6 +23,15 @@ namespace hft {
  * its better to use interfaces here and make adapter factory.
  * @todo Currently adapters operate over the SystemBus, which is single-threaded, so
  * thread-safety of adapters is not a concern.
+ * @todo For write/read, instead of this concept approach, it would be better to make
+ * TableStream, and overload streaming operators for TableReader and TableWriter.
+ * So then it could go like this:
+ *
+ * auto stream = dbAdapter_.openTableStream("orders");
+ * TableWriter writer{...};
+ * stream << writer;
+ * TableReader reader{...};
+ * reader << stream;
  */
 class PostgresAdapter {
   /**
@@ -98,6 +109,84 @@ public:
     } catch (const pqxx::sql_error &e) {
       LOG_ERROR("{}", e.what());
       return std::unexpected(StatusCode::DbError);
+    }
+  }
+
+  template <TableWriterable TableWriter>
+  bool write(TableWriter &writer) {
+    try {
+      pqxx::work transaction(conn_);
+      const auto table = writer.table();
+
+      const pqxx::table_path tablePath{std::string_view(table.c_str())};
+      auto tableStream = pqxx::stream_to::table(transaction, tablePath);
+
+      while (writer.next()) {
+        const auto values = writer.get();
+        tableStream << values;
+      }
+      tableStream.complete();
+      transaction.commit();
+      return true;
+    } catch (CRef<pqxx::sql_error> e) {
+      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+      return false;
+    } catch (CRef<std::exception> e) {
+      LOG_ERROR_SYSTEM("std::exception", e.what());
+      return false;
+    }
+  }
+
+  template <TableReaderable TableReader>
+  bool read(TableReader &reader) {
+    try {
+      pqxx::work transaction(conn_);
+      const auto table = reader.table();
+
+      const auto query = "SELECT * FROM " + table + ";";
+      const pqxx::result result = transaction.exec(query);
+
+      if (result.empty()) {
+        return true;
+      }
+
+      reader.reserve(result.size());
+
+      for (const auto &row : result) {
+        std::vector<String> values;
+        values.reserve(row.size());
+
+        for (const auto &field : row) {
+          if (field.is_null()) {
+            values.push_back("");
+          } else {
+            values.push_back(field.as<String>());
+          }
+        }
+        reader.set(values);
+      }
+
+      transaction.commit();
+      return true;
+    } catch (CRef<pqxx::sql_error> e) {
+      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+      return false;
+    } catch (CRef<std::exception> e) {
+      LOG_ERROR_SYSTEM("std::exception", e.what());
+      return false;
+    }
+  }
+
+  void clean(CRef<String> table) {
+    try {
+      pqxx::work transaction(conn_);
+      const auto query = "DELETE FROM " + table + ";";
+      transaction.exec(query);
+      transaction.commit();
+    } catch (CRef<pqxx::sql_error> e) {
+      LOG_ERROR_SYSTEM("pqxx::sql_error", e.what());
+    } catch (CRef<std::exception> e) {
+      LOG_ERROR_SYSTEM("std::exception", e.what());
     }
   }
 

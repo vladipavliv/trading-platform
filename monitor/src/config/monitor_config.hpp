@@ -34,14 +34,15 @@ struct MonitorConfig {
     Config::load(fileName);
 
     // cores
-    if (auto core = Config::get_optional<int>("cpu.core_system")) {
+    if (auto core = Config::get_optional<size_t>("cpu.core_system")) {
       MonitorConfig::cfg.coreSystem = *core;
     }
 
     // kafka
     MonitorConfig::cfg.kafkaBroker = Config::get<String>("kafka.kafka_broker");
     MonitorConfig::cfg.kafkaConsumerGroup = Config::get<String>("kafka.kafka_consumer_group");
-    MonitorConfig::cfg.kafkaPollRate = Milliseconds(Config::get<int>("kafka.kafka_poll_rate"));
+    MonitorConfig::cfg.kafkaPollRate =
+        Milliseconds(Config::get<size_t>("kafka.kafka_poll_rate_us"));
 
     // Logging
     MonitorConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));

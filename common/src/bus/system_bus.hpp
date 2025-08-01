@@ -47,7 +47,7 @@ public:
 
   void run() {
     utils::setTheadRealTime();
-    const auto coreId = Config::get_optional<int>("cpu.core_system");
+    const auto coreId = Config::get_optional<size_t>("cpu.core_system");
     if (coreId.has_value()) {
       utils::pinThreadToCore(coreId.value());
     }
