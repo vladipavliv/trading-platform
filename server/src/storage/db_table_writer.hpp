@@ -15,8 +15,9 @@ namespace hft::server {
 template <typename ElementType>
 class TableWriter {
 public:
-  TableWriter(CRef<String> table, CRef<std::vector<ElementType>> values)
-      : table_{table}, values_{values} {}
+  explicit TableWriter(CRef<std::vector<ElementType>> values)
+    requires HasTable<ElementType>
+      : table_{DbTypeMapper<ElementType>::table()}, values_{values} {}
 
   auto table() const -> String { return table_; }
 

@@ -14,7 +14,9 @@ namespace hft::server {
 template <typename ElementType>
 class TableReader {
 public:
-  explicit TableReader(CRef<String> table) : table_{table} {}
+  TableReader()
+    requires HasTable<ElementType>
+      : table_{DbTypeMapper<ElementType>::table()} {}
 
   auto table() const -> String { return table_; }
 
@@ -24,7 +26,7 @@ public:
 
   void reserve(size_t size) { result_.reserve(size); }
 
-  auto result() const -> CRef<std::vector<ElementType>> { return result_; }
+  auto result() -> std::vector<ElementType> { return std::move(result_); }
 
 private:
   const String table_;
