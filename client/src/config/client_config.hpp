@@ -46,12 +46,12 @@ struct ClientConfig {
 
     // Network config
     ClientConfig::cfg.url = Config::get<String>("network.url");
-    ClientConfig::cfg.portTcpUp = Config::get<int>("network.port_tcp_up");
-    ClientConfig::cfg.portTcpDown = Config::get<int>("network.port_tcp_down");
-    ClientConfig::cfg.portUdp = Config::get<int>("network.port_udp");
+    ClientConfig::cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
+    ClientConfig::cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
+    ClientConfig::cfg.portUdp = Config::get<size_t>("network.port_udp");
 
     // Cores
-    if (const auto core = Config::get_optional<int>("cpu.core_system")) {
+    if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
       ClientConfig::cfg.coreSystem = *core;
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
@@ -62,8 +62,8 @@ struct ClientConfig {
     }
 
     // Rates
-    ClientConfig::cfg.tradeRate = Microseconds(Config::get<int>("rates.trade_rate"));
-    ClientConfig::cfg.monitorRate = Seconds(Config::get<int>("rates.monitor_rate"));
+    ClientConfig::cfg.tradeRate = Microseconds(Config::get<size_t>("rates.trade_rate_us"));
+    ClientConfig::cfg.monitorRate = Seconds(Config::get<size_t>("rates.monitor_rate_s"));
 
     // Credentials
     ClientConfig::cfg.name = Config::get<String>("credentials.name");

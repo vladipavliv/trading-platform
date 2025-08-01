@@ -74,6 +74,7 @@ target_link_libraries(hft_common PRIVATE
     glog 
     pthread 
     dl 
+    pq 
     iberty 
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})

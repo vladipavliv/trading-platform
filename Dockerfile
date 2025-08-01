@@ -8,6 +8,7 @@ RUN apt-get update && \
     build-essential \
     cmake \
     git \
+    pkg-config \
     libboost-all-dev \
     libspdlog-dev \
     librdkafka-dev \
@@ -15,7 +16,7 @@ RUN apt-get update && \
     libiberty-dev \
     binutils-dev \
     libgoogle-glog-dev \
-    libpqxx-dev \
+    libpq-dev \ 
     flatbuffers-compiler \
     libflatbuffers-dev \
     protobuf-compiler \
@@ -43,11 +44,21 @@ RUN git clone --branch main --single-branch https://github.com/facebook/folly.gi
     make install && \
     rm -rf /folly
 
+# Build libpqxx from source with C++23 support
+RUN git clone --branch master --single-branch https://github.com/jtv/libpqxx.git /libpqxx && \
+    cd /libpqxx && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd / && rm -rf /libpqxx
+
 WORKDIR /app
 
 COPY . /app
 
-RUN mkdir build && cd build && \
+RUN rm -rf build && mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE .. && \
     make -j$(nproc)
 

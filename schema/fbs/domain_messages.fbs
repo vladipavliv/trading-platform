@@ -7,8 +7,9 @@ enum OrderAction: byte {
 
 enum OrderState: int {
     Accepted = 0,
-    Partial = 1,
-    Full = 2
+    Rejected = 1,
+    Partial = 2,
+    Full = 3
 }
 
 table LoginRequest {

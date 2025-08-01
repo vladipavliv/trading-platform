@@ -31,6 +31,7 @@ struct ServerConfig {
   // Rates
   Microseconds priceFeedRate;
   Seconds monitorRate;
+  size_t orderBookLimit;
 
   // Logging
   LogLevel logLevel;
@@ -43,12 +44,12 @@ struct ServerConfig {
 
     // Network
     ServerConfig::cfg.url = Config::get<String>("network.url");
-    ServerConfig::cfg.portTcpUp = Config::get<int>("network.port_tcp_up");
-    ServerConfig::cfg.portTcpDown = Config::get<int>("network.port_tcp_down");
-    ServerConfig::cfg.portUdp = Config::get<int>("network.port_udp");
+    ServerConfig::cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
+    ServerConfig::cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
+    ServerConfig::cfg.portUdp = Config::get<size_t>("network.port_udp");
 
     // Cores
-    if (const auto core = Config::get_optional<int>("cpu.core_system")) {
+    if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
       ServerConfig::cfg.coreSystem = *core;
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
@@ -59,8 +60,9 @@ struct ServerConfig {
     }
 
     // Rates
-    ServerConfig::cfg.priceFeedRate = Microseconds(Config::get<int>("rates.price_feed_rate"));
-    ServerConfig::cfg.monitorRate = Seconds(Config::get<int>("rates.monitor_rate"));
+    ServerConfig::cfg.priceFeedRate = Microseconds(Config::get<size_t>("rates.price_feed_rate_us"));
+    ServerConfig::cfg.monitorRate = Seconds(Config::get<size_t>("rates.monitor_rate_s"));
+    ServerConfig::cfg.orderBookLimit = Config::get<size_t>("rates.order_book_limit");
 
     // Logging
     ServerConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));

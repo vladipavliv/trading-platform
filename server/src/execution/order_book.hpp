@@ -36,8 +36,8 @@ class OrderBook {
   static inline bool compareAsks(CRef<ServerOrder> left, CRef<ServerOrder> right) {
     return left.order.price > right.order.price;
   }
-  static inline ServerOrderStatus getStatus(CRef<ServerOrder> o, Quantity quantity, Price price,
-                                            OrderState state) {
+  static inline ServerOrderStatus getStatus( // format
+      CRef<ServerOrder> o, Quantity quantity, Price price, OrderState state) {
     return ServerOrderStatus(
         o.clientId, OrderStatus{o.order.id, utils::getTimestamp(), quantity, price, state});
   }
@@ -47,13 +47,19 @@ public:
    * @note Not sure about passing bus here, but its convenient. Need to send status
    * not only for fulfillment, but also right away after receiving order.
    */
-  explicit OrderBook(Bus &bus) : bus_{bus} {
-    bids_.reserve(ORDER_BOOK_LIMIT);
-    asks_.reserve(ORDER_BOOK_LIMIT);
+  explicit OrderBook(Bus &bus) : bus_{bus}, orderBookLimit_{ServerConfig::cfg.orderBookLimit} {
+    bids_.reserve(orderBookLimit_);
+    asks_.reserve(orderBookLimit_);
   }
   ~OrderBook() = default;
 
   void add(CRef<ServerOrder> order) {
+    if (openedOrders_ >= orderBookLimit_) {
+      LOG_ERROR_SYSTEM("OrderBook limit reached {}", openedOrders_);
+      LOG_ERROR_SYSTEM("Rejecting order {}", utils::toString(order))
+      bus_.post(getStatus(order, 0, 0, OrderState::Rejected));
+      return;
+    }
     if (order.order.action == OrderAction::Buy) {
       bids_.push_back(order);
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
@@ -105,13 +111,18 @@ public:
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
+  auto bids() const -> CRef<std::vector<ServerOrder>> { return bids_; }
+
+  auto asks() const -> CRef<std::vector<ServerOrder>> { return asks_; }
+
 private:
   Bus &bus_;
 
   std::vector<ServerOrder> bids_;
   std::vector<ServerOrder> asks_;
 
-  std::atomic_uint64_t openedOrders_;
+  std::atomic_size_t openedOrders_;
+  const size_t orderBookLimit_;
 };
 
 } // namespace hft::server

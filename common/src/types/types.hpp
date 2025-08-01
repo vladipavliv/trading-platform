@@ -87,7 +87,7 @@ using CRefHandler = std::function<void(const ArgType &)>;
  * @todo Properly define all the concepts, for Consumer and other templated types
  */
 template <typename EventType>
-concept UnorderedMapKey = requires(EventType event) {
+concept UnorderedMapKey = requires(EventType &event) {
   { std::hash<EventType>{}(event) } -> std::convertible_to<std::size_t>;
 } && std::equality_comparable<EventType>;
 

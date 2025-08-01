@@ -10,11 +10,13 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "config/server_config.hpp"
 #include "console_reader.hpp"
-#include "coordinator.hpp"
 #include "domain_types.hpp"
+#include "execution/coordinator.hpp"
 #include "network/authenticator.hpp"
 #include "network/network_server.hpp"
 #include "price_feed.hpp"
+#include "serialization/db_table_reader.hpp"
+#include "serialization/db_table_writer.hpp"
 #include "server_command.hpp"
 #include "server_command_parser.hpp"
 #include "server_events.hpp"
@@ -51,10 +53,10 @@ public:
 
   void start() {
     greetings();
+    loadOrders();
 
     coordinator_.start();
     kafka_.start();
-
     bus_.run();
   }
 
@@ -63,6 +65,7 @@ public:
     networkServer_.stop();
     coordinator_.stop();
     bus_.stop();
+    saveOrders();
 
     LOG_INFO_SYSTEM("stonk");
   }
@@ -73,6 +76,7 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
     consoleReader_.printCommands();
+    LOG_INFO_SYSTEM("Tickers loaded: {}", marketData_.size());
   }
 
   auto readMarketData() -> MarketData {
@@ -94,8 +98,63 @@ private:
                    std::make_unique<TickerData>(bus_, idx / tickerPerWorker, item.price));
       ++idx;
     }
-    LOG_INFO_SYSTEM("Data loaded for {} tickers", data.size());
+    LOG_INFO("Data loaded for {} tickers", data.size());
     return data;
+  }
+
+  void saveOrders() {
+    using namespace utils;
+
+    const auto ordersToSave = coordinator_.countOpenedOrders();
+    size_t ordersSaved{0};
+
+    LOG_INFO_SYSTEM("Saving {} orders", ordersToSave);
+
+    Timestamp lastLog{getTimestamp()};
+    for (const auto &data : marketData_) {
+      const auto &bids = data.second->orderBook.bids();
+      const auto &asks = data.second->orderBook.asks();
+
+      TableWriter<ServerOrder> bidsWriter{"orders", bids};
+      TableWriter<ServerOrder> asksWriter{"orders", asks};
+      if (!dbAdapter_.write(bidsWriter) || !dbAdapter_.write(asksWriter)) {
+        LOG_ERROR_SYSTEM("Failed to persist orders");
+        return;
+      }
+      ordersSaved += bids.size() + asks.size();
+      const auto now = utils::getTimestamp();
+      if (now - lastLog > 1000000) {
+        LOG_INFO_SYSTEM("Saved {} orders, {} remaining", thousandify(ordersSaved),
+                        thousandify(ordersToSave - ordersSaved));
+        lastLog = now;
+      }
+    }
+    LOG_INFO_SYSTEM("Opened orders have been saved successfully");
+  }
+
+  void loadOrders() {
+    LOG_INFO_SYSTEM("Loading persisted orders");
+    const auto ordersTable{"orders"};
+    TableReader<ServerOrder> reader{ordersTable};
+    if (!dbAdapter_.read(reader)) {
+      LOG_ERROR_SYSTEM("Failed to load orders");
+      return;
+    }
+    const auto &orders = reader.result();
+    if (orders.empty()) {
+      return;
+    }
+    LOG_INFO_SYSTEM("Orders loaded: {}", orders.size());
+
+    for (const auto &order : orders) {
+      if (marketData_.count(order.order.ticker) == 0) {
+        LOG_ERROR_SYSTEM("Invalid ticker loaded {}", utils::toString(order.order.ticker));
+        continue;
+      }
+      const auto &data = marketData_.at(order.order.ticker);
+      data->orderBook.add(order);
+    }
+    dbAdapter_.clean(ordersTable);
   }
 
 private:

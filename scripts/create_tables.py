@@ -3,43 +3,56 @@ Creates postgres db and all the tables
 """
 
 import psycopg2
+from psycopg2 import sql
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from postgres_config import DB_CONFIG
 
-CREATE_DB_SQL = "CREATE DATABASE IF NOT EXISTS hft_db;"
+DB_NAME = "hft_db"
 
 CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS clients (
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS tickers;
+DROP TABLE IF EXISTS clients;
+
+CREATE TABLE clients (
     client_id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS tickers (
+CREATE TABLE tickers (
     ticker TEXT PRIMARY KEY,
     price INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS orders (
-    order_id BIGINT PRIMARY KEY,
+CREATE TABLE orders (
     client_id BIGINT NOT NULL REFERENCES clients(client_id),
+    order_id BIGINT PRIMARY KEY,
+    created BIGINT NOT NULL,
     ticker TEXT NOT NULL REFERENCES tickers(ticker),
     quantity INTEGER NOT NULL,
     price INTEGER NOT NULL,
-    action TEXT NOT NULL
+    action INTEGER NOT NULL
 );
 """
 
 def create_db():
     try:
         conn = psycopg2.connect(dbname="postgres", user=DB_CONFIG["user"], password=DB_CONFIG["password"], host=DB_CONFIG["host"], port=DB_CONFIG["port"])
-        conn.autocommit = True  # Set autocommit for DB creation
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
         cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (DB_NAME,))
+        exists = cur.fetchone()
 
-        cur.execute(CREATE_DB_SQL)
+        if not exists:
+            cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(DB_NAME)))
+            print(f"Database '{DB_NAME}' created successfully.")
+        else:
+            print(f"Database '{DB_NAME}' already exists.")
 
+        cur.close()
         conn.close()
-
-        print("Database 'hft_db' created successfully.")
     except Exception as e:
         print("Error:", e)
 

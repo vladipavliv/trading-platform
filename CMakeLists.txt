@@ -25,6 +25,8 @@ find_package(Boost 1.83 REQUIRED COMPONENTS thread)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_library(RDKAFKAXX_LIB rdkafka++)
+find_package(PostgreSQL REQUIRED)
+find_package(libpqxx REQUIRED)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 

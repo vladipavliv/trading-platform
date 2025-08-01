@@ -52,6 +52,8 @@ OrderState convert(gen::fbs::domain::OrderState state) {
   switch (state) {
   case gen::fbs::domain::OrderState::OrderState_Accepted:
     return OrderState::Accepted;
+  case gen::fbs::domain::OrderState::OrderState_Rejected:
+    return OrderState::Rejected;
   case gen::fbs::domain::OrderState::OrderState_Partial:
     return OrderState::Partial;
   case gen::fbs::domain::OrderState::OrderState_Full:
@@ -65,6 +67,8 @@ gen::fbs::domain::OrderState convert(OrderState state) {
   switch (state) {
   case OrderState::Accepted:
     return gen::fbs::domain::OrderState::OrderState_Accepted;
+  case OrderState::Rejected:
+    return gen::fbs::domain::OrderState::OrderState_Rejected;
   case OrderState::Partial:
     return gen::fbs::domain::OrderState::OrderState_Partial;
   case OrderState::Full:

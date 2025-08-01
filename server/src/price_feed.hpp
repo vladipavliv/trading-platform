@@ -8,8 +8,8 @@
 
 #include "boost_types.hpp"
 #include "config/server_config.hpp"
+#include "execution/server_ticker_data.hpp"
 #include "server_command.hpp"
-#include "server_ticker_data.hpp"
 #include "server_types.hpp"
 #include "utils/rng.hpp"
 

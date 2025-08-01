@@ -25,7 +25,7 @@ struct ProbeType {};
  * with this type - is if it has templated ::post. But this way works too. Beter then nothing
  */
 template <typename Consumer>
-concept Busable = requires(Consumer consumer) {
+concept Busable = requires(Consumer &consumer) {
   {
     consumer.template post<detail::ProbeType>(std::declval<detail::ProbeType>())
   } -> std::same_as<void>;
