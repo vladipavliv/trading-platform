@@ -53,26 +53,40 @@ public:
   }
   ~OrderBook() = default;
 
-  void add(CRef<ServerOrder> order) {
+  bool add(CRef<ServerOrder> order) {
+    bool hasMatch{true};
     if (openedOrders_ >= orderBookLimit_) {
       LOG_ERROR_SYSTEM("OrderBook limit reached {}", openedOrders_);
       LOG_ERROR_SYSTEM("Rejecting order {}", utils::toString(order))
       bus_.post(getStatus(order, 0, 0, OrderState::Rejected));
-      return;
+      return false;
     }
     if (order.order.action == OrderAction::Buy) {
       bids_.push_back(order);
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
+
+      // Send accepted only if no immediate match, otherwise rtt drops quite a bit
+      if (!asks_.empty()) {
+        ServerOrder &bestAsk = asks_.front();
+        if (order.order.price < bestAsk.order.price) {
+          bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
+          hasMatch = false;
+        }
+      }
     } else {
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
+
+      if (!bids_.empty()) {
+        ServerOrder &bestBid = bids_.front();
+        if (order.order.price > bestBid.order.price) {
+          bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
+          hasMatch = false;
+        }
+      }
     }
-    // TODO(self): Sending Accepted notification right away causes numbers to drop
-    // - rtt drops 0.20% avg:66us => 11.91% avg:79us
-    // - rps drops 139,019 => 128,476
-    // Try not to send Accepted notification if order is fulfilled right away
-    // bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
+    return hasMatch;
   }
 
   void match() {

@@ -32,10 +32,10 @@ public:
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
-      : marketData_{readMarketData()}, networkServer_{bus_},
-        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, marketData_},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, marketData_}, kafka_{bus_.systemBus},
-        storage_{dbAdapter_, marketData_} {
+      : storage_{bus_, dbAdapter_}, networkServer_{bus_},
+        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, storage_.marketData()},
+        kafka_{bus_.systemBus} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
       // start the network server only after internal components are fully operational
@@ -53,7 +53,7 @@ public:
 
   void start() {
     greetings();
-    storage_.loadOrders();
+    storage_.load();
 
     coordinator_.start();
     kafka_.start();
@@ -65,7 +65,7 @@ public:
     networkServer_.stop();
     coordinator_.stop();
     bus_.stop();
-    storage_.saveOrders();
+    storage_.save();
 
     LOG_INFO_SYSTEM("stonk");
   }
@@ -76,39 +76,14 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
     consoleReader_.printCommands();
-    LOG_INFO_SYSTEM("Tickers loaded: {}", marketData_.size());
-  }
-
-  // TODO(self) Move to storage
-  auto readMarketData() -> MarketData {
-    const auto result = dbAdapter_.readTickers();
-    if (!result) {
-      LOG_ERROR("Failed to load ticker data");
-      throw std::runtime_error(utils::toString(result.error()));
-    }
-    const auto &prices = result.value();
-    MarketData data;
-    data.reserve(prices.size());
-    const auto workers = ServerConfig::cfg.coresApp.size();
-
-    size_t idx{0};
-    const size_t tickerPerWorker{prices.size() / workers};
-    for (const auto &item : prices) {
-      LOG_TRACE("{}: ${}", utils::toString(item.ticker), item.price);
-      const size_t workerId = std::min(idx / tickerPerWorker, workers - 1);
-      data.emplace(item.ticker, std::make_unique<TickerData>(bus_, workerId, item.price));
-      ++idx;
-    }
-    LOG_INFO("Data loaded for {} tickers", data.size());
-    return data;
+    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
 private:
-  PostgresAdapter dbAdapter_;
-
-  const MarketData marketData_;
-
   Bus bus_;
+
+  PostgresAdapter dbAdapter_;
+  Storage storage_;
 
   NetworkServer networkServer_;
   Authenticator authenticator_;
@@ -116,7 +91,6 @@ private:
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
   Kafka kafka_;
-  Storage storage_;
 };
 
 } // namespace hft::server
