@@ -7,13 +7,13 @@
 #define HFT_MONITOR_COMMANDPARSER_HPP
 
 #include "boost_types.hpp"
-#include "logging.hpp"
-#include "monitor_command.hpp"
-#include "server_command.hpp"
-#include "server_command_parser.hpp"
-
 #include "client_command.hpp"
 #include "client_command_parser.hpp"
+#include "commands/server_command.hpp"
+#include "commands/server_command_parser.hpp"
+#include "concepts/busable.hpp"
+#include "logging.hpp"
+#include "monitor_command.hpp"
 #include "types.hpp"
 
 namespace hft::monitor {

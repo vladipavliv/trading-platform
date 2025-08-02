@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_COMMANDPARSER_HPP
 #define HFT_SERVER_COMMANDPARSER_HPP
 
+#include "concepts/busable.hpp"
 #include "logging.hpp"
 #include "server_command.hpp"
 #include "types.hpp"
