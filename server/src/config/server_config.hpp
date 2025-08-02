@@ -38,7 +38,6 @@ struct ServerConfig {
   bool orderBookPersist;
 
   // Logging
-  LogLevel logLevel;
   String logOutput;
 
   static ServerConfig cfg;
@@ -76,7 +75,6 @@ struct ServerConfig {
         Config::get_optional<bool>("data.order_book_persist").value_or(false);
 
     // Logging
-    ServerConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));
     ServerConfig::cfg.logOutput = Config::get<String>("log.output");
 
     verify();
@@ -110,11 +108,11 @@ struct ServerConfig {
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.priceFeedRate.count());
-    LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
+    LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);
   }
 };
 
-ServerConfig ServerConfig::cfg;
+inline ServerConfig ServerConfig::cfg;
 
 } // namespace hft::server
 

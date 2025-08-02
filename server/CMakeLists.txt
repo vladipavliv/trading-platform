@@ -1,5 +1,5 @@
 # Server Target
-file(GLOB_RECURSE SERVER_SOURCES "src/*.cpp" "src/**/*.cpp" "src/*.hpp" "src/**/*.hpp")
+file(GLOB_RECURSE SERVER_SOURCES "src/*.cpp")
 
 add_executable(hft_server ${SERVER_SOURCES})
 

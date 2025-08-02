@@ -26,8 +26,7 @@ enum class ServerCommand : uint8_t {
 } // namespace hft::server
 
 namespace hft::utils {
-template <>
-std::string toString<server::ServerCommand>(const server::ServerCommand &command) {
+inline String toString(const server::ServerCommand &command) {
   using namespace server;
   switch (command) {
   case ServerCommand::PriceFeedStart:

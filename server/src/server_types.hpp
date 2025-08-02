@@ -51,24 +51,19 @@ using Bus = BusHolder<ServerOrder, ServerOrderStatus, TickerPrice>;
 } // namespace hft::server
 
 namespace hft::utils {
-template <>
-String toString<server::ServerLoginRequest>(const server::ServerLoginRequest &msg) {
+inline String toString(const server::ServerLoginRequest &msg) {
   return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
 }
-template <>
-String toString<server::ServerTokenBindRequest>(const server::ServerTokenBindRequest &msg) {
+inline String toString(const server::ServerTokenBindRequest &msg) {
   return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
 }
-template <>
-String toString<server::ServerLoginResponse>(const server::ServerLoginResponse &msg) {
+inline String toString(const server::ServerLoginResponse &msg) {
   return std::format("{} {} {} {}", msg.connectionId, msg.clientId, msg.ok, msg.error);
 }
-template <>
-String toString<server::ServerOrder>(const server::ServerOrder &msg) {
+inline String toString(const server::ServerOrder &msg) {
   return std::format("{} {}", msg.clientId, utils::toString(msg.order));
 }
-template <>
-String toString<server::ServerOrderStatus>(const server::ServerOrderStatus &msg) {
+inline String toString(const server::ServerOrderStatus &msg) {
   return std::format("{} {}", msg.clientId, utils::toString(msg.orderStatus));
 }
 } // namespace hft::utils

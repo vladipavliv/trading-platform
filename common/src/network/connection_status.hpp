@@ -20,7 +20,7 @@ struct ConnectionStatusEvent {
 };
 
 namespace utils {
-String toString(const ConnectionStatus &status) {
+inline String toString(const ConnectionStatus &status) {
   switch (status) {
   case ConnectionStatus::Disconnected:
     return "disconnected";
@@ -33,7 +33,7 @@ String toString(const ConnectionStatus &status) {
   }
 }
 
-String toString(const ConnectionStatusEvent &event) {
+inline String toString(const ConnectionStatusEvent &event) {
   return std::format("ConnectionStatusEvent {} {}", event.connectionId, toString(event.status));
 }
 

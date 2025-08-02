@@ -14,7 +14,7 @@
 
 namespace hft::serialization {
 
-MetadataSource convert(gen::proto::metadata::Source source) {
+inline MetadataSource convert(gen::proto::metadata::Source source) {
   switch (source) {
   case gen::proto::metadata::Source::CLIENT:
     return MetadataSource::Client;
@@ -25,7 +25,7 @@ MetadataSource convert(gen::proto::metadata::Source source) {
   }
 }
 
-gen::proto::metadata::Source convert(MetadataSource source) {
+inline gen::proto::metadata::Source convert(MetadataSource source) {
   switch (source) {
   case MetadataSource::Client:
     return gen::proto::metadata::Source::CLIENT;

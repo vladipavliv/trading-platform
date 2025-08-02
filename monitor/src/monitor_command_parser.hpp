@@ -27,7 +27,7 @@ public:
   static const HashMap<String, MonitorCommand> commands;
 
   template <Busable Consumer>
-  static bool parse(CRef<String> cmd, Consumer &&consumer) {
+  static bool parse(CRef<String> cmd, Consumer &consumer) {
     // first try to parse with native command map, then server/client
     bool ret{false};
     if (client::ClientCommandParser::parse(cmd, consumer) |
@@ -46,7 +46,7 @@ public:
    * @brief Interface for usage as a serializer when simple string map is sufficient
    */
   template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     return parse(String(data, size), consumer);
   }
 
@@ -69,7 +69,7 @@ public:
   }
 };
 
-const HashMap<String, MonitorCommand> MonitorCommandParser::commands{
+inline const HashMap<String, MonitorCommand> MonitorCommandParser::commands{
     {"q", MonitorCommand::Shutdown}};
 
 } // namespace hft::monitor

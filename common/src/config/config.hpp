@@ -36,10 +36,8 @@ struct Config {
     return data.get_optional<Type>(name);
   }
 
-  static boost::property_tree::ptree data;
+  inline static boost::property_tree::ptree data;
 };
-
-boost::property_tree::ptree Config::data;
 
 } // namespace hft
 

@@ -18,20 +18,75 @@
 
 #include "boost_types.hpp"
 #include "domain_types.hpp"
+#include "rng.hpp"
 #include "types.hpp"
 
 namespace hft::utils {
 
-void pinThreadToCore(size_t coreId);
-void setTheadRealTime();
+inline auto getTimestamp() -> Timestamp {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return static_cast<uint64_t>(ts.tv_sec) * 1'000'000 + ts.tv_nsec / 1'000;
+}
 
-auto generateOrderId() -> OrderId;
-auto generateConnectionId() -> ConnectionId;
-auto generateToken() -> Token;
+inline void pinThreadToCore(size_t coreId) {
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(coreId, &cpuset);
 
-auto getTimestamp() -> Timestamp;
-auto createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0) -> UdpSocket;
-auto split(CRef<String> input) -> ByteBuffer;
+  int result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (result != 0) {
+    LOG_ERROR("Failed to pin thread to core: {}, error: {}", coreId, result);
+  }
+}
+
+inline void setTheadRealTime() {
+  struct sched_param param;
+  param.sched_priority = 99;
+  sched_setscheduler(0, SCHED_FIFO, &param);
+
+  auto code = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+  if (code != 0) {
+    LOG_ERROR("Failed to set real-time priority on the error: {}", code);
+  }
+}
+
+inline auto generateOrderId() -> OrderId {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+inline auto generateConnectionId() -> ConnectionId {
+  static std::atomic_uint64_t counter = 0;
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+inline auto generateToken() -> Token {
+  static std::atomic_uint64_t counter = 0;
+  return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+inline auto createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0) -> UdpSocket {
+  UdpSocket socket(ctx, Udp::v4());
+  socket.set_option(boost::asio::socket_base::reuse_address{true});
+  if (broadcast) {
+    socket.set_option(boost::asio::socket_base::broadcast(true));
+  } else {
+    socket.bind(UdpEndpoint(Udp::v4(), port));
+  }
+  return socket;
+}
+
+inline auto split(CRef<String> input) -> ByteBuffer {
+  ByteBuffer result;
+  std::stringstream ss(input);
+  std::string token;
+
+  while (std::getline(ss, token, ',')) {
+    result.push_back(static_cast<uint8_t>(std::stoi(token)));
+  }
+  return result;
+}
 
 template <typename Type, typename... Types>
 static constexpr bool contains = (std::is_same_v<Type, Types> || ...);
@@ -65,7 +120,6 @@ concept Arithmetic = std::integral<T> || std::floating_point<T>;
  * @returns thousandified number. A number, that has gone through some
  * complex thousandification procedures
  * @todo Could make a custom formatter for spdlog, but that equals time
- * This ain't a hot path so for now a funny function it is
  */
 template <Arithmetic Number>
 auto thousandify(Number input) -> String {
@@ -73,6 +127,15 @@ auto thousandify(Number input) -> String {
   ss.imbue(std::locale("en_US.UTF-8"));
   ss << std::fixed << input;
   return ss.str();
+}
+
+inline Order generateOrder() {
+  return Order{generateOrderId(),
+               getTimestamp(),
+               "GGL",
+               RNG::generate<Quantity>(0, 1000),
+               RNG::generate<Price>(10, 10000),
+               RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
 }
 
 } // namespace hft::utils

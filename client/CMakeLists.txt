@@ -1,5 +1,5 @@
 # Client Target
-file(GLOB_RECURSE CLIENT_SOURCES "src/*.cpp" "src/**/*.cpp" "src/*.hpp" "src/**/*.hpp")
+file(GLOB_RECURSE CLIENT_SOURCES "src/*.cpp")
 
 add_executable(hft_client ${CLIENT_SOURCES})
 target_compile_definitions(hft_client PRIVATE)

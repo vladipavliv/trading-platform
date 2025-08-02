@@ -36,7 +36,6 @@ struct ClientConfig {
   String password;
 
   // Logging
-  LogLevel logLevel;
   String logOutput;
 
   static ClientConfig cfg;
@@ -72,7 +71,6 @@ struct ClientConfig {
     ClientConfig::cfg.password = Config::get<String>("credentials.password");
 
     // Logging
-    ClientConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));
     ClientConfig::cfg.logOutput = Config::get<String>("log.output");
 
     verify();
@@ -110,12 +108,12 @@ struct ClientConfig {
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} TradeRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.tradeRate.count());
-    LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
+    LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);
     LOG_INFO_SYSTEM("Name: {} Password: {}", cfg.name, cfg.password);
   }
 };
 
-ClientConfig ClientConfig::cfg;
+inline ClientConfig ClientConfig::cfg;
 
 } // namespace hft::client
 
