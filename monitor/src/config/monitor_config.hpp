@@ -25,7 +25,6 @@ struct MonitorConfig {
   Milliseconds kafkaPollRate;
 
   // Logging
-  LogLevel logLevel;
   String logOutput;
 
   static MonitorConfig cfg;
@@ -45,7 +44,6 @@ struct MonitorConfig {
         Milliseconds(Config::get<size_t>("kafka.kafka_poll_rate_us"));
 
     // Logging
-    MonitorConfig::cfg.logLevel = utils::fromString<LogLevel>(Config::get<String>("log.level"));
     MonitorConfig::cfg.logOutput = Config::get<String>("log.output");
 
     verify();
@@ -60,11 +58,11 @@ struct MonitorConfig {
   static void log() {
     LOG_INFO_SYSTEM("Kafka broker:{} consumer group:{} poll rate:{}", cfg.kafkaBroker,
                     cfg.kafkaConsumerGroup, cfg.kafkaPollRate.count());
-    LOG_INFO_SYSTEM("LogLevel: {} LogOutput: {}", utils::toString(cfg.logLevel), cfg.logOutput);
+    LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);
   }
 };
 
-MonitorConfig MonitorConfig::cfg;
+inline MonitorConfig MonitorConfig::cfg;
 
 } // namespace hft::monitor
 

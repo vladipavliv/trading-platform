@@ -20,7 +20,7 @@ struct KafkaEvent {
 };
 
 namespace utils {
-String toString(const KafkaStatus &status) {
+inline String toString(const KafkaStatus &status) {
   switch (status) {
   case KafkaStatus::Error:
     return "error";
@@ -28,7 +28,7 @@ String toString(const KafkaStatus &status) {
     return std::format("unknown kafka status {}", static_cast<uint8_t>(status));
   }
 }
-String toString(const KafkaEvent &event) {
+inline String toString(const KafkaEvent &event) {
   return std::format("KafkaEvent {} {}", utils::toString(event.status), event.details);
 }
 } // namespace utils

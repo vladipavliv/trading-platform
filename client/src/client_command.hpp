@@ -28,7 +28,7 @@ enum class ClientCommand : uint8_t {
 namespace hft::utils {
 
 template <>
-std::string toString<client::ClientCommand>(const client::ClientCommand &command) {
+inline String toString<client::ClientCommand>(const client::ClientCommand &command) {
   using namespace client;
   switch (command) {
   case ClientCommand::TradeStart:

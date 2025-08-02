@@ -7,6 +7,7 @@
 
 #include "config/monitor_config.hpp"
 #include "logging.hpp"
+#include "monitor_command.hpp"
 #include "monitor_control_center.hpp"
 
 int main(int argc, char *argv[]) {

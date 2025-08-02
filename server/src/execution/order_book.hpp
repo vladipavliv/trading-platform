@@ -129,6 +129,12 @@ public:
 
   auto asks() const -> CRef<std::vector<ServerOrder>> { return asks_; }
 
+  void clear() {
+    bids_.clear();
+    asks_.clear();
+    openedOrders_ = 0;
+  }
+
 private:
   Bus &bus_;
 

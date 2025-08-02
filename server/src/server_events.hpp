@@ -24,7 +24,7 @@ struct ChannelStatusEvent {
 } // namespace server
 
 namespace utils {
-String toString(const server::ServerEvent &event) {
+inline String toString(const server::ServerEvent &event) {
   using namespace server;
   switch (event) {
   case ServerEvent::Operational:
@@ -35,7 +35,7 @@ String toString(const server::ServerEvent &event) {
     return std::format("unknown server event {}", static_cast<uint8_t>(event));
   }
 }
-String toString(CRef<server::ChannelStatusEvent> event) {
+inline String toString(CRef<server::ChannelStatusEvent> event) {
   using namespace server;
   return std::format("ChannelStatusEvent {} {}", event.clientId.value_or(0),
                      utils::toString(event.event));

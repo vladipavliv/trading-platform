@@ -23,7 +23,7 @@ public:
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
   template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<RootMessage>()) {
       LOG_ERROR("Failed to verify Buffer");
       return false;

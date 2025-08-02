@@ -19,8 +19,7 @@ enum class MonitorCommand : uint8_t { Shutdown };
 } // namespace hft::monitor
 
 namespace hft::utils {
-template <>
-String toString<monitor::MonitorCommand>(const monitor::MonitorCommand &command) {
+inline String toString(const monitor::MonitorCommand &command) {
   using namespace monitor;
   switch (command) {
   case MonitorCommand::Shutdown:

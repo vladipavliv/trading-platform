@@ -40,7 +40,7 @@ public:
   }
 
   template <Busable Consumer>
-  static auto unframe(ByteSpan dataBuffer, Consumer &&consumer) -> Expected<size_t> {
+  static auto unframe(ByteSpan dataBuffer, Consumer &consumer) -> Expected<size_t> {
     const auto dataPtr = dataBuffer.data();
     size_t cursor{0};
 

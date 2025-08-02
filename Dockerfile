@@ -17,6 +17,7 @@ RUN apt-get update && \
     binutils-dev \
     libgoogle-glog-dev \
     libpq-dev \ 
+    libbenchmark-dev \
     flatbuffers-compiler \
     libflatbuffers-dev \
     protobuf-compiler \

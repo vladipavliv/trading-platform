@@ -14,18 +14,18 @@
 
 namespace hft::serialization {
 
-static inline Ticker fbStringToTicker(const flatbuffers::String *str) {
+inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   Ticker ticker{};
   const auto size = std::min((size_t)str->size(), TICKER_SIZE);
   std::memcpy(ticker.data(), str->data(), size);
   return ticker;
 }
 
-static inline String fbStringToString(const flatbuffers::String *str) {
+inline String fbStringToString(const flatbuffers::String *str) {
   return String(str->c_str(), str->size());
 }
 
-OrderAction convert(gen::fbs::domain::OrderAction action) {
+inline OrderAction convert(gen::fbs::domain::OrderAction action) {
   switch (action) {
   case gen::fbs::domain::OrderAction::OrderAction_BUY:
     return OrderAction::Buy;
@@ -36,7 +36,7 @@ OrderAction convert(gen::fbs::domain::OrderAction action) {
     return OrderAction::Buy;
   }
 }
-gen::fbs::domain::OrderAction convert(OrderAction action) {
+inline gen::fbs::domain::OrderAction convert(OrderAction action) {
   switch (action) {
   case OrderAction::Buy:
     return gen::fbs::domain::OrderAction::OrderAction_BUY;
@@ -48,7 +48,7 @@ gen::fbs::domain::OrderAction convert(OrderAction action) {
   }
 }
 
-OrderState convert(gen::fbs::domain::OrderState state) {
+inline OrderState convert(gen::fbs::domain::OrderState state) {
   switch (state) {
   case gen::fbs::domain::OrderState::OrderState_Accepted:
     return OrderState::Accepted;
@@ -63,7 +63,7 @@ OrderState convert(gen::fbs::domain::OrderState state) {
     return static_cast<OrderState>(state);
   }
 }
-gen::fbs::domain::OrderState convert(OrderState state) {
+inline gen::fbs::domain::OrderState convert(OrderState state) {
   switch (state) {
   case OrderState::Accepted:
     return gen::fbs::domain::OrderState::OrderState_Accepted;

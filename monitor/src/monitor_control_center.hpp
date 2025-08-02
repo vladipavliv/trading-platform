@@ -14,6 +14,7 @@
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "latency_tracker.hpp"
+#include "monitor_command.hpp"
 #include "monitor_command_parser.hpp"
 #include "serialization/protobuf/proto_metadata_serializer.hpp"
 

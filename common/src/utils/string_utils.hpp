@@ -20,9 +20,9 @@
 
 namespace hft::utils {
 
-String toString(const auto &val) { return std::to_string(val); }
+inline String toString(const auto &val) { return std::to_string(val); }
 
-String toString(const StatusCode &code) {
+inline String toString(const StatusCode &code) {
   switch (code) {
   case StatusCode::Ok:
     return "ok";
@@ -40,19 +40,19 @@ String toString(const StatusCode &code) {
   return "";
 }
 
-String toString(const LoginRequest &msg) {
+inline String toString(const LoginRequest &msg) {
   return std::format("LoginRequest {} {}", msg.name, msg.password);
 }
 
-String toString(const TokenBindRequest &msg) {
+inline String toString(const TokenBindRequest &msg) {
   return std::format("TokenBindRequest {}", msg.token);
 }
 
-String toString(const LoginResponse &msg) {
+inline String toString(const LoginResponse &msg) {
   return std::format("LoginResponse {} {} {}", msg.token, msg.ok, msg.error);
 }
 
-String toString(const OrderState &state) {
+inline String toString(const OrderState &state) {
   switch (state) {
   case OrderState::Accepted:
     return "Accepted";
@@ -68,7 +68,7 @@ String toString(const OrderState &state) {
   return "";
 }
 
-String toString(const OrderAction &state) {
+inline String toString(const OrderAction &state) {
   switch (state) {
   case OrderAction::Buy:
     return "Buy";
@@ -80,14 +80,14 @@ String toString(const OrderAction &state) {
   return "";
 }
 
-String toString(CRef<OrderTimestamp> event) {
+inline String toString(CRef<OrderTimestamp> event) {
   std::stringstream ss;
   ss << "OrderTimestamp: " << event.orderId << " " << event.created << " " << event.accepted << " "
      << event.notified;
   return ss.str();
 }
 
-String toString(CRef<MetadataSource> event) {
+inline String toString(CRef<MetadataSource> event) {
   switch (event) {
   case MetadataSource::Client:
     return "Client";
@@ -98,36 +98,36 @@ String toString(CRef<MetadataSource> event) {
   }
 }
 
-String toString(CRef<RuntimeMetrics> event) {
+inline String toString(CRef<RuntimeMetrics> event) {
   std::stringstream ss;
   ss << "RuntimeMetrics: " << toString(event.source) << " " << event.timeStamp << " " << event.rps
      << " " << event.avgLatencyUs;
   return ss.str();
 }
 
-String toString(CRef<LogEntry> event) {
+inline String toString(CRef<LogEntry> event) {
   std::stringstream ss;
   ss << "LogEntry: " << toString(event.source) << " " << event.message << " " << event.level;
   return ss.str();
 }
 
-String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE); }
+inline String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE); }
 
-String toString(const Order &o) {
+inline String toString(const Order &o) {
   std::stringstream ss;
   ss << "Order: " << o.id << " " << o.created << " " << toString(o.ticker);
   ss << o.quantity << " " << o.price << " " << toString(o.action);
   return ss.str();
 }
 
-String toString(const OrderStatus &status) {
+inline String toString(const OrderStatus &status) {
   std::stringstream ss;
   ss << "OrderStatus: " << status.orderId << " " << status.timeStamp << " " << status.quantity
      << " " << status.fillPrice << " " << toString(status.state);
   return ss.str();
 }
 
-String toString(const TickerPrice &price) {
+inline String toString(const TickerPrice &price) {
   std::stringstream ss;
   ss << toString(price.ticker) << ": $" << price.price;
   return ss.str();
@@ -156,26 +156,26 @@ String toString(Span<Type> elements) {
   return result;
 }
 
-String toLower(String str) {
+inline String toLower(String str) {
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });
   return str;
 }
 
-Ticker toTicker(CRef<String> str) {
+inline Ticker toTicker(CRef<String> str) {
   Ticker ticker{};
   std::memcpy(ticker.data(), str.data(), std::min(str.size(), TICKER_SIZE));
   return ticker;
 }
 
-bool empty(const Ticker &ticker) {
+inline bool empty(const Ticker &ticker) {
   if (std::all_of(ticker.begin(), ticker.end(), [](char c) { return c == '\0'; })) {
     return true;
   }
   return false;
 }
 
-String toString(spdlog::level::level_enum logLvl) {
+inline String toString(spdlog::level::level_enum logLvl) {
   switch (logLvl) {
   case spdlog::level::level_enum::trace:
     return "trace";
@@ -192,35 +192,6 @@ String toString(spdlog::level::level_enum logLvl) {
   default:
     return "debug";
   }
-}
-
-template <typename Value>
-LogLevel fromString(const String &input);
-
-template <>
-LogLevel fromString<LogLevel>(const String &input) {
-  if (input == "trace") {
-    return LogLevel::trace;
-  }
-  if (input == "debug") {
-    return LogLevel::debug;
-  }
-  if (input == "info") {
-    return LogLevel::info;
-  }
-  if (input == "warn") {
-    return LogLevel::warn;
-  }
-  if (input == "err") {
-    return LogLevel::err;
-  }
-  if (input == "critical") {
-    return LogLevel::critical;
-  }
-  if (input == "trace") {
-    return LogLevel::trace;
-  }
-  return LogLevel::trace;
 }
 
 } // namespace hft::utils

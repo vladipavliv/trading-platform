@@ -23,7 +23,7 @@ public:
   static const HashMap<String, ServerCommand> commands;
 
   template <Busable Consumer>
-  static bool parse(CRef<String> cmd, Consumer &&consumer) {
+  static bool parse(CRef<String> cmd, Consumer &consumer) {
     const auto cmdIt = commands.find(cmd);
     if (cmdIt == commands.end()) {
       return false;
@@ -36,7 +36,7 @@ public:
    * @brief Interface so it can be used as serializer when simple string map is sufficient
    */
   template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &&consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     return parse(String(reinterpret_cast<const char *>(data), size), consumer);
   }
 
@@ -51,7 +51,7 @@ public:
   }
 };
 
-const HashMap<String, ServerCommand> ServerCommandParser::commands{
+inline const HashMap<String, ServerCommand> ServerCommandParser::commands{
     {"p+", ServerCommand::PriceFeedStart},
     {"p-", ServerCommand::PriceFeedStop},
     {"k+", ServerCommand::KafkaFeedStart},
