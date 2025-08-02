@@ -9,13 +9,13 @@
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "bus/system_bus.hpp"
 #include "client_command.hpp"
+#include "commands/server_command.hpp"
 #include "config/monitor_config.hpp"
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "latency_tracker.hpp"
 #include "monitor_command_parser.hpp"
 #include "serialization/protobuf/proto_metadata_serializer.hpp"
-#include "server_command.hpp"
 
 namespace hft::monitor {
 /**

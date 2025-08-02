@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP
 #define HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP
 
+#include "concepts/busable.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "fbs_converter.hpp"

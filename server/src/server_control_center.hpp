@@ -8,17 +8,18 @@
 
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
+#include "authenticator.hpp"
+#include "commands/server_command.hpp"
+#include "commands/server_command_parser.hpp"
 #include "config/server_config.hpp"
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "execution/coordinator.hpp"
-#include "network/authenticator.hpp"
-#include "network/network_server.hpp"
+#include "network/boost_network/boost_network_server.hpp"
 #include "price_feed.hpp"
-#include "server_command.hpp"
-#include "server_command_parser.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
+#include "session_manager.hpp"
 #include "storage/storage.hpp"
 
 namespace hft::server {
@@ -28,11 +29,13 @@ namespace hft::server {
  */
 class ServerControlCenter {
 public:
+  using SessionManagerType = SessionManager<BoostSessionChannel, BoostBroadcastChannel>;
+  using NetworkServerType = BoostNetworkServer<SessionManagerType>;
   using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
   using Kafka = KafkaAdapter<ServerCommandParser>;
 
   ServerControlCenter()
-      : storage_{bus_, dbAdapter_}, networkServer_{bus_},
+      : storage_{bus_, dbAdapter_}, sessionManager_{bus_}, networkServer_{bus_, sessionManager_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
         consoleReader_{bus_.systemBus}, priceFeed_{bus_, storage_.marketData()},
         kafka_{bus_.systemBus} {
@@ -85,7 +88,8 @@ private:
   PostgresAdapter dbAdapter_;
   Storage storage_;
 
-  NetworkServer networkServer_;
+  SessionManagerType sessionManager_;
+  NetworkServerType networkServer_;
   Authenticator authenticator_;
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;

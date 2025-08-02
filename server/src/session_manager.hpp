@@ -15,7 +15,6 @@
 #include "network/connection_status.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
-#include "session_channel.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
@@ -24,6 +23,7 @@ namespace hft::server {
 /**
  * @brief Manages sessions, generates tokens, authenticates channels
  */
+template <typename SessionChannel, typename BroadcastChannel>
 class SessionManager {
   /**
    * @brief Client session info
@@ -50,26 +50,27 @@ public:
         [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
 
-  void acceptUpstream(TcpSocket socket) {
+  void acceptUpstream(SPtr<SessionChannel> channel) {
+    LOG_INFO_SYSTEM("New upstream connection id:{}", channel->connectionId());
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    const auto id = utils::generateConnectionId();
-    auto newTransport = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
-    unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
-    LOG_INFO_SYSTEM("New upstream connection id:{}", id);
+    unauthorizedUpstreamMap_.insert(std::make_pair(channel->connectionId(), channel));
   }
 
-  void acceptDownstream(TcpSocket socket) {
+  void acceptDownstream(SPtr<SessionChannel> channel) {
+    LOG_INFO_SYSTEM("New downstream connection Id:{}", channel->connectionId());
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    const auto id = utils::generateConnectionId();
-    auto newTransport = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
-    unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(newTransport)));
-    LOG_INFO_SYSTEM("New downstream connection Id:{}", id);
+    unauthorizedDownstreamMap_.insert(std::make_pair(channel->connectionId(), channel));
+  }
+
+  void acceptBroadcast(SPtr<BroadcastChannel> channel) {
+    LOG_INFO_SYSTEM("New broadcast connection Id:{}", channel->connectionId());
+    broadcastChannel_ = std::move(channel);
   }
 
 private:
@@ -192,6 +193,8 @@ private:
   folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
 
   folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
+
+  SPtr<BroadcastChannel> broadcastChannel_;
 };
 
 } // namespace hft::server

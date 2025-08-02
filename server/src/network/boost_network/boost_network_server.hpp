@@ -10,15 +10,19 @@
 #include <format>
 #include <memory>
 
+#include "boost_broadcast_channel.hpp"
+#include "boost_session_channel.hpp"
 #include "boost_types.hpp"
-#include "broadcast_service.hpp"
+#include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
+#include "network/concepts/broadcast_channel_concept.hpp"
+#include "network/concepts/network_listener_concept.hpp"
+#include "network/concepts/network_server_concept.hpp"
+#include "network/concepts/session_channel_concept.hpp"
 #include "network/transport/udp_transport.hpp"
-#include "server_command.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
-#include "session_manager.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -28,13 +32,19 @@ namespace hft::server {
  * @brief Runs network io_context. Starts tcp acceptors and broadcast service
  * Redirects accepted tcp sockets to the gateway
  */
-class NetworkServer {
+template <typename Listener>
+  requires NetworkListenerable<Listener, BoostSessionChannel, BoostBroadcastChannel>
+class BoostNetworkServer {
 public:
-  NetworkServer(Bus &bus)
-      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, sessionManager_{bus_},
-        broadcast_{ioCtx_, bus_}, upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
+  using SessionChannelType = BoostSessionChannel;
+  using BroadcastChannelType = BoostBroadcastChannel;
+  using ListenerType = Listener;
 
-  ~NetworkServer() { stop(); }
+  BoostNetworkServer(Bus &bus, Listener &listener)
+      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, listener_{listener},
+        upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
+
+  ~BoostNetworkServer() { stop(); }
 
   void start() {
     const auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
@@ -64,6 +74,8 @@ public:
     ioCtx_.post([this]() {
       startUpstream();
       startDownstream();
+      const auto id = utils::generateConnectionId();
+      listener_.acceptBroadcast(std::make_shared<BroadcastChannelType>(id, ioCtx_, bus_));
       LOG_INFO_SYSTEM("Network server started");
     });
   }
@@ -87,7 +99,10 @@ private:
         return;
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
-      sessionManager_.acceptUpstream(std::move(socket));
+
+      const auto id = utils::generateConnectionId();
+      auto channel = std::make_shared<BoostSessionChannel>(id, std::move(socket), bus_);
+      listener_.acceptUpstream(std::move(channel));
       acceptUpstream();
     });
   }
@@ -108,7 +123,10 @@ private:
         return;
       }
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
-      sessionManager_.acceptDownstream(std::move(socket));
+
+      const auto id = utils::generateConnectionId();
+      auto channel = std::make_shared<BoostSessionChannel>(id, std::move(socket), bus_);
+      listener_.acceptDownstream(std::move(channel));
       acceptDownstream();
     });
   }
@@ -118,8 +136,7 @@ private:
   ContextGuard guard_;
 
   Bus &bus_;
-  SessionManager sessionManager_;
-  BroadcastService broadcast_;
+  Listener &listener_;
 
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;

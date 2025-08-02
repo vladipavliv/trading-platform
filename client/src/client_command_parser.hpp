@@ -7,6 +7,7 @@
 #define HFT_CLIENT_COMMANDPARSER_HPP
 
 #include "client_command.hpp"
+#include "concepts/busable.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 

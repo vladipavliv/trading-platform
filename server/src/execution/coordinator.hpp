@@ -8,11 +8,11 @@
 
 #include <vector>
 
+#include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
 #include "order_book.hpp"
-#include "server_command.hpp"
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
 #include "server_types.hpp"
@@ -69,14 +69,6 @@ public:
     for (auto &worker : workers_) {
       worker->stop();
     }
-  }
-
-  size_t countOpenedOrders() const {
-    size_t orders = 0;
-    for (auto &tickerData : data_) {
-      orders += tickerData.second->orderBook.openedOrders();
-    }
-    return orders;
   }
 
 private:
@@ -147,6 +139,14 @@ private:
       lastTtl = currentTtl;
       scheduleStatsTimer();
     });
+  }
+
+  size_t countOpenedOrders() const {
+    size_t orders = 0;
+    for (auto &tickerData : data_) {
+      orders += tickerData.second->orderBook.openedOrders();
+    }
+    return orders;
   }
 
 private:

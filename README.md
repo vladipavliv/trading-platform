@@ -118,7 +118,7 @@ Client:
 Offload the latencies and other metadata to kafka
 - [x] **Monitor the metrics**  
 Make separate monitoring service
-- [ ] **Persist the data**  
+- [x] **Persist the data**  
 Persist metadata to ClickHouse, opened orders to Postgres at a shutdown
 - [ ] **Improve authentication**  
 Encrypt the password, use nonce
