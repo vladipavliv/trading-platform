@@ -20,7 +20,7 @@
 
 namespace hft::utils {
 
-inline String toString(const auto &val) { return std::to_string(val); }
+inline String toString(const auto &val) { return std::to_string(static_cast<size_t>(val)); }
 
 inline String toString(const StatusCode &code) {
   switch (code) {

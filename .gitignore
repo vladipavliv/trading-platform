@@ -12,6 +12,8 @@ cmake_install.cmake
 config.ini
 hft_server
 hft_client
+hft_monitor
+run_benchmarks
 libhft_common.a
 /server_config.ini
 /client_config.ini

@@ -113,7 +113,7 @@ public:
       stamp.accepted = protoMsg.accepted();
       stamp.notified = protoMsg.notified();
 
-      LOG_DEBUG("{}", utils::toString(stamp));
+      LOG_TRACE("{}", utils::toString(stamp));
 
       consumer.post(stamp);
       break;
@@ -127,7 +127,7 @@ public:
       metrics.timeStamp = protoMsg.timestamp_us();
       metrics.avgLatencyUs = protoMsg.avg_latency_us();
 
-      LOG_DEBUG("{}", utils::toString(metrics));
+      LOG_TRACE("{}", utils::toString(metrics));
 
       consumer.post(metrics);
       break;
@@ -140,7 +140,7 @@ public:
       entry.message = protoMsg.message();
       entry.level = protoMsg.level();
 
-      LOG_DEBUG("{}", utils::toString(entry));
+      LOG_TRACE("{}", utils::toString(entry));
 
       consumer.post(entry);
       break;

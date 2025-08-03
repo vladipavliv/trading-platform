@@ -32,11 +32,11 @@ public:
   size_t orderLimit;
   std::vector<server::ServerOrder> orders;
 
-  void SetUp(const ::benchmark::State &) override {
+  OrderBookFixture() {
     using namespace server;
 
-    ServerConfig::load("server_config.ini");
-    book = std::make_unique<OrderBook>(bus);
+    ServerConfig::load("bench_server_config.ini");
+    resetOrderBook();
     orderLimit = ServerConfig::cfg.orderBookLimit;
 
     bus.marketBus.setHandler<ServerOrder>([](CRef<ServerOrder> o) {});
@@ -50,7 +50,14 @@ public:
     }
   }
 
-  void TearDown(const ::benchmark::State &) override { book.reset(); }
+  void SetUp(const ::benchmark::State &) override {}
+
+  void TearDown(const ::benchmark::State &) override {}
+
+  void resetOrderBook() {
+    using namespace server;
+    book = std::make_unique<OrderBook>(bus);
+  }
 };
 
 BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
@@ -63,9 +70,12 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
     }
 
     CRef<ServerOrder> order = *iter++;
+    if (book->openedOrders() >= ServerConfig::cfg.orderBookLimit) {
+      resetOrderBook();
+    }
     bool added = book->add(order);
     if (!added) {
-      book->clear();
+      resetOrderBook();
       added = book->add(order);
     }
     book->match();

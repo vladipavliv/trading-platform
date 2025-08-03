@@ -29,6 +29,12 @@ inline auto getTimestamp() -> Timestamp {
   return static_cast<uint64_t>(ts.tv_sec) * 1'000'000 + ts.tv_nsec / 1'000;
 }
 
+inline auto getTimestampNs() -> Timestamp {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
+}
+
 inline void pinThreadToCore(size_t coreId) {
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
@@ -129,10 +135,18 @@ auto thousandify(Number input) -> String {
   return ss.str();
 }
 
-inline Order generateOrder() {
+inline Ticker generateTicker() {
+  Ticker result;
+  for (size_t i = 0; i < 4; ++i) {
+    result[i] = RNG::generate<uint8_t>((uint8_t)'A', (uint8_t)'Z');
+  }
+  return result;
+}
+
+inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
   return Order{generateOrderId(),
                getTimestamp(),
-               "GGL",
+               ticker,
                RNG::generate<Quantity>(0, 1000),
                RNG::generate<Price>(10, 10000),
                RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};

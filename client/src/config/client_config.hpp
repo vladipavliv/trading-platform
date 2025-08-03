@@ -97,9 +97,6 @@ struct ClientConfig {
     if (cfg.name.empty() || cfg.password.empty()) {
       throw std::runtime_error("Invalid credentials");
     }
-    if (cfg.logOutput.empty()) {
-      throw std::runtime_error("Invalid log file");
-    }
   }
 
   static void log() {

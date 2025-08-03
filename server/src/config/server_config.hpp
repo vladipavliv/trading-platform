@@ -97,9 +97,6 @@ struct ServerConfig {
     if (cfg.monitorRate.count() == 0) {
       throw std::runtime_error("Invalid rates configuration");
     }
-    if (cfg.logOutput.empty()) {
-      throw std::runtime_error("Invalid log file");
-    }
   }
 
   static void log() {
@@ -108,6 +105,8 @@ struct ServerConfig {
     LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us",
                     cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
                     utils::toString(cfg.coresApp), cfg.priceFeedRate.count());
+    LOG_INFO_SYSTEM("OrderBookLimit: {} OrderBookPersist: {}", cfg.orderBookLimit,
+                    cfg.orderBookPersist);
     LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);
   }
 };

@@ -61,7 +61,7 @@ target_include_directories(hft_common PUBLIC
     ${Protobuf_INCLUDE_DIRS}
 )
 
-set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR")
+set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_CRITICAL")
 
 target_link_libraries(hft_common PRIVATE 
     ${Boost_LIBRARIES} 

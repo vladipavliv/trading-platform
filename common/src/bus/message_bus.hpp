@@ -33,7 +33,7 @@ public:
     requires RoutedType<EventType>
   void setHandler(CRefHandler<EventType> handler) {
     auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
-    if (handlerRef != nullptr) {
+    if (handlerRef) {
       LOG_ERROR("Handler is already registered for the type {}", typeid(EventType).name());
     } else {
       handlerRef = std::move(handler);
@@ -44,7 +44,10 @@ public:
     requires RoutedType<EventType>
   inline void post(CRef<EventType> event) {
     auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
-    assert(handlerRef != nullptr && "Handler not registered for event type");
+    if (!handlerRef) {
+      LOG_ERROR("Handler not registered for event type");
+      return;
+    }
     handlerRef(event);
   }
 

@@ -6,6 +6,12 @@ ulimit -c unlimited
 
 args=("$@")
 
+if [[ " ${args[@]} " =~ " b " ]]; then
+    cd build/benchmarks
+    sudo ./run_benchmarks 
+    exit 0
+fi
+
 if [[ " ${args[@]} " =~ " k " ]]; then
     if ! pgrep -f 'kafka.Kafka' > /dev/null; then
         echo "Starting Kafka..."
