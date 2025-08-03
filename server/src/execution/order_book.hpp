@@ -47,13 +47,14 @@ public:
    * @note Not sure about passing bus here, but its convenient. Need to send status
    * not only for fulfillment, but also right away after receiving order.
    */
-  explicit OrderBook(Bus &bus) : bus_{bus}, orderBookLimit_{ServerConfig::cfg.orderBookLimit} {
+  OrderBook() : orderBookLimit_{ServerConfig::cfg.orderBookLimit} {
     bids_.reserve(orderBookLimit_);
     asks_.reserve(orderBookLimit_);
   }
   ~OrderBook() = default;
 
-  bool add(CRef<ServerOrder> order) {
+  template <typename Matcher>
+  bool add(CRef<ServerOrder> order, Matcher &matcher) {
     bool hasMatch{false};
 
     if (openedOrders_ >= orderBookLimit_) {
@@ -64,7 +65,7 @@ public:
       return false;
 
       LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, openedOrders_);
-      bus_.post(getStatus(order, 0, 0, OrderState::Rejected));
+      matcher(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
     if (order.order.action == OrderAction::Buy) {
@@ -83,13 +84,14 @@ public:
       }
     }
     // if (hasMatch) {
-    bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
+    matcher(getStatus(order, 0, order.order.price, OrderState::Accepted));
     //}
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return true;
   }
 
-  void match() {
+  template <typename Matcher>
+  void match(Matcher &matcher) {
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -103,12 +105,12 @@ public:
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        bus_.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
+        matcher(getStatus(bestBid, quantity, bestAsk.order.price, state));
       }
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        bus_.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+        matcher(getStatus(bestAsk, quantity, bestAsk.order.price, state));
       }
 
       if (bestBid.order.quantity == 0) {
@@ -123,17 +125,46 @@ public:
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
+  auto extract() -> Vector<ServerOrder> {
+    Vector<ServerOrder> orders;
+    orders.reserve(bids_.size() + asks_.size());
+
+    orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
+                  std::make_move_iterator(bids_.end()));
+    orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
+                  std::make_move_iterator(asks_.end()));
+
+    bids_.clear();
+    asks_.clear();
+    openedOrders_.store(0, std::memory_order_relaxed);
+    return orders;
+  }
+
+  void inject(Span<const ServerOrder> orders) {
+    size_t injected{0};
+    for (const auto &order : orders) {
+      if (injected >= orderBookLimit_) {
+        LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, injected);
+        break;
+      }
+      if (order.order.action == OrderAction::Buy) {
+        bids_.push_back(order);
+        std::push_heap(bids_.begin(), bids_.end(), compareBids);
+
+      } else {
+        asks_.push_back(order);
+        std::push_heap(asks_.begin(), asks_.end(), compareAsks);
+      }
+      ++injected;
+    }
+    openedOrders_ = injected;
+  }
+
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
-  auto bids() const -> CRef<std::vector<ServerOrder>> { return bids_; }
-
-  auto asks() const -> CRef<std::vector<ServerOrder>> { return asks_; }
-
 private:
-  Bus &bus_;
-
-  std::vector<ServerOrder> bids_;
-  std::vector<ServerOrder> asks_;
+  Vector<ServerOrder> bids_;
+  Vector<ServerOrder> asks_;
 
   std::atomic_size_t openedOrders_{0};
   const size_t orderBookLimit_;

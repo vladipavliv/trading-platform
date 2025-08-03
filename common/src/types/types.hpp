@@ -59,8 +59,8 @@ template <typename Type>
 using Span = std::span<Type>;
 using ByteSpan = Span<uint8_t>;
 
-template <typename K, typename V>
-using HashMap = std::unordered_map<K, V>;
+template <typename K, typename V, typename Hash = std::hash<K>>
+using HashMap = std::unordered_map<K, V, Hash>;
 
 template <typename Type>
 using Atomic = std::atomic<Type>;
@@ -70,6 +70,9 @@ using Expected = std::expected<Type, StatusCode>;
 
 template <typename Type>
 using Optional = std::optional<Type>;
+
+template <typename Type>
+using Vector = std::vector<Type>;
 
 /**
  * Function types

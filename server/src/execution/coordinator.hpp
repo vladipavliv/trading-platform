@@ -105,8 +105,9 @@ private:
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     const auto &data = data_.at(order.order.ticker);
     workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
-      if (data->orderBook.add(order)) {
-        data->orderBook.match();
+      const auto matcher = [this](CRef<ServerOrderStatus> status) { bus_.post(status); };
+      if (data->orderBook.add(order, matcher)) {
+        data->orderBook.match(matcher);
       }
     });
   }

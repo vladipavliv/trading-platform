@@ -53,7 +53,7 @@ void ServerFixture::fillMarketData() {
   for (size_t i = 0; i < 10; ++i) {
     const auto ticker = generateTicker();
     const auto price = RNG::generate<Price>(0, 100);
-    data.emplace(ticker, std::make_unique<TickerData>(*bus, workerId, price));
+    data.emplace(ticker, std::make_unique<TickerData>(workerId, price));
     workerId = ++workerId == ServerConfig::cfg.coresApp.size() ? 0 : workerId;
   }
 }

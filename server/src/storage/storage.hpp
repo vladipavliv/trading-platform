@@ -19,8 +19,8 @@ namespace hft::server {
 
 class Storage {
 public:
-  explicit Storage(Bus &bus, PostgresAdapter &dbAdapter)
-      : bus_{bus}, dbAdapter_{dbAdapter}, marketData_{loadMarketData()},
+  explicit Storage(PostgresAdapter &dbAdapter)
+      : dbAdapter_{dbAdapter}, marketData_{loadMarketData()},
         persist_{ServerConfig::cfg.orderBookPersist} {}
 
   void save() {
@@ -33,16 +33,14 @@ public:
     size_t ordersSaved{0};
     Timestamp lastLog{getTimestamp()};
     for (const auto &data : marketData_) {
-      const auto &bids = data.second->orderBook.bids();
-      const auto &asks = data.second->orderBook.asks();
+      const auto orders = data.second->orderBook.extract();
 
-      TableWriter<ServerOrder> bidsWriter{bids};
-      TableWriter<ServerOrder> asksWriter{asks};
-      if (!dbAdapter_.write(bidsWriter) || !dbAdapter_.write(asksWriter)) {
+      TableWriter<ServerOrder> ordersWriter{orders};
+      if (!dbAdapter_.write(ordersWriter)) {
         LOG_ERROR_SYSTEM("Failed to persist orders");
         return;
       }
-      ordersSaved += bids.size() + asks.size();
+      ordersSaved += orders.size();
       const auto now = utils::getTimestamp();
       if (now - lastLog > 1000000) {
         LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
@@ -71,14 +69,20 @@ public:
     }
     LOG_INFO_SYSTEM("Orders loaded: {}", thousandify(orders.size()));
 
+    HashMap<Ticker, Vector<ServerOrder>, TickerHash> ordersMap;
     for (const auto &order : orders) {
       if (marketData_.count(order.order.ticker) == 0) {
         LOG_ERROR_SYSTEM("Invalid ticker loaded {}", toString(order.order.ticker));
         continue;
       }
-      const auto &data = marketData_.at(order.order.ticker);
-      data->orderBook.add(order);
+      ordersMap[order.order.ticker].push_back(order);
     }
+
+    for (const auto &order : ordersMap) {
+      const auto &data = marketData_.at(order.first);
+      data->orderBook.inject(Span<const ServerOrder>(order.second));
+    }
+
     dbAdapter_.clean(DbTypeMapper<ServerOrder>::table());
   }
 
@@ -103,7 +107,7 @@ private:
     for (const auto &item : prices) {
       LOG_TRACE("{}: ${}", utils::toString(item.ticker), item.price);
       const size_t workerId = std::min(idx / tickerPerWorker, workers - 1);
-      data.emplace(item.ticker, std::make_unique<TickerData>(bus_, workerId, item.price));
+      data.emplace(item.ticker, std::make_unique<TickerData>(workerId, item.price));
       ++idx;
     }
     LOG_INFO("Data loaded for {} tickers", data.size());
@@ -111,11 +115,8 @@ private:
   }
 
 private:
-  Bus &bus_;
-
   PostgresAdapter &dbAdapter_;
   const MarketData marketData_;
-
   const bool persist_;
 };
 

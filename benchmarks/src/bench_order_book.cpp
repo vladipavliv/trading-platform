@@ -14,20 +14,8 @@
 
 namespace hft::benchmarks {
 
-namespace {
-server::ServerOrder generateOrder() {
-  using namespace utils;
-  using namespace server;
-  return ServerOrder{
-      0, Order{generateOrderId(), getTimestamp(), "GGL", RNG::generate<Quantity>(0, 1000),
-               RNG::generate<Price>(10, 10000),
-               RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell}};
-}
-} // namespace
-
 class OrderBookFixture : public benchmark::Fixture {
 public:
-  server::Bus bus;
   UPtr<server::OrderBook> book;
   size_t orderLimit;
   std::vector<server::ServerOrder> orders;
@@ -39,14 +27,10 @@ public:
     resetOrderBook();
     orderLimit = ServerConfig::cfg.orderBookLimit;
 
-    bus.marketBus.setHandler<ServerOrder>([](CRef<ServerOrder> o) {});
-    bus.marketBus.setHandler<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {});
-    bus.marketBus.setHandler<TickerPrice>([](CRef<TickerPrice> p) {});
-
     // pregenerate a bunch of orders
     orders.reserve(orderLimit);
     for (size_t i = 0; i < orderLimit; ++i) {
-      orders.emplace_back(generateOrder());
+      orders.emplace_back(ServerOrder{0, utils::generateOrder()});
     }
   }
 
@@ -56,13 +40,15 @@ public:
 
   void resetOrderBook() {
     using namespace server;
-    book = std::make_unique<OrderBook>(bus);
+    book = std::make_unique<OrderBook>();
   }
 };
 
 BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
   using namespace server;
   std::vector<server::ServerOrder>::iterator iter = orders.begin();
+
+  const auto matcher = [](CRef<ServerOrderStatus> status) {};
 
   for (auto _ : state) {
     if (iter == orders.end()) {
@@ -73,12 +59,12 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
     if (book->openedOrders() >= ServerConfig::cfg.orderBookLimit) {
       resetOrderBook();
     }
-    bool added = book->add(order);
+    bool added = book->add(order, matcher);
     if (!added) {
       resetOrderBook();
-      added = book->add(order);
+      added = book->add(order, matcher);
     }
-    book->match();
+    book->match(matcher);
 
     benchmark::DoNotOptimize(&order);
     benchmark::DoNotOptimize(&added);

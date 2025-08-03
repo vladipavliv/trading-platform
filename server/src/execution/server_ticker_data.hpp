@@ -22,8 +22,9 @@ namespace hft::server {
  * @brief All the data in one place
  * @todo Add atomic flag to lock the book for rerouting
  */
-struct TickerData {
-  TickerData(Bus &bus, ThreadId id, Price price) : orderBook{bus}, threadId_{id}, price_{price} {}
+class TickerData {
+public:
+  TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
 
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }
@@ -44,12 +45,8 @@ private:
   TickerData &operator=(TickerData &&other) = delete;
 };
 
-/**
- * @todo Not great for cache locality, instead try hashmap Ticker->Index
- * and additional vector Index->TickerData, or better yet, a vector of vectors
- * So each worker has its own tightly packed block of memory with tickers
- * And false sharing is less of a risk
- */
+// class MarketData {};
+
 using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
 
 } // namespace hft::server
