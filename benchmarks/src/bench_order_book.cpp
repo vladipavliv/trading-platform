@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
+#include "concepts/busable.hpp"
 #include "config/server_config.hpp"
 #include "execution/order_book.hpp"
 #include "server_types.hpp"
@@ -34,6 +35,9 @@ public:
     }
   }
 
+  template <typename EventType>
+  void post(CRef<EventType>) {}
+
   void SetUp(const ::benchmark::State &) override {}
 
   void TearDown(const ::benchmark::State &) override {}
@@ -48,8 +52,6 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
   using namespace server;
   std::vector<server::ServerOrder>::iterator iter = orders.begin();
 
-  const auto matcher = [](CRef<ServerOrderStatus> status) {};
-
   for (auto _ : state) {
     if (iter == orders.end()) {
       iter = orders.begin();
@@ -59,12 +61,12 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
     if (book->openedOrders() >= ServerConfig::cfg.orderBookLimit) {
       resetOrderBook();
     }
-    bool added = book->add(order, matcher);
+    bool added = book->add(order, *this);
     if (!added) {
       resetOrderBook();
-      added = book->add(order, matcher);
+      added = book->add(order, *this);
     }
-    book->match(matcher);
+    book->match(*this);
 
     benchmark::DoNotOptimize(&order);
     benchmark::DoNotOptimize(&added);

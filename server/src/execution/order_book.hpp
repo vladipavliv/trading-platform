@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "bus/bus.hpp"
+#include "concepts/busable.hpp"
 #include "constants.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
@@ -63,8 +64,8 @@ public:
     return *this;
   };
 
-  template <typename Matcher>
-  bool add(CRef<ServerOrder> order, Matcher &matcher) {
+  template <Busable Consumer>
+  bool add(CRef<ServerOrder> order, Consumer &consumer) {
     bool hasMatch{false};
 
     if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
@@ -75,7 +76,7 @@ public:
       return false;
 
       LOG_ERROR_SYSTEM("OrderBook limit reached: {}", openedOrders_);
-      matcher(getStatus(order, 0, 0, OrderState::Rejected));
+      consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
     if (order.order.action == OrderAction::Buy) {
@@ -94,14 +95,14 @@ public:
       }
     }
     if (hasMatch) {
-      matcher(getStatus(order, 0, order.order.price, OrderState::Accepted));
+      consumer.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
     }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return true;
   }
 
-  template <typename Matcher>
-  void match(Matcher &matcher) {
+  template <Busable Consumer>
+  void match(Consumer &consumer) {
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -115,12 +116,12 @@ public:
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        matcher(getStatus(bestBid, quantity, bestAsk.order.price, state));
+        consumer.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
       }
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        matcher(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+        consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
       }
 
       if (bestBid.order.quantity == 0) {
