@@ -24,19 +24,21 @@ namespace hft::server {
  */
 class TickerData {
 public:
-  TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
+  TickerData(ThreadId id, Price price) : threadId_{id} {}
 
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }
 
-  inline void setPrice(Price price) const { price_.store(price, std::memory_order_release); }
-  inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
-
   OrderBook orderBook;
 
 private:
-  alignas(CACHE_LINE_SIZE) std::atomic<ThreadId> threadId_;
-  alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price_;
+  /**
+   * @brief Even though threadId_ is frequently read by network threads
+   * it wont be frequently written, only for rerouting, which is more of
+   * an exception. So there is no need wasting whole cache line for that
+   * More important to pack the data as tight as possible
+   */
+  std::atomic<ThreadId> threadId_;
 
   TickerData() = delete;
   TickerData(const TickerData &) = delete;
@@ -44,6 +46,7 @@ private:
   TickerData(TickerData &&) = delete;
   TickerData &operator=(TickerData &&other) = delete;
 };
+static_assert(sizeof(TickerData) == 64);
 
 // class MarketData {};
 

@@ -47,9 +47,9 @@ public:
    * @note Not sure about passing bus here, but its convenient. Need to send status
    * not only for fulfillment, but also right away after receiving order.
    */
-  OrderBook() : orderBookLimit_{ServerConfig::cfg.orderBookLimit} {
-    bids_.reserve(orderBookLimit_);
-    asks_.reserve(orderBookLimit_);
+  OrderBook() {
+    bids_.reserve(ServerConfig::cfg.orderBookLimit);
+    asks_.reserve(ServerConfig::cfg.orderBookLimit);
   }
   ~OrderBook() = default;
 
@@ -57,14 +57,14 @@ public:
   bool add(CRef<ServerOrder> order, Matcher &matcher) {
     bool hasMatch{false};
 
-    if (openedOrders_ >= orderBookLimit_) {
+    if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
       // TODO() cleanup
       bids_.clear();
       asks_.clear();
       openedOrders_ = 0;
       return false;
 
-      LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, openedOrders_);
+      LOG_ERROR_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       matcher(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
@@ -143,8 +143,8 @@ public:
   void inject(Span<const ServerOrder> orders) {
     size_t injected{0};
     for (const auto &order : orders) {
-      if (injected >= orderBookLimit_) {
-        LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, injected);
+      if (injected >= ServerConfig::cfg.orderBookLimit) {
+        LOG_ERROR_SYSTEM("OrderBook limit reached: {}", injected);
         break;
       }
       if (order.order.action == OrderAction::Buy) {
@@ -167,7 +167,6 @@ private:
   Vector<ServerOrder> asks_;
 
   std::atomic_size_t openedOrders_{0};
-  const size_t orderBookLimit_;
 };
 
 } // namespace hft::server
