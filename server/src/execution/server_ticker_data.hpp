@@ -44,6 +44,12 @@ private:
   TickerData &operator=(TickerData &&other) = delete;
 };
 
+/**
+ * @todo Not great for cache locality, instead try hashmap Ticker->Index
+ * and additional vector Index->TickerData, or better yet, a vector of vectors
+ * So each worker has its own tightly packed block of memory with tickers
+ * And false sharing is less of a risk
+ */
 using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
 
 } // namespace hft::server
