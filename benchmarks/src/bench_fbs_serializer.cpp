@@ -46,7 +46,7 @@ static void BM_fbsDeserialize(benchmark::State &state) {
     ok = FbsDomainSerializer::deserialize<BusHolder<Order>>(buffer.data(), buffer.size(), bus);
   }
   benchmark::DoNotOptimize(&buffer);
-  benchmark::DoNotOptimize(&ok);
+  benchmark::DoNotOptimize(ok);
 }
 BENCHMARK(BM_fbsDeserialize);
 

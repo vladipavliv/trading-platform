@@ -46,6 +46,8 @@ public:
         ioCtx.run();
       } catch (CRef<std::exception> e) {
         LOG_ERROR_SYSTEM("Exception in worker thread {} {}", threadId_, e.what());
+      } catch (...) {
+        LOG_ERROR_SYSTEM("Unknown exception in worker thread {}", threadId_);
       }
     }};
   }

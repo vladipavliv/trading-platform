@@ -6,38 +6,23 @@
 - [Usage](#usage)
     - [Setup environment](#setup-environment)
     - [Configuration](#configuration)
-    - [Run server](#run-server)
-    - [Run client](#run-client)
-    - [Run monitor](#run-monitor)
-- [Testing](#testing)    
+    - [Run the server](#run-the-server)
+    - [Run the client](#run-the-client)
+    - [Run the monitor](#run-monitor)
 - [Performance](#performance)
-- [Roadmap](#roadmap)
 
 ## Introduction
-C++ hft platform based on boost.asio, with the main focus on performance, simplicity and configurability. Key design choices:
-- Use templates instead of polymorphism to maximize cache locality and inlining
+C++ hft platform based on boost.asio, with the main focus on performance, simplicity and scalability. Key design choices:
+- Dedicated thread per order-processing worker to utilize multi-core CPUs
+- Distribute tickers across workers to maximize cache locality
 - Fully lock-free design, no thread ever waits for another
+- Interface-free, template-based design for better inlining
 - Event bus for simple, decoupled communication
-
-### Server
-Runs a network io_context, a number of workers for order processing with a separate io_context each, and system io_context for system tasks and events. Number of network threads and workers as well as the cores to pin them are defined in the configuration file. Tickers are distributed among workers for parallel processing.
-
-### Client
-Runs a network io_context, a single worker with a separate io_context for generating/sending orders, and a system io_context. Currently worker is simplified to generate random order at a given rate, track order status notifications, log rtt and receive price updates.
-
-### Monitor
-Sends commands to client/server and monitors telemetry via kafka messages.
 
 ## Installation
 
 ### Main dependencies
-- **Boost**
-- **Folly**
-- **spdlog**
-- **Flatbuffers**
-- **Protobuf**
-- **libpqxx**
-- **librdkafka**
+Boost, Folly, FlatBuffers, Protobuf, libpqxx, librdkafka, spdlog
 
 ### Setup repository
 ```bash
@@ -65,32 +50,23 @@ build/client/client_config.ini
 build/monitor/monitor_config.ini
 ```
 
-### Run server
+### Run the server
 ```bash
 ./run.sh s k
 ```
 Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
 
-### Run client
+### Run the client
 ```bash
 ./run.sh c k
 ```
 Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
 
-### Run monitor
+### Run the monitor
 ```bash
 ./run.sh m k
 ```
 Enter client or server command, kafka should be running and enabled in configuration.
-
-## Testing
-Testing strategy is still in consideration. As interfaces have not been used for maximum blazing fastness, and only some components are templated, mocking possibilities are limited.
-
-Current ideas:
-- Communication is decoupled via the bus, so alot of stuff could be tested without mocks
-- Not every component needs to be mocked, hot paths could be tested as is
-- Performance-critical components, like the network layer, could be templated and mocked
-- Less performance-critical components, like adapters, could use interfaces for higher configurability
 
 ## Performance
 Localhost, single client, all threads pinned to cores, 1us trade rate:
@@ -112,21 +88,19 @@ Client:
 23:10:23.670371 [I] Rtt: [<50us|>50us] 98.19% avg:25us 1.81% avg:76us
 23:10:23.814607 [I] Rtt: [<50us|>50us] 98.53% avg:23us 1.47% avg:76us
 ```
-
-## Roadmap
-- [x] **Stream metrics to kafka**  
-Offload the latencies and other metadata to kafka
-- [x] **Monitor the metrics**  
-Make separate monitoring service
-- [x] **Persist the data**  
-Persist metadata to ClickHouse, opened orders to Postgres at a shutdown
-- [ ] **Improve authentication**  
-Encrypt the password, use nonce
-- [ ] **Ticker rerouting**  
-Load balance workers by rerouting tickers, dynamic workers add/remove
-- [ ] **Proper trading strategy**  
-And price fluctuations
-- [ ] **Optimize**  
-Profile cache misses, try SBE serialization
-- [ ] **Improve metrics streaming**  
-Make separate DataBus to offload intense metadata streaming traffic from system bus
+Some benchmarks:
+```bash
+--------------------------------------------------------------------
+Benchmark                          Time             CPU   Iterations
+--------------------------------------------------------------------
+ServerFixture/ProcessOrders      320 ns          312 ns      2235988 <- (1 worker)
+BM_protoSerialize                125 ns          124 ns      5672217
+BM_protoDeserialize             93.0 ns         91.6 ns      7591133
+OrderBookFixture/AddOrder       85.5 ns         84.3 ns      8224945
+BM_fbsSerialize                 40.8 ns         40.2 ns     17380702
+BM_fbsDeserialize               23.3 ns         23.0 ns     30676374
+BM_messageBusPost               1.40 ns         1.38 ns    488956430
+BM_systemBusPost                54.2 ns         53.3 ns     10000000
+...
+ServerFixture/RunServer          794 ns          756 ns       861042 <- (2 workers)
+```

@@ -5,4 +5,16 @@
 
 #include <benchmark/benchmark.h>
 
-BENCHMARK_MAIN();
+#include "bench_server.hpp"
+
+int main(int argc, char **argv) {
+  ::benchmark::Initialize(&argc, argv);
+
+  if (::benchmark::ReportUnrecognizedArguments(argc, argv))
+    return 1;
+  ::benchmark::RunSpecifiedBenchmarks();
+
+  hft::benchmarks::ServerFixture::GlobalTearDown();
+
+  return 0;
+}

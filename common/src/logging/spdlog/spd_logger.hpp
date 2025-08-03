@@ -48,22 +48,31 @@ public:
 private:
   static void initConsoleLogger() {
     auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    consoleLogger = std::make_shared<spdlog::logger>("console_monitor", consoleSink);
+    consoleLogger = std::make_shared<spdlog::logger>("console_logger", consoleSink);
     consoleLogger->set_pattern(LOG_PATTERN);
   }
 
   static void initFileLogger(const std::string &filename) {
-    spdlog::init_thread_pool(8192, 1);
-    auto rotatingSink =
-        std::make_shared<spdlog::sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 10);
-    fileLogger = std::make_shared<spdlog::async_logger>(
-        "async_file_logger", rotatingSink, spdlog::thread_pool(),
-        spdlog::async_overflow_policy::overrun_oldest);
+    using namespace spdlog;
+    if (filename.empty()) {
+      fileLogger = consoleLogger;
+      consoleLogger.reset();
+      register_logger(fileLogger);
+      set_default_logger(fileLogger);
+      return;
+    }
+    init_thread_pool(8192, 1);
+    auto rotatingSink = std::make_shared<sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 10);
+    fileLogger = std::make_shared<async_logger>( // format
+        "async_file_logger", rotatingSink, thread_pool(), async_overflow_policy::overrun_oldest);
     fileLogger->set_pattern(LOG_PATTERN);
-    spdlog::register_logger(fileLogger);
-    spdlog::set_default_logger(fileLogger);
+    register_logger(fileLogger);
+    set_default_logger(fileLogger);
   }
 };
+
+inline SpdLogger::SPtrSpdLogger SpdLogger::consoleLogger;
+inline SpdLogger::SPtrSpdLogger SpdLogger::fileLogger;
 
 } // namespace hft
 

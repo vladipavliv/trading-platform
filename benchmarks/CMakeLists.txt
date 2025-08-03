@@ -24,10 +24,10 @@ target_include_directories(run_benchmarks PRIVATE
 
 add_custom_command(
     TARGET run_benchmarks POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/server_config.ini ${CMAKE_BINARY_DIR}/benchmarks
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/bench_server_config.ini ${CMAKE_BINARY_DIR}/benchmarks
 )
 
 add_custom_command(
     TARGET run_benchmarks POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/client_config.ini ${CMAKE_BINARY_DIR}/benchmarks
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/bench_client_config.ini ${CMAKE_BINARY_DIR}/benchmarks
 )

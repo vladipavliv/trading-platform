@@ -54,10 +54,16 @@ public:
   ~OrderBook() = default;
 
   bool add(CRef<ServerOrder> order) {
-    bool hasMatch{true};
+    bool hasMatch{false};
+
     if (openedOrders_ >= orderBookLimit_) {
-      LOG_ERROR_SYSTEM("OrderBook limit reached {}", openedOrders_);
-      LOG_ERROR_SYSTEM("Rejecting order {}", utils::toString(order))
+      // TODO() cleanup
+      bids_.clear();
+      asks_.clear();
+      openedOrders_ = 0;
+      return false;
+
+      LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, openedOrders_);
       bus_.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
@@ -65,28 +71,22 @@ public:
       bids_.push_back(order);
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
 
-      // Send accepted only if no immediate match, otherwise rtt drops quite a bit
-      if (!asks_.empty()) {
-        ServerOrder &bestAsk = asks_.front();
-        if (order.order.price < bestAsk.order.price) {
-          bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
-          hasMatch = false;
-        }
+      if (!asks_.empty() && order.order.price >= asks_.front().order.price) {
+        hasMatch = true;
       }
     } else {
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
 
-      if (!bids_.empty()) {
-        ServerOrder &bestBid = bids_.front();
-        if (order.order.price > bestBid.order.price) {
-          bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
-          hasMatch = false;
-        }
+      if (!bids_.empty() && order.order.price <= bids_.front().order.price) {
+        hasMatch = true;
       }
     }
+    // if (hasMatch) {
+    bus_.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
+    //}
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
-    return hasMatch;
+    return true;
   }
 
   void match() {
@@ -129,19 +129,13 @@ public:
 
   auto asks() const -> CRef<std::vector<ServerOrder>> { return asks_; }
 
-  void clear() {
-    bids_.clear();
-    asks_.clear();
-    openedOrders_ = 0;
-  }
-
 private:
   Bus &bus_;
 
   std::vector<ServerOrder> bids_;
   std::vector<ServerOrder> asks_;
 
-  std::atomic_size_t openedOrders_;
+  std::atomic_size_t openedOrders_{0};
   const size_t orderBookLimit_;
 };
 
