@@ -43,7 +43,7 @@ class PriceFeed {
       rate = price * RNG::generate<double>(-MAX_RATE_US + drift, MAX_RATE_US + drift);
       duration = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
       lastUpdate = now;
-      LOG_DEBUG("{} price:{} rate:{} duration:{}", toString(ticker), price, rate, duration);
+      LOG_DEBUG("{} price:{} rate:{} duration:{}", toString(base), price, rate, duration);
     }
 
     bool update(Timestamp timeStamp) {
@@ -58,7 +58,7 @@ class PriceFeed {
       }
       price += rate * timeDelta;
 
-      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(ticker), timeDelta, price, duration);
+      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(base), timeDelta, price, duration);
 
       if (duration == 0) {
         randomize(timeStamp);
@@ -125,11 +125,11 @@ private:
   }
 
   void updatePrices() {
-    const auto timeStamp = utils::getTimestamp();
+    using namespace utils;
+    const auto timeStamp = getTimestamp();
     for (auto &item : fluctuations_) {
       if (item.update(timeStamp)) {
-        LOG_DEBUG("Price changed for {}: {}=>{}", utils::toString(item.ticker),
-                  item.data.getPrice(), item.getPrice());
+        LOG_DEBUG("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
         const auto newPrice = item.getPrice();
         bus_.marketBus.post(TickerPrice{item.base.ticker, newPrice});
       }

@@ -78,7 +78,7 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
     consoleReader_.printCommands();
-    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
+    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().tickers());
   }
 
 private:

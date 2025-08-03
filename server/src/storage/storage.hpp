@@ -11,6 +11,7 @@
 #include "db_table_reader.hpp"
 #include "db_table_writer.hpp"
 #include "db_type_mapper.hpp"
+#include "execution/market_data.hpp"
 #include "execution/server_ticker_data.hpp"
 #include "logging.hpp"
 #include "types.hpp"
@@ -32,19 +33,23 @@ public:
 
     size_t ordersSaved{0};
     Timestamp lastLog{getTimestamp()};
-    for (const auto &data : marketData_) {
-      const auto orders = data.second->orderBook.extract();
+    const size_t workerCount = ServerConfig::cfg.coresApp.size();
 
-      TableWriter<ServerOrder> ordersWriter{orders};
-      if (!dbAdapter_.write(ordersWriter)) {
-        LOG_ERROR_SYSTEM("Failed to persist orders");
-        return;
-      }
-      ordersSaved += orders.size();
-      const auto now = utils::getTimestamp();
-      if (now - lastLog > 1000000) {
-        LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
-        lastLog = now;
+    for (size_t idx = 0; idx < workerCount; ++idx) {
+      const auto &workerData = marketData_.getWorkerData(idx);
+      for (const auto &tickerData : workerData) {
+        const auto orders = tickerData.orderBook.extract();
+        TableWriter<ServerOrder> ordersWriter{orders};
+        if (!dbAdapter_.write(ordersWriter)) {
+          LOG_ERROR_SYSTEM("Failed to persist orders");
+          return;
+        }
+        ordersSaved += orders.size();
+        const auto now = utils::getTimestamp();
+        if (now - lastLog > 1000000) {
+          LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
+          lastLog = now;
+        }
       }
     }
     LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
@@ -71,7 +76,7 @@ public:
 
     HashMap<Ticker, Vector<ServerOrder>, TickerHash> ordersMap;
     for (const auto &order : orders) {
-      if (marketData_.count(order.order.ticker) == 0) {
+      if (!marketData_.contains(order.order.ticker)) {
         LOG_ERROR_SYSTEM("Invalid ticker loaded {}", toString(order.order.ticker));
         continue;
       }
@@ -79,8 +84,8 @@ public:
     }
 
     for (const auto &order : ordersMap) {
-      const auto &data = marketData_.at(order.first);
-      data->orderBook.inject(Span<const ServerOrder>(order.second));
+      auto &data = marketData_[order.first];
+      data.orderBook.inject(Span<const ServerOrder>(order.second));
     }
 
     dbAdapter_.clean(DbTypeMapper<ServerOrder>::table());
@@ -98,19 +103,19 @@ private:
       throw std::runtime_error(utils::toString(result.error()));
     }
     const auto &prices = result.value();
-    MarketData data;
-    data.reserve(prices.size());
-    const auto workers = ServerConfig::cfg.coresApp.size();
+    const auto workerCount = ServerConfig::cfg.coresApp.size();
 
-    size_t idx{0};
-    const size_t tickerPerWorker{prices.size() / workers};
+    MarketData data{workerCount, prices.size()};
+
+    size_t workerIdx{0};
     for (const auto &item : prices) {
       LOG_TRACE("{}: ${}", utils::toString(item.ticker), item.price);
-      const size_t workerId = std::min(idx / tickerPerWorker, workers - 1);
-      data.emplace(item.ticker, std::make_unique<TickerData>(workerId, item.price));
-      ++idx;
+      data.addTicker(item.ticker, workerIdx);
+      if (++workerIdx == workerCount) {
+        workerIdx = 0;
+      }
     }
-    LOG_INFO("Data loaded for {} tickers", data.size());
+    LOG_INFO("Data loaded for {} tickers", data.tickers());
     return data;
   }
 

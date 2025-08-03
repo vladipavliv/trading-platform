@@ -51,7 +51,17 @@ public:
     bids_.reserve(ServerConfig::cfg.orderBookLimit);
     asks_.reserve(ServerConfig::cfg.orderBookLimit);
   }
-  ~OrderBook() = default;
+
+  OrderBook(OrderBook &&other) noexcept
+      : bids_{std::move(other.bids_)}, asks_{std::move(other.asks_)},
+        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {};
+
+  OrderBook &operator=(OrderBook &&other) noexcept {
+    bids_ = std::move(other.bids_);
+    asks_ = std::move(other.asks_);
+    openedOrders_ = other.openedOrders_.load(std::memory_order_acquire);
+    return *this;
+  };
 
   template <typename Matcher>
   bool add(CRef<ServerOrder> order, Matcher &matcher) {
@@ -83,9 +93,9 @@ public:
         hasMatch = true;
       }
     }
-    // if (hasMatch) {
-    matcher(getStatus(order, 0, order.order.price, OrderState::Accepted));
-    //}
+    if (hasMatch) {
+      matcher(getStatus(order, 0, order.order.price, OrderState::Accepted));
+    }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return true;
   }
@@ -125,18 +135,24 @@ public:
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
+  auto extract() const -> Vector<ServerOrder> {
+    Vector<ServerOrder> orders;
+    orders.reserve(bids_.size() + asks_.size());
+    orders.insert(orders.end(), bids_.begin(), bids_.end());
+    orders.insert(orders.end(), asks_.begin(), asks_.end());
+    return orders;
+  }
+
   auto extract() -> Vector<ServerOrder> {
     Vector<ServerOrder> orders;
     orders.reserve(bids_.size() + asks_.size());
-
     orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
                   std::make_move_iterator(bids_.end()));
     orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
                   std::make_move_iterator(asks_.end()));
-
     bids_.clear();
     asks_.clear();
-    openedOrders_.store(0, std::memory_order_relaxed);
+    openedOrders_ = 0;
     return orders;
   }
 
@@ -161,6 +177,10 @@ public:
   }
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
+
+private:
+  OrderBook(const OrderBook &) = delete;
+  OrderBook &operator=(const OrderBook &other) = delete;
 
 private:
   Vector<ServerOrder> bids_;
