@@ -34,16 +34,15 @@ public:
       return false;
     }
     consumer.post(
-        OrderTimestamp{msg->order_id(), msg->created(), msg->accepted(), msg->notified()});
+        OrderTimestamp{msg->order_id(), msg->created(), msg->fulfilled(), msg->notified()});
     return true;
   }
 
-  static BufferType serialize(CRef<OrderTimestamp> event) {
-    LOG_DEBUG("Serializing {}", utils::toString(event));
+  static BufferType serialize(CRef<OrderTimestamp> e) {
+    LOG_DEBUG("Serializing {}", utils::toString(e));
     using namespace gen::fbs::metadata;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg =
-        CreateOrderTimestamp(builder, event.orderId, event.created, event.accepted, event.notified);
+    const auto msg = CreateOrderTimestamp(builder, e.orderId, e.created, e.fulfilled, e.notified);
     builder.Finish(msg);
     return builder.Release();
   }

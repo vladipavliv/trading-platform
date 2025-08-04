@@ -82,7 +82,7 @@ inline String toString(const OrderAction &state) {
 
 inline String toString(CRef<OrderTimestamp> event) {
   std::stringstream ss;
-  ss << "OrderTimestamp: " << event.orderId << " " << event.created << " " << event.accepted << " "
+  ss << "OrderTimestamp: " << event.orderId << " " << event.created << " " << event.fulfilled << " "
      << event.notified;
   return ss.str();
 }

@@ -75,7 +75,7 @@ public:
   auto getWorkerData(ThreadId workerId) const -> CRef<Vector<TickerData>> {
     // TODO() make proper iterating to avoid this
     if (workerId >= data_.size()) {
-      throw std::runtime_error("workerId is out of bounds");
+      throw std::out_of_range("workerId is out of bounds");
     }
     return data_[workerId];
   }

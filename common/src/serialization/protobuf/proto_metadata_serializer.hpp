@@ -39,7 +39,7 @@ public:
 
     protoMsg->set_order_id(msg.orderId);
     protoMsg->set_created(msg.created);
-    protoMsg->set_accepted(msg.accepted);
+    protoMsg->set_fulfilled(msg.fulfilled);
     protoMsg->set_notified(msg.notified);
 
     return frame<gen::proto::metadata::Envelope>(envelope);
@@ -110,7 +110,7 @@ public:
 
       stamp.orderId = protoMsg.order_id();
       stamp.created = protoMsg.created();
-      stamp.accepted = protoMsg.accepted();
+      stamp.fulfilled = protoMsg.fulfilled();
       stamp.notified = protoMsg.notified();
 
       LOG_TRACE("{}", utils::toString(stamp));

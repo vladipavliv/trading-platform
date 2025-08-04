@@ -14,7 +14,7 @@ namespace hft {
 struct OrderTimestamp {
   OrderId orderId;
   Timestamp created;
-  Timestamp accepted;
+  Timestamp fulfilled;
   Timestamp notified;
 };
 

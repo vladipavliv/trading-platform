@@ -22,7 +22,7 @@ namespace hft::server {
  * @brief All the data in one place
  * @todo Add atomic flag to lock the book for rerouting
  */
-class TickerData {
+class alignas(CACHE_LINE_SIZE) TickerData {
 public:
   TickerData(ThreadId id) : threadId_{id} {}
 

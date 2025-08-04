@@ -25,7 +25,7 @@ public:
     using namespace server;
 
     ServerConfig::load("bench_server_config.ini");
-    resetOrderBook();
+    book = std::make_unique<OrderBook>();
     orderLimit = ServerConfig::cfg.orderBookLimit;
 
     // pregenerate a bunch of orders
@@ -41,12 +41,14 @@ public:
   void SetUp(const ::benchmark::State &) override {}
 
   void TearDown(const ::benchmark::State &) override {}
-
-  void resetOrderBook() {
-    using namespace server;
-    book = std::make_unique<OrderBook>();
-  }
 };
+
+template <>
+void OrderBookFixture::post<server::ServerOrderStatus>(CRef<server::ServerOrderStatus> event) {
+  if (event.orderStatus.state == OrderState::Rejected) {
+    book->extract();
+  }
+}
 
 BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
   using namespace server;
@@ -58,14 +60,7 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
     }
 
     CRef<ServerOrder> order = *iter++;
-    if (book->openedOrders() >= ServerConfig::cfg.orderBookLimit) {
-      resetOrderBook();
-    }
     bool added = book->add(order, *this);
-    if (!added) {
-      resetOrderBook();
-      added = book->add(order, *this);
-    }
     book->match(*this);
 
     benchmark::DoNotOptimize(&order);

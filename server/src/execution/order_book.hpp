@@ -44,10 +44,6 @@ class OrderBook {
   }
 
 public:
-  /**
-   * @note Not sure about passing bus here, but its convenient. Need to send status
-   * not only for fulfillment, but also right away after receiving order.
-   */
   OrderBook() {
     bids_.reserve(ServerConfig::cfg.orderBookLimit);
     asks_.reserve(ServerConfig::cfg.orderBookLimit);
@@ -66,15 +62,7 @@ public:
 
   template <Busable Consumer>
   bool add(CRef<ServerOrder> order, Consumer &consumer) {
-    bool hasMatch{false};
-
     if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
-      // TODO() cleanup
-      bids_.clear();
-      asks_.clear();
-      openedOrders_ = 0;
-      return false;
-
       LOG_ERROR_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
@@ -82,20 +70,9 @@ public:
     if (order.order.action == OrderAction::Buy) {
       bids_.push_back(order);
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
-
-      if (!asks_.empty() && order.order.price >= asks_.front().order.price) {
-        hasMatch = true;
-      }
     } else {
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
-
-      if (!bids_.empty() && order.order.price <= bids_.front().order.price) {
-        hasMatch = true;
-      }
-    }
-    if (hasMatch) {
-      consumer.post(getStatus(order, 0, order.order.price, OrderState::Accepted));
     }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return true;
@@ -103,6 +80,9 @@ public:
 
   template <Busable Consumer>
   void match(Consumer &consumer) {
+#ifdef BENCHMARK_BUILD
+    bool notified{false};
+#endif
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -117,11 +97,16 @@ public:
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
         consumer.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
-      }
-      if ((bestBid.clientId != bestAsk.clientId) ||
-          (bestAsk.order.created > bestBid.order.created)) {
+#ifdef BENCHMARK_BUILD
+        notified = true;
+#endif
+      } else if ((bestBid.clientId != bestAsk.clientId) ||
+                 (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
         consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+#ifdef BENCHMARK_BUILD
+        notified = true;
+#endif
       }
 
       if (bestBid.order.quantity == 0) {
@@ -133,6 +118,11 @@ public:
         asks_.pop_back();
       }
     }
+#ifdef BENCHMARK_BUILD
+    if (!notified) {
+      consumer.post(ServerOrderStatus{});
+    }
+#endif
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 

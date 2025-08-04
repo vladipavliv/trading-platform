@@ -31,3 +31,5 @@ add_custom_command(
     TARGET run_benchmarks POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/bench_client_config.ini ${CMAKE_BINARY_DIR}/benchmarks
 )
+
+target_compile_definitions(run_benchmarks PRIVATE BENCHMARK_BUILD)
