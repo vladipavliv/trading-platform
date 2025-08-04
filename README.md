@@ -95,10 +95,9 @@ ServerFixture/ProcessOrders       1004 ns          977 ns       707598 <- 2 work
 ServerFixture/ProcessOrders        952 ns          934 ns       671744 <- 3 workers
 ServerFixture/ProcessOrders        972 ns          951 ns       688096 <- 4 workers
 ```
-(Quite a pickle - 2,3,4 workers show 2.5x worse performance then a single one, and 2 workers perform consistently slightly worse then 3 or 4)
-(all workers in the benchmarks are pinned to fast physical cores)
 
 Localhost tests:
+
 1 client, all threads pinned, 1us trade rate:
 ```bash
 Server:

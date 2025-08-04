@@ -23,11 +23,11 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        tags: my-app:latest
+        tags: hft-platform:latest
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Run tests in Docker container
       run: |
-        docker run --rm my-app /bin/bash -c "cd /app/build && ctest"
+        docker run --rm hft-platform /bin/bash -c "cd /app/build && ctest"
