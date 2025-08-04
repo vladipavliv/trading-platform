@@ -31,11 +31,22 @@ find_package(benchmark REQUIRED)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 
-enable_testing()
+option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_BENCHMARKS "Build benchmarks" OFF)
+
+message(STATUS "BUILD_TESTS is set to: ${BUILD_TESTS}")
+message(STATUS "BUILD_BENCHMARKS is set to: ${BUILD_BENCHMARKS}")
 
 add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(client)
 add_subdirectory(monitor)
-add_subdirectory(tests)
-add_subdirectory(benchmarks)
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()

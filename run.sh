@@ -1,7 +1,5 @@
 #!/bin/bash
 
-clear
-
 ulimit -c unlimited
 
 args=("$@")
@@ -9,6 +7,13 @@ args=("$@")
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks
     sudo ./run_benchmarks 
+    exit 0
+fi
+
+if [[ " ${args[@]} " =~ " t " ]]; then
+    cd build
+    export GTEST_COLOR=1
+    ctest --output-on-failure
     exit 0
 fi
 

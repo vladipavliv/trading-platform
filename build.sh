@@ -1,14 +1,25 @@
 #!/bin/bash
 
-clear
-
 set -e
 
 BUILD_DIR="build"
+CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release"
 
-if [ "$1" == "c" ]; then
-    rm -rf CMakeCache.txt CMakeFiles
-    rm -rf build/
+if [[ "$@" == *"c"* ]]; then
+    rm -rf "$BUILD_DIR/CMakeCache.txt" "$BUILD_DIR/CMakeFiles"
+    rm -rf "$BUILD_DIR/"
+fi
+
+if [[ "$@" == *"t"* ]]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DBUILD_TESTS=ON -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG"
+fi
+
+if [[ "$@" == *"b"* ]]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DBUILD_BENCHMARKS=ON"
+fi
+
+if [[ "$@" == *"d"* ]]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 fi
 
 echo "🔨 Creating build directory..."
@@ -16,13 +27,10 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 echo "⚙️ Running CMake..."
-if [ "$1" == "d" ]; then
-    cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-else
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-fi
+cmake .. $CMAKE_ARGS
 
 echo "🚀 Compiling project..."
 make -j$(nproc)
 
 echo "✅ Build completed!"
+

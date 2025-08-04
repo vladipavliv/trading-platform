@@ -13,6 +13,7 @@
 
 #include "bus/bus.hpp"
 #include "concepts/busable.hpp"
+#include "config/server_config.hpp"
 #include "constants.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
