@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "bus/bus.hpp"
+#include "concepts/busable.hpp"
 #include "constants.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
@@ -43,55 +44,45 @@ class OrderBook {
   }
 
 public:
-  /**
-   * @note Not sure about passing bus here, but its convenient. Need to send status
-   * not only for fulfillment, but also right away after receiving order.
-   */
-  OrderBook() : orderBookLimit_{ServerConfig::cfg.orderBookLimit} {
-    bids_.reserve(orderBookLimit_);
-    asks_.reserve(orderBookLimit_);
+  OrderBook() {
+    bids_.reserve(ServerConfig::cfg.orderBookLimit);
+    asks_.reserve(ServerConfig::cfg.orderBookLimit);
   }
-  ~OrderBook() = default;
 
-  template <typename Matcher>
-  bool add(CRef<ServerOrder> order, Matcher &matcher) {
-    bool hasMatch{false};
+  OrderBook(OrderBook &&other) noexcept
+      : bids_{std::move(other.bids_)}, asks_{std::move(other.asks_)},
+        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {};
 
-    if (openedOrders_ >= orderBookLimit_) {
-      // TODO() cleanup
-      bids_.clear();
-      asks_.clear();
-      openedOrders_ = 0;
-      return false;
+  OrderBook &operator=(OrderBook &&other) noexcept {
+    bids_ = std::move(other.bids_);
+    asks_ = std::move(other.asks_);
+    openedOrders_ = other.openedOrders_.load(std::memory_order_acquire);
+    return *this;
+  };
 
-      LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, openedOrders_);
-      matcher(getStatus(order, 0, 0, OrderState::Rejected));
+  template <Busable Consumer>
+  bool add(CRef<ServerOrder> order, Consumer &consumer) {
+    if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
+      LOG_ERROR_SYSTEM("OrderBook limit reached: {}", openedOrders_);
+      consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
     if (order.order.action == OrderAction::Buy) {
       bids_.push_back(order);
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
-
-      if (!asks_.empty() && order.order.price >= asks_.front().order.price) {
-        hasMatch = true;
-      }
     } else {
       asks_.push_back(order);
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
-
-      if (!bids_.empty() && order.order.price <= bids_.front().order.price) {
-        hasMatch = true;
-      }
     }
-    // if (hasMatch) {
-    matcher(getStatus(order, 0, order.order.price, OrderState::Accepted));
-    //}
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
     return true;
   }
 
-  template <typename Matcher>
-  void match(Matcher &matcher) {
+  template <Busable Consumer>
+  void match(Consumer &consumer) {
+#ifdef BENCHMARK_BUILD
+    bool notified{false};
+#endif
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -105,12 +96,17 @@ public:
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        matcher(getStatus(bestBid, quantity, bestAsk.order.price, state));
-      }
-      if ((bestBid.clientId != bestAsk.clientId) ||
-          (bestAsk.order.created > bestBid.order.created)) {
+        consumer.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
+#ifdef BENCHMARK_BUILD
+        notified = true;
+#endif
+      } else if ((bestBid.clientId != bestAsk.clientId) ||
+                 (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        matcher(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+        consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+#ifdef BENCHMARK_BUILD
+        notified = true;
+#endif
       }
 
       if (bestBid.order.quantity == 0) {
@@ -122,29 +118,40 @@ public:
         asks_.pop_back();
       }
     }
+#ifdef BENCHMARK_BUILD
+    if (!notified) {
+      consumer.post(ServerOrderStatus{});
+    }
+#endif
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
+  }
+
+  auto extract() const -> Vector<ServerOrder> {
+    Vector<ServerOrder> orders;
+    orders.reserve(bids_.size() + asks_.size());
+    orders.insert(orders.end(), bids_.begin(), bids_.end());
+    orders.insert(orders.end(), asks_.begin(), asks_.end());
+    return orders;
   }
 
   auto extract() -> Vector<ServerOrder> {
     Vector<ServerOrder> orders;
     orders.reserve(bids_.size() + asks_.size());
-
     orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
                   std::make_move_iterator(bids_.end()));
     orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
                   std::make_move_iterator(asks_.end()));
-
     bids_.clear();
     asks_.clear();
-    openedOrders_.store(0, std::memory_order_relaxed);
+    openedOrders_ = 0;
     return orders;
   }
 
   void inject(Span<const ServerOrder> orders) {
     size_t injected{0};
     for (const auto &order : orders) {
-      if (injected >= orderBookLimit_) {
-        LOG_ERROR_SYSTEM("OrderBook limit of {} reached: {}", orderBookLimit_, injected);
+      if (injected >= ServerConfig::cfg.orderBookLimit) {
+        LOG_ERROR_SYSTEM("OrderBook limit reached: {}", injected);
         break;
       }
       if (order.order.action == OrderAction::Buy) {
@@ -163,11 +170,14 @@ public:
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
 private:
+  OrderBook(const OrderBook &) = delete;
+  OrderBook &operator=(const OrderBook &other) = delete;
+
+private:
   Vector<ServerOrder> bids_;
   Vector<ServerOrder> asks_;
 
   std::atomic_size_t openedOrders_{0};
-  const size_t orderBookLimit_;
 };
 
 } // namespace hft::server

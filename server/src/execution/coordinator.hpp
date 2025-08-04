@@ -12,6 +12,7 @@
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
+#include "market_data.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
@@ -100,14 +101,13 @@ private:
     }
   }
 
-  void processOrder(CRef<ServerOrder> order) {
+  void processOrder(CRef<ServerOrder> so) {
     LOG_TRACE("{}", utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    const auto &data = data_.at(order.order.ticker);
-    workers_[data->getThreadId()]->ioCtx.post([this, order, &data]() {
-      const auto matcher = [this](CRef<ServerOrderStatus> status) { bus_.post(status); };
-      if (data->orderBook.add(order, matcher)) {
-        data->orderBook.match(matcher);
+    auto &data = data_[so.order.ticker];
+    workers_[data.getThreadId()]->ioCtx.post([this, so, &data]() {
+      if (data.orderBook.add(so, bus_)) {
+        data.orderBook.match(bus_);
       }
     });
   }
@@ -143,11 +143,13 @@ private:
   }
 
   size_t countOpenedOrders() const {
-    size_t orders = 0;
-    for (auto &tickerData : data_) {
-      orders += tickerData.second->orderBook.openedOrders();
+    size_t orderCount = 0;
+    for (size_t idx = 0; idx < data_.workers(); ++idx) {
+      for (auto &tickerData : data_.getWorkerData(idx)) {
+        orderCount += tickerData.orderBook.openedOrders();
+      }
     }
-    return orders;
+    return orderCount;
   }
 
 private:

@@ -50,13 +50,18 @@ public:
     }
   }
 
-  auto readTickers() -> Expected<std::vector<TickerPrice>> {
+  auto readTickers(bool cache = true) -> Expected<std::vector<TickerPrice>> {
     try {
       pqxx::work transaction(conn_);
       transaction.exec("SET statement_timeout = 1000");
       const pqxx::result countResult = transaction.exec(TICKERS_COUNT_QUERY);
 
-      std::vector<TickerPrice> tickers;
+      static std::vector<TickerPrice> tickers;
+      if (!cache) {
+        tickers.clear();
+      } else if (!tickers.empty()) {
+        return tickers;
+      }
       if (countResult.empty()) {
         LOG_WARN("Empty tickers table");
         return tickers;

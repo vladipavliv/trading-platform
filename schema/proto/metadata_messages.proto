@@ -11,7 +11,7 @@ enum Source {
 message OrderTimestamp {
   uint64 order_id = 1;
   uint64 created = 2;
-  uint64 accepted = 3;
+  uint64 fulfilled = 3;
   uint64 notified = 4;
 }
 

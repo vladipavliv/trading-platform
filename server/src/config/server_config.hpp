@@ -46,36 +46,34 @@ struct ServerConfig {
     Config::load(fileName);
 
     // Network
-    ServerConfig::cfg.url = Config::get<String>("network.url");
-    ServerConfig::cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
-    ServerConfig::cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
-    ServerConfig::cfg.portUdp = Config::get<size_t>("network.port_udp");
+    cfg.url = Config::get<String>("network.url");
+    cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
+    cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
+    cfg.portUdp = Config::get<size_t>("network.port_udp");
 
     // Cores
     if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
-      ServerConfig::cfg.coreSystem = *core;
+      cfg.coreSystem = *core;
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
-      ServerConfig::cfg.coresNetwork = utils::split(*cores);
+      cfg.coresNetwork = utils::split(*cores);
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
-      ServerConfig::cfg.coresApp = utils::split(*cores);
+      cfg.coresApp = utils::split(*cores);
     }
 
     // Rates
-    ServerConfig::cfg.priceFeedRate =
+    cfg.priceFeedRate =
         Microseconds(Config::get_optional<size_t>("rates.price_feed_rate_us").value_or(1));
-    ServerConfig::cfg.monitorRate =
-        Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
+    cfg.monitorRate = Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
 
     // Data
-    ServerConfig::cfg.orderBookLimit =
+    cfg.orderBookLimit =
         Config::get_optional<size_t>("data.order_book_limit").value_or(ORDER_BOOK_LIMIT);
-    ServerConfig::cfg.orderBookPersist =
-        Config::get_optional<bool>("data.order_book_persist").value_or(false);
+    cfg.orderBookPersist = Config::get_optional<bool>("data.order_book_persist").value_or(false);
 
     // Logging
-    ServerConfig::cfg.logOutput = Config::get<String>("log.output");
+    cfg.logOutput = Config::get<String>("log.output");
 
     verify();
   }

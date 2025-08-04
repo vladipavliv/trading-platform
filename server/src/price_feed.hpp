@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
+#include "adapters/postgres/postgres_adapter.hpp"
 #include "boost_types.hpp"
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
@@ -30,8 +31,8 @@ class PriceFeed {
     static constexpr double MAX_RATE_US = // 10000% per day in us
         100 / 86400.0 / 1000.0 / 1000.0;
 
-    Fluctuation(CRef<Ticker> ticker, CRef<TickerData> data)
-        : ticker{ticker}, data{data}, price{static_cast<double>(data.getPrice())},
+    Fluctuation(TickerPrice base)
+        : base{base}, price{static_cast<double>(base.price)},
           drift{utils::RNG::generate<double>(-MAX_RATE_US / 365, MAX_RATE_US / 365)} {
       randomize(utils::getTimestamp());
     };
@@ -42,8 +43,7 @@ class PriceFeed {
       rate = price * RNG::generate<double>(-MAX_RATE_US + drift, MAX_RATE_US + drift);
       duration = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
       lastUpdate = now;
-      LOG_DEBUG("{} price:{} rate:{} duration:{}", // format
-                utils::toString(ticker), price, rate, duration);
+      LOG_DEBUG("{} price:{} rate:{} duration:{}", toString(base), price, rate, duration);
     }
 
     bool update(Timestamp timeStamp) {
@@ -58,20 +58,19 @@ class PriceFeed {
       }
       price += rate * timeDelta;
 
-      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(ticker), timeDelta, price, duration);
+      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(base), timeDelta, price, duration);
 
       if (duration == 0) {
         randomize(timeStamp);
       } else {
         lastUpdate = timeStamp;
       }
-      return data.getPrice() != getPrice();
+      return base.price != getPrice();
     }
 
     Price getPrice() const { return static_cast<Price>(std::round(price)); }
 
-    const Ticker ticker;
-    const TickerData &data;
+    const TickerPrice base;
 
     double price{0};
     double rate{0};
@@ -81,12 +80,18 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(Bus &bus, CRef<MarketData> marketData)
+  PriceFeed(Bus &bus, PostgresAdapter &dbAdapter)
       : bus_{bus}, priceUpdateTimer_{bus_.systemCtx()},
         updateInterval_{ServerConfig::cfg.priceFeedRate} {
-    fluctuations_.reserve(marketData.size());
-    for (auto &value : marketData) {
-      fluctuations_.push_back(Fluctuation(value.first, *value.second));
+    const auto dataResult = dbAdapter.readTickers();
+    if (!dataResult) {
+      throw std::runtime_error("Failed to load tickers");
+    }
+    const auto &tickerData = *dataResult;
+
+    fluctuations_.reserve(tickerData.size());
+    for (auto &value : tickerData) {
+      fluctuations_.push_back(Fluctuation(value));
     }
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStart, [this] { start(); });
     bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStop, [this] { stop(); });
@@ -120,14 +125,13 @@ private:
   }
 
   void updatePrices() {
-    const auto timeStamp = utils::getTimestamp();
+    using namespace utils;
+    const auto timeStamp = getTimestamp();
     for (auto &item : fluctuations_) {
       if (item.update(timeStamp)) {
-        LOG_DEBUG("Price changed for {}: {}=>{}", utils::toString(item.ticker),
-                  item.data.getPrice(), item.getPrice());
+        LOG_DEBUG("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
         const auto newPrice = item.getPrice();
-        item.data.setPrice(newPrice);
-        bus_.marketBus.post(TickerPrice{item.ticker, newPrice});
+        bus_.marketBus.post(TickerPrice{item.base.ticker, newPrice});
       }
     }
   }

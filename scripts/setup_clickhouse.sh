@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS order_timestamps_kafka
 (
     order_id UInt64,
     created UInt64,
-    accepted UInt64,
+    fulfilled UInt64,
     notified UInt64
 )
 ENGINE = Kafka
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS order_timestamps
 (
     order_id UInt64,
     created UInt64,
-    accepted UInt64,
+    fulfilled UInt64,
     notified UInt64
 )
 ENGINE = MergeTree()
@@ -75,7 +75,7 @@ AS
 SELECT 
     order_id, 
     created, 
-    accepted,
+    fulfilled,
     notified
 FROM order_timestamps_kafka;
 EOF

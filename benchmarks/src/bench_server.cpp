@@ -4,6 +4,7 @@
  */
 
 #include "bench_server.hpp"
+#include "config/config.hpp"
 
 namespace hft::benchmarks {
 
@@ -13,7 +14,11 @@ void ServerFixture::GlobalSetUp() {
     ServerConfig::load("bench_server_config.ini");
     LOG_INIT(ServerConfig::cfg.logOutput);
 
+    tickerCount = Config::get<size_t>("bench.ticker_count");
     orderLimit = ServerConfig::cfg.orderBookLimit;
+    workerCount = ServerConfig::cfg.coresApp.size();
+
+    LOG_DEBUG("Tickers: {} Orders:{} Workers:{}", tickerCount, orderLimit, workerCount);
 
     setupBus();
     fillMarketData();
@@ -49,26 +54,31 @@ void ServerFixture::fillMarketData() {
   using namespace server;
   using namespace utils;
 
+  data = std::make_unique<MarketData>(workerCount, tickerCount);
+  tickers.reserve(tickerCount);
+
   size_t workerId{0};
-  for (size_t i = 0; i < 10; ++i) {
+  for (size_t i = 0; i < tickerCount; ++i) {
     const auto ticker = generateTicker();
-    const auto price = RNG::generate<Price>(0, 100);
-    data.emplace(ticker, std::make_unique<TickerData>(workerId, price));
-    workerId = ++workerId == ServerConfig::cfg.coresApp.size() ? 0 : workerId;
+    tickers.emplace_back(ticker);
+    data->addTicker(ticker, workerId);
+    if (++workerId == workerCount) {
+      workerId = 0;
+    }
   }
 }
 
 void ServerFixture::fillOrders() {
   using namespace server;
-  auto dataIt = data.begin();
+  auto dataIt = tickers.begin();
 
   // pregenerate a bunch of orders
   orders.reserve(orderLimit);
   for (size_t i = 0; i < orderLimit; ++i) {
-    if (dataIt == data.end()) {
-      dataIt = data.begin();
+    if (dataIt == tickers.end()) {
+      dataIt = tickers.begin();
     }
-    orders.emplace_back(ServerOrder{0, utils::generateOrder(dataIt++->first)});
+    orders.emplace_back(ServerOrder{0, utils::generateOrder(*dataIt++)});
   }
 }
 
@@ -92,7 +102,7 @@ void ServerFixture::setupCoordinator() {
   using namespace server;
 
   flag.test_and_set();
-  coordinator = std::make_unique<Coordinator>(*bus, data);
+  coordinator = std::make_unique<Coordinator>(*bus, *data);
   coordinator->start();
   flag.wait(true);
 }

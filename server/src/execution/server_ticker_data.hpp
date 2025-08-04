@@ -22,32 +22,40 @@ namespace hft::server {
  * @brief All the data in one place
  * @todo Add atomic flag to lock the book for rerouting
  */
-class TickerData {
+class alignas(CACHE_LINE_SIZE) TickerData {
 public:
-  TickerData(ThreadId id, Price price) : threadId_{id}, price_{price} {}
+  TickerData(ThreadId id) : threadId_{id} {}
+
+  TickerData(TickerData &&other) noexcept
+      : threadId_{other.threadId_.load(std::memory_order_acquire)},
+        orderBook{std::move(other.orderBook)} {};
+
+  TickerData &operator=(TickerData &&other) noexcept {
+    threadId_ = other.threadId_.load(std::memory_order_acquire);
+    orderBook = std::move(other.orderBook);
+    return *this;
+  };
 
   inline void setThreadId(ThreadId id) { threadId_.store(id, std::memory_order_release); }
   inline ThreadId getThreadId() const { return threadId_.load(std::memory_order_acquire); }
 
-  inline void setPrice(Price price) const { price_.store(price, std::memory_order_release); }
-  inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
-
-  OrderBook orderBook;
+  mutable OrderBook orderBook;
 
 private:
-  alignas(CACHE_LINE_SIZE) std::atomic<ThreadId> threadId_;
-  alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price_;
+  /**
+   * @brief Even though threadId_ is frequently read by network threads
+   * it wont be frequently written, only for rerouting, which is more of
+   * an exception. So there is no need wasting whole cache line for that
+   * More important to pack the data as tight as possible
+   * @todo Rethink if its needed here at all
+   */
+  std::atomic<ThreadId> threadId_;
 
   TickerData() = delete;
   TickerData(const TickerData &) = delete;
   TickerData &operator=(const TickerData &other) = delete;
-  TickerData(TickerData &&) = delete;
-  TickerData &operator=(TickerData &&other) = delete;
 };
-
-// class MarketData {};
-
-using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
+static_assert(sizeof(TickerData) == 64);
 
 } // namespace hft::server
 

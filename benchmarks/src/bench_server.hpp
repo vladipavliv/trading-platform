@@ -19,18 +19,23 @@
 #include "server_types.hpp"
 #include "storage/storage.hpp"
 #include "types.hpp"
+#include "types/constants.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::benchmarks {
 
 class ServerFixture : public benchmark::Fixture {
 public:
-  inline static server::MarketData data;
+  inline static UPtr<server::MarketData> data;
 
   inline static UPtr<server::Bus> bus;
   inline static UPtr<server::Coordinator> coordinator;
 
-  inline static size_t orderLimit{0};
+  inline static size_t tickerCount{10};
+  inline static size_t workerCount{1};
+  inline static size_t orderLimit{ORDER_BOOK_LIMIT};
+
+  inline static std::vector<Ticker> tickers;
   inline static std::vector<server::ServerOrder> orders;
 
   inline static std::jthread systemThread;

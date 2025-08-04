@@ -146,17 +146,20 @@ private:
     bus_.marketBus.post(order);
   }
 
-  void onOrderStatus(CRef<OrderStatus> status) {
-    LOG_DEBUG("{}", utils::toString(status));
-    if (status.state == OrderState::Rejected) {
-      LOG_ERROR_SYSTEM("Order {} was rejected", status.orderId);
+  void onOrderStatus(CRef<OrderStatus> s) {
+    using namespace utils;
+    LOG_DEBUG("{}", utils::toString(s));
+    switch (s.state) {
+    case OrderState::Rejected:
+      LOG_ERROR_SYSTEM("Order {} was rejected", s.orderId);
       tradeStop();
-      return;
-    }
-    Tracker::logRtt(status.orderId);
-    if (kafkaFeed_) {
-      bus_.post(
-          OrderTimestamp{status.orderId, status.orderId, status.timeStamp, utils::getTimestamp()});
+      break;
+    default:
+      Tracker::logRtt(s.orderId);
+      if (kafkaFeed_) {
+        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, getTimestamp()});
+      }
+      break;
     }
   }
 

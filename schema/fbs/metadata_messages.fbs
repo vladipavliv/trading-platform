@@ -3,7 +3,7 @@ namespace hft.serialization.gen.fbs.metadata;
 table OrderTimestamp {
     order_id: uint64;
     created: uint64;
-    accepted: uint64;
+    fulfilled: uint64;
     notified: uint64;
 }
 

@@ -37,8 +37,7 @@ public:
   ServerControlCenter()
       : storage_{dbAdapter_}, sessionManager_{bus_}, networkServer_{bus_, sessionManager_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, storage_.marketData()},
-        kafka_{bus_.systemBus} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, kafka_{bus_.systemBus} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
       // start the network server only after internal components are fully operational
@@ -79,7 +78,7 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
     consoleReader_.printCommands();
-    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
+    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().tickers());
   }
 
 private:
