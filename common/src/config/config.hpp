@@ -19,11 +19,15 @@ namespace hft {
 
 struct Config {
   static void load(CRef<String> fileName) {
+    if (isLoaded()) {
+      LOG_ERROR("Config is already loaded");
+      return;
+    }
     if (!std::filesystem::exists(fileName)) {
-      throw std::runtime_error(std::format("{} does not exist in {}", fileName,
-                                           std::filesystem::current_path().string()));
+      throw std::runtime_error(std::format("Config file not found {}", fileName));
     }
     boost::property_tree::read_ini(fileName, data);
+    loaded = true;
   }
 
   template <typename Type>
@@ -36,7 +40,10 @@ struct Config {
     return data.get_optional<Type>(name);
   }
 
+  inline static bool isLoaded() { return loaded && !data.empty(); }
+
   inline static boost::property_tree::ptree data;
+  inline static bool loaded{false};
 };
 
 } // namespace hft

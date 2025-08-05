@@ -6,7 +6,7 @@ args=("$@")
 
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks
-    sudo ./run_benchmarks 
+    sudo ./run_benchmarks --benchmark_color=yes
     exit 0
 fi
 
@@ -41,9 +41,11 @@ elif [[ " ${args[@]} " =~ " m " ]]; then
     rm -f monitor_log*.txt
     sudo ./hft_monitor
 else
-    echo "Usage: $0 [k] [s|c|m]"
-    echo "k - start Kafka"
-    echo "s - start server"
-    echo "c - start client"
-    echo "m - start monitor"
+    echo "Usage: $0 [k] [s|c|m|t|b]"
+    echo "k - run Kafka"
+    echo "s - run server"
+    echo "c - run client"
+    echo "m - run monitor"
+    echo "t - run tests"
+    echo "b - run benchmarks"
 fi

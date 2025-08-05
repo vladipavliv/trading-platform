@@ -8,7 +8,7 @@
 
 #include "concepts/busable.hpp"
 #include "fbs_converter.hpp"
-#include "gen/fbs/metadata_messages_generated.h"
+#include "gen/fbs/cpp/metadata_messages_generated.h"
 #include "metadata_types.hpp"
 
 namespace hft::serialization {

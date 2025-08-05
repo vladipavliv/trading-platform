@@ -8,12 +8,16 @@
 
 namespace hft::benchmarks {
 
-void ServerFixture::GlobalSetUp() {
-  using namespace server;
-  try {
-    ServerConfig::load("bench_server_config.ini");
-    LOG_INIT(ServerConfig::cfg.logOutput);
+BM_Sys_ServerFix::BM_Sys_ServerFix() { GlobalSetUp(); }
 
+void BM_Sys_ServerFix::GlobalSetUp() {
+  using namespace server;
+  std::call_once(initFlag, []() {
+    if (!Config::isLoaded()) {
+      // Config could be also loaded in other benches
+      ServerConfig::load("bench_server_config.ini");
+      LOG_INIT(ServerConfig::cfg.logOutput);
+    }
     tickerCount = Config::get<size_t>("bench.ticker_count");
     orderLimit = ServerConfig::cfg.orderBookLimit;
     workerCount = ServerConfig::cfg.coresApp.size();
@@ -24,57 +28,40 @@ void ServerFixture::GlobalSetUp() {
     fillMarketData();
     setupCoordinator();
     fillOrders();
-
-    LOG_DEBUG("ServerFixture was set up");
-  } catch (const std::exception &e) {
-    LOG_DEBUG("std::exception {}", e.what());
-  } catch (...) {
-    LOG_DEBUG("unknown exception");
-  }
+  });
 }
 
-void ServerFixture::GlobalTearDown() {
+void BM_Sys_ServerFix::GlobalTearDown() {
   coordinator->stop();
   bus->stop();
 }
 
-void ServerFixture::SetUp(::benchmark::State &state) {
-  if (!bus) {
-    GlobalSetUp();
-  }
-  if (!bus) {
-    state.SkipWithError("Server not initialized");
-    return;
-  }
-}
-
-void ServerFixture::TearDown(const ::benchmark::State &) {}
-
-void ServerFixture::fillMarketData() {
+void BM_Sys_ServerFix::fillMarketData() {
   using namespace server;
   using namespace utils;
 
-  data = std::make_unique<MarketData>(workerCount, tickerCount);
+  data = std::make_unique<MarketData>(tickerCount);
   tickers.reserve(tickerCount);
 
   size_t workerId{0};
   for (size_t i = 0; i < tickerCount; ++i) {
     const auto ticker = generateTicker();
     tickers.emplace_back(ticker);
-    data->addTicker(ticker, workerId);
+    data->emplace(ticker, workerId);
     if (++workerId == workerCount) {
       workerId = 0;
     }
   }
 }
 
-void ServerFixture::fillOrders() {
+void BM_Sys_ServerFix::fillOrders() {
   using namespace server;
   auto dataIt = tickers.begin();
 
   // pregenerate a bunch of orders
-  orders.reserve(orderLimit);
-  for (size_t i = 0; i < orderLimit; ++i) {
+  const size_t orderCount = orderLimit * workerCount * tickerCount;
+  orders.reserve(orderCount);
+  for (size_t i = 0; i < orderCount; ++i) {
     if (dataIt == tickers.end()) {
       dataIt = tickers.begin();
     }
@@ -82,23 +69,26 @@ void ServerFixture::fillOrders() {
   }
 }
 
-void ServerFixture::setupBus() {
+void BM_Sys_ServerFix::setupBus() {
   using namespace server;
 
   bus = std::make_unique<Bus>();
   bus->marketBus.setHandler<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
-    ServerFixture::flag.clear();
-    ServerFixture::flag.notify_all();
+    if (s.orderStatus.state == OrderState::Rejected) {
+      BM_Sys_ServerFix::cleanupNeeded = true;
+    }
+    BM_Sys_ServerFix::flag.clear();
+    BM_Sys_ServerFix::flag.notify_all();
   });
   bus->systemBus.subscribe(ServerEvent::Operational, [] {
     LOG_INFO("Coordinator is ready for benchmarking");
-    ServerFixture::flag.clear();
-    ServerFixture::flag.notify_all();
+    BM_Sys_ServerFix::flag.clear();
+    BM_Sys_ServerFix::flag.notify_all();
   });
-  systemThread = std::jthread([]() { ServerFixture::bus->run(); });
+  systemThread = std::jthread([]() { BM_Sys_ServerFix::bus->run(); });
 }
 
-void ServerFixture::setupCoordinator() {
+void BM_Sys_ServerFix::setupCoordinator() {
   using namespace server;
 
   flag.test_and_set();
@@ -107,16 +97,22 @@ void ServerFixture::setupCoordinator() {
   flag.wait(true);
 }
 
-BENCHMARK_F(ServerFixture, ProcessOrders)(benchmark::State &state) {
-  using namespace server;
-
-  if (ServerFixture::bus == nullptr) {
-    state.SkipWithError("Server not initialized");
-    return;
+void BM_Sys_ServerFix::cleanupOrders() {
+  for (auto &ticker : tickers) {
+    data->at(ticker).orderBook.extract();
   }
+}
+
+BENCHMARK_F(BM_Sys_ServerFix, ProcessOrders)(benchmark::State &state) {
+  using namespace server;
 
   auto iter = orders.begin();
   for (auto _ : state) {
+    if (cleanupNeeded) {
+      cleanupOrders();
+      cleanupNeeded = false;
+    }
+
     if (iter == orders.end()) {
       iter = orders.begin();
     }

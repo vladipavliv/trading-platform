@@ -7,7 +7,7 @@
 #define HFT_COMMON_SERIALIZATION_PROTOCONVERTER_HPP
 
 #include "domain_types.hpp"
-#include "gen/proto/metadata_messages.pb.h"
+#include "gen/proto/cpp/metadata_messages.pb.h"
 #include "logging.hpp"
 #include "metadata_types.hpp"
 #include "types.hpp"

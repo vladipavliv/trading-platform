@@ -15,24 +15,30 @@
 
 namespace hft::benchmarks {
 
-class OrderBookFixture : public benchmark::Fixture {
+using namespace server;
+
+class BM_Sys_OrderBookFix : public benchmark::Fixture {
 public:
-  UPtr<server::OrderBook> book;
-  size_t orderLimit;
-  std::vector<server::ServerOrder> orders;
+  UPtr<OrderBook> book;
 
-  OrderBookFixture() {
-    using namespace server;
+  inline static Vector<ServerOrder> orders;
+  inline static std::once_flag initFlag;
 
-    ServerConfig::load("bench_server_config.ini");
+  BM_Sys_OrderBookFix() {
+    std::call_once(initFlag, []() {
+      if (!Config::isLoaded()) {
+        // Config could be also loaded in other benches
+        ServerConfig::load("bench_server_config.ini");
+        LOG_INIT(ServerConfig::cfg.logOutput);
+      }
+      // call_once blocks other threads until its finished, once we generated orders
+      // they could be safely shared across all bench threads
+      orders.reserve(ServerConfig::cfg.orderBookLimit);
+      for (size_t i = 0; i < ServerConfig::cfg.orderBookLimit; ++i) {
+        orders.emplace_back(ServerOrder{0, utils::generateOrder()});
+      }
+    });
     book = std::make_unique<OrderBook>();
-    orderLimit = ServerConfig::cfg.orderBookLimit;
-
-    // pregenerate a bunch of orders
-    orders.reserve(orderLimit);
-    for (size_t i = 0; i < orderLimit; ++i) {
-      orders.emplace_back(ServerOrder{0, utils::generateOrder()});
-    }
   }
 
   template <typename EventType>
@@ -44,16 +50,14 @@ public:
 };
 
 template <>
-void OrderBookFixture::post<server::ServerOrderStatus>(CRef<server::ServerOrderStatus> event) {
+void BM_Sys_OrderBookFix::post<ServerOrderStatus>(CRef<ServerOrderStatus> event) {
   if (event.orderStatus.state == OrderState::Rejected) {
     book->extract();
   }
 }
 
-BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
-  using namespace server;
-  std::vector<server::ServerOrder>::iterator iter = orders.begin();
-
+BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
+  Vector<ServerOrder>::iterator iter = orders.begin();
   for (auto _ : state) {
     if (iter == orders.end()) {
       iter = orders.begin();
@@ -64,7 +68,7 @@ BENCHMARK_F(OrderBookFixture, AddOrder)(benchmark::State &state) {
     book->match(*this);
 
     benchmark::DoNotOptimize(&order);
-    benchmark::DoNotOptimize(&added);
+    benchmark::DoNotOptimize(added);
   }
 }
 

@@ -18,6 +18,7 @@
 
 #include "boost_types.hpp"
 #include "domain_types.hpp"
+#include "logging.hpp"
 #include "rng.hpp"
 #include "types.hpp"
 

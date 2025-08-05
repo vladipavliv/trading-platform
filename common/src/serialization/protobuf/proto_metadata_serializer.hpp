@@ -7,7 +7,7 @@
 #define HFT_COMMON_SERIALIZATION_PROTOMETADATASERIALIZER_HPP
 
 #include "concepts/busable.hpp"
-#include "gen/proto/metadata_messages.pb.h"
+#include "gen/proto/cpp/metadata_messages.pb.h"
 #include "metadata_types.hpp"
 #include "proto_converter.hpp"
 #include "types.hpp"

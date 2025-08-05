@@ -16,7 +16,7 @@
 
 namespace hft::benchmarks {
 
-static void BM_fbsSerialize(benchmark::State &state) {
+static void BM_Ser_FbsSerialize(benchmark::State &state) {
   using namespace server;
   using namespace serialization;
 
@@ -30,9 +30,9 @@ static void BM_fbsSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
-BENCHMARK(BM_fbsSerialize);
+BENCHMARK(BM_Ser_FbsSerialize);
 
-static void BM_fbsDeserialize(benchmark::State &state) {
+static void BM_Ser_FbsDeserialize(benchmark::State &state) {
   using namespace server;
   using namespace serialization;
 
@@ -48,6 +48,6 @@ static void BM_fbsDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(ok);
 }
-BENCHMARK(BM_fbsDeserialize);
+BENCHMARK(BM_Ser_FbsDeserialize);
 
 } // namespace hft::benchmarks

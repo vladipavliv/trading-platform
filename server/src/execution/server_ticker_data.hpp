@@ -57,6 +57,8 @@ private:
 };
 static_assert(sizeof(TickerData) == 64);
 
+using MarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
+
 } // namespace hft::server
 
 #endif // HFT_SERVER_TICKERDATA_HPP
