@@ -45,7 +45,7 @@ public:
         pollRate_{Microseconds(Config::get<size_t>("kafka.kafka_poll_rate_us"))},
         timer_{bus_.ioCtx} {
     if (!enabled_) {
-      LOG_INFO_SYSTEM("Kafka is disabled");
+      LOG_DEBUG_SYSTEM("Kafka is disabled");
       return;
     }
     createProducer();

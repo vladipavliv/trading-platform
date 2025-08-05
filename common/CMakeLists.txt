@@ -1,52 +1,12 @@
 # Common static library 
-find_package(folly REQUIRED)
-find_package(Glog REQUIRED)
-find_package(Protobuf REQUIRED)
+include(cmake/code_generator.cmake)
 
-# Generate flatbuffers code from the schema
-set(DOMAIN_FBS_FILE ${CMAKE_SOURCE_DIR}/schema/fbs/domain_messages.fbs)
-set(METADATA_FBS_FILE ${CMAKE_SOURCE_DIR}/schema/fbs/metadata_messages.fbs)
-set(METADATA_PROTO_FILE ${CMAKE_SOURCE_DIR}/schema/proto/metadata_messages.proto)
-
-set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
-
-set(FBS_GEN_DIR ${GEN_DIR}/fbs)
-set(PROTO_GEN_DIR ${GEN_DIR}/proto)
-
-file(MAKE_DIRECTORY ${FBS_GEN_DIR})
-file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
-
-add_custom_command(
-    OUTPUT ${FBS_GEN_DIR}/domain_messages_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${FBS_GEN_DIR} ${DOMAIN_FBS_FILE}
-    DEPENDS ${DOMAIN_FBS_FILE}
-    COMMENT "Generating domain messages FlatBuffers code from schema"
-)
-add_custom_command(
-    OUTPUT ${FBS_GEN_DIR}/metadata_messages_generated.h
-    COMMAND flatc --cpp --gen-object-api -o ${FBS_GEN_DIR} ${METADATA_FBS_FILE}
-    DEPENDS ${METADATA_FBS_FILE}
-    COMMENT "Generating metadata messages FlatBuffers code from schema"
-)
-add_custom_command(
-    OUTPUT ${PROTO_GEN_DIR}/metadata_messages.pb.cc ${PROTO_GEN_DIR}/metadata_messages.pb.h
-    COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-    ARGS --cpp_out=${PROTO_GEN_DIR} -I ${CMAKE_SOURCE_DIR}/schema/proto ${METADATA_PROTO_FILE}
-    DEPENDS ${METADATA_PROTO_FILE}
-    COMMENT "Generating C++ code from metadata_messages.proto"
-)
-
-add_custom_target(fbs_domain_code_generator DEPENDS ${FBS_GEN_DIR}/domain_messages_generated.h)
-add_custom_target(fbs_metadata_code_generator DEPENDS ${FBS_GEN_DIR}/metadata_messages_generated.h)
-add_custom_target(proto_metadata_code_generator DEPENDS ${PROTO_GEN_DIR}/metadata_messages.pb.cc ${PROTO_GEN_DIR}/metadata_messages.pb.h)
-
-file(GLOB_RECURSE COMMON_SOURCES "src/*.cpp" "src/**/*.cpp" "src/*.hpp" "src/**/*.hpp")
+file(GLOB_RECURSE COMMON_SOURCES "src/*.cpp" "src/*.hpp")
 
 list(APPEND COMMON_SOURCES
-    ${FBS_GEN_DIR}/domain_messages_generated.h
-    ${FBS_GEN_DIR}/metadata_messages_generated.h
-    ${PROTO_GEN_DIR}/metadata_messages.pb.cc
-    ${PROTO_GEN_DIR}/metadata_messages.pb.h
+    ${GEN_DIR_FBS_CPP}/domain_messages_generated.h
+    ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.cc
+    ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.h
 )
 
 add_library(hft_common STATIC ${COMMON_SOURCES})
@@ -64,24 +24,25 @@ target_include_directories(hft_common PUBLIC
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_CRITICAL")
 
 target_link_libraries(hft_common PRIVATE 
-    ${Boost_LIBRARIES} 
-    ${LIBPQXX_LIBRARIES} 
-    ${RDKAFKAXX_LIB}
     ${Protobuf_LIBRARIES}
+    ${LIBPQXX_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${RDKAFKAXX_LIB}
     spdlog::spdlog 
-    atomic 
-    folly 
-    glog 
-    pthread 
-    dl 
-    pq 
+    pthread
     iberty 
+    atomic
+    folly
+    glog
+    pq 
+    dl 
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
-add_dependencies(hft_common fbs_domain_code_generator)
-add_dependencies(hft_common fbs_metadata_code_generator)
-add_dependencies(hft_common proto_metadata_code_generator)
+add_dependencies(hft_common fbs_cpp_domain_code_generator)
+add_dependencies(hft_common fbs_cpp_metadata_code_generator)
+add_dependencies(hft_common fbs_python_domain_code_generator)
+add_dependencies(hft_common proto_cpp_metadata_code_generator)
 
 # Make library
 set(CMAKE_AR "/usr/bin/ar")

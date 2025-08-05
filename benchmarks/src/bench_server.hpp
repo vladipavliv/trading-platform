@@ -24,10 +24,12 @@
 
 namespace hft::benchmarks {
 
-class ServerFixture : public benchmark::Fixture {
+class BM_Sys_ServerFix : public benchmark::Fixture {
 public:
-  inline static UPtr<server::MarketData> data;
+  BM_Sys_ServerFix();
 
+  inline static std::once_flag initFlag;
+  inline static UPtr<server::MarketData> data;
   inline static UPtr<server::Bus> bus;
   inline static UPtr<server::Coordinator> coordinator;
 
@@ -40,9 +42,7 @@ public:
 
   inline static std::jthread systemThread;
   inline static std::atomic_flag flag{ATOMIC_FLAG_INIT};
-
-  void SetUp(::benchmark::State &state) override;
-  void TearDown(const ::benchmark::State &) override;
+  inline static thread_local bool cleanupNeeded{false};
 
   static void GlobalSetUp();
   static void GlobalTearDown();
@@ -52,6 +52,7 @@ public:
 
   static void fillMarketData();
   static void fillOrders();
+  static void cleanupOrders();
 };
 
 } // namespace hft::benchmarks

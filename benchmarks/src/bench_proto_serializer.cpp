@@ -23,7 +23,7 @@ OrderTimestamp generateOrderTimestamp() {
 }
 } // namespace
 
-static void BM_protoSerialize(benchmark::State &state) {
+static void BM_Ser_ProtoSerialize(benchmark::State &state) {
   using namespace utils;
   using namespace server;
   using namespace serialization;
@@ -38,9 +38,9 @@ static void BM_protoSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&data);
   benchmark::DoNotOptimize(&ot);
 }
-BENCHMARK(BM_protoSerialize);
+BENCHMARK(BM_Ser_ProtoSerialize);
 
-static void BM_protoDeserialize(benchmark::State &state) {
+static void BM_Ser_ProtoDeserialize(benchmark::State &state) {
   using namespace utils;
   using namespace server;
   using namespace serialization;
@@ -60,6 +60,6 @@ static void BM_protoDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&msg);
   benchmark::DoNotOptimize(&ok);
 }
-BENCHMARK(BM_protoDeserialize);
+BENCHMARK(BM_Ser_ProtoDeserialize);
 
 } // namespace hft::benchmarks

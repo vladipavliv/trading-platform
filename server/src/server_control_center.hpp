@@ -54,8 +54,11 @@ public:
   }
 
   void start() {
-    greetings();
     storage_.load();
+    if (storage_.marketData().empty()) {
+      throw std::runtime_error("No ticker data loaded from db");
+    }
+    greetings();
 
     coordinator_.start();
     kafka_.start();
@@ -78,7 +81,7 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
     consoleReader_.printCommands();
-    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().tickers());
+    LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
 private:

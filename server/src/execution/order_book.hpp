@@ -121,7 +121,7 @@ public:
     }
 #ifdef BENCHMARK_BUILD
     if (!notified) {
-      consumer.post(ServerOrderStatus{});
+      consumer.post(ServerOrderStatus{0, 0, 0, 0, 0, OrderState::Rejected});
     }
 #endif
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
@@ -149,10 +149,9 @@ public:
   }
 
   void inject(Span<const ServerOrder> orders) {
-    size_t injected{0};
     for (const auto &order : orders) {
-      if (injected >= ServerConfig::cfg.orderBookLimit) {
-        LOG_ERROR_SYSTEM("OrderBook limit reached: {}", injected);
+      if (openedOrders() >= ServerConfig::cfg.orderBookLimit) {
+        LOG_ERROR_SYSTEM("Failed to inject orders: limit reached");
         break;
       }
       if (order.order.action == OrderAction::Buy) {
@@ -163,9 +162,7 @@ public:
         asks_.push_back(order);
         std::push_heap(asks_.begin(), asks_.end(), compareAsks);
       }
-      ++injected;
     }
-    openedOrders_ = injected;
   }
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }

@@ -19,7 +19,7 @@ if [[ "$@" == *"b"* ]]; then
 fi
 
 if [[ "$@" == *"d"* ]]; then
-    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug"
 fi
 
 echo "🔨 Creating build directory..."

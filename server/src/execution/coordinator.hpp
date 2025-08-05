@@ -12,7 +12,6 @@
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
-#include "market_data.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
 #include "server_ticker_data.hpp"
@@ -37,11 +36,12 @@ namespace hft::server {
  * - system thread is in the middle of rerouting
  * - new worker is already processing new orders
  * In the first case rerouting happens for a very brief moment, its just 3 atomic operations
- * to lock the book, change worker it, and unlock it. For the second case, it could take longer
- * So approach would be the following: old worker sees that the book is locked, and checks the
- * new worker id. If its the same as its id, then it caught system thread in the middle of the
- * update, and it can spin for a few cycles waiting when worker id changes. This, supposedly,
- * would not have much effect on the workers performance and it wont have to spin for long.
+ * to lock the book, change worker id, and unlock it. For the second case, it could take longer
+ * So old worker sees that the book is locked, and checks the new worker id.
+ * If its the same as its id, then it caught system thread in the middle of the update,
+ * and it can spin for a few cycles waiting when worker id changes.
+ * This, supposedly, would not have much effect on the workers performance
+ * and it wont have to spin for too long.
  * Once worker id changes - old worker reposts the order to a new one.
  */
 class Coordinator {
@@ -104,7 +104,7 @@ private:
   void processOrder(CRef<ServerOrder> so) {
     LOG_TRACE("{}", utils::toString(order));
     ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    auto &data = data_[so.order.ticker];
+    const auto &data = data_.at(so.order.ticker);
     workers_[data.getThreadId()]->ioCtx.post([this, so, &data]() {
       if (data.orderBook.add(so, bus_)) {
         data.orderBook.match(bus_);
@@ -126,7 +126,7 @@ private:
       const uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
 
       if (rps != 0) {
-        const auto opnStr = thousandify(countOpenedOrders());
+        const auto opnStr = thousandify(openedOrders());
         const auto ttlStr = thousandify(currentTtl);
         const auto rpsStr = thousandify(rps);
 
@@ -142,14 +142,12 @@ private:
     });
   }
 
-  size_t countOpenedOrders() const {
-    size_t orderCount = 0;
-    for (size_t idx = 0; idx < data_.workers(); ++idx) {
-      for (auto &tickerData : data_.getWorkerData(idx)) {
-        orderCount += tickerData.orderBook.openedOrders();
-      }
+  size_t openedOrders() const {
+    size_t orders{0};
+    for (auto &it : data_) {
+      orders += it.second.orderBook.openedOrders();
     }
-    return orderCount;
+    return orders;
   }
 
 private:
