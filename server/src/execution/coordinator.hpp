@@ -124,15 +124,9 @@ private:
       const uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
 
       if (rps != 0) {
-        const auto opnStr = thousandify(openedOrders());
-        const auto ttlStr = thousandify(currentTtl);
-        const auto rpsStr = thousandify(rps);
-
-        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
-
+        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
 #ifdef TELEMETRY_ENABLED
         if (telemetry_) {
-          // TODO(self): add avg latency
           bus_.post(RuntimeMetrics{MetadataSource::Server, getTimestamp(), rps, 0});
         }
 #endif

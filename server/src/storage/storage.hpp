@@ -43,11 +43,11 @@ public:
       ordersSaved += orders.size();
       const auto now = utils::getTimestamp();
       if (now - lastLog > 1000000) {
-        LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
+        LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
         lastLog = now;
       }
     }
-    LOG_INFO_SYSTEM("Saved {} orders", thousandify(ordersSaved));
+    LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
     LOG_INFO_SYSTEM("Opened orders have been saved successfully");
   }
 
@@ -67,7 +67,7 @@ public:
     if (orders.empty()) {
       return;
     }
-    LOG_INFO_SYSTEM("Orders loaded: {}", thousandify(orders.size()));
+    LOG_INFO_SYSTEM("Orders loaded: {}", orders.size());
 
     for (const auto &order : orders) {
       auto it = marketData_.find(order.order.ticker);

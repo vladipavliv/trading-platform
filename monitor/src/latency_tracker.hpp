@@ -55,9 +55,8 @@ private:
         return;
       }
       static uint64_t lastSize{0};
-      if (rtt_.size != lastSize) {
-        LOG_INFO_SYSTEM("Orders: {} | AvgRtt: {}us | Rps: {}", thousandify(rtt_.size),
-                        thousandify(rtt_.sum / rtt_.size), thousandify(rps_));
+      if (rtt_.size != 0 && rtt_.size != lastSize) {
+        LOG_INFO_SYSTEM("Orders: {} | Rtt: {}us | Rps: {}", rtt_.size, rtt_.sum / rtt_.size, rps_);
       }
       lastSize = rtt_.size;
       scheduleStatsTimer();

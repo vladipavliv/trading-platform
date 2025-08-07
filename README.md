@@ -69,7 +69,7 @@ Components:
   b   - Benchmarks
 
 Optional flag:
-  k   - Start Kafka if not running
+  k   - Start Kafka
 ```
 
 ### Commands
@@ -89,7 +89,7 @@ Client:
   q   - Shutdown
 
 Monitor:
-  Supports all client & server commands (Kafka must be running and enabled in config file)
+  Supports all client and server commands
 ```
 
 ## Performance

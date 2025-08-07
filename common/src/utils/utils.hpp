@@ -131,7 +131,7 @@ concept Arithmetic = std::integral<T> || std::floating_point<T>;
 template <Arithmetic Number>
 auto thousandify(Number input) -> String {
   std::stringstream ss;
-  ss.imbue(std::locale::classic());
+  ss.imbue(std::locale("en_US.UTF-8"));
   ss << std::fixed << input;
   return ss.str();
 }
