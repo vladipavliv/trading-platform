@@ -131,7 +131,7 @@ concept Arithmetic = std::integral<T> || std::floating_point<T>;
 template <Arithmetic Number>
 auto thousandify(Number input) -> String {
   std::stringstream ss;
-  ss.imbue(std::locale("en_US.UTF-8"));
+  ss.imbue(std::locale::classic());
   ss << std::fixed << input;
   return ss.str();
 }
@@ -151,6 +151,14 @@ inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
                RNG::generate<Quantity>(0, 1000),
                RNG::generate<Price>(10, 10000),
                RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
+}
+
+inline String getEnvVar(CRef<String> varName) {
+  const char *value = std::getenv(varName.c_str());
+  if (!value) {
+    throw std::runtime_error(std::string("Environment variable not set: ") + varName);
+  }
+  return value;
 }
 
 } // namespace hft::utils

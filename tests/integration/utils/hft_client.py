@@ -15,7 +15,7 @@ class HftClient:
         self.downstream_sock = socket.create_connection((startup.HOST, startup.PORT_DOWN))
 
     def login(self, user_name, password):
-        print(f"Authenticating upstream channel: {user_name} {password}")
+        print(f"Authenticating upstream channel: {user_name}")
         login_msg = serialization.create_login_request(user_name, password)
         self.sendUpstream(login_msg)
         login_response = self.receiveUpstream()

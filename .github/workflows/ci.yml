@@ -28,11 +28,29 @@ jobs:
           --health-retries 5
 
     steps:
+    - name: Cleanup previous docker containers
+      run: docker rm -f hft-postgres || true
+
+    - name: Remove existing postgres containers
+      run: docker ps -q --filter "ancestor=postgres:15" | xargs -r docker rm -f
+
     - name: Checkout code
       uses: actions/checkout@v3
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+
+    - name: Create Docker network
+      run: docker network create hft-network
+
+    - name: Start PostgreSQL
+      run: |
+        docker run -d --name hft-postgres --network hft-network \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD=password \
+          -e POSTGRES_DB=hft_db \
+          -p 5432:5432 \
+          postgres:15
 
     - name: Build Docker image with cache
       uses: docker/build-push-action@v5
@@ -42,6 +60,13 @@ jobs:
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Wait for Postgres to be ready
+      run: |
+          until docker exec hft-postgres pg_isready -U postgres; do
+            echo "Waiting for Postgres in container..."
+            sleep 1
+          done
 
     - name: Run unit tests
       run: |
@@ -53,34 +78,20 @@ jobs:
         python-version: '3.12'
 
     - name: Setup Python venv and install requirements
-      run: ./scripts/setup_venv_and_requirements.sh
+      run: ./scripts/setup_venv.sh
 
-    - name: Install PostgreSQL client tools
-      run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-    - name: Wait for Postgres to be ready
+    - name: Run Postgres setup + integration tests in Docker
       run: |
-          until pg_isready -h localhost -p 5432; do
-            echo "Waiting for Postgres..."
-            sleep 1
-          done
+        docker run --rm --network hft-network \
+          -e POSTGRES_HOST=hft-postgres \
+          -e POSTGRES_PORT=5432 \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD=password \
+          -e POSTGRES_DB=hft_db \
+          hft-platform /bin/bash -c "source /app/venv/bin/activate && python3 scripts/setup_postgres.py && ./tests/integration/it_run.sh"
 
-    - name: Run Postgres setup script
-      env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: hft_db
+    - name: Cleanup Docker network
+      if: always()
       run: |
-          source venv/bin/activate
-          python3 scripts/setup_postgres.py
-
-    - name: Run integration tests
-      env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: hft_db
-      run: ./tests/integration/it_run.sh
+        docker rm -f hft-postgres || true
+        docker network rm hft-network || true
