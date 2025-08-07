@@ -6,8 +6,7 @@
 #ifndef HFT_SERVER_SERVERCONTROLCENTER_HPP
 #define HFT_SERVER_SERVERCONTROLCENTER_HPP
 
-#include "adapters/kafka/kafka_adapter.hpp"
-#include "adapters/postgres/postgres_adapter.hpp"
+#include "adapters/adapters.hpp"
 #include "authenticator.hpp"
 #include "commands/server_command.hpp"
 #include "commands/server_command_parser.hpp"
@@ -32,25 +31,20 @@ public:
   using SessionManagerType = SessionManager<BoostSessionChannel, BoostBroadcastChannel>;
   using NetworkServerType = BoostNetworkServer<SessionManagerType>;
   using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
-  using Kafka = KafkaAdapter<ServerCommandParser>;
+  using StreamAdapter = adapters::MessageQueueAdapter<ServerCommandParser>;
 
   ServerControlCenter()
       : storage_{dbAdapter_}, sessionManager_{bus_}, networkServer_{bus_, sessionManager_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, kafka_{bus_.systemBus} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
+        streamAdapter_{bus_.systemBus} {
     // System bus subscriptions
     bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
       // start the network server only after internal components are fully operational
       LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
-
-    // commands
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
-
-    // kafka topics and commands
-    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_server_cmd_topic"));
-    kafka_.addProduceTopic<RuntimeMetrics>(Config::get<String>("kafka.kafka_metrics_topic"));
   }
 
   void start() {
@@ -61,13 +55,16 @@ public:
     greetings();
 
     coordinator_.start();
-    kafka_.start();
+    streamAdapter_.start();
+    streamAdapter_.bindProduceTopic<RuntimeMetrics>("runtime-metrics");
+
     bus_.run();
   }
 
   void stop() {
-    kafka_.stop();
     networkServer_.stop();
+    sessionManager_.close();
+    streamAdapter_.stop();
     coordinator_.stop();
     bus_.stop();
     storage_.save();
@@ -87,7 +84,7 @@ private:
 private:
   Bus bus_;
 
-  PostgresAdapter dbAdapter_;
+  adapters::DbAdapter dbAdapter_;
   Storage storage_;
 
   SessionManagerType sessionManager_;
@@ -96,7 +93,7 @@ private:
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
-  Kafka kafka_;
+  StreamAdapter streamAdapter_;
 };
 
 } // namespace hft::server

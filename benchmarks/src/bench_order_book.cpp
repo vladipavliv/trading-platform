@@ -26,13 +26,9 @@ public:
 
   BM_Sys_OrderBookFix() {
     std::call_once(initFlag, []() {
-      if (!Config::isLoaded()) {
-        // Config could be also loaded in other benches
-        ServerConfig::load("bench_server_config.ini");
-        LOG_INIT(ServerConfig::cfg.logOutput);
-      }
-      // call_once blocks other threads until its finished, once we generated orders
-      // they could be safely shared across all bench threads
+      ServerConfig::load("bench_server_config.ini");
+      LOG_INIT(ServerConfig::cfg.logOutput);
+
       orders.reserve(ServerConfig::cfg.orderBookLimit);
       for (size_t i = 0; i < ServerConfig::cfg.orderBookLimit; ++i) {
         orders.emplace_back(ServerOrder{0, utils::generateOrder()});
@@ -65,7 +61,9 @@ BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
 
     CRef<ServerOrder> order = *iter++;
     bool added = book->add(order, *this);
-    book->match(*this);
+    if (added) {
+      book->match(*this);
+    }
 
     benchmark::DoNotOptimize(&order);
     benchmark::DoNotOptimize(added);

@@ -58,8 +58,6 @@ public:
 
   inline void reset() { tail_ = head_ = 0; }
 
-  inline size_t size() const { return capacity_; };
-
 private:
   inline void rotate() {
     if (tail_ > 0 && capacity_ - head_ < MIN_READ_CAPACITY) {

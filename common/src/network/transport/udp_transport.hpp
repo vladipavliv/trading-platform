@@ -61,9 +61,6 @@ private:
   void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
-      if (code != boost::asio::error::eof) {
-        LOG_ERROR("{}", code.message());
-      }
       consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
       return;
     }

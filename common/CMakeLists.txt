@@ -21,8 +21,6 @@ target_include_directories(hft_common PUBLIC
     ${Protobuf_INCLUDE_DIRS}
 )
 
-set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_CRITICAL")
-
 target_link_libraries(hft_common PRIVATE 
     ${Protobuf_LIBRARIES}
     ${LIBPQXX_LIBRARIES}
@@ -36,6 +34,7 @@ target_link_libraries(hft_common PRIVATE
     glog
     pq 
     dl 
+    bfd
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 

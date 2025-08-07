@@ -73,12 +73,33 @@ public:
     broadcastChannel_ = std::move(channel);
   }
 
+  void close() {
+    // Important to keep the order of destruction.
+    // SessionManager is created before NetworkServer as the latter needs to reference it
+    for (auto iter = sessionsMap_.begin(); iter != sessionsMap_.end(); ++iter) {
+      iter->second->upstreamChannel->close();
+      iter->second->downstreamChannel->close();
+    }
+    for (auto iter = unauthorizedUpstreamMap_.begin(); iter != unauthorizedUpstreamMap_.end();
+         ++iter) {
+      iter->second->close();
+    }
+    for (auto iter = unauthorizedDownstreamMap_.begin(); iter != unauthorizedDownstreamMap_.end();
+         ++iter) {
+      iter->second->close();
+    }
+    sessionsMap_.clear();
+    unauthorizedUpstreamMap_.clear();
+    unauthorizedDownstreamMap_.clear();
+    broadcastChannel_.reset();
+  }
+
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", utils::toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-      LOG_INFO("Client {} is offline", status.clientId);
+      LOG_DEBUG("Client {} is offline", status.clientId);
       return;
     }
     const auto session = sessionIter->second;
@@ -169,13 +190,14 @@ private:
       break;
     case ConnectionStatus::Disconnected:
     case ConnectionStatus::Error:
+      LOG_DEBUG("Channel {} disconnected", event.event.connectionId);
       // No info about whether it was upstream or downstream event, but all ids are unique
       // so erase both unauthorized containers, and cleanup session if it was started
       unauthorizedUpstreamMap_.erase(event.event.connectionId);
       unauthorizedDownstreamMap_.erase(event.event.connectionId);
       if (event.clientId.has_value() && sessionsMap_.count(event.clientId.value()) > 0) {
         sessionsMap_.erase(event.clientId.value());
-        LOG_INFO_SYSTEM("{} disconnected", event.clientId.value());
+        LOG_INFO_SYSTEM("Client {} disconnected", event.clientId.value());
         printStats();
       }
       break;

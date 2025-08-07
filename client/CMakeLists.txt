@@ -4,7 +4,15 @@ file(GLOB_RECURSE CLIENT_SOURCES "src/*.cpp")
 add_executable(hft_client ${CLIENT_SOURCES})
 target_compile_definitions(hft_client PRIVATE)
 
-target_link_libraries(hft_client PRIVATE hft_common ${Boost_LIBRARIES} spdlog::spdlog ${LIBPQXX_LIBRARIES} atomic)
+target_link_libraries(hft_client PRIVATE 
+    hft_common 
+    ${Boost_LIBRARIES} 
+    ${LIBPQXX_LIBRARIES} 
+    spdlog::spdlog 
+    atomic
+    iberty
+    bfd
+)
 
 target_include_directories(hft_client PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}

@@ -6,9 +6,11 @@
 #ifndef HFT_MONITOR_COMMANDPARSER_HPP
 #define HFT_MONITOR_COMMANDPARSER_HPP
 
+#include <map>
+
 #include "boost_types.hpp"
-#include "client_command.hpp"
-#include "client_command_parser.hpp"
+#include "commands/client_command.hpp"
+#include "commands/client_command_parser.hpp"
 #include "commands/server_command.hpp"
 #include "commands/server_command_parser.hpp"
 #include "concepts/busable.hpp"
@@ -24,11 +26,10 @@ namespace hft::monitor {
  */
 class MonitorCommandParser {
 public:
-  static const HashMap<String, MonitorCommand> commands;
+  static const std::map<String, MonitorCommand> commands;
 
   template <Busable Consumer>
   static bool parse(CRef<String> cmd, Consumer &consumer) {
-    // first try to parse with native command map, then server/client
     bool ret{false};
     if (client::ClientCommandParser::parse(cmd, consumer) |
         server::ServerCommandParser::parse(cmd, consumer)) {
@@ -69,7 +70,7 @@ public:
   }
 };
 
-inline const HashMap<String, MonitorCommand> MonitorCommandParser::commands{
+inline const std::map<String, MonitorCommand> MonitorCommandParser::commands{
     {"q", MonitorCommand::Shutdown}};
 
 } // namespace hft::monitor

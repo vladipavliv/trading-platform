@@ -6,13 +6,12 @@
 #ifndef HFT_SERVER_CLIENTCONTROLCENTER_HPP
 #define HFT_SERVER_CLIENTCONTROLCENTER_HPP
 
-#include "adapters/kafka/kafka_adapter.hpp"
-#include "adapters/postgres/postgres_adapter.hpp"
+#include "adapters/adapters.hpp"
 #include "boost_types.hpp"
-#include "client_command.hpp"
-#include "client_command_parser.hpp"
 #include "client_events.hpp"
 #include "client_types.hpp"
+#include "commands/client_command.hpp"
+#include "commands/client_command_parser.hpp"
 #include "config/client_config.hpp"
 #include "console_reader.hpp"
 #include "logging.hpp"
@@ -28,11 +27,11 @@ namespace hft::client {
 class ClientControlCenter {
 public:
   using ClientConsoleReader = ConsoleReader<ClientCommandParser>;
-  using Kafka = KafkaAdapter<ClientCommandParser>;
+  using StreamAdapter = adapters::MessageQueueAdapter<ClientCommandParser>;
 
   ClientControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, kafka_{bus_.systemBus}, consoleReader_{bus_.systemBus},
-        timer_{bus_.systemCtx()} {
+      : networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_.systemBus},
+        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
 
     bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
       switch (event) {
@@ -53,11 +52,6 @@ public:
 
     // commands
     bus_.systemBus.subscribe(ClientCommand::Shutdown, [this]() { stop(); });
-
-    // kafka topics
-    kafka_.addProduceTopic<OrderTimestamp>(Config::get<String>("kafka.kafka_timestamps_topic"));
-    kafka_.addProduceTopic<RuntimeMetrics>(Config::get<String>("kafka.kafka_metrics_topic"));
-    kafka_.addConsumeTopic(Config::get<String>("kafka.kafka_client_cmd_topic"));
   }
 
   void start() {
@@ -65,7 +59,8 @@ public:
 
     networkClient_.start();
     engine_.start();
-    kafka_.start();
+    streamAdapter_.start();
+    streamAdapter_.bindProduceTopic<OrderTimestamp>("order-timestamps");
 
     LOG_INFO_SYSTEM("Connecting to the server");
     networkClient_.connect();
@@ -74,7 +69,7 @@ public:
   }
 
   void stop() {
-    kafka_.stop();
+    streamAdapter_.stop();
     networkClient_.stop();
     engine_.stop();
     bus_.stop();
@@ -112,7 +107,7 @@ private:
 
   NetworkClient networkClient_;
   TradeEngine engine_;
-  Kafka kafka_;
+  StreamAdapter streamAdapter_;
   ClientConsoleReader consoleReader_;
 
   bool reconnecting_{false};

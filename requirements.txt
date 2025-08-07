@@ -1,0 +1,3 @@
+flatbuffers
+pytest
+psycopg2-binary

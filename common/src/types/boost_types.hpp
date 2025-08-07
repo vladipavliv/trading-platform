@@ -50,6 +50,9 @@ using SocketStatusCallback = std::function<void(const BoostErrorCode &)>;
 
 using MessageSize = uint16_t;
 
+constexpr auto ASIO_ERR_ABORTED = boost::asio::error::operation_aborted;
+constexpr auto ASIO_ERR_EOF = boost::asio::error::eof;
+
 } // namespace hft
 
 #endif // HFT_COMMON_BOOST_TYPES_HPP

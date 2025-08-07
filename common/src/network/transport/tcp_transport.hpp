@@ -64,7 +64,7 @@ public:
   template <typename Type>
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
-    LOG_TRACE("TcpTransport write");
+    LOG_TRACE("TcpTransport write {}", utils::toString(msg));
     const auto buffer = std::make_shared<ByteBuffer>();
     Framer::frame(msg, *buffer);
     boost::asio::async_write(
@@ -89,7 +89,7 @@ private:
   void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
-      if (code != boost::asio::error::operation_aborted) {
+      if (code != ASIO_ERR_ABORTED) {
         onStatus(ConnectionStatus::Error);
       }
       return;
@@ -108,7 +108,7 @@ private:
   }
 
   void writeHandler(BoostErrorCode code, size_t bytes) {
-    if (code && code != boost::asio::error::operation_aborted) {
+    if (code && code != ASIO_ERR_ABORTED) {
       onStatus(ConnectionStatus::Error);
     }
   }
@@ -121,11 +121,11 @@ private:
 private:
   const ConnectionId id_;
 
-  TcpSocket socket_;
-  TcpEndpoint endpoint_;
-
-  Consumer &consumer_;
   RingBuffer buffer_;
+  Consumer &consumer_;
+
+  TcpEndpoint endpoint_;
+  TcpSocket socket_;
 
   Atomic<ConnectionStatus> status_{ConnectionStatus::Disconnected};
 };

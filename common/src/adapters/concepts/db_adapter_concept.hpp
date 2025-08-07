@@ -1,17 +1,17 @@
 /**
  * @author Vladimir Pavliv
- * @date 2025-04-07
+ * @date 2025-07-07
  */
 
-#ifndef HFT_COMMON_ADAPTERS_INJECTORS_HPP
-#define HFT_COMMON_ADAPTERS_INJECTORS_HPP
+#ifndef HFT_COMMON_ADAPTERS_DBDAPTERCONCEPT_HPP
+#define HFT_COMMON_ADAPTERS_DBDAPTERCONCEPT_HPP
 
-#include "logging.hpp"
+#include <concepts>
+
+#include "domain_types.hpp"
 #include "types.hpp"
-#include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
-namespace hft {
+namespace hft::adapters {
 
 /**
  * @brief Table writer to do bulk insert to a table
@@ -35,6 +35,16 @@ concept TableReaderable = requires(Reader &reader, CRef<std::vector<String>> row
   { reader.reserve(size) } -> std::same_as<void>;
 };
 
-} // namespace hft
+template <typename Adapter>
+concept DbAdapterable =
+    requires(Adapter &db, String &name, String &password, String &table, bool cache) {
+      { db.readTickers(cache) } -> std::same_as<Expected<Vector<TickerPrice>>>;
+      { db.checkCredentials(name, password) } -> std::same_as<Expected<ClientId>>;
+      { db.clean(table) } -> std::same_as<void>;
+      { db.write(std::declval<TableWriterable auto &>()) } -> std::same_as<bool>;
+      { db.read(std::declval<TableReaderable auto &>()) } -> std::same_as<bool>;
+    };
 
-#endif // HFT_COMMON_ADAPTERS_INJECTORS_HPP
+} // namespace hft::adapters
+
+#endif // HFT_COMMON_ADAPTERS_DBDAPTERCONCEPT_HPP

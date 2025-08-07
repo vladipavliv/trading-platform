@@ -1,8 +1,9 @@
+import os 
 
 DB_CONFIG = {
     "dbname": "hft_db",
     "user": "postgres",
     "password": "password",
-    "host": "localhost",
+    "host": os.environ.get("POSTGRES_HOST", "localhost"),
     "port": 5432
 }

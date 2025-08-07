@@ -13,14 +13,12 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() { GlobalSetUp(); }
 void BM_Sys_ServerFix::GlobalSetUp() {
   using namespace server;
   std::call_once(initFlag, []() {
-    if (!Config::isLoaded()) {
-      // Config could be also loaded in other benches
-      ServerConfig::load("bench_server_config.ini");
-      LOG_INIT(ServerConfig::cfg.logOutput);
-    }
+    ServerConfig::load("bench_server_config.ini");
+    LOG_INIT(ServerConfig::cfg.logOutput);
+
     tickerCount = Config::get<size_t>("bench.ticker_count");
     orderLimit = ServerConfig::cfg.orderBookLimit;
-    workerCount = ServerConfig::cfg.coresApp.size();
+    workerCount = ServerConfig::cfg.coresApp.size() == 0 ? 1 : ServerConfig::cfg.coresApp.size();
 
     LOG_DEBUG("Tickers: {} Orders:{} Workers:{}", tickerCount, orderLimit, workerCount);
 
@@ -75,7 +73,7 @@ void BM_Sys_ServerFix::setupBus() {
   bus = std::make_unique<Bus>();
   bus->marketBus.setHandler<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
     if (s.orderStatus.state == OrderState::Rejected) {
-      BM_Sys_ServerFix::cleanupNeeded = true;
+      throw std::runtime_error("Increase OrderBook limit");
     }
     BM_Sys_ServerFix::flag.clear();
     BM_Sys_ServerFix::flag.notify_all();
@@ -108,11 +106,6 @@ BENCHMARK_F(BM_Sys_ServerFix, ProcessOrders)(benchmark::State &state) {
 
   auto iter = orders.begin();
   for (auto _ : state) {
-    if (cleanupNeeded) {
-      cleanupOrders();
-      cleanupNeeded = false;
-    }
-
     if (iter == orders.end()) {
       iter = orders.begin();
     }

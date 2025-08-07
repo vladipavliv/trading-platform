@@ -6,16 +6,19 @@
 #ifndef HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
 #define HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include <pqxx/pqxx>
 #include <pqxx/stream_to>
 
-#include "injectors.hpp"
+#include "adapters/concepts/db_adapter_concept.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
-namespace hft {
+namespace hft::adapters::impl {
 
 /**
  * @brief Postgres adapter
@@ -33,24 +36,19 @@ namespace hft {
  * reader << stream;
  */
 class PostgresAdapter {
-  /**
-   * @todo Move to config file
-   */
-  static constexpr auto CONNECTION_STRING =
-      "dbname=hft_db user=postgres password=password host=127.0.0.1 port=5432 connect_timeout=1";
   static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
   static constexpr auto TICKERS_COUNT_QUERY = "SELECT COUNT(*) FROM tickers";
   static constexpr auto SELECT_CLIENT_QUERY =
       "SELECT client_id, password FROM clients WHERE name = $1";
 
 public:
-  PostgresAdapter() : conn_{CONNECTION_STRING} {
+  PostgresAdapter() : connectionString_{getConnectionString()}, conn_{connectionString_} {
     if (!conn_.is_open()) {
       throw std::runtime_error("Failed to open db");
     }
   }
 
-  auto readTickers(bool cache = true) -> Expected<std::vector<TickerPrice>> {
+  auto readTickers(bool cache = true) -> Expected<Vector<TickerPrice>> {
     try {
       static std::vector<TickerPrice> tickers;
       if (!cache) {
@@ -190,9 +188,24 @@ public:
   }
 
 private:
+  String getConnectionString() const {
+    using namespace utils;
+    const String host = getEnvVar("POSTGRES_HOST");
+    const String port = getEnvVar("POSTGRES_PORT");
+    const String user = getEnvVar("POSTGRES_USER");
+    const String password = getEnvVar("POSTGRES_PASSWORD");
+    const String dbname = getEnvVar("POSTGRES_DB");
+    return std::format("host={} port={} user={} password={} dbname={} connect_timeout=1", // format
+                       host, port, user, password, dbname);
+  }
+
+private:
+  const String connectionString_;
   pqxx::connection conn_;
 };
 
-} // namespace hft
+} // namespace hft::adapters::impl
 
 #endif // HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
+
+#pragma GCC diagnostic pop
