@@ -54,6 +54,11 @@ public:
 
   inline auto clientId() const -> Optional<ClientId> { return clientId_; }
 
+  void close() {
+    transport_.close();
+    clientId_.reset();
+  }
+
 private:
   const ConnectionId id_;
 

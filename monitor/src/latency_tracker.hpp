@@ -18,7 +18,6 @@ namespace hft::monitor {
  * histogram-merge complications here for multi-threaded tracking
  */
 class LatencyTracker {
-
   struct Latency {
     uint64_t sum{0};
     uint64_t size{0};
@@ -49,8 +48,10 @@ private:
     using namespace utils;
     statsTimer_.expires_after(monitorRate_);
     statsTimer_.async_wait([this](BoostErrorCode code) {
-      if (code && code != boost::asio::error::operation_aborted) {
-        LOG_ERROR_SYSTEM("{}", code.message());
+      if (code) {
+        if (code != ASIO_ERR_ABORTED) {
+          LOG_ERROR_SYSTEM("{}", code.message());
+        }
         return;
       }
       static uint64_t lastSize{0};

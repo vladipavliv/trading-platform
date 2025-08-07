@@ -7,6 +7,7 @@
 #define HFT_COMMON_CONFIG_HPP
 
 #include <filesystem>
+#include <sstream>
 
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -19,15 +20,10 @@ namespace hft {
 
 struct Config {
   static void load(CRef<String> fileName) {
-    if (isLoaded()) {
-      LOG_ERROR("Config is already loaded");
-      return;
-    }
     if (!std::filesystem::exists(fileName)) {
       throw std::runtime_error(std::format("Config file not found {}", fileName));
     }
     boost::property_tree::read_ini(fileName, data);
-    loaded = true;
   }
 
   template <typename Type>
@@ -40,11 +36,21 @@ struct Config {
     return data.get_optional<Type>(name);
   }
 
-  inline static bool isLoaded() { return loaded && !data.empty(); }
-
   inline static boost::property_tree::ptree data;
-  inline static bool loaded{false};
 };
+
+template <>
+inline Vector<String> Config::get<Vector<String>>(CRef<String> name) {
+  Vector<String> items;
+  const auto value = Config::get<String>(name);
+
+  std::stringstream ss(value);
+  String item;
+  while (std::getline(ss, item, ',')) {
+    items.push_back(item);
+  }
+  return items;
+}
 
 } // namespace hft
 

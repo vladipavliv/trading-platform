@@ -64,7 +64,7 @@ public:
   template <Busable Consumer>
   bool add(CRef<ServerOrder> order, Consumer &consumer) {
     if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
-      LOG_ERROR_SYSTEM("OrderBook limit reached: {}", openedOrders_);
+      LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
@@ -121,7 +121,7 @@ public:
     }
 #ifdef BENCHMARK_BUILD
     if (!notified) {
-      consumer.post(ServerOrderStatus{0, 0, 0, 0, 0, OrderState::Rejected});
+      consumer.post(ServerOrderStatus{0, 0, 0, 0, 0, OrderState::Accepted});
     }
 #endif
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);

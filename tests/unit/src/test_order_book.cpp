@@ -34,11 +34,9 @@ public:
 
   void SetUp() override {
     std::call_once(initFlag, []() {
-      if (!Config::isLoaded()) {
-        // Config could be also loaded in other benches
-        ServerConfig::load("test_server_config.ini");
-        LOG_INIT(ServerConfig::cfg.logOutput);
-      }
+      // Config could be also loaded in other benches
+      ServerConfig::load("utest_server_config.ini");
+      LOG_INIT(ServerConfig::cfg.logOutput);
     });
     book = std::make_unique<OrderBook>();
   }
@@ -72,7 +70,7 @@ TEST_F(OrderBookFixture, OrderBookLimitReqched) {
 }
 
 TEST_F(OrderBookFixture, OrdersWontMatch) {
-  book->add({cId(), {oId(), ts(), tkr, 1, 40, SELL}}, *this);
+  book->add<OrderBookFixture>({cId(), {oId(), ts(), tkr, 1, 40, SELL}}, *this);
   book->add({cId(), {oId(), ts(), tkr, 1, 50, SELL}}, *this);
   book->add({cId(), {oId(), ts(), tkr, 1, 60, SELL}}, *this);
 

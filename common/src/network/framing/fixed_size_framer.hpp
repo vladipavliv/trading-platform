@@ -47,6 +47,7 @@ public:
     while (cursor + HEADER_SIZE <= dataBuffer.size()) {
       const auto lilBodySize = *reinterpret_cast<const LittleEndianUInt16 *>(dataPtr + cursor);
       const MessageSize bodySize = lilBodySize.value();
+      LOG_TRACE("Trying to parse {} bytes", bodySize);
       // Check if there is enough data to deserialize message
       if (cursor + HEADER_SIZE + bodySize > dataBuffer.size()) {
         break;

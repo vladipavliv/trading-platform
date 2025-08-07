@@ -42,7 +42,6 @@ public:
 
   inline static std::jthread systemThread;
   inline static std::atomic_flag flag{ATOMIC_FLAG_INIT};
-  inline static thread_local bool cleanupNeeded{false};
 
   static void GlobalSetUp();
   static void GlobalTearDown();

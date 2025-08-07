@@ -37,12 +37,12 @@ public:
     if (consoleLogger != nullptr || fileLogger != nullptr) {
       return;
     }
-    const LogLevel logLevel = static_cast<LogLevel>(SPDLOG_ACTIVE_LEVEL);
 
     initConsoleLogger();
     initFileLogger(fileName);
 
-    spdlog::set_level(logLevel);
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::flush_on(spdlog::level::trace);
   }
 
 private:
@@ -65,9 +65,13 @@ private:
     auto rotatingSink = std::make_shared<sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 10);
     fileLogger = std::make_shared<async_logger>( // format
         "async_file_logger", rotatingSink, thread_pool(), async_overflow_policy::overrun_oldest);
+
     fileLogger->set_pattern(LOG_PATTERN);
-    register_logger(fileLogger);
-    set_default_logger(fileLogger);
+    fileLogger->set_level(spdlog::level::trace);
+    fileLogger->flush_on(spdlog::level::trace);
+
+    spdlog::register_logger(fileLogger);
+    spdlog::set_default_logger(fileLogger);
   }
 };
 
