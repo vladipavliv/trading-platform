@@ -6,15 +6,13 @@
 #ifndef HFT_SERVER_COORDINATOR_HPP
 #define HFT_SERVER_COORDINATOR_HPP
 
-#include <vector>
-
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
-#include "server_ticker_data.hpp"
+#include "server_market_data.hpp"
 #include "server_types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -51,13 +49,13 @@ public:
         statsRate_{ServerConfig::cfg.monitorRate} {
     bus_.marketBus.setHandler<ServerOrder>(
         [this](CRef<ServerOrder> order) { processOrder(order); });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStart, [this] {
-      LOG_INFO_SYSTEM("Start kafka feed");
-      kafkaFeed_ = true;
+    bus_.systemBus.subscribe(ServerCommand::Telemetry_Start, [this] {
+      LOG_INFO_SYSTEM("Start telemetry");
+      telemetry_ = true;
     });
-    bus_.systemBus.subscribe(ServerCommand::KafkaFeedStop, [this] {
-      LOG_INFO_SYSTEM("Stop kafka feed");
-      kafkaFeed_ = false;
+    bus_.systemBus.subscribe(ServerCommand::Telemetry_Stop, [this] {
+      LOG_INFO_SYSTEM("Stop telemetry");
+      telemetry_ = false;
     });
   }
 
@@ -102,13 +100,13 @@ private:
   }
 
   void processOrder(CRef<ServerOrder> so) {
-    LOG_TRACE("{}", utils::toString(order));
-    ordersTotal_.fetch_add(1, std::memory_order_relaxed);
+    LOG_TRACE("{}", utils::toString(so));
     const auto &data = data_.at(so.order.ticker);
     workers_[data.getThreadId()]->ioCtx.post([this, so, &data]() {
       if (data.orderBook.add(so, bus_)) {
         data.orderBook.match(bus_);
       }
+      ordersTotal_.fetch_add(1, std::memory_order_relaxed);
     });
   }
 
@@ -132,10 +130,12 @@ private:
 
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
 
-        if (kafkaFeed_) {
+#ifdef TELEMETRY_ENABLED
+        if (telemetry_) {
           // TODO(self): add avg latency
           bus_.post(RuntimeMetrics{MetadataSource::Server, getTimestamp(), rps, 0});
         }
+#endif
       }
       lastTtl = currentTtl;
       scheduleStatsTimer();
@@ -160,9 +160,9 @@ private:
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;
 
-  bool kafkaFeed_{true};
+  bool telemetry_{false};
 
-  std::vector<UPtr<CtxRunner>> workers_;
+  Vector<UPtr<CtxRunner>> workers_;
 };
 
 } // namespace hft::server

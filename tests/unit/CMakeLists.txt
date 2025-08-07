@@ -30,12 +30,12 @@ gtest_discover_tests(run_unit_tests)
 
 add_custom_command(
     TARGET run_unit_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/test_server_config.ini ${CMAKE_BINARY_DIR}/tests/unit
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/utest_server_config.ini ${CMAKE_BINARY_DIR}/tests/unit
 )
 
 add_custom_command(
     TARGET run_unit_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/test_client_config.ini ${CMAKE_BINARY_DIR}/tests/unit
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/config/utest_client_config.ini ${CMAKE_BINARY_DIR}/tests/unit
 )
 
 target_compile_definitions(run_unit_tests PRIVATE UNIT_TESTS_BUILD)

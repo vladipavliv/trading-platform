@@ -10,7 +10,7 @@
 
 #include "logging.hpp"
 
-namespace hft {
+namespace hft::adapters::impl {
 
 class KafkaEventCallback : public RdKafka::EventCb {
 public:
@@ -61,6 +61,6 @@ public:
   }
 };
 
-} // namespace hft
+} // namespace hft::adapters::impl
 
 #endif // HFT_COMMON_ADAPTERS_KAFKACALLBACKS_HPP

@@ -6,12 +6,12 @@
 #ifndef HFT_SERVER_STORAGE_HPP
 #define HFT_SERVER_STORAGE_HPP
 
-#include "adapters/postgres/postgres_adapter.hpp"
+#include "adapters/adapters.hpp"
 #include "bus/bus.hpp"
 #include "db_table_reader.hpp"
 #include "db_table_writer.hpp"
 #include "db_type_mapper.hpp"
-#include "execution/server_ticker_data.hpp"
+#include "execution/server_market_data.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 
@@ -19,7 +19,7 @@ namespace hft::server {
 
 class Storage {
 public:
-  explicit Storage(PostgresAdapter &dbAdapter)
+  explicit Storage(adapters::DbAdapter &dbAdapter)
       : dbAdapter_{dbAdapter}, marketData_{loadMarketData()},
         persist_{ServerConfig::cfg.orderBookPersist} {}
 
@@ -32,7 +32,6 @@ public:
 
     size_t ordersSaved{0};
     Timestamp lastLog{getTimestamp()};
-    const size_t workerCount = ServerConfig::cfg.coresApp.size();
 
     for (const auto &tkrData : marketData_) {
       const auto orders = tkrData.second.orderBook.extract();
@@ -96,7 +95,9 @@ private:
     }
 
     const auto &prices = result.value();
-    const ThreadId workerCount = ServerConfig::cfg.coresApp.size();
+    const ThreadId workerCount =
+        ServerConfig::cfg.coresApp.size() == 0 ? 1 : ServerConfig::cfg.coresApp.size();
+
     MarketData data;
     data.reserve(prices.size());
 
@@ -107,7 +108,7 @@ private:
     for (ThreadId idx = 0; idx < workerCount; ++idx) {
       const size_t currWorkerTickers = perWorker + (idx < leftOver ? 1 : 0);
       for (size_t i = 0; i < currWorkerTickers && iter != prices.end(); ++i, ++iter) {
-        LOG_TRACE("{}: ${}", toString(it->ticker), it->price);
+        LOG_TRACE("{}: ${}", toString(iter->ticker), iter->price);
         data.emplace(iter->ticker, TickerData{idx});
       }
     }
@@ -116,7 +117,8 @@ private:
   }
 
 private:
-  PostgresAdapter &dbAdapter_;
+  adapters::DbAdapter &dbAdapter_;
+
   const MarketData marketData_;
   const bool persist_;
 };

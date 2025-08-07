@@ -6,11 +6,11 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
-#include "adapters/postgres/postgres_adapter.hpp"
+#include "adapters/adapters.hpp"
 #include "boost_types.hpp"
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
-#include "execution/server_ticker_data.hpp"
+#include "execution/server_market_data.hpp"
 #include "server_types.hpp"
 #include "utils/rng.hpp"
 
@@ -43,7 +43,7 @@ class PriceFeed {
       rate = price * RNG::generate<double>(-MAX_RATE_US + drift, MAX_RATE_US + drift);
       duration = RNG::generate<size_t>(MIN_DURATION_US, MAX_DURATION_US);
       lastUpdate = now;
-      LOG_DEBUG("{} price:{} rate:{} duration:{}", toString(base), price, rate, duration);
+      LOG_TRACE("{} price:{} rate:{} duration:{}", toString(base), price, rate, duration);
     }
 
     bool update(Timestamp timeStamp) {
@@ -58,7 +58,7 @@ class PriceFeed {
       }
       price += rate * timeDelta;
 
-      LOG_DEBUG("{} Δt:{} price:{}, duration:{}", toString(base), timeDelta, price, duration);
+      LOG_TRACE("{} Δt:{} price:{}, duration:{}", toString(base), timeDelta, price, duration);
 
       if (duration == 0) {
         randomize(timeStamp);
@@ -80,7 +80,7 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(Bus &bus, PostgresAdapter &dbAdapter)
+  PriceFeed(Bus &bus, adapters::DbAdapter &dbAdapter)
       : bus_{bus}, priceUpdateTimer_{bus_.systemCtx()},
         updateInterval_{ServerConfig::cfg.priceFeedRate} {
     const auto dataResult = dbAdapter.readTickers();
@@ -93,8 +93,8 @@ public:
     for (auto &value : tickerData) {
       fluctuations_.push_back(Fluctuation(value));
     }
-    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStart, [this] { start(); });
-    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeedStop, [this] { stop(); });
+    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeed_Start, [this] { start(); });
+    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeed_Stop, [this] { stop(); });
   }
 
   void start() {
@@ -129,7 +129,7 @@ private:
     const auto timeStamp = getTimestamp();
     for (auto &item : fluctuations_) {
       if (item.update(timeStamp)) {
-        LOG_DEBUG("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
+        LOG_TRACE("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
         const auto newPrice = item.getPrice();
         bus_.marketBus.post(TickerPrice{item.base.ticker, newPrice});
       }
@@ -139,7 +139,7 @@ private:
 private:
   Bus &bus_;
 
-  std::vector<Fluctuation> fluctuations_;
+  Vector<Fluctuation> fluctuations_;
 
   SteadyTimer priceUpdateTimer_;
   const Microseconds updateInterval_;

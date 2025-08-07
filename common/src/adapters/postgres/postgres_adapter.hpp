@@ -9,13 +9,13 @@
 #include <pqxx/pqxx>
 #include <pqxx/stream_to>
 
-#include "injectors.hpp"
+#include "adapters/concepts/db_adapter_concept.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
-namespace hft {
+namespace hft::adapters::impl {
 
 /**
  * @brief Postgres adapter
@@ -50,7 +50,7 @@ public:
     }
   }
 
-  auto readTickers(bool cache = true) -> Expected<std::vector<TickerPrice>> {
+  auto readTickers(bool cache = true) -> Expected<Vector<TickerPrice>> {
     try {
       static std::vector<TickerPrice> tickers;
       if (!cache) {
@@ -193,6 +193,6 @@ private:
   pqxx::connection conn_;
 };
 
-} // namespace hft
+} // namespace hft::adapters::impl
 
 #endif // HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP

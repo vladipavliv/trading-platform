@@ -25,3 +25,7 @@ _deps
 lib
 Testing
 venv
+.pytest_cache
+.env
+*.pkl
+.req_hash

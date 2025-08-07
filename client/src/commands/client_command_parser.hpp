@@ -6,6 +6,8 @@
 #ifndef HFT_CLIENT_COMMANDPARSER_HPP
 #define HFT_CLIENT_COMMANDPARSER_HPP
 
+#include <map>
+
 #include "client_command.hpp"
 #include "concepts/busable.hpp"
 #include "logging.hpp"
@@ -20,7 +22,7 @@ namespace hft::client {
  */
 class ClientCommandParser {
 public:
-  static const HashMap<String, ClientCommand> commands;
+  static const std::map<String, ClientCommand> commands;
 
   template <Busable Consumer>
   static bool parse(CRef<String> cmd, Consumer &consumer) {
@@ -51,10 +53,11 @@ public:
   }
 };
 
-inline const HashMap<String, ClientCommand> ClientCommandParser::commands{
-    {"t+", ClientCommand::TradeStart},     {"t-", ClientCommand::TradeStop},
-    {"ts+", ClientCommand::TradeSpeedUp},  {"ts-", ClientCommand::TradeSpeedDown},
-    {"k+", ClientCommand::KafkaFeedStart}, {"k-", ClientCommand::KafkaFeedStop},
+inline const std::map<String, ClientCommand> ClientCommandParser::commands{
+    {"s+", ClientCommand::Start},
+    {"s-", ClientCommand::Stop},
+    {"t+", ClientCommand::Telemetry_Start},
+    {"t-", ClientCommand::Telemetry_Stop},
     {"q", ClientCommand::Shutdown}};
 
 } // namespace hft::client

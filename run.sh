@@ -10,10 +10,17 @@ if [[ " ${args[@]} " =~ " b " ]]; then
     exit 0
 fi
 
-if [[ " ${args[@]} " =~ " t " ]]; then
+if [[ " ${args[@]} " =~ " ut " ]]; then
     cd build
     export GTEST_COLOR=1
     ctest --output-on-failure
+    exit 0
+fi
+
+if [[ " ${args[@]} " =~ " it " ]]; then
+    chmod +x scripts/setup_venv.sh
+    ./scripts/setup_venv.sh
+    ./tests/integration/it_run.sh "${args[@]:1}"
     exit 0
 fi
 

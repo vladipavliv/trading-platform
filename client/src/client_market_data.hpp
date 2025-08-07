@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_CLIENT_TICKERDATA_HPP
-#define HFT_CLIENT_TICKERDATA_HPP
+#ifndef HFT_CLIENT_MARKETDATA_HPP
+#define HFT_CLIENT_MARKETDATA_HPP
 
 #include <atomic>
 
@@ -23,6 +23,13 @@ namespace hft::client {
 struct TickerData {
   explicit TickerData(Price price) : price_{price} {}
 
+  TickerData(TickerData &&other) noexcept : price_{other.price_.load(std::memory_order_acquire)} {};
+
+  TickerData &operator=(TickerData &&other) noexcept {
+    price_ = other.price_.load(std::memory_order_acquire);
+    return *this;
+  };
+
   inline void setPrice(Price price) const { price_.store(price, std::memory_order_release); }
   inline Price getPrice() const { return price_.load(std::memory_order_acquire); }
 
@@ -32,12 +39,10 @@ private:
   TickerData() = delete;
   TickerData(const TickerData &) = delete;
   TickerData &operator=(const TickerData &other) = delete;
-  TickerData(TickerData &&) = delete;
-  TickerData &operator=(TickerData &&other) = delete;
 };
 
-using MarketData = boost::unordered_flat_map<Ticker, UPtr<TickerData>, TickerHash>;
+using MarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
 
 } // namespace hft::client
 
-#endif // HFT_CLIENT_TICKERDATA_HPP
+#endif // HFT_CLIENT_MARKETDATA_HPP

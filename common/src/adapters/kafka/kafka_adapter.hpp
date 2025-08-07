@@ -19,7 +19,7 @@
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft {
+namespace hft::adapters::impl {
 
 /**
  * @brief Kafka adapter
@@ -34,127 +34,105 @@ namespace hft {
 template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
           typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
 class KafkaAdapter {
+  static constexpr size_t FLUSH_CHUNK_TIMEOUT = 1000;
+  static constexpr size_t CONSUME_CHUNK = 100;
+
 public:
   using ConsumeSerializer = ConsumeSerializerType;
   using ProduceSerializer = ProduceSerializerType;
 
   explicit KafkaAdapter(SystemBus &bus)
-      : bus_{bus}, enabled_{Config::get_optional<bool>("kafka.kafka_enabled").value_or(true)},
-        broker_{Config::get<String>("kafka.kafka_broker")},
-        consumerGroup_{Config::get<String>("kafka.kafka_consumer_group")},
-        pollRate_{Microseconds(Config::get<size_t>("kafka.kafka_poll_rate_us"))},
-        timer_{bus_.ioCtx} {
-    if (!enabled_) {
-      LOG_DEBUG_SYSTEM("Kafka is disabled");
-      return;
-    }
-    createProducer();
-    createConsumer();
+      : bus_{bus}, broker_{Config::get<String>("kafka.broker")},
+        consumerGroup_{Config::get<String>("kafka.consumer_group")},
+        pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
+        consumeTopics_{Config::get<Vector<String>>("kafka.consume_topics")},
+        produceTopics_{Config::get<Vector<String>>("kafka.produce_topics")}, timer_{bus_.ioCtx} {
+    LOG_DEBUG("Kafka adapter ctor");
   };
 
   ~KafkaAdapter() {
-    if (!enabled_) {
+    LOG_DEBUG("Kafka adapter dtor");
+    stop();
+  }
+
+  void start() {
+    LOG_DEBUG("Start kafka adapter");
+    if (started_) {
+      LOG_ERROR("Kafka is already running");
       return;
     }
+    for (auto &topic : consumeTopics_) {
+      LOG_DEBUG("Kafka consume topic: {}", topic);
+    }
+    for (auto &topic : produceTopics_) {
+      LOG_DEBUG("Kafka produce topic: {}", topic);
+    }
+    if (!createConsumer()) {
+      LOG_ERROR("Failed to create kafka consumer");
+      return;
+    }
+    if (!createProducer()) {
+      consumer_.reset();
+      LOG_ERROR("Failed to create kafka producer");
+      return;
+    }
+    if (!startConsume() || !startProduce()) {
+      consumer_.reset();
+      producer_.reset();
+      LOG_ERROR("Failed to start kafka");
+      return;
+    }
+    started_ = true;
+    schedulePoll();
+  }
+
+  void stop() {
+    LOG_DEBUG("Stop kafka adapter");
+    started_ = false;
+    timer_.cancel();
+
     if (consumer_ != nullptr) {
       consumer_->unsubscribe();
-      consumer_->close();
+      consumer_.reset();
     }
     while (producer_ != nullptr && producer_->outq_len() > 0) {
       LOG_INFO_SYSTEM("Flushing {} messages to kafka", producer_->outq_len());
-      producer_->flush(1000);
+      producer_->flush(FLUSH_CHUNK_TIMEOUT);
+    }
+    produceTopicMap_.clear();
+    producer_.reset();
+  }
+
+  template <typename EventType>
+  void produce(CRef<EventType> event, CRef<String> topic) {
+    using namespace RdKafka;
+    LOG_DEBUG("Producing message: {} to topic: {}", utils::toString(event), topic);
+    const auto topicIt = produceTopicMap_.find(topic);
+    if (topicIt == produceTopicMap_.end()) {
+      LOG_ERROR("Not connected to the topic {}", topic);
+      return;
+    }
+    auto serializedMsg = ProduceSerializer::serialize(event);
+    const ErrorCode result =
+        producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
+                           serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
+    if (result != RdKafka::ERR_NO_ERROR) {
+      onFatalError(RdKafka::err2str(result));
     }
   }
 
   template <typename EventType>
-  void addProduceTopic(CRef<String> topic) {
-    if (!enabled_) {
-      LOG_DEBUG("Kafka is disabled");
-      return;
-    }
-    using namespace RdKafka;
-    LOG_INFO("Adding produce topic {}", topic);
-    if (produceTopicMap_.count(topic) != 0) {
-      LOG_ERROR("Topic already exist");
-      return;
-    }
-    UPtr<Topic> topicPtr{Topic::create(producer_.get(), topic, nullptr, error_)};
-    if (!topicPtr) {
-      onFatalError(std::format("Failed to create topic {}: {}", topic, error_));
-      return;
-    }
-    produceTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
-    bus_.subscribe<EventType>([this, topic](CRef<EventType> event) { produce(topic, event); });
-  }
-
-  void addConsumeTopic(CRef<String> topic) {
-    if (!enabled_) {
-      LOG_DEBUG("Kafka is disabled");
-      return;
-    }
-    LOG_INFO("Adding consume topic {}", topic);
-    consumeTopics_.push_back(topic);
-  }
-
-  void start() {
-    if (!enabled_) {
-      LOG_DEBUG("Kafka is disabled");
-      return;
-    }
-    if (error() || consumer_ == nullptr || producer_ == nullptr) {
-      LOG_ERROR_SYSTEM("Unable to start kafka {}", error_);
-      return;
-    }
-    LOG_DEBUG("Starting kafka feed");
-    const auto res = consumer_->subscribe(consumeTopics_);
-    schedulePoll();
-    if (res != RdKafka::ERR_NO_ERROR) {
-      onFatalError(RdKafka::err2str(res));
-    }
-  }
-
-  void stop() {
-    if (!enabled_) {
-      LOG_DEBUG("Kafka is disabled");
-      return;
-    }
-    if (consumer_ == nullptr || producer_ == nullptr) {
-      LOG_ERROR("Unable to stop kafka {}", error_);
-      return;
-    }
-    LOG_DEBUG("Stoping kafka feed");
-    const auto res = consumer_->unsubscribe();
-    if (res != RdKafka::ERR_NO_ERROR) {
-      onFatalError(RdKafka::err2str(res));
-    }
+  void bindProduceTopic(CRef<String> topic) {
+    bus_.subscribe<EventType>([this, topic](CRef<EventType> msg) { produce(msg, topic); });
   }
 
 private:
-  void createProducer() {
-    using namespace RdKafka;
-    if (producer_ != nullptr) {
-      LOG_ERROR("Kafka producer is already created");
-      return;
-    }
-    UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
-    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK ||
-        conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK ||
-        conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
-      onFatalError();
-      return;
-    }
-    producer_ = UPtr<Producer>(Producer::create(conf.get(), error_));
-    if (!producer_) {
-      onFatalError();
-      return;
-    }
-  }
-
-  void createConsumer() {
+  bool createConsumer() {
+    LOG_DEBUG("Create consumer");
     using namespace RdKafka;
     if (consumer_ != nullptr) {
       LOG_ERROR("Kafka consumer is already created");
-      return;
+      return false;
     }
     UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
     if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK ||
@@ -165,18 +143,71 @@ private:
         conf->set("session.timeout.ms", "6000", error_) != Conf::CONF_OK ||
         conf->set("heartbeat.interval.ms", "2000", error_) != Conf::CONF_OK) {
       onFatalError();
-      return;
+      return false;
     }
     consumer_ = UPtr<KafkaConsumer>(KafkaConsumer::create(conf.get(), error_));
     if (!consumer_) {
       onFatalError();
-      return;
+      return false;
     }
+    return true;
+  }
+
+  bool createProducer() {
+    LOG_DEBUG("Create producer");
+    using namespace RdKafka;
+    if (producer_ != nullptr) {
+      LOG_ERROR("Kafka producer is already created");
+      return false;
+    }
+    UPtr<Conf> conf{Conf::create(Conf::CONF_GLOBAL)};
+    if (conf->set("bootstrap.servers", broker_, error_) != Conf::CONF_OK ||
+        conf->set("dr_cb", &deliveryCb_, error_) != Conf::CONF_OK ||
+        conf->set("event_cb", &eventCb_, error_) != Conf::CONF_OK) {
+      onFatalError();
+      return false;
+    }
+    producer_ = UPtr<Producer>(Producer::create(conf.get(), error_));
+    if (!producer_) {
+      onFatalError();
+      return false;
+    }
+    return true;
+  }
+
+  bool startConsume() {
+    LOG_DEBUG("Start consume");
+    if (consumer_ == nullptr) {
+      return false;
+    }
+    const auto res = consumer_->subscribe(consumeTopics_);
+    if (res != RdKafka::ERR_NO_ERROR) {
+      onFatalError(RdKafka::err2str(res));
+      return false;
+    }
+    return true;
+  }
+
+  bool startProduce() {
+    LOG_DEBUG("Start produce");
+    using namespace RdKafka;
+    if (producer_ == nullptr) {
+      return false;
+    }
+    for (auto &topic : produceTopics_) {
+      UPtr<Topic> topicPtr{Topic::create(producer_.get(), topic, nullptr, error_)};
+      if (!topicPtr) {
+        onFatalError(std::format("Failed to create topic {}: {}", topic, error_));
+        return false;
+      }
+      produceTopicMap_.insert(std::make_pair(topic, std::move(topicPtr)));
+    }
+    return true;
   }
 
   void pollConsume() {
     using namespace RdKafka;
-    for (size_t i = 0; i < 100; ++i) {
+    for (size_t i = 0; i < CONSUME_CHUNK; ++i) {
       const UPtr<Message> msg{consumer_->consume(0)};
       if (msg->err() == RdKafka::ERR_NO_ERROR) {
         ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
@@ -190,36 +221,21 @@ private:
   }
 
   void schedulePoll() {
+    if (!started_) {
+      return;
+    }
     timer_.expires_after(pollRate_);
     timer_.async_wait([this](BoostErrorCode code) {
       if (code) {
-        onFatalError(code.message());
+        if (code != ASIO_ERR_ABORTED) {
+          onFatalError(code.message());
+        }
         return;
       }
       pollConsume();
       producer_->poll(0);
       schedulePoll();
     });
-  }
-
-  template <typename MessageType>
-  void produce(CRef<String> topic, CRef<MessageType> msg) {
-    using namespace RdKafka;
-    LOG_DEBUG("{} {}", topic, utils::toString(msg));
-    // Both Kafka producer and Topic are thread-safe, as long as they are not changed
-    const auto topicIt = produceTopicMap_.find(topic);
-    if (topicIt == produceTopicMap_.end()) {
-      LOG_ERROR("Not connected to the topic {}", topic);
-      return;
-    }
-    // librdkafka requires message be of a type void*
-    auto serializedMsg = ProduceSerializer::serialize(msg);
-    const ErrorCode result =
-        producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
-                           serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
-    if (result != RdKafka::ERR_NO_ERROR) {
-      onFatalError(RdKafka::err2str(result));
-    }
   }
 
   void onFatalError(CRef<String> error = "") {
@@ -235,24 +251,26 @@ private:
 private:
   SystemBus &bus_;
 
-  const bool enabled_;
   const String broker_;
   const String consumerGroup_;
   const Microseconds pollRate_;
+
+  const Vector<String> consumeTopics_;
+  const Vector<String> produceTopics_;
 
   UPtr<RdKafka::Producer> producer_;
   UPtr<RdKafka::KafkaConsumer> consumer_;
 
   HashMap<String, UPtr<RdKafka::Topic>> produceTopicMap_;
-  std::vector<String> consumeTopics_;
 
   SteadyTimer timer_;
 
+  bool started_{false};
   String error_;
 
   KafkaEventCallback eventCb_;
   KafkaDeliveryCallback deliveryCb_;
 };
-} // namespace hft
+} // namespace hft::adapters::impl
 
 #endif // HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP

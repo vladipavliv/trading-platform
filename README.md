@@ -6,9 +6,8 @@
 - [Usage](#usage)
     - [Setup environment](#setup-environment)
     - [Configuration](#configuration)
-    - [Run the server](#run-the-server)
-    - [Run the client](#run-the-client)
-    - [Run the monitor](#run-monitor)
+    - [Run](#run)
+    - [Commands](#commands)
 - [Performance](#performance)
 
 ## Introduction
@@ -28,7 +27,14 @@ Boost, Folly, FlatBuffers, Protobuf, libpqxx, librdkafka, spdlog
 ```bash
 git clone https://github.com/vladipavliv/trading-platform.git
 cd trading-platform
-./build.sh
+./build.sh [options]
+
+Options:
+  c   - Clean
+  d   - Debug
+  t   - Include tests
+  b   - Include benchmarks
+  tel - Enable telemetry via kafka
 ```
 
 ## Usage
@@ -50,23 +56,41 @@ build/client/client_config.ini
 build/monitor/monitor_config.ini
 ```
 
-### Run the server
+### Run
 ```bash
-./run.sh s k
-```
-Type `p+`/`p-` to start/stop broadcasting price updates, `q` to shutdown.
+./run.sh <component> [k]
 
-### Run the client
-```bash
-./run.sh c k
-```
-Type `t+`/`t-` to start/stop trading, `ts+`/`ts-` to +/- trading speed, `k+`/`k-` to start/stop kafka metrics streaming, `q` to shutdown.
+Components:
+  s   - Server
+  c   - Client
+  m   - Monitor
+  ut  - Unit tests
+  it  - Integration tests
+  b   - Benchmarks
 
-### Run the monitor
-```bash
-./run.sh m k
+Optional flag:
+  k   - Start Kafka if not running
 ```
-Enter client or server command, kafka should be running and enabled in configuration.
+
+### Commands
+```bash
+Server:
+  p+  - Start broadcasting price updates
+  p-  - Stop broadcasting price updates
+  t+  - Start telemetry streaming
+  t-  - Stop telemetry streaming
+  q   - Shutdown
+
+Client:
+  s+  - Start trader
+  s-  - Stop trader
+  t+  - Start telemetry streaming
+  t-  - Stop telemetry streaming
+  q   - Shutdown
+
+Monitor:
+  Supports all client & server commands (Kafka must be running and enabled in config file)
+```
 
 ## Performance
 
@@ -79,24 +103,33 @@ CPU Caches:
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
 Load Average: 0.75, 0.92, 0.78
-----------------------------------------------------------------------
-Benchmark                            Time             CPU   Iterations
-----------------------------------------------------------------------
-ServerFixture/ProcessOrders        377 ns          374 ns      1932526 <- 1 worker
-BM_protoSerialize                  127 ns          127 ns      5416681
-BM_protoDeserialize               92.9 ns         92.9 ns      7218331
-OrderBookFixture/AddOrder         73.4 ns         73.3 ns      8641751
-BM_fbsSerialize                   44.4 ns         44.4 ns     16402887
-BM_fbsDeserialize                 20.8 ns         20.7 ns     32475925
-BM_messageBusPost                 1.34 ns         1.34 ns    520477008
-BM_systemBusPost                  51.4 ns         51.3 ns     10000000
+-------------------------------------------------------------------------
+Benchmark                               Time             CPU   Iterations
+-------------------------------------------------------------------------
+BM_Sys_ServerFix/ProcessOrders        362 ns          360 ns      1977740 <- 1 worker
+BM_Ser_ProtoSerialize                 135 ns          135 ns      5155063
+BM_Ser_ProtoDeserialize               101 ns          101 ns      6849222
+BM_Sys_OrderBookFix/AddOrder         24.4 ns         24.4 ns     28610773
+BM_Ser_FbsSerialize                  45.2 ns         45.2 ns     15973594
+BM_Ser_FbsDeserialize                23.9 ns         23.9 ns     29450748
+BM_Op_MessageBusPost                 1.68 ns         1.68 ns    421630957
+BM_Op_SystemBusPost                  52.7 ns         52.6 ns     10000000
 ...
-ServerFixture/ProcessOrders       1004 ns          977 ns       707598 <- 2 workers
-ServerFixture/ProcessOrders        952 ns          934 ns       671744 <- 3 workers
-ServerFixture/ProcessOrders        972 ns          951 ns       688096 <- 4 workers
+BM_Sys_ServerFix/ProcessOrders        945 ns          920 ns       719780 <- 2 workers
+BM_Sys_ServerFix/ProcessOrders        907 ns          890 ns       758570 <- 3 workers
+BM_Sys_ServerFix/ProcessOrders       1036 ns         1005 ns       693849 <- 4 workers
 ```
 
-Localhost tests:
+Stress test (Server + Python tester with 5M pregenerated orders):
+```bash
+[Client 0] Loaded 5000000 orders in 0.53s
+00:36:26.746280 [I] Orders: [opn|ttl] 175,658|801,343 | Rps: 801,342
+00:36:27.746468 [I] Orders: [opn|ttl] 581,200|2,662,556 | Rps: 1,861,213
+00:36:28.746653 [I] Orders: [opn|ttl] 986,963|4,528,793 | Rps: 1,866,237
+[Client 0] Sent 5000000 orders in 2.70s (1852510.08 orders/sec)
+```
+
+Manual localhost tests:
 
 1 client, all threads pinned, 1us trade rate:
 ```bash
@@ -106,7 +139,7 @@ Client:
 01:36:12.287540 [I] Rtt: [<50us|>50us] 99.76% avg:17us 0.24% avg:66us
 ```
 
-3 clients, client threads not pinned, 6us trade rate:
+3 clients, no client pinning, 6us trade rate:
 ```bash
 Server:
 23:10:23.747329 [I] Orders: [opn|ttl] 20,439,753|94,833,660 | Rps: 213,990

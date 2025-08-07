@@ -3,11 +3,10 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_SERVER_TICKERDATA_HPP
-#define HFT_SERVER_TICKERDATA_HPP
+#ifndef HFT_SERVER_MARKETDATA_HPP
+#define HFT_SERVER_MARKETDATA_HPP
 
 #include <atomic>
-#include <map>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
@@ -24,7 +23,7 @@ namespace hft::server {
  */
 class alignas(CACHE_LINE_SIZE) TickerData {
 public:
-  TickerData(ThreadId id) : threadId_{id} {}
+  explicit TickerData(ThreadId id) : threadId_{id} {}
 
   TickerData(TickerData &&other) noexcept
       : threadId_{other.threadId_.load(std::memory_order_acquire)},

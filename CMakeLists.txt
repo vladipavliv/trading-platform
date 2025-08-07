@@ -40,6 +40,7 @@ pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(TELEMETRY_ENABLED "Enable telemetry" OFF)
+set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR")
 
 string(ASCII 27 esc)
 message(STATUS "${esc}[1;32mBUILD_TESTS${esc}[0m is set to: ${esc}[1;33m${BUILD_TESTS}${esc}[0m")

@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "boost_types.hpp"
-#include "client_command.hpp"
 #include "client_events.hpp"
 #include "client_types.hpp"
+#include "commands/client_command.hpp"
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "domain_types.hpp"
