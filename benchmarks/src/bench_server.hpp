@@ -8,10 +8,6 @@
 
 #include <benchmark/benchmark.h>
 
-#include <iostream>
-
-#include <benchmark/benchmark.h>
-
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"

@@ -7,6 +7,7 @@
 #define HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP
 
 #include <librdkafka/rdkafkacpp.h>
+#include <sstream>
 
 #include "boost_types.hpp"
 #include "bus/bus.hpp"
@@ -55,35 +56,31 @@ public:
     stop();
   }
 
-  void start() {
+  bool start() {
     LOG_DEBUG("Start kafka adapter");
     if (started_) {
       LOG_ERROR("Kafka is already running");
-      return;
+      return false;
     }
-    for (auto &topic : consumeTopics_) {
-      LOG_DEBUG("Kafka consume topic: {}", topic);
-    }
-    for (auto &topic : produceTopics_) {
-      LOG_DEBUG("Kafka produce topic: {}", topic);
-    }
+    printTopics();
     if (!createConsumer()) {
       LOG_ERROR("Failed to create kafka consumer");
-      return;
+      return false;
     }
     if (!createProducer()) {
       consumer_.reset();
       LOG_ERROR("Failed to create kafka producer");
-      return;
+      return false;
     }
     if (!startConsume() || !startProduce()) {
       consumer_.reset();
       producer_.reset();
       LOG_ERROR("Failed to start kafka");
-      return;
+      return false;
     }
     started_ = true;
     schedulePoll();
+    return true;
   }
 
   void stop() {
@@ -246,6 +243,19 @@ private:
   }
 
 private:
+  void printTopics() {
+    std::stringstream ss;
+    ss << "Kafka consume topics: ";
+    for (auto &topic : consumeTopics_) {
+      ss << topic << " ";
+    }
+    ss << std::endl << "Kafka produce topics: ";
+    for (auto &topic : produceTopics_) {
+      ss << topic << " ";
+    }
+    LOG_INFO(ss.str());
+  }
+
   bool error() const { return !error_.empty(); }
 
 private:

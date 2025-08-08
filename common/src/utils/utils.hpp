@@ -155,10 +155,7 @@ inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
 
 inline String getEnvVar(CRef<String> varName) {
   const char *value = std::getenv(varName.c_str());
-  if (!value) {
-    throw std::runtime_error(std::string("Environment variable not set: ") + varName);
-  }
-  return value;
+  return value == nullptr ? "" : value;
 }
 
 } // namespace hft::utils
