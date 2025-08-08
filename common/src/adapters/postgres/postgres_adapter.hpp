@@ -13,6 +13,7 @@
 #include <pqxx/stream_to>
 
 #include "adapters/concepts/db_adapter_concept.hpp"
+#include "config/config.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -194,9 +195,14 @@ private:
     const String port = getEnvVar("POSTGRES_PORT");
     const String user = getEnvVar("POSTGRES_USER");
     const String password = getEnvVar("POSTGRES_PASSWORD");
-    const String dbname = getEnvVar("POSTGRES_DB");
-    return std::format("host={} port={} user={} password={} dbname={} connect_timeout=1", // format
-                       host, port, user, password, dbname);
+    const String dbName = getEnvVar("POSTGRES_DB");
+
+    return std::format("host={} port={} user={} password={} dbname={} connect_timeout=1",
+                       host.empty() ? Config::get<String>("db.host") : host,
+                       port.empty() ? Config::get<String>("db.port") : port,
+                       user.empty() ? Config::get<String>("db.user") : user,
+                       password.empty() ? Config::get<String>("db.password") : password,
+                       dbName.empty() ? Config::get<String>("db.dbname") : dbName);
   }
 
 private:
