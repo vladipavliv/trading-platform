@@ -12,7 +12,7 @@
 #include "metadata_types.hpp"
 #include "types.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::proto {
 
 inline MetadataSource convert(gen::proto::metadata::Source source) {
   switch (source) {
@@ -36,6 +36,6 @@ inline gen::proto::metadata::Source convert(MetadataSource source) {
   }
 }
 
-} // namespace hft::serialization
+} // namespace hft::serialization::proto
 
 #endif // HFT_COMMON_SERIALIZATION_PROTOCONVERTER_HPP

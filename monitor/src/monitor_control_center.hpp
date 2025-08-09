@@ -16,7 +16,7 @@
 #include "latency_tracker.hpp"
 #include "monitor_command.hpp"
 #include "monitor_command_parser.hpp"
-#include "serialization/protobuf/proto_metadata_serializer.hpp"
+#include "serialization/serializer.hpp"
 
 namespace hft::monitor {
 /**
@@ -25,9 +25,8 @@ namespace hft::monitor {
 class MonitorControlCenter {
 public:
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
-  using StreamAdapter =
-      adapters::MessageQueueAdapter<SystemBus, serialization::ProtoMetadataSerializer,
-                                    MonitorCommandParser>;
+  using StreamAdapter = adapters::MessageQueueAdapter<SystemBus, serialization::MetadataSerializer,
+                                                      MonitorCommandParser>;
 
   MonitorControlCenter() : consoleReader_{bus_}, streamAdapter_{bus_}, tracker_{bus_} {
     using namespace server;

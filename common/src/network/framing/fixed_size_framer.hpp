@@ -10,7 +10,8 @@
 #include "concepts/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "serialization/flat_buffers/fbs_domain_serializer.hpp"
+#include "serialization/fbs/fbs_domain_serializer.hpp"
+#include "serialization/serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -19,7 +20,7 @@ namespace hft {
 /**
  * @brief Frames messages by writing message size and then serialized data
  */
-template <typename SerializerType = serialization::FbsDomainSerializer>
+template <typename SerializerType = serialization::DomainSerializer>
 class FixedSizeFramer {
 public:
   using Serializer = SerializerType;

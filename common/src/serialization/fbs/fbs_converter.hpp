@@ -11,7 +11,7 @@
 #include "logging.hpp"
 #include "types.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::fbs {
 
 inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   Ticker ticker{};
@@ -31,8 +31,8 @@ inline OrderAction convert(gen::fbs::domain::OrderAction action) {
   case gen::fbs::domain::OrderAction::OrderAction_SELL:
     return OrderAction::Sell;
   default:
-    LOG_ERROR("Unknown OrderAction {}", (uint8_t)action);
-    return OrderAction::Buy;
+    throw std::runtime_error(
+        std::format("Unknown gen::fbs::domain::OrderAction {}", (uint8_t)action));
   }
 }
 inline gen::fbs::domain::OrderAction convert(OrderAction action) {
@@ -42,8 +42,7 @@ inline gen::fbs::domain::OrderAction convert(OrderAction action) {
   case OrderAction::Sell:
     return gen::fbs::domain::OrderAction::OrderAction_SELL;
   default:
-    LOG_ERROR("Unknown OrderAction {}", (uint8_t)action);
-    return gen::fbs::domain::OrderAction::OrderAction_BUY;
+    throw std::runtime_error(std::format("Unknown OrderAction {}", (uint8_t)action));
   }
 }
 
@@ -58,8 +57,8 @@ inline OrderState convert(gen::fbs::domain::OrderState state) {
   case gen::fbs::domain::OrderState::OrderState_Full:
     return OrderState::Full;
   default:
-    LOG_ERROR("Unknown OrderState {}", (uint8_t)state);
-    return static_cast<OrderState>(state);
+    throw std::runtime_error(
+        std::format("Unknown gen::fbs::domain::OrderState {}", (uint8_t)state));
   }
 }
 inline gen::fbs::domain::OrderState convert(OrderState state) {
@@ -73,11 +72,10 @@ inline gen::fbs::domain::OrderState convert(OrderState state) {
   case OrderState::Full:
     return gen::fbs::domain::OrderState::OrderState_Full;
   default:
-    LOG_ERROR("Unknown OrderState {}", (uint8_t)state);
-    return static_cast<gen::fbs::domain::OrderState>(state);
+    throw std::runtime_error(std::format("Unknown OrderState {}", (uint8_t)state));
   }
 }
 
-} // namespace hft::serialization
+} // namespace hft::serialization::fbs
 
 #endif // HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP

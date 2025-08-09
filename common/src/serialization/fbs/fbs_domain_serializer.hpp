@@ -14,7 +14,7 @@
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::fbs {
 
 /**
  * @brief Flat buffers serializer
@@ -171,6 +171,6 @@ public:
   }
 };
 
-} // namespace hft::serialization
+} // namespace hft::serialization::fbs
 
 #endif // HFT_COMMON_SERIALIZATION_FBSSERIALIZER_HPP

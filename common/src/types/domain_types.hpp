@@ -25,24 +25,21 @@ enum class OrderState : uint8_t { Accepted, Rejected, Partial, Full };
 struct LoginRequest {
   String name;
   String password;
+  auto operator<=>(const LoginRequest &lr) const = default;
 };
 
 struct TokenBindRequest {
   Token token;
+  auto operator<=>(const TokenBindRequest &) const = default;
 };
 
 struct LoginResponse {
   Token token{0};
   bool ok{false};
   String error{};
+  auto operator<=>(const LoginResponse &) const = default;
 };
 
-/**
- * @todo OrderBook works with the single ticker, and has separate container for bids and asks
- * So ticker and action could be thrown away to reduce memory footprint
- * Would complicate things a bit, but help keeping order under 32 bytes and have 2 orders
- * in a single cache line
- */
 struct alignas(8) Order {
   OrderId id;
   Timestamp created;
@@ -56,6 +53,7 @@ struct alignas(8) Order {
   inline void partialFill(Quantity amount) const {
     quantity = quantity < amount ? 0 : quantity - amount;
   }
+  auto operator<=>(const Order &) const = default;
 };
 
 struct alignas(8) OrderStatus {
@@ -65,11 +63,13 @@ struct alignas(8) OrderStatus {
   Price fillPrice;
   OrderState state;
   char padding[7] = {0};
+  auto operator<=>(const OrderStatus &) const = default;
 };
 
 struct TickerPrice {
   Ticker ticker;
   Price price;
+  auto operator<=>(const TickerPrice &) const = default;
 };
 
 } // namespace hft

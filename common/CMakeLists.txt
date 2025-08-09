@@ -38,10 +38,11 @@ target_link_libraries(hft_common PRIVATE
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
-add_dependencies(hft_common fbs_cpp_domain_code_generator)
-add_dependencies(hft_common fbs_cpp_metadata_code_generator)
-add_dependencies(hft_common fbs_python_domain_code_generator)
-add_dependencies(hft_common proto_cpp_metadata_code_generator)
+add_dependencies(hft_common sbe_cpp_domain_code_gen)
+add_dependencies(hft_common fbs_cpp_domain_code_gen)
+add_dependencies(hft_common fbs_cpp_metadata_code_gen)
+add_dependencies(hft_common fbs_python_domain_code_gen)
+add_dependencies(hft_common proto_cpp_metadata_code_gen)
 
 # Make library
 set(CMAKE_AR "/usr/bin/ar")

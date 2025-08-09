@@ -29,6 +29,10 @@ namespace hft::server {
  * Currently for simple limit orders all the data is hot, and there are no iterations
  * without sending status, so separating it doesnt make sense for now.
  * Reconsider for more complex order types later on.
+ * @todo Works with the single ticker, and has separate container for bids and asks
+ * So ticker and action could be thrown away to reduce memory footprint
+ * Would complicate things a bit, but help keeping order under 32 bytes and have 2 orders
+ * in a single cache line
  */
 class OrderBook {
   static inline bool compareBids(CRef<ServerOrder> left, CRef<ServerOrder> right) {

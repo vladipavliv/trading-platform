@@ -76,18 +76,16 @@ using Vector = std::vector<Type>;
 
 /**
  * Function types
- * @todo std::function is not efficient for hot paths, either
- * - Make custom callable for hot paths
- * - Use FunctionRef in the bus, and each subscriber holds its
- *   subscription callback by its native lambda type
+ * @todo std::function does some type erasing so a custom callable could have been more efficient.
+ * But MessageBus::post benchmarks to a whopping 1.5ns,
+ * so optimize it only when we go to sub-nanosecond territory jk
  */
 using Callback = std::function<void()>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
 
 /**
- * Concepts
- * @todo Properly define all the concepts, for Consumer and other templated types
+ * Some helper concepts
  */
 template <typename EventType>
 concept UnorderedMapKey = requires(EventType &event) {
