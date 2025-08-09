@@ -8,9 +8,9 @@
 
 #include <concepts>
 
-#include "data_bus.hpp"
 #include "domain_types.hpp"
 #include "message_bus.hpp"
+#include "stream_bus.hpp"
 #include "system_bus.hpp"
 
 namespace hft {
@@ -18,9 +18,12 @@ namespace hft {
 /**
  * @brief Holds different types of buses, routes calls to a proper bus
  */
-template <typename MarketBus = MessageBus<>, typename StreamBus = DataBus<>>
+template <typename MarketBus = MessageBus<>, typename StreamBus = StreamBus<>>
 struct BusHolder {
 public:
+  using MarketBusType = MarketBus;
+  using StreamBusType = StreamBus;
+
   SystemBus systemBus;
   MarketBus marketBus;
   StreamBus streamBus;

@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include "bus/data_bus.hpp"
+#include "bus/stream_bus.hpp"
 #include "config/server_config.hpp"
 #include "execution/order_book.hpp"
 
@@ -16,7 +16,7 @@ namespace hft::tests {
 using namespace server;
 using namespace utils;
 
-class DataBusFixture : public ::testing::Test {
+class StreamBusFixture : public ::testing::Test {
 public:
   inline static std::once_flag initFlag;
 
@@ -31,8 +31,8 @@ public:
   void TearDown() override {}
 };
 
-TEST_F(DataBusFixture, Post) {
-  DataBus<size_t> bus;
+TEST_F(StreamBusFixture, Post) {
+  StreamBus<size_t> bus;
 
   size_t eventsPushed{0};
   std::atomic_size_t eventsPopped{0};

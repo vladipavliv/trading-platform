@@ -40,10 +40,10 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_SystemBusPost);
 
-static void BM_Op_DataBusPost(benchmark::State &state) {
+static void BM_Op_StreamBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
-  DataBus<Order> bus;
+  StreamBus<Order> bus;
   bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
   bus.run();
 
@@ -53,6 +53,6 @@ static void BM_Op_DataBusPost(benchmark::State &state) {
   }
   bus.stop();
 }
-BENCHMARK(BM_Op_DataBusPost);
+BENCHMARK(BM_Op_StreamBusPost);
 
 } // namespace hft::benchmarks

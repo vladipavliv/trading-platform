@@ -49,7 +49,7 @@ struct ServerOrderStatus {
 };
 
 using ServerBus = BusHolder<MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>,
-                            DataBus<OrderTimestamp, RuntimeMetrics>>;
+                            StreamBus<OrderTimestamp, RuntimeMetrics>>;
 } // namespace hft::server
 
 namespace hft::utils {

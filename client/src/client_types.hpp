@@ -12,8 +12,8 @@
 
 namespace hft::client {
 
-using ClientBus =
-    BusHolder<MessageBus<Order, OrderStatus, TickerPrice>, DataBus<OrderTimestamp, RuntimeMetrics>>;
+using ClientBus = BusHolder<MessageBus<Order, OrderStatus, TickerPrice>,
+                            StreamBus<OrderTimestamp, RuntimeMetrics>>;
 }
 
 #endif // HFT_CLIENT_CLIENTTYPES_HPP

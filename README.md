@@ -122,7 +122,7 @@ BM_Op_FollyMpmcQueue                 43.2 ns         43.2 ns     15866695
 BM_Op_BoostMpmcQueue                 32.1 ns         31.9 ns     22239821
 BM_Op_MessageBusPost                 1.66 ns         1.65 ns    427797353
 BM_Op_SystemBusPost                  54.6 ns         54.5 ns     13274417
-BM_Op_DataBusPost                    12.5 ns         12.5 ns     53462939
+BM_Op_StreamBusPost                  12.5 ns         12.5 ns     53462939
 ...
 BM_Sys_ServerFix/ProcessOrders        945 ns          920 ns       719780 <- 2 workers
 BM_Sys_ServerFix/ProcessOrders        907 ns          890 ns       758570 <- 3 workers
