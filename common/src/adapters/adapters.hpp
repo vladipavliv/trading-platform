@@ -19,12 +19,12 @@ namespace hft::adapters {
 #ifdef TELEMETRY_ENABLED
 template <typename Bus, typename ConsumeSerializer = serialization::ProtoMetadataSerializer,
           typename ProduceSerializer = serialization::ProtoMetadataSerializer>
-using MessageQueueAdapter = impl::KafkaAdapter<Bus, ConsumeSerializer, ProduceSerializer>;
+using MessageQueueAdapter = KafkaAdapter<Bus, ConsumeSerializer, ProduceSerializer>;
 #else
 template <typename Bus, typename ConsumeVoid = void, typename ProduceVoid = void>
-using MessageQueueAdapter = impl::DummyKafkaAdapter<Bus, ConsumeVoid, ProduceVoid>;
+using MessageQueueAdapter = DummyKafkaAdapter<Bus, ConsumeVoid, ProduceVoid>;
 #endif
-using DbAdapter = impl::PostgresAdapter;
+using DbAdapter = PostgresAdapter;
 
 } // namespace hft::adapters
 

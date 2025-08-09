@@ -22,6 +22,9 @@ namespace hft {
  * @details Telemetry stream is very intense. To mitigate effect on the hot path,
  * custom optimized lock-free queue is used instead of io_context queue
  * Benchmarks DataBus::post vs SystemBus::post => 14.3ns vs 52.1 ns
+ * This is not used in hot paths cause io_context is optimized not only for producing, but
+ * also for consuming. Here we dont care as much for consume side, cause we optimizing for
+ * minimal effect on a hot path. In the hot path both sides matter
  */
 template <typename... Events>
 class DataBus {
@@ -68,6 +71,12 @@ public:
       return;
     }
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
+    auto &handler = std::get<CRefHandler<Event>>(handlers_);
+
+    if (!handler) {
+      LOG_ERROR("Handler is not set for the type {}", typeid(Event).name());
+      return;
+    }
 
     size_t pushRetry{0};
     while (!queue->push(event)) {
@@ -83,9 +92,6 @@ public:
     if (running_) {
       LOG_ERROR("DataBus is already running");
       return;
-    }
-    if (!(std::get<CRefHandler<Events>>(handlers_) && ...)) {
-      throw std::runtime_error("Some handlers are not set in DataBus");
     }
     LOG_DEBUG("Running DataBus");
     running_ = true;
@@ -125,7 +131,9 @@ private:
   void process() {
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
     auto &handler = std::get<CRefHandler<Event>>(handlers_);
-
+    if (!handler) {
+      return;
+    }
     Event event;
     while (queue->pop(event)) {
       handler(event);

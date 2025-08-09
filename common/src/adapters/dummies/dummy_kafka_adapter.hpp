@@ -11,7 +11,7 @@
 #include "logging.hpp"
 #include "types.hpp"
 
-namespace hft::adapters::impl {
+namespace hft::adapters {
 
 template <Busable BusType, typename ConsumeSerializer = void, typename ProduceSerializer = void>
 class DummyKafkaAdapter {
@@ -28,6 +28,6 @@ public:
   void bindProduceTopic(CRef<String> topic) {}
 };
 
-} // namespace hft::adapters::impl
+} // namespace hft::adapters
 
 #endif // HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP

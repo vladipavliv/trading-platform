@@ -20,7 +20,7 @@
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::adapters::impl {
+namespace hft::adapters {
 
 /**
  * @brief Reactive adapter, all communication goes through the bus
@@ -276,6 +276,6 @@ private:
   KafkaEventCallback eventCb_;
   KafkaDeliveryCallback deliveryCb_;
 };
-} // namespace hft::adapters::impl
+} // namespace hft::adapters
 
 #endif // HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP
