@@ -20,27 +20,27 @@ namespace hft {
  */
 class SystemBus {
 public:
-  IoCtx ioCtx;
+  SystemBus() : ioCtxGuard_{MakeGuard(ioCtx_.get_executor())} {}
 
-  SystemBus() : ioCtxGuard_{MakeGuard(ioCtx.get_executor())} {}
+  inline IoCtx &systemIoCtx() { return ioCtx_; }
 
   template <typename EventType>
   void subscribe(CRefHandler<EventType> handler) {
-    ioCtx.post([handler = std::move(handler)]() {
+    ioCtx_.post([handler = std::move(handler)]() {
       getEventSubscribers<EventType>().emplace_back(std::move(handler));
     });
   }
 
   template <UnorderedMapKey EventType>
   void subscribe(EventType event, Callback callback) {
-    ioCtx.post([event, callback = std::move(callback)]() {
+    ioCtx_.post([event, callback = std::move(callback)]() {
       getValueSubscribers<EventType>()[event].emplace_back(std::move(callback));
     });
   }
 
   template <typename EventType>
   inline void post(CRef<EventType> event) {
-    ioCtx.post([event]() { onEvent(event); });
+    ioCtx_.post([event]() { onEvent(event); });
   }
 
   void run() {
@@ -49,10 +49,10 @@ public:
     if (coreId.has_value()) {
       utils::pinThreadToCore(coreId.value());
     }
-    ioCtx.run();
+    ioCtx_.run();
   }
 
-  void stop() { ioCtx.stop(); }
+  void stop() { ioCtx_.stop(); }
 
 private:
   SystemBus(const SystemBus &) = delete;
@@ -96,6 +96,7 @@ private:
   }
 
 private:
+  IoCtx ioCtx_;
   ContextGuard ioCtxGuard_;
 };
 

@@ -19,7 +19,8 @@ enum class ClientEvent : uint8_t { Connected, Disconnected, ConnectionFailed, In
 } // namespace client
 
 namespace utils {
-inline String toString(const client::ClientEvent &event) {
+template <>
+inline String toString<client::ClientEvent>(const client::ClientEvent &event) {
   using namespace client;
   switch (event) {
   case ClientEvent::Connected:

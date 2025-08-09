@@ -37,16 +37,16 @@ class SessionManager {
   };
 
 public:
-  explicit SessionManager(Bus &bus)
+  explicit SessionManager(ServerBus &bus)
       : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
         unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
-    bus_.marketBus.setHandler<ServerOrderStatus>(
+    bus_.subscribe<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
-    bus_.systemBus.subscribe<ServerLoginResponse>(
+    bus_.subscribe<ServerLoginResponse>(
         [this](CRef<ServerLoginResponse> event) { onLoginResponse(event); });
-    bus_.systemBus.subscribe<ServerTokenBindRequest>(
+    bus_.subscribe<ServerTokenBindRequest>(
         [this](CRef<ServerTokenBindRequest> event) { onTokenBindRequest(event); });
-    bus_.systemBus.subscribe<ChannelStatusEvent>(
+    bus_.subscribe<ChannelStatusEvent>(
         [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
 
@@ -209,7 +209,7 @@ private:
   inline void printStats() const { LOG_INFO_SYSTEM("Active sessions: {}", sessionsMap_.size()); }
 
 private:
-  Bus &bus_;
+  ServerBus &bus_;
 
   folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
   folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;

@@ -21,35 +21,43 @@ namespace hft {
  * @details For better cache locality all types are defined via variadics
  * And only one consumer is allowed per message type
  */
-template <typename... EventTypes>
+template <typename... Events>
 class MessageBus {
 public:
-  MessageBus() : handlers_{std::make_tuple(CRefHandler<EventTypes>{}...)} {}
+  MessageBus() : handlers_{} {}
 
-  template <typename EventType>
-  static constexpr bool RoutedType = utils::contains<EventType, EventTypes...>;
+  template <typename Event>
+  static constexpr bool Routed = utils::contains<Event, Events...>;
 
-  template <typename EventType>
-    requires RoutedType<EventType>
-  void setHandler(CRefHandler<EventType> handler) {
-    auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
+  template <typename Event>
+    requires Routed<Event>
+  void subscribe(CRefHandler<Event> handler) {
+    auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
     if (handlerRef) {
-      LOG_ERROR("Handler is already registered for the type {}", typeid(EventType).name());
+      LOG_ERROR("Handler is already registered for the type {}", typeid(Event).name());
     } else {
       handlerRef = std::move(handler);
     }
   }
 
-  template <typename EventType>
-    requires RoutedType<EventType>
-  inline void post(CRef<EventType> event) {
-    auto &handlerRef = std::get<CRefHandler<EventType>>(handlers_);
+  template <typename Event>
+    requires Routed<Event>
+  inline void post(CRef<Event> event) {
+    auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
     if (!handlerRef) {
       LOG_ERROR("Handler not registered for event type");
       return;
     }
     handlerRef(event);
   }
+
+  void run() {
+    if (!(std::get<CRefHandler<Events>>(handlers_) && ...)) {
+      throw std::runtime_error("Some handlers are not set in MessageBus");
+    }
+  }
+
+  void stop() {}
 
 private:
   MessageBus(const MessageBus &) = delete;
@@ -58,7 +66,7 @@ private:
   MessageBus &operator=(const MessageBus &&) = delete;
 
 private:
-  std::tuple<CRefHandler<EventTypes>...> handlers_;
+  std::tuple<CRefHandler<Events>...> handlers_;
 };
 
 } // namespace hft

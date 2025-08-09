@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include "boost_types.hpp"
-#include "bus/bus.hpp"
+#include "concepts/busable.hpp"
 #include "config/config.hpp"
 #include "kafka_callbacks.hpp"
 #include "kafka_event.hpp"
@@ -23,16 +23,9 @@
 namespace hft::adapters::impl {
 
 /**
- * @brief Kafka adapter
- * @details Reactive adapter, all communication goes through the bus
- * @todo Make separate DataBus, SystemBus should be responsive and not overwhelmed
- * by the kafka traffic. Even though priorities could be implemented in the system bus
- * so important events go ::dispatch instead of ::post, its better to make separate bus
- * with no responsiveness requirements.
- * If DataBus ends up multithreaded, this adapter should probably work fine,
- * but needs to be tested
+ * @brief Reactive adapter, all communication goes through the bus
  */
-template <typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
+template <Busable Bus, typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
           typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
 class KafkaAdapter {
   static constexpr size_t FLUSH_CHUNK_TIMEOUT = 1000;
@@ -41,13 +34,15 @@ class KafkaAdapter {
 public:
   using ConsumeSerializer = ConsumeSerializerType;
   using ProduceSerializer = ProduceSerializerType;
+  using BusType = Bus;
 
-  explicit KafkaAdapter(SystemBus &bus)
+  explicit KafkaAdapter(Bus &bus)
       : bus_{bus}, broker_{Config::get<String>("kafka.broker")},
         consumerGroup_{Config::get<String>("kafka.consumer_group")},
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
         consumeTopics_{Config::get<Vector<String>>("kafka.consume_topics")},
-        produceTopics_{Config::get<Vector<String>>("kafka.produce_topics")}, timer_{bus_.ioCtx} {
+        produceTopics_{Config::get<Vector<String>>("kafka.produce_topics")},
+        timer_{bus_.dataIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };
 
@@ -120,7 +115,7 @@ public:
 
   template <typename EventType>
   void bindProduceTopic(CRef<String> topic) {
-    bus_.subscribe<EventType>([this, topic](CRef<EventType> msg) { produce(msg, topic); });
+    bus_.template subscribe<EventType>([this, topic](CRef<EventType> msg) { produce(msg, topic); });
   }
 
 private:
@@ -259,7 +254,7 @@ private:
   bool error() const { return !error_.empty(); }
 
 private:
-  SystemBus &bus_;
+  Bus &bus_;
 
   const String broker_;
   const String consumerGroup_;

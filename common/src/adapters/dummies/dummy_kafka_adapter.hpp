@@ -6,17 +6,17 @@
 #ifndef HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 #define HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 
-#include "bus/system_bus.hpp"
+#include "concepts/busable.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 
 namespace hft::adapters::impl {
 
-template <typename ConsumeSerializer = void, typename ProduceSerializer = void>
+template <Busable BusType, typename ConsumeSerializer = void, typename ProduceSerializer = void>
 class DummyKafkaAdapter {
 public:
-  DummyKafkaAdapter(SystemBus &bus) { LOG_DEBUG("Kafka dummy adapter"); }
+  DummyKafkaAdapter(BusType &bus) { LOG_DEBUG("Kafka dummy adapter"); }
 
   void start() {}
   void stop() {}

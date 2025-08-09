@@ -22,9 +22,12 @@ class CtxRunner {
 public:
   IoCtx ioCtx;
 
-  CtxRunner(ThreadId id, bool pinToCore, CoreId coreId = 0)
-      : threadId_{id}, pinToCore_{pinToCore}, coreId_{coreId},
-        guard_{MakeGuard(ioCtx.get_executor())} {}
+  CtxRunner() : guard_{MakeGuard(ioCtx.get_executor())} {}
+
+  CtxRunner(ThreadId id) : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())} {}
+
+  CtxRunner(ThreadId id, CoreId coreId)
+      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())} {}
 
   ~CtxRunner() { ioCtx.stop(); }
 
@@ -37,29 +40,32 @@ public:
     thread_ = Thread{[this]() {
       try {
         utils::setTheadRealTime();
-        if (pinToCore_) {
-          utils::pinThreadToCore(coreId_);
-          LOG_INFO_SYSTEM("Starting worker thread {} on the core {}", threadId_, coreId_);
+        String idStr = threadId_.has_value() ? std::to_string(threadId_.value()) : "";
+        if (coreId_.has_value()) {
+          utils::pinThreadToCore(coreId_.value());
+          LOG_INFO_SYSTEM("Starting worker thread {} on the core {}", idStr, coreId_.value());
         } else {
-          LOG_INFO_SYSTEM("Starting worker thread {}", threadId_);
+          LOG_INFO_SYSTEM("Starting worker thread {}", idStr);
         }
         ioCtx.run();
       } catch (CRef<std::exception> e) {
-        LOG_ERROR_SYSTEM("Exception in worker thread {} {}", threadId_, e.what());
+        LOG_ERROR_SYSTEM("std::exception in CtxRunner {}", e.what());
       } catch (...) {
-        LOG_ERROR_SYSTEM("Unknown exception in worker thread {}", threadId_);
+        LOG_ERROR_SYSTEM("unknown exception in CtxRunner");
       }
     }};
   }
 
-  void stop() { ioCtx.stop(); }
+  void stop() {
+    ioCtx.stop();
+    running_ = false;
+  }
 
 private:
-  const ThreadId threadId_;
-  const bool pinToCore_;
-  const CoreId coreId_;
+  const std::optional<ThreadId> threadId_;
+  const std::optional<CoreId> coreId_;
 
-  bool running_{false};
+  std::atomic_bool running_{false};
 
   ContextGuard guard_;
   Thread thread_;

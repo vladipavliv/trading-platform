@@ -44,17 +44,15 @@ namespace hft::server {
  */
 class Coordinator {
 public:
-  Coordinator(Bus &bus, CRef<MarketData> data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemCtx()},
-        statsRate_{ServerConfig::cfg.monitorRate} {
-    bus_.marketBus.setHandler<ServerOrder>(
-        [this](CRef<ServerOrder> order) { processOrder(order); });
-    bus_.systemBus.subscribe(ServerCommand::Telemetry_Start, [this] {
-      LOG_INFO_SYSTEM("Start telemetry");
+  Coordinator(ServerBus &bus, CRef<MarketData> data)
+      : bus_{bus}, data_{data}, timer_{bus_.systemIoCtx()} {
+    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) { processOrder(order); });
+    bus_.subscribe(ServerCommand::Telemetry_Start, [this] {
+      LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
     });
-    bus_.systemBus.subscribe(ServerCommand::Telemetry_Stop, [this] {
-      LOG_INFO_SYSTEM("Stop telemetry");
+    bus_.subscribe(ServerCommand::Telemetry_Stop, [this] {
+      LOG_INFO_SYSTEM("Stop telemetry stream");
       telemetry_ = false;
     });
   }
@@ -87,12 +85,12 @@ private:
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(0, false));
+      workers_.emplace_back(std::make_unique<CtxRunner>());
       workers_[0]->run();
       workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        workers_.emplace_back(std::make_unique<CtxRunner>(i, true, ServerConfig::cfg.coresApp[i]));
+        workers_.emplace_back(std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i]));
         workers_[i]->run();
         workers_[i]->ioCtx.post(notifyClb);
       }
@@ -113,7 +111,7 @@ private:
   void scheduleStatsTimer() {
     using namespace utils;
 
-    timer_.expires_after(statsRate_);
+    timer_.expires_after(ServerConfig::cfg.monitorRate);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR_SYSTEM("Error {}", ec.message());
@@ -121,7 +119,9 @@ private:
       }
       static uint64_t lastTtl = 0;
       const uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
-      const uint64_t rps = (currentTtl - lastTtl) / statsRate_.count();
+      const uint64_t rps =
+          (currentTtl - lastTtl) /
+          std::chrono::duration_cast<std::chrono::seconds>(ServerConfig::cfg.monitorRate).count();
 
       if (rps != 0) {
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
@@ -145,11 +145,10 @@ private:
   }
 
 private:
-  Bus &bus_;
+  ServerBus &bus_;
   const MarketData &data_;
 
   SteadyTimer timer_;
-  const Seconds statsRate_;
 
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;

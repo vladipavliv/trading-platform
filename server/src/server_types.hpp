@@ -6,8 +6,9 @@
 #ifndef HFT_SERVER_SERVERTYPES_HPP
 #define HFT_SERVER_SERVERTYPES_HPP
 
-#include "bus/bus.hpp"
+#include "bus/bus_holder.hpp"
 #include "domain_types.hpp"
+#include "metadata_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -47,23 +48,29 @@ struct ServerOrderStatus {
   OrderStatus orderStatus;
 };
 
-using Bus = BusHolder<ServerOrder, ServerOrderStatus, TickerPrice>;
+using ServerBus = BusHolder<MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>,
+                            DataBus<OrderTimestamp, RuntimeMetrics>>;
 } // namespace hft::server
 
 namespace hft::utils {
-inline String toString(const server::ServerLoginRequest &msg) {
+template <>
+inline String toString<server::ServerLoginRequest>(const server::ServerLoginRequest &msg) {
   return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
 }
-inline String toString(const server::ServerTokenBindRequest &msg) {
+template <>
+inline String toString<server::ServerTokenBindRequest>(const server::ServerTokenBindRequest &msg) {
   return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
 }
-inline String toString(const server::ServerLoginResponse &msg) {
+template <>
+inline String toString<server::ServerLoginResponse>(const server::ServerLoginResponse &msg) {
   return std::format("{} {} {} {}", msg.connectionId, msg.clientId, msg.ok, msg.error);
 }
-inline String toString(const server::ServerOrder &msg) {
+template <>
+inline String toString<server::ServerOrder>(const server::ServerOrder &msg) {
   return std::format("{} {}", msg.clientId, utils::toString(msg.order));
 }
-inline String toString(const server::ServerOrderStatus &msg) {
+template <>
+inline String toString<server::ServerOrderStatus>(const server::ServerOrderStatus &msg) {
   return std::format("{} {}", msg.clientId, utils::toString(msg.orderStatus));
 }
 } // namespace hft::utils

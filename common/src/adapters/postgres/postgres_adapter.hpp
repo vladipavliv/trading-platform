@@ -22,19 +22,10 @@
 namespace hft::adapters::impl {
 
 /**
- * @brief Postgres adapter
- * @todo For better configurability and because adapters won't participate in hot paths,
- * its better to use interfaces here and make adapter factory.
- * @todo Currently adapters operate over the SystemBus, which is single-threaded, so
- * thread-safety of adapters is not a concern.
- * @todo For write/read, add some stream operations for TableReader and TableWriter.
- * So then it could go like this:
- *
- * auto stream = dbAdapter_.openTableStream("orders");
- * TableWriter writer{...};
- * stream << writer;
- * TableReader reader{...};
- * reader << stream;
+ * @brief PostgresAdapter
+ * @details Supports custom table reader/writer when custom data
+ * from client or server needs to be read/written
+ * Operates over the single-threaded system bus, so thread-safety is not a concern
  */
 class PostgresAdapter {
   static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
@@ -92,13 +83,12 @@ public:
     try {
       pqxx::work transaction(conn_);
       // Set small timeout, systemBus must be responsive.
-      // Maybe later on make a separate DataBus for such operations
       transaction.exec("SET statement_timeout = 50");
       const auto result = transaction.exec_params(SELECT_CLIENT_QUERY, name);
 
       if (!result.empty()) {
         const ClientId clientId = result[0][0].as<ClientId>();
-        const String realPassword = result[0][1].as<String>(); // TODO(self) encrypt
+        const String realPassword = result[0][1].as<String>();
         if (password == realPassword) {
           LOG_INFO("Authentication successfull");
           return clientId;
@@ -189,6 +179,9 @@ public:
   }
 
 private:
+  /**
+   * @brief cicd compatibility
+   */
   String getConnectionString() const {
     using namespace utils;
     const String host = getEnvVar("POSTGRES_HOST");

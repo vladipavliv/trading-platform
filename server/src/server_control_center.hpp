@@ -31,20 +31,19 @@ public:
   using SessionManagerType = SessionManager<BoostSessionChannel, BoostBroadcastChannel>;
   using NetworkServerType = BoostNetworkServer<SessionManagerType>;
   using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
-  using StreamAdapter = adapters::MessageQueueAdapter<ServerCommandParser>;
+  using StreamAdapter = adapters::MessageQueueAdapter<ServerBus, ServerCommandParser>;
 
   ServerControlCenter()
       : storage_{dbAdapter_}, sessionManager_{bus_}, networkServer_{bus_, sessionManager_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
-        streamAdapter_{bus_.systemBus} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
     // System bus subscriptions
-    bus_.systemBus.subscribe(ServerEvent::Operational, [this] {
+    bus_.subscribe(ServerEvent::Operational, [this] {
       // start the network server only after internal components are fully operational
       LOG_INFO_SYSTEM("Server is ready");
       networkServer_.start();
     });
-    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
+    bus_.subscribe(ServerCommand::Shutdown, [this] { stop(); });
   }
 
   void start() {
@@ -57,6 +56,7 @@ public:
     coordinator_.start();
     streamAdapter_.start();
     streamAdapter_.bindProduceTopic<RuntimeMetrics>("runtime-metrics");
+    streamAdapter_.bindProduceTopic<OrderTimestamp>("order-timestamps");
 
     bus_.run();
   }
@@ -82,7 +82,7 @@ private:
   }
 
 private:
-  Bus bus_;
+  ServerBus bus_;
 
   adapters::DbAdapter dbAdapter_;
   Storage storage_;

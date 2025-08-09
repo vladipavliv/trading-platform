@@ -6,13 +6,14 @@
 #ifndef HFT_CLIENT_CLIENTTYPES_HPP
 #define HFT_CLIENT_CLIENTTYPES_HPP
 
-#include "bus/bus.hpp"
+#include "bus/bus_holder.hpp"
 #include "domain_types.hpp"
+#include "metadata_types.hpp"
 
 namespace hft::client {
 
-using Bus = BusHolder<Order, OrderStatus, TickerPrice>;
-
+using ClientBus =
+    BusHolder<MessageBus<Order, OrderStatus, TickerPrice>, DataBus<OrderTimestamp, RuntimeMetrics>>;
 }
 
 #endif // HFT_CLIENT_CLIENTTYPES_HPP

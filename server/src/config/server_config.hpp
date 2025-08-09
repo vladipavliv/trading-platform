@@ -31,7 +31,8 @@ struct ServerConfig {
 
   // Rates
   Microseconds priceFeedRate;
-  Seconds monitorRate;
+  Milliseconds monitorRate;
+  Milliseconds telemetryRate;
 
   // Data
   size_t orderBookLimit;
@@ -63,9 +64,9 @@ struct ServerConfig {
     }
 
     // Rates
-    cfg.priceFeedRate =
-        Microseconds(Config::get_optional<size_t>("rates.price_feed_rate_us").value_or(1));
-    cfg.monitorRate = Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
+    cfg.priceFeedRate = Microseconds(Config::get<size_t>("rates.price_feed_rate_us"));
+    cfg.monitorRate = Milliseconds(Config::get<size_t>("rates.monitor_rate_ms"));
+    cfg.telemetryRate = Milliseconds(Config::get<size_t>("rates.telemetry_ms"));
 
     // Data
     cfg.orderBookLimit =

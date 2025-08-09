@@ -36,14 +36,16 @@ static void BM_Ser_FbsDeserialize(benchmark::State &state) {
   using namespace server;
   using namespace serialization;
 
-  BusHolder<Order> bus;
-  bus.marketBus.setHandler<Order>([](CRef<Order> o) {});
+  using BusType = BusHolder<MessageBus<Order>>;
+
+  BusType bus;
+  bus.template subscribe<Order>([](CRef<Order> o) {});
 
   const auto buffer = FbsDomainSerializer::serialize(utils::generateOrder());
   bool ok{false};
 
   for (auto _ : state) {
-    ok = FbsDomainSerializer::deserialize<BusHolder<Order>>(buffer.data(), buffer.size(), bus);
+    ok = FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
   }
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(ok);

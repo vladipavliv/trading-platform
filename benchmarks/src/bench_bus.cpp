@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "bus/bus.hpp"
+#include "bus/bus_holder.hpp"
 #include "domain_types.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
@@ -29,13 +29,12 @@ struct OrderListener {
 } // namespace
 
 static void BM_Op_MessageBusPost(benchmark::State &state) {
-  MessageBus<Order> bus;
-
   OrderListener listener;
   size_t counter{0};
   const auto order = utils::generateOrder();
 
-  bus.setHandler<Order>(
+  MessageBus<Order> bus;
+  bus.subscribe<Order>(
       [&counter, &listener](CRef<Order> order) { counter += listener.listen(order); });
 
   for (auto _ : state) {
@@ -47,9 +46,9 @@ static void BM_Op_MessageBusPost(benchmark::State &state) {
 BENCHMARK(BM_Op_MessageBusPost);
 
 static void BM_Op_SystemBusPost(benchmark::State &state) {
-  SystemBus bus;
-
   const auto order = utils::generateOrder();
+
+  SystemBus bus;
   bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
 
   for (auto _ : state) {
@@ -58,5 +57,20 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Op_SystemBusPost);
+
+static void BM_Op_DataBusPost(benchmark::State &state) {
+  const auto order = utils::generateOrder();
+
+  DataBus<Order> bus;
+  bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
+  bus.run();
+
+  for (auto _ : state) {
+    bus.post<Order>(order);
+    benchmark::DoNotOptimize(&order);
+  }
+  bus.stop();
+}
+BENCHMARK(BM_Op_DataBusPost);
 
 } // namespace hft::benchmarks

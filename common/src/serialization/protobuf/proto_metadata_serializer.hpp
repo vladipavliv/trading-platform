@@ -11,6 +11,7 @@
 #include "metadata_types.hpp"
 #include "proto_converter.hpp"
 #include "types.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::serialization {
 

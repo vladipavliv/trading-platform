@@ -70,8 +70,8 @@ void BM_Sys_ServerFix::fillOrders() {
 void BM_Sys_ServerFix::setupBus() {
   using namespace server;
 
-  bus = std::make_unique<Bus>();
-  bus->marketBus.setHandler<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
+  bus = std::make_unique<ServerBus>();
+  bus->subscribe<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
     if (s.orderStatus.state == OrderState::Rejected) {
       throw std::runtime_error("Increase OrderBook limit");
     }
@@ -83,6 +83,10 @@ void BM_Sys_ServerFix::setupBus() {
     BM_Sys_ServerFix::flag.clear();
     BM_Sys_ServerFix::flag.notify_all();
   });
+  bus->subscribe<TickerPrice>([](CRef<TickerPrice>) {});
+  bus->subscribe<OrderTimestamp>([](CRef<OrderTimestamp>) {});
+  bus->subscribe<RuntimeMetrics>([](CRef<RuntimeMetrics>) {});
+
   systemThread = std::jthread([]() { BM_Sys_ServerFix::bus->run(); });
 }
 

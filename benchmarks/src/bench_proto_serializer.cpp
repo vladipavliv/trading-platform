@@ -45,10 +45,10 @@ static void BM_Ser_ProtoDeserialize(benchmark::State &state) {
   using namespace server;
   using namespace serialization;
 
-  using Bustype = BusHolder<OrderTimestamp>;
+  using Bustype = BusHolder<MessageBus<OrderTimestamp>>;
 
   Bustype bus;
-  bus.marketBus.setHandler<OrderTimestamp>([](CRef<OrderTimestamp> o) {});
+  bus.template subscribe<OrderTimestamp>([](CRef<OrderTimestamp> o) {});
 
   const auto msg = ProtoMetadataSerializer::serialize(generateOrderTimestamp());
   bool ok{false};

@@ -27,11 +27,11 @@ namespace hft::client {
 class ClientControlCenter {
 public:
   using ClientConsoleReader = ConsoleReader<ClientCommandParser>;
-  using StreamAdapter = adapters::MessageQueueAdapter<ClientCommandParser>;
+  using StreamAdapter = adapters::MessageQueueAdapter<ClientBus, ClientCommandParser>;
 
   ClientControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_.systemBus},
-        consoleReader_{bus_.systemBus}, timer_{bus_.systemCtx()} {
+      : networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_}, consoleReader_{bus_.systemBus},
+        timer_{bus_.systemIoCtx()} {
 
     bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
       switch (event) {
@@ -60,6 +60,7 @@ public:
     networkClient_.start();
     engine_.start();
     streamAdapter_.start();
+    streamAdapter_.bindProduceTopic<RuntimeMetrics>("runtime-metrics");
     streamAdapter_.bindProduceTopic<OrderTimestamp>("order-timestamps");
 
     LOG_INFO_SYSTEM("Connecting to the server");
@@ -103,7 +104,7 @@ private:
   }
 
 private:
-  Bus bus_;
+  ClientBus bus_;
 
   NetworkClient networkClient_;
   TradeEngine engine_;

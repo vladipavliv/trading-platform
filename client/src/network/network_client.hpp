@@ -31,21 +31,19 @@ namespace hft::client {
  * @brief Manages all the Tcp and Udp connections to the server, handles authentication
  */
 class NetworkClient {
-  using ClientTcpTransport = TcpTransport<Bus>;
-  using ClientUdpTransport = UdpTransport<Bus>;
+  using ClientTcpTransport = TcpTransport<ClientBus>;
+  using ClientUdpTransport = UdpTransport<ClientBus>;
 
 public:
-  NetworkClient(Bus &bus)
+  NetworkClient(ClientBus &bus)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus},
         upstreamTransport_{createUpstreamTransport()},
         downstreamTransport_{createDownstreamTransport()},
         pricesTransport_{createPricesTransport()} {
-    bus_.marketBus.setHandler<Order>(
-        [this](CRef<Order> order) { upstreamTransport_.write(order); });
-    bus_.systemBus.subscribe<ConnectionStatusEvent>(
+    bus_.subscribe<Order>([this](CRef<Order> order) { upstreamTransport_.write(order); });
+    bus_.subscribe<ConnectionStatusEvent>(
         [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
-    bus_.systemBus.subscribe<LoginResponse>(
-        [this](CRef<LoginResponse> event) { onLoginResponse(event); });
+    bus_.subscribe<LoginResponse>([this](CRef<LoginResponse> event) { onLoginResponse(event); });
   }
 
   ~NetworkClient() { stop(); }
@@ -176,7 +174,7 @@ private:
   IoCtx ioCtx_;
   ContextGuard guard_;
 
-  Bus &bus_;
+  ClientBus &bus_;
 
   ClientTcpTransport upstreamTransport_;
   ClientTcpTransport downstreamTransport_;

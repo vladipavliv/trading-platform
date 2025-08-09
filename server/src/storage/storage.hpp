@@ -7,7 +7,6 @@
 #define HFT_SERVER_STORAGE_HPP
 
 #include "adapters/adapters.hpp"
-#include "bus/bus.hpp"
 #include "db_table_reader.hpp"
 #include "db_table_writer.hpp"
 #include "db_type_mapper.hpp"

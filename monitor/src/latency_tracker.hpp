@@ -25,8 +25,8 @@ class LatencyTracker {
 
 public:
   explicit LatencyTracker(SystemBus &bus)
-      : bus_{bus}, statsTimer_{bus_.ioCtx},
-        monitorRate_{Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1)} {
+      : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
+        monitorRate_{Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1)} {
     bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> msg) { onOrderTimestamp(msg); });
     bus_.subscribe<RuntimeMetrics>([this](CRef<RuntimeMetrics> msg) { onRuntimeMetrics(msg); });
     scheduleStatsTimer();

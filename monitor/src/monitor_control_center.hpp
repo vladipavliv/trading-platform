@@ -26,7 +26,8 @@ class MonitorControlCenter {
 public:
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
   using StreamAdapter =
-      adapters::MessageQueueAdapter<serialization::ProtoMetadataSerializer, MonitorCommandParser>;
+      adapters::MessageQueueAdapter<SystemBus, serialization::ProtoMetadataSerializer,
+                                    MonitorCommandParser>;
 
   MonitorControlCenter() : consoleReader_{bus_}, streamAdapter_{bus_}, tracker_{bus_} {
     using namespace server;

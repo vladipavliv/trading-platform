@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "bus/bus.hpp"
 #include "concepts/busable.hpp"
 #include "config/server_config.hpp"
 #include "constants.hpp"
