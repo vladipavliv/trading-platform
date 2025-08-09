@@ -12,20 +12,18 @@
 #include <pqxx/pqxx>
 #include <pqxx/stream_to>
 
-#include "adapters/concepts/db_adapter_concept.hpp"
 #include "config/config.hpp"
 #include "logging.hpp"
+#include "table_reader.hpp"
+#include "table_writer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
-namespace hft::adapters::impl {
+namespace hft::adapters {
 
 /**
  * @brief PostgresAdapter
- * @details Supports custom table reader/writer when custom data
- * from client or server needs to be read/written
- * Operates over the single-threaded system bus, so thread-safety is not a concern
  */
 class PostgresAdapter {
   static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
@@ -67,7 +65,7 @@ public:
 
       for (auto row : tickersResult) {
         const String ticker = row["ticker"].as<String>();
-        Price price = row["price"].as<size_t>();
+        const Price price = row["price"].as<size_t>();
         tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
       }
       transaction.commit();
@@ -104,66 +102,9 @@ public:
     }
   }
 
-  template <TableWriterable TableWriter>
-  bool write(TableWriter &writer) {
-    try {
-      pqxx::work transaction(conn_);
-      const auto table = writer.table();
+  auto getWriter(StringView table) -> TableWriter { return TableWriter{conn_, table}; }
 
-      const pqxx::table_path tablePath{std::string_view(table.c_str())};
-      auto tableStream = pqxx::stream_to::table(transaction, tablePath);
-
-      while (writer.next()) {
-        const auto values = writer.get();
-        tableStream << values;
-      }
-      tableStream.complete();
-      transaction.commit();
-      return true;
-    } catch (CRef<pqxx::sql_error> e) {
-      LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
-      return false;
-    } catch (CRef<std::exception> e) {
-      LOG_ERROR_SYSTEM("std::exception {}", e.what());
-      return false;
-    }
-  }
-
-  template <TableReaderable TableReader>
-  bool read(TableReader &reader) {
-    try {
-      pqxx::work transaction(conn_);
-      const pqxx::result result = transaction.exec("SELECT * FROM " + reader.table() + ";");
-
-      if (result.empty()) {
-        return true;
-      }
-
-      reader.reserve(result.size());
-      for (const auto &row : result) {
-        std::vector<String> values;
-        values.reserve(row.size());
-
-        for (const auto &field : row) {
-          if (field.is_null()) {
-            values.push_back("");
-          } else {
-            values.push_back(field.as<String>());
-          }
-        }
-        reader.set(values);
-      }
-
-      transaction.commit();
-      return true;
-    } catch (CRef<pqxx::sql_error> e) {
-      LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
-      return false;
-    } catch (CRef<std::exception> e) {
-      LOG_ERROR_SYSTEM("std::exception {}", e.what());
-      return false;
-    }
-  }
+  auto getReader(StringView table) -> TableReader { return TableReader{conn_, table}; }
 
   void clean(CRef<String> table) {
     try {
@@ -203,7 +144,7 @@ private:
   pqxx::connection conn_;
 };
 
-} // namespace hft::adapters::impl
+} // namespace hft::adapters
 
 #endif // HFT_COMMON_ADAPTERS_POSTGRESADAPTER_HPP
 

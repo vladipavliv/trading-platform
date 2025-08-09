@@ -46,9 +46,9 @@ TEST_F(DataBusFixture, Post) {
     ++eventsPushed;
     std::this_thread::yield();
   }
-
-  while (eventsPushed != eventsPopped.load()) {
-    std::this_thread::sleep_for(Milliseconds(1));
+  size_t waitCounter{0};
+  while (++waitCounter < 10000 && eventsPushed != eventsPopped.load()) {
+    std::this_thread::sleep_for(Microseconds(10));
   }
   bus.stop();
   ASSERT_EQ(eventsPushed, eventsPopped.load());

@@ -7,11 +7,10 @@
 #define HFT_SERVER_STORAGE_HPP
 
 #include "adapters/adapters.hpp"
-#include "db_table_reader.hpp"
-#include "db_table_writer.hpp"
-#include "db_type_mapper.hpp"
 #include "execution/server_market_data.hpp"
 #include "logging.hpp"
+#include "server_type_converters.hpp"
+#include "type_converters.hpp"
 #include "types.hpp"
 
 namespace hft::server {
@@ -34,14 +33,16 @@ public:
 
     for (const auto &tkrData : marketData_) {
       const auto orders = tkrData.second.orderBook.extract();
-      TableWriter<ServerOrder> ordersWriter{orders};
-      if (!dbAdapter_.write(ordersWriter)) {
-        LOG_ERROR_SYSTEM("Failed to persist orders");
-        return;
+      auto writer = dbAdapter_.getWriter("orders");
+
+      for (auto &order : orders) {
+        writer << order;
       }
+      writer.commit();
+
       ordersSaved += orders.size();
       const auto now = utils::getTimestamp();
-      if (now - lastLog > 1000000) {
+      if (Microseconds(now - lastLog) > ServerConfig::cfg.monitorRate) {
         LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
         lastLog = now;
       }
@@ -57,15 +58,27 @@ public:
     LOG_INFO_SYSTEM("Loading orders");
     using namespace utils;
 
-    TableReader<ServerOrder> reader{};
-    if (!dbAdapter_.read(reader)) {
-      LOG_ERROR_SYSTEM("Failed to load orders");
-      return;
+    auto reader = dbAdapter_.getReader("orders");
+    Vector<ServerOrder> orders;
+    orders.reserve(reader.size());
+
+    size_t ordersSaved{0};
+    Timestamp lastLog{getTimestamp()};
+
+    while (!reader.empty()) {
+      ServerOrder order;
+      reader >> order;
+      orders.push_back(order);
+      reader.next();
+
+      const auto now = utils::getTimestamp();
+      if (Microseconds(now - lastLog) > ServerConfig::cfg.monitorRate) {
+        LOG_INFO_SYSTEM("Loaded {} orders", orders.size());
+        lastLog = now;
+      }
     }
-    const auto &orders = reader.result();
-    if (orders.empty()) {
-      return;
-    }
+    reader.commit();
+
     LOG_INFO_SYSTEM("Orders loaded: {}", orders.size());
 
     for (const auto &order : orders) {
@@ -77,7 +90,7 @@ public:
       it->second.orderBook.inject({&order, 1});
     }
 
-    dbAdapter_.clean(DbTypeMapper<ServerOrder>::table());
+    dbAdapter_.clean("orders");
   }
 
   auto marketData() const -> CRef<MarketData> { return marketData_; }
