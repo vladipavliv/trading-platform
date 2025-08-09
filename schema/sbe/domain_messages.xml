@@ -15,7 +15,15 @@
         <type name="schemaId" primitiveType="uint16"/>
         <type name="version" primitiveType="uint16"/>
     </composite>
+
+    <composite name="Char32" description="Fixed length 32-char array">
+      <type name="char32" primitiveType="char" length="32" characterEncoding="UTF-8"/>
+    </composite>
     
+    <composite name="Char4" description="Fixed length 32-char array">
+      <type name="char4" primitiveType="char" length="4" characterEncoding="UTF-8"/>
+    </composite>
+
     <enum name="OrderAction" encodingType="int8">
       <validValue name="BUY" value="0">0</validValue>
       <validValue name="SELL" value="1">1</validValue>
@@ -32,14 +40,14 @@
   <!-- Messages -->
 
   <message name="LoginRequest" id="1" description="Login request">
-    <field name="name" id="1" type="char" length="32"/>
-    <field name="password" id="2" type="char" length="32"/>
+    <field name="name" id="1" type="Char32"/>
+    <field name="password" id="2" type="Char32"/>
   </message>
 
   <message name="LoginResponse" id="2" description="Login response">
     <field name="token" id="1" type="uint64" />
     <field name="ok" id="2" type="uint8" />
-    <field name="error_msg" id="3" type="char" length="32" />
+    <field name="error_msg" id="3" type="Char32" />
   </message>
 
   <message name="TokenBindRequest" id="3" description="Token bind request">
@@ -49,7 +57,7 @@
   <message name="Order" id="4" description="Order">
     <field name="id" id="1" type="uint64" />
     <field name="created" id="2" type="uint64" />
-    <field name="ticker" id="3" type="char" length="4" />
+    <field name="ticker" id="3" type="Char4" />
     <field name="quantity" id="4" type="uint32" />
     <field name="price" id="5" type="uint32" />
     <field name="action" id="6" type="OrderAction" />
@@ -64,7 +72,7 @@
   </message>
 
   <message name="TickerPrice" id="6" description="Ticker price">
-    <field name="ticker" id="1" type="char" length="4" />
+    <field name="ticker" id="1" type="Char4" />
     <field name="price" id="2" type="uint32" />
   </message>
 

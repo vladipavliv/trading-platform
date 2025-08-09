@@ -19,6 +19,8 @@ file(MAKE_DIRECTORY ${GEN_DIR_FBS_PYTHON})
 file(MAKE_DIRECTORY ${GEN_DIR_PROTO_CPP})
 
 set(SBE_GENERATED_FILES
+  ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/Char4.h
+  ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/Char32.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/LoginRequest.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/LoginResponse.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/Message.h
