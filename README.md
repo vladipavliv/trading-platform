@@ -11,17 +11,16 @@
 - [Performance](#performance)
 
 ## Introduction
-C++ hft platform based on boost.asio, with the main focus on performance, simplicity and scalability. Key design choices:
-- Dedicated thread per order-processing worker to utilize multi-core CPUs
-- Distribute tickers across workers to maximize cache locality
-- Fully lock-free design, no thread ever waits for another
-- Interface-free, template-based design for better inlining
-- Event bus for simple, decoupled communication
+C++ trading platform simulator built on Boost.Asio. Lock-free, interface-free template-based distributed system with real-time Kafka telemetry.
 
 ## Installation
 
 ### Main dependencies
-Boost, Folly, FlatBuffers, Protobuf, libpqxx, librdkafka, spdlog
+Core libraries: Boost, Folly  
+Serialization: SBE, FlatBuffers, Protobuf  
+Database: libpqxx  
+Messaging: librdkafka  
+Other: spdlog
 
 ### Setup repository
 ```bash
@@ -30,20 +29,20 @@ cd trading-platform
 ./build.sh [options]
 
 Options:
-  c   - Clean
-  d   - Debug
-  t   - Include tests
-  b   - Include benchmarks
-  tel - Enable telemetry via kafka
+  c   - clean
+  d   - debug
+  t   - include tests
+  b   - include benchmarks
+  tel - enable telemetry via kafka
 ```
 
 ## Usage
 ### Setup environment
 Install Postgres, Kafka and ClickHouse. Set them up with the scripts
 ```bash
-python3 ./scripts/setup_postgres.sh
-python3 ./scripts/setup_kafka.sh
-python3 ./scripts/setup_clickhouse.sh
+python3 ./scripts/setup_postgres.py
+python3 ./scripts/setup_kafka.py
+./scripts/setup_clickhouse.sh
 ```
 
 ### Configuration
@@ -61,32 +60,32 @@ build/monitor/monitor_config.ini
 ./run.sh <component> [k]
 
 Components:
-  s   - Server
-  c   - Client
-  m   - Monitor
-  ut  - Unit tests
-  it  - Integration tests
-  b   - Benchmarks
+  s   - server
+  c   - client
+  m   - monitor
+  ut  - unit tests
+  it  - integration tests
+  b   - benchmarks
 
 Optional flag:
-  k   - Start Kafka
+  k   - start Kafka
 ```
 
 ### Commands
 ```bash
 Server:
-  p+  - Start broadcasting price updates
-  p-  - Stop broadcasting price updates
-  t+  - Start telemetry streaming
-  t-  - Stop telemetry streaming
-  q   - Shutdown
+  p+  - start broadcasting price updates
+  p-  - stop broadcasting price updates
+  t+  - start telemetry streaming
+  t-  - stop telemetry streaming
+  q   - shutdown
 
 Client:
-  s+  - Start trader
-  s-  - Stop trader
-  t+  - Start telemetry streaming
-  t-  - Stop telemetry streaming
-  q   - Shutdown
+  s+  - start trader
+  s-  - stop trader
+  t+  - start telemetry streaming
+  t-  - stop telemetry streaming
+  q   - shutdown
 
 Monitor:
   Supports all client and server commands
