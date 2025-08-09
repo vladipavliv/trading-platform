@@ -27,7 +27,7 @@
 
 namespace hft::serialization::sbe {
 
-class DomainSerializer {
+class SbeDomainSerializer {
 public:
   using SupportedTypes =
       std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
@@ -36,8 +36,9 @@ public:
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
   template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
+  static bool deserialize(const uint8_t *buffer, size_t size, Consumer &consumer) {
     using namespace hft::serialization::gen::sbe;
+    char *data = reinterpret_cast<char *>(const_cast<uint8_t *>(buffer));
 
     domain::MessageHeader header(data, size);
     const size_t messageType = header.templateId();
@@ -84,20 +85,63 @@ public:
     }
   }
 
-  static void serialize(CRef<LoginRequest> request, ByteBuffer &buffer) {
+  static void serialize(CRef<LoginRequest> r, ByteBuffer &buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::MessageHeader::encodedLength() + domain::LoginRequest::SBE_BLOCK_LENGTH);
+    buffer.resize(domain::LoginRequest::sbeBlockAndHeaderLength());
+
+    domain::LoginRequest msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.name().putChar32(r.name);
+    msg.password().putChar32(r.password);
   }
 
-  static void serialize(CRef<TokenBindRequest> request, ByteBuffer &buffer) {}
+  static void serialize(CRef<TokenBindRequest> r, ByteBuffer &buffer) {
+    using namespace hft::serialization::gen::sbe;
+    buffer.resize(domain::TokenBindRequest::sbeBlockAndHeaderLength());
 
-  static void serialize(CRef<LoginResponse> request, ByteBuffer &buffer) {}
+    domain::TokenBindRequest msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.token(r.token);
+  }
 
-  static void serialize(CRef<Order> request, ByteBuffer &buffer) {}
+  static void serialize(CRef<LoginResponse> r, ByteBuffer &buffer) {
+    using namespace hft::serialization::gen::sbe;
+    buffer.resize(domain::LoginResponse::sbeBlockAndHeaderLength());
 
-  static void serialize(CRef<OrderStatus> request, ByteBuffer &buffer) {}
+    domain::LoginResponse msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.token(r.token).ok(r.ok).error_msg().putChar32(r.error);
+  }
 
-  static void serialize(CRef<TickerPrice> request, ByteBuffer &buffer) {}
+  static void serialize(CRef<Order> r, ByteBuffer &buffer) {
+    using namespace hft::serialization::gen::sbe;
+    buffer.resize(domain::Order::sbeBlockAndHeaderLength());
+
+    domain::Order msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.id(r.id).created(r.created).ticker().putChar4(r.ticker.data());
+    msg.quantity(r.quantity).price(r.price).action(convert(r.action));
+  }
+
+  static void serialize(CRef<OrderStatus> r, ByteBuffer &buffer) {
+    using namespace hft::serialization::gen::sbe;
+    buffer.resize(domain::OrderStatus::sbeBlockAndHeaderLength());
+
+    domain::OrderStatus msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.order_id(r.orderId).timestamp(r.timeStamp).quantity(r.quantity);
+    msg.fill_price(r.fillPrice).state(convert(r.state));
+  }
+
+  static void serialize(CRef<TickerPrice> r, ByteBuffer &buffer) {
+    using namespace hft::serialization::gen::sbe;
+    buffer.resize(domain::TickerPrice::sbeBlockAndHeaderLength());
+
+    domain::TickerPrice msg;
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.ticker().putChar4(r.ticker.data());
+    msg.price(r.price);
+  }
 
 private:
 };

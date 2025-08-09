@@ -13,7 +13,7 @@
 #include "types.hpp"
 #include "utils/utils.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::proto {
 
 /**
  * @brief Protobuf serializer
@@ -155,6 +155,6 @@ public:
   }
 };
 
-} // namespace hft::serialization
+} // namespace hft::serialization::proto
 
 #endif // HFT_COMMON_SERIALIZATION_PROTOMETADATASERIALIZER_HPP

@@ -11,7 +11,7 @@
 #include "gen/fbs/cpp/metadata_messages_generated.h"
 #include "metadata_types.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::fbs {
 
 class FbsMetadataSerializer {
 public:
@@ -48,6 +48,6 @@ public:
   }
 };
 
-} // namespace hft::serialization
+} // namespace hft::serialization::fbs
 
 #endif // HFT_COMMON_METADATASERIALIZER_HPP

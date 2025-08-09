@@ -96,28 +96,33 @@ Monitor:
 
 Benchmarks:
 ```bash
-Run on (20 X 4049.17 MHz CPU s)
+2025-08-09T10:14:27+02:00
+Running ./run_benchmarks
+Run on (20 X 4600 MHz CPU s)
 CPU Caches:
   L1 Data 48 KiB (x10)
   L1 Instruction 32 KiB (x10)
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
-Load Average: 0.75, 0.92, 0.78
+Load Average: 0.99, 1.33, 1.32
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 -------------------------------------------------------------------------
 Benchmark                               Time             CPU   Iterations
 -------------------------------------------------------------------------
-BM_Sys_ServerFix/ProcessOrders        360 ns          359 ns      1991279 <- 1 worker
-BM_Ser_ProtoSerialize                 133 ns          133 ns      5148047
-BM_Ser_ProtoDeserialize               102 ns          101 ns      6743184
-BM_Sys_OrderBookFix/AddOrder         92.9 ns         92.9 ns      8177732
-BM_Op_VykovMpmcQueue                 12.4 ns         12.4 ns     56084519
-BM_Op_FollyMpmcQueue                 43.4 ns         43.3 ns     16513518
-BM_Op_BoostMpmcQueue                 31.7 ns         31.7 ns     21741362
-BM_Ser_FbsSerialize                  45.3 ns         45.2 ns     15642648
-BM_Ser_FbsDeserialize                23.5 ns         23.5 ns     29815396
-BM_Op_MessageBusPost                 1.68 ns         1.68 ns    423002159
-BM_Op_SystemBusPost                  52.1 ns         52.1 ns     10000000
-BM_Op_DataBusPost                    14.3 ns         14.3 ns     50415043
+BM_Sys_ServerFix/ProcessOrders        392 ns          375 ns      1923736 <- 1 worker
+BM_Ser_ProtoSerialize                 132 ns          132 ns      5242201
+BM_Ser_ProtoDeserialize               101 ns          101 ns      6891030
+BM_Ser_FbsSerialize                  46.9 ns         46.9 ns     15798687
+BM_Ser_FbsDeserialize                22.8 ns         22.8 ns     30067930
+BM_Ser_SbeSerialize                  1.84 ns         1.81 ns    381461765
+BM_Ser_SbeDeserialize                9.02 ns         8.87 ns     81115718
+BM_Sys_OrderBookFix/AddOrder         91.4 ns         90.3 ns      7701316
+BM_Op_VykovMpmcQueue                 13.7 ns         13.5 ns     53351781
+BM_Op_FollyMpmcQueue                 43.2 ns         43.2 ns     15866695
+BM_Op_BoostMpmcQueue                 32.1 ns         31.9 ns     22239821
+BM_Op_MessageBusPost                 1.66 ns         1.65 ns    427797353
+BM_Op_SystemBusPost                  54.6 ns         54.5 ns     13274417
+BM_Op_DataBusPost                    12.5 ns         12.5 ns     53462939
 ...
 BM_Sys_ServerFix/ProcessOrders        945 ns          920 ns       719780 <- 2 workers
 BM_Sys_ServerFix/ProcessOrders        907 ns          890 ns       758570 <- 3 workers

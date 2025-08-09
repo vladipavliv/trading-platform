@@ -11,7 +11,7 @@
 #include "logging.hpp"
 #include "types.hpp"
 
-namespace hft::serialization {
+namespace hft::serialization::fbs {
 
 inline Ticker fbStringToTicker(const flatbuffers::String *str) {
   Ticker ticker{};
@@ -76,6 +76,6 @@ inline gen::fbs::domain::OrderState convert(OrderState state) {
   }
 }
 
-} // namespace hft::serialization
+} // namespace hft::serialization::fbs
 
 #endif // HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP
