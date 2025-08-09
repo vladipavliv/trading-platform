@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<messageSchema xmlns="http://fixprotocol.io/2022/sbe"
+               package="hft.serialization.gen.sbe.domain"
+               id="1"
+               version="1"
+               byteOrder="littleEndian"
+               messageHeader="messageHeader">
+
+  <!-- Enums -->
+
+  <types>
+    <composite name="messageHeader" description="Standard message header">
+        <type name="blockLength" primitiveType="uint16"/>
+        <type name="templateId" primitiveType="uint16"/>
+        <type name="schemaId" primitiveType="uint16"/>
+        <type name="version" primitiveType="uint16"/>
+    </composite>
+    
+    <enum name="OrderAction" encodingType="int8">
+      <validValue name="BUY" value="0">0</validValue>
+      <validValue name="SELL" value="1">1</validValue>
+    </enum>
+
+    <enum name="OrderState" encodingType="int32">
+      <validValue name="Accepted" value="0">0</validValue>
+      <validValue name="Rejected" value="1">1</validValue>
+      <validValue name="Partial" value="2">2</validValue>
+      <validValue name="Full" value="3">3</validValue>
+    </enum>
+  </types>
+
+  <!-- Messages -->
+
+  <message name="LoginRequest" id="1" description="Login request">
+    <field name="name" id="1" type="char" length="32"/>
+    <field name="password" id="2" type="char" length="32"/>
+  </message>
+
+  <message name="LoginResponse" id="2" description="Login response">
+    <field name="token" id="1" type="uint64" />
+    <field name="ok" id="2" type="uint8" />
+    <field name="error_msg" id="3" type="char" length="32" />
+  </message>
+
+  <message name="TokenBindRequest" id="3" description="Token bind request">
+    <field name="token" id="1" type="uint64" />
+  </message>
+
+  <message name="Order" id="4" description="Order">
+    <field name="id" id="1" type="uint64" />
+    <field name="created" id="2" type="uint64" />
+    <field name="ticker" id="3" type="char" length="4" />
+    <field name="quantity" id="4" type="uint32" />
+    <field name="price" id="5" type="uint32" />
+    <field name="action" id="6" type="OrderAction" />
+  </message>
+
+  <message name="OrderStatus" id="5" description="Order status">
+    <field name="order_id" id="1" type="uint64" />
+    <field name="timestamp" id="2" type="uint64" />
+    <field name="quantity" id="3" type="uint32" />
+    <field name="fill_price" id="4" type="uint32" />
+    <field name="state" id="5" type="OrderState" />
+  </message>
+
+  <message name="TickerPrice" id="6" description="Ticker price">
+    <field name="ticker" id="1" type="char" length="4" />
+    <field name="price" id="2" type="uint32" />
+  </message>
+
+  <!-- Wrapper message with discriminator and choice -->
+
+  <message name="Message" id="100" description="Top-level message wrapper">
+    <field name="messageType" id="1" type="uint8" description="Discriminator for the union" />
+    <choice name="message" id="2" choiceType="messageType">
+      <case id="1" ref="LoginRequest" />
+      <case id="2" ref="LoginResponse" />
+      <case id="3" ref="TokenBindRequest" />
+      <case id="4" ref="Order" />
+      <case id="5" ref="OrderStatus" />
+      <case id="6" ref="TickerPrice" />
+    </choice>
+  </message>
+
+</messageSchema>
