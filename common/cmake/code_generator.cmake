@@ -1,6 +1,6 @@
 # cmake/code_generator.cmake
 
-set(SBE_TOOL_JAR ${CMAKE_SOURCE_DIR}/../simple-binary-encoding/sbe-all/build/libs/sbe-all-1.36.0-SNAPSHOT.jar)
+set(SBE_TOOL_JAR /usr/local/bin/sbe-tool.jar)
 
 set(SBE_DOMAIN_SCHEMA ${CMAKE_SOURCE_DIR}/schema/sbe/domain_messages.xml)
 set(FBS_DOMAIN_SCHEMA ${CMAKE_SOURCE_DIR}/schema/fbs/domain_messages.fbs)

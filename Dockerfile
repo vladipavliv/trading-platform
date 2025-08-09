@@ -52,6 +52,15 @@ RUN git clone --branch master --single-branch https://github.com/jtv/libpqxx.git
 RUN apt-get update && apt-get install -y python3 python3-venv python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# OpenJDK (needed for SBE)
+RUN apt-get update && apt-get install -y openjdk-17-jdk && rm -rf /var/lib/apt/lists/*
+
+# SBE
+RUN git clone --branch master --single-branch https://github.com/real-logic/simple-binary-encoding.git /sbe && \
+    cd /sbe && ./gradlew jar && \
+    cp ./sbe-all/build/libs/sbe-all-*-SNAPSHOT.jar /usr/local/bin/sbe-tool.jar && \
+    rm -rf /sbe
+
 WORKDIR /app
 
 COPY requirements.txt /app/
