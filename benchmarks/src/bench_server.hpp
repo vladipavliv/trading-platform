@@ -26,7 +26,7 @@ public:
 
   inline static std::once_flag initFlag;
   inline static UPtr<server::MarketData> data;
-  inline static UPtr<server::Bus> bus;
+  inline static UPtr<server::ServerBus> bus;
   inline static UPtr<server::Coordinator> coordinator;
 
   inline static size_t tickerCount{10};

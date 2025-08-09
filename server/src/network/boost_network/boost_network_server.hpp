@@ -40,7 +40,7 @@ public:
   using BroadcastChannelType = BoostBroadcastChannel;
   using ListenerType = Listener;
 
-  BoostNetworkServer(Bus &bus, Listener &listener)
+  BoostNetworkServer(ServerBus &bus, Listener &listener)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, listener_{listener},
         upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
 
@@ -135,7 +135,7 @@ private:
   IoCtx ioCtx_;
   ContextGuard guard_;
 
-  Bus &bus_;
+  ServerBus &bus_;
   Listener &listener_;
 
   TcpAcceptor upstreamAcceptor_;

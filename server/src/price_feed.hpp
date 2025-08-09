@@ -80,8 +80,8 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(Bus &bus, adapters::DbAdapter &dbAdapter)
-      : bus_{bus}, priceUpdateTimer_{bus_.systemCtx()},
+  PriceFeed(ServerBus &bus, adapters::DbAdapter &dbAdapter)
+      : bus_{bus}, priceUpdateTimer_{bus_.systemIoCtx()},
         updateInterval_{ServerConfig::cfg.priceFeedRate} {
     const auto dataResult = dbAdapter.readTickers();
     if (!dataResult) {
@@ -137,7 +137,7 @@ private:
   }
 
 private:
-  Bus &bus_;
+  ServerBus &bus_;
 
   Vector<Fluctuation> fluctuations_;
 

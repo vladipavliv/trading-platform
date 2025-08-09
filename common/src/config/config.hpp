@@ -20,22 +20,38 @@ namespace hft {
 
 struct Config {
   static void load(CRef<String> fileName) {
-    if (!std::filesystem::exists(fileName)) {
+    if (fileName.empty() || !std::filesystem::exists(fileName)) {
       throw std::runtime_error(std::format("Config file not found {}", fileName));
     }
+    file = fileName;
     boost::property_tree::read_ini(fileName, data);
   }
 
   template <typename Type>
   static Type get(CRef<String> name) {
-    return data.get<Type>(name);
+    if (data.empty()) {
+      throw std::runtime_error("Config has not been loaded");
+    }
+    try {
+      return data.get<Type>(name);
+    } catch (const std::exception &e) {
+      throw std::runtime_error(std::format("std::exception {} {}", file, e.what()));
+    }
   }
 
   template <typename Type>
   static auto get_optional(CRef<String> name) {
-    return data.get_optional<Type>(name);
+    if (data.empty()) {
+      throw std::runtime_error("Config has not been loaded");
+    }
+    try {
+      return data.get_optional<Type>(name);
+    } catch (const std::exception &e) {
+      throw std::runtime_error(std::format("std::exception {} {}", file, e.what()));
+    }
   }
 
+  inline static String file;
   inline static boost::property_tree::ptree data;
 };
 

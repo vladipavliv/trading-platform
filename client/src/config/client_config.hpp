@@ -29,7 +29,8 @@ struct ClientConfig {
 
   // Rates
   Microseconds tradeRate;
-  Seconds monitorRate;
+  Milliseconds monitorRate;
+  Milliseconds telemetryTate;
 
   // Credentials
   String name;
@@ -44,34 +45,33 @@ struct ClientConfig {
     Config::load(fileName);
 
     // Network config
-    ClientConfig::cfg.url = Config::get<String>("network.url");
-    ClientConfig::cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
-    ClientConfig::cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
-    ClientConfig::cfg.portUdp = Config::get<size_t>("network.port_udp");
+    cfg.url = Config::get<String>("network.url");
+    cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
+    cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
+    cfg.portUdp = Config::get<size_t>("network.port_udp");
 
     // Cores
     if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
-      ClientConfig::cfg.coreSystem = *core;
+      cfg.coreSystem = *core;
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
-      ClientConfig::cfg.coresNetwork = utils::split(*cores);
+      cfg.coresNetwork = utils::split(*cores);
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
-      ClientConfig::cfg.coresApp = utils::split(*cores);
+      cfg.coresApp = utils::split(*cores);
     }
 
     // Rates
-    ClientConfig::cfg.tradeRate =
-        Microseconds(Config::get_optional<size_t>("rates.trade_rate_us").value_or(1));
-    ClientConfig::cfg.monitorRate =
-        Seconds(Config::get_optional<size_t>("rates.monitor_rate_s").value_or(1));
+    cfg.tradeRate = Microseconds(Config::get<size_t>("rates.trade_rate_us"));
+    cfg.monitorRate = Milliseconds(Config::get<size_t>("rates.monitor_rate_ms"));
+    cfg.telemetryTate = Milliseconds(Config::get<size_t>("rates.telemetry_ms"));
 
     // Credentials
-    ClientConfig::cfg.name = Config::get<String>("credentials.name");
-    ClientConfig::cfg.password = Config::get<String>("credentials.password");
+    cfg.name = Config::get<String>("credentials.name");
+    cfg.password = Config::get<String>("credentials.password");
 
     // Logging
-    ClientConfig::cfg.logOutput = Config::get<String>("log.output");
+    cfg.logOutput = Config::get<String>("log.output");
 
     verify();
   }

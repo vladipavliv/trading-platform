@@ -28,7 +28,7 @@ class BoostSessionChannel {
 public:
   using Transport = TcpTransport<BoostSessionChannel>;
 
-  BoostSessionChannel(ConnectionId id, TcpSocket socket, Bus &bus)
+  BoostSessionChannel(ConnectionId id, TcpSocket socket, ServerBus &bus)
       : id_{id}, transport_{id, std::move(socket), *this}, bus_{bus} {
     transport_.read();
   }
@@ -62,7 +62,7 @@ public:
 private:
   const ConnectionId id_;
 
-  Bus &bus_;
+  ServerBus &bus_;
 
   Transport transport_;
   Optional<ClientId> clientId_;

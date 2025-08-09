@@ -26,7 +26,7 @@ class ConsoleReader {
 public:
   using Parser = ParserType;
 
-  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.ioCtx} {
+  ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx()} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     std::cout << std::unitbuf;
     scheduleInputCheck();

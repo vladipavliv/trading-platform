@@ -19,11 +19,11 @@ namespace hft::server {
  */
 class BoostBroadcastChannel {
 public:
-  BoostBroadcastChannel(ConnectionId id, IoCtx &ioCtx, Bus &bus)
+  BoostBroadcastChannel(ConnectionId id, IoCtx &ioCtx, ServerBus &bus)
       : id_{id}, ioCtx_{ioCtx}, bus_{bus},
         udpTransport_{utils::generateConnectionId(), utils::createUdpSocket(ioCtx_),
                       UdpEndpoint{Ip::address_v4::broadcast(), ServerConfig::cfg.portUdp}, bus_} {
-    bus_.marketBus.setHandler<TickerPrice>([this](CRef<TickerPrice> p) { udpTransport_.write(p); });
+    bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { udpTransport_.write(p); });
   }
 
   inline auto connectionId() const -> ConnectionId { return id_; }
@@ -32,9 +32,9 @@ private:
   const ConnectionId id_;
 
   IoCtx &ioCtx_;
-  Bus &bus_;
+  ServerBus &bus_;
 
-  UdpTransport<Bus> udpTransport_;
+  UdpTransport<ServerBus> udpTransport_;
 };
 
 } // namespace hft::server

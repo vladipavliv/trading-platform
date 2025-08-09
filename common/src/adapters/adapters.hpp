@@ -17,12 +17,12 @@
 namespace hft::adapters {
 
 #ifdef TELEMETRY_ENABLED
-template <typename ConsumeSerializer = serialization::ProtoMetadataSerializer,
+template <typename Bus, typename ConsumeSerializer = serialization::ProtoMetadataSerializer,
           typename ProduceSerializer = serialization::ProtoMetadataSerializer>
-using MessageQueueAdapter = impl::KafkaAdapter<ConsumeSerializer, ProduceSerializer>;
+using MessageQueueAdapter = impl::KafkaAdapter<Bus, ConsumeSerializer, ProduceSerializer>;
 #else
-template <typename ConsumeVoid = void, typename ProduceVoid = void>
-using MessageQueueAdapter = impl::DummyKafkaAdapter<ConsumeVoid, ProduceVoid>;
+template <typename Bus, typename ConsumeVoid = void, typename ProduceVoid = void>
+using MessageQueueAdapter = impl::DummyKafkaAdapter<Bus, ConsumeVoid, ProduceVoid>;
 #endif
 using DbAdapter = impl::PostgresAdapter;
 

@@ -31,14 +31,11 @@ class TradeEngine {
 public:
   using Tracker = RttTracker<50>;
 
-  explicit TradeEngine(Bus &bus)
-      : bus_{bus}, tradeRate_{ClientConfig::cfg.tradeRate},
-        monitorRate_{ClientConfig::cfg.monitorRate}, marketData_{loadMarketData()},
-        worker_{makeWorker()}, tradeTimer_{worker_.ioCtx}, statsTimer_{bus_.systemCtx()} {
-    bus_.marketBus.setHandler<OrderStatus>(
-        [this](CRef<OrderStatus> status) { onOrderStatus(status); });
-    bus_.marketBus.setHandler<TickerPrice>(
-        [this](CRef<TickerPrice> price) { onTickerPrice(price); });
+  explicit TradeEngine(ClientBus &bus)
+      : bus_{bus}, marketData_{loadMarketData()}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
+        statsTimer_{bus_.systemIoCtx()} {
+    bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
+    bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
     bus_.systemBus.subscribe(ClientCommand::Start, [this] { tradeStart(); });
     bus_.systemBus.subscribe(ClientCommand::Stop, [this] { tradeStop(); });
@@ -96,7 +93,7 @@ private:
     if (!trading_) {
       return;
     }
-    tradeTimer_.expires_after(tradeRate_);
+    tradeTimer_.expires_after(ClientConfig::cfg.tradeRate);
     tradeTimer_.async_wait([this](BoostErrorCode code) {
       if (code) {
         if (code != ASIO_ERR_ABORTED) {
@@ -176,7 +173,7 @@ private:
     if (!trading_) {
       return;
     }
-    statsTimer_.expires_after(monitorRate_);
+    statsTimer_.expires_after(ClientConfig::cfg.monitorRate);
     statsTimer_.async_wait([this](BoostErrorCode code) {
       if (code) {
         if (code != ASIO_ERR_ABORTED) {
@@ -191,21 +188,17 @@ private:
 
   CtxRunner makeWorker() {
     if (ClientConfig::cfg.coresApp.empty()) {
-      return CtxRunner(0, false);
+      return CtxRunner{};
     } else {
-      return CtxRunner(0, true, ClientConfig::cfg.coresApp[0]);
+      return CtxRunner{0, ClientConfig::cfg.coresApp[0]};
     }
   }
 
 private:
   adapters::DbAdapter dbAdapter_;
-
   const MarketData marketData_;
-  const Microseconds tradeRate_;
-  const Seconds monitorRate_;
 
-  Bus &bus_;
-
+  ClientBus &bus_;
   CtxRunner worker_;
 
   SteadyTimer tradeTimer_;
