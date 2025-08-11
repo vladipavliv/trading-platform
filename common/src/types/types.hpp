@@ -18,6 +18,7 @@
 #include <spdlog/common.h>
 
 #include "constants.hpp"
+#include "inline_callable.hpp"
 #include "status_code.hpp"
 
 namespace hft {
@@ -76,13 +77,12 @@ using Vector = std::vector<Type>;
 
 /**
  * Function types
- * @todo std::function does some type erasing so a custom callable could have been more efficient.
- * But MessageBus::post benchmarks to a whopping 1.5ns,
- * so optimize it only when we go to sub-nanosecond territory jk
  */
 using Callback = std::function<void()>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
+template <typename ArgType>
+using InlineHandler = InlineCallable<ArgType, 64>;
 
 /**
  * Some helper concepts

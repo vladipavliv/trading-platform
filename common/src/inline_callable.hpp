@@ -1,0 +1,112 @@
+/**
+ * @author Vladimir Pavliv
+ * @date 2025-08-11
+ */
+
+#ifndef HFT_COMMON_INLINECALLABLE_HPP
+#define HFT_COMMON_INLINECALLABLE_HPP
+
+#include <cassert>
+#include <cstddef>
+#include <new>
+#include <type_traits>
+#include <utility>
+
+namespace hft {
+
+/**
+ * @brief Inline stack callable with no type erasure
+ */
+template <typename Arg, std::size_t BufferSize = 128>
+class InlineCallable {
+public:
+  using ArgType = const Arg &;
+  using Invoker = void (*)(void *, ArgType);
+  using Destroyer = void (*)(void *);
+  using Mover = void (*)(void *dest, void *src);
+
+  InlineCallable() noexcept = default;
+
+  template <typename Lambda>
+  InlineCallable(Lambda &&lambda) {
+    using LambdaType = std::decay_t<Lambda>;
+    static_assert(std::is_invocable_r_v<void, LambdaType &, ArgType>,
+                  "Callable must be invocable with (const Arg&)");
+    static_assert(sizeof(LambdaType) <= BufferSize, "Callable too large for InlineCallable buffer");
+    static_assert(alignof(LambdaType) <= alignof(std::max_align_t),
+                  "Callable alignment not supported");
+
+    void *place = &storage_;
+    new (place) LambdaType(std::forward<Lambda>(lambda));
+
+    invoker_ = [](void *p, ArgType a) { (*static_cast<LambdaType *>(p))(a); };
+    destroyer_ = [](void *p) { static_cast<LambdaType *>(p)->~LambdaType(); };
+    mover_ = [](void *dest, void *src) {
+      LambdaType *l = static_cast<LambdaType *>(src);
+      void *dplace = dest;
+      new (dplace) LambdaType(std::move(*l));
+      l->~LambdaType();
+    };
+  }
+
+  InlineCallable(InlineCallable &&other) noexcept {
+    invoker_ = other.invoker_;
+    destroyer_ = other.destroyer_;
+    mover_ = other.mover_;
+    if (invoker_) {
+      // use mover to relocate storage
+      mover_(&storage_, &other.storage_);
+      other.invoker_ = nullptr;
+      other.destroyer_ = nullptr;
+      other.mover_ = nullptr;
+    }
+  }
+
+  InlineCallable &operator=(InlineCallable &&other) noexcept {
+    if (this != &other) {
+      reset();
+      invoker_ = other.invoker_;
+      destroyer_ = other.destroyer_;
+      mover_ = other.mover_;
+      if (invoker_) {
+        mover(&storage_, &other.storage_);
+        other.invoker_ = nullptr;
+        other.destroyer_ = nullptr;
+        other.mover_ = nullptr;
+      }
+    }
+    return *this;
+  }
+
+  InlineCallable(const InlineCallable &) = delete;
+  InlineCallable &operator=(const InlineCallable &) = delete;
+
+  ~InlineCallable() { reset(); }
+
+  void operator()(const ArgType &arg) {
+    assert(invoker_ && "Empty InlineCallable invoked");
+    invoker(&storage_, arg);
+  }
+
+  explicit operator bool() const noexcept { return invoker_ != nullptr; }
+
+  void reset() noexcept {
+    if (destroyer_) {
+      destroyer_(&storage_);
+      destroyer_ = nullptr;
+      invoker_ = nullptr;
+      mover_ = nullptr;
+    }
+  }
+
+private:
+  std::aligned_storage_t<BufferSize> storage_;
+
+  Invoker invoker_{nullptr};
+  Destroyer destroyer_{nullptr};
+  Mover mover_{nullptr};
+};
+
+} // namespace hft
+
+#endif // HFT_COMMON_INLINECALLABLE_HPP

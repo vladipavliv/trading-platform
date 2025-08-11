@@ -11,7 +11,7 @@
 - [Performance](#performance)
 
 ## Introduction
-C++ trading platform simulator built on Boost.Asio. Lock-free, interface-free template-based distributed system with real-time Kafka telemetry.
+C++ trading platform simulator using Boost.Asio, featuring a lock-free, template-based distributed system with real-time Kafka telemetry.
 
 ## Installation
 
@@ -104,7 +104,6 @@ CPU Caches:
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
 Load Average: 0.99, 1.33, 1.32
-***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 -------------------------------------------------------------------------
 Benchmark                               Time             CPU   Iterations
 -------------------------------------------------------------------------
