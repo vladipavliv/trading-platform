@@ -14,11 +14,11 @@ namespace hft {
 /**
  * @brief Defines a concept for a bus with templated ::post
  */
-template <typename Consumer>
+template <typename Bus>
 concept Busable = [] {
   struct ProbeType {};
-  return requires(Consumer &consumer) {
-    { consumer.template post<ProbeType>(std::declval<ProbeType>()) } -> std::same_as<void>;
+  return requires(Bus &bus) {
+    { bus.template post<ProbeType>(std::declval<ProbeType>()) } -> std::same_as<void>;
   };
 }();
 

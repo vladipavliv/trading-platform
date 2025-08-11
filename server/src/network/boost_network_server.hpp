@@ -16,10 +16,6 @@
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
-#include "network/concepts/broadcast_channel_concept.hpp"
-#include "network/concepts/network_listener_concept.hpp"
-#include "network/concepts/network_server_concept.hpp"
-#include "network/concepts/session_channel_concept.hpp"
 #include "network/transport/udp_transport.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -33,7 +29,6 @@ namespace hft::server {
  * Redirects accepted tcp sockets to the gateway
  */
 template <typename Listener>
-  requires NetworkListenerable<Listener, BoostSessionChannel, BoostBroadcastChannel>
 class BoostNetworkServer {
 public:
   using SessionChannelType = BoostSessionChannel;
