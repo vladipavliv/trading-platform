@@ -6,8 +6,6 @@
 #ifndef HFT_COMMON_DOMAINTYPES_HPP
 #define HFT_COMMON_DOMAINTYPES_HPP
 
-#include <string>
-
 #include "ticker.hpp"
 #include "types.hpp"
 
@@ -25,22 +23,22 @@ enum class OrderState : uint8_t { Accepted, Rejected, Partial, Full };
 struct LoginRequest {
   String name;
   String password;
-  auto operator<=>(const LoginRequest &lr) const = default;
+  auto operator<=>(CRef<LoginRequest>) const = default;
 };
 
 struct TokenBindRequest {
   Token token;
-  auto operator<=>(const TokenBindRequest &) const = default;
+  auto operator<=>(CRef<TokenBindRequest>) const = default;
 };
 
 struct LoginResponse {
   Token token{0};
   bool ok{false};
   String error{};
-  auto operator<=>(const LoginResponse &) const = default;
+  auto operator<=>(CRef<LoginResponse>) const = default;
 };
 
-struct alignas(8) Order {
+struct Order {
   OrderId id;
   Timestamp created;
   Ticker ticker;
@@ -50,26 +48,24 @@ struct alignas(8) Order {
 
   char padding[3] = {0};
 
-  inline void partialFill(Quantity amount) const {
-    quantity = quantity < amount ? 0 : quantity - amount;
-  }
-  auto operator<=>(const Order &) const = default;
+  void partialFill(Quantity amount) const { quantity = quantity < amount ? 0 : quantity - amount; }
+  auto operator<=>(CRef<Order>) const = default;
 };
 
-struct alignas(8) OrderStatus {
+struct OrderStatus {
   OrderId orderId;
   Timestamp timeStamp;
   Quantity quantity;
   Price fillPrice;
   OrderState state;
   char padding[7] = {0};
-  auto operator<=>(const OrderStatus &) const = default;
+  auto operator<=>(CRef<OrderStatus>) const = default;
 };
 
 struct TickerPrice {
   Ticker ticker;
   Price price;
-  auto operator<=>(const TickerPrice &) const = default;
+  auto operator<=>(CRef<TickerPrice>) const = default;
 };
 
 } // namespace hft

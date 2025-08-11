@@ -14,7 +14,7 @@
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "execution/coordinator.hpp"
-#include "network/boost_network/boost_network_server.hpp"
+#include "network/boost_network_server.hpp"
 #include "price_feed.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"

@@ -59,18 +59,18 @@ inline void setTheadRealTime() {
 }
 
 inline auto generateOrderId() -> OrderId {
-  static std::atomic_uint64_t counter = 0;
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  static std::atomic<OrderId> id{0};
+  return id.fetch_add(1);
 }
 
 inline auto generateConnectionId() -> ConnectionId {
-  static std::atomic_uint64_t counter = 0;
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  static std::atomic<ConnectionId> id{0};
+  return id.fetch_add(1);
 }
 
 inline auto generateToken() -> Token {
-  static std::atomic_uint64_t counter = 0;
-  return getTimestamp() + counter.fetch_add(1, std::memory_order_relaxed);
+  static std::atomic<Token> counter{0};
+  return getTimestamp() + counter.fetch_add(1);
 }
 
 inline auto createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0) -> UdpSocket {
