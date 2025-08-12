@@ -11,7 +11,7 @@
 - [Performance](#performance)
 
 ## Introduction
-C++ trading platform simulator using Boost.Asio, featuring a lock-free, template-based distributed system with real-time Kafka telemetry.
+C++ trading platform simulator based on Boost.Asio, featuring a lock-free, template-based distributed system with real-time Kafka telemetry.
 
 ## Installation
 
@@ -38,7 +38,7 @@ Options:
 
 ## Usage
 ### Setup environment
-Install Postgres, Kafka and ClickHouse. Set them up with the scripts
+Install Postgres (essential), Kafka (if you want to enable telemetry monitoring via separate service) and ClickHouse (if you want to persist telemetry). Set them up with the scripts
 ```bash
 python3 ./scripts/setup_postgres.py
 python3 ./scripts/setup_kafka.py

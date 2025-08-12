@@ -7,6 +7,7 @@
 #define HFT_COMMON_INLINECALLABLE_HPP
 
 #include <cassert>
+#include <concepts>
 #include <cstddef>
 #include <new>
 #include <type_traits>
@@ -16,6 +17,8 @@ namespace hft {
 
 /**
  * @brief Inline stack callable with no type erasure
+ * @details With simple lambda and small captures benchmarks 20% better then std::function
+ * On the real load the difference would likely be even higher
  */
 template <typename Arg, std::size_t BufferSize = 128>
 class InlineCallable {
@@ -27,14 +30,13 @@ public:
 
   InlineCallable() noexcept = default;
 
+  ~InlineCallable() noexcept { reset(); }
+
   template <typename Lambda>
-  InlineCallable(Lambda &&lambda) {
+    requires std::invocable<Lambda &, ArgType> && (sizeof(std::decay_t<Lambda>) <= BufferSize) &&
+             (alignof(std::decay_t<Lambda>) <= alignof(std::max_align_t))
+  InlineCallable(Lambda &&lambda) noexcept {
     using LambdaType = std::decay_t<Lambda>;
-    static_assert(std::is_invocable_r_v<void, LambdaType &, ArgType>,
-                  "Callable must be invocable with (const Arg&)");
-    static_assert(sizeof(LambdaType) <= BufferSize, "Callable too large for InlineCallable buffer");
-    static_assert(alignof(LambdaType) <= alignof(std::max_align_t),
-                  "Callable alignment not supported");
 
     void *place = &storage_;
     new (place) LambdaType(std::forward<Lambda>(lambda));
@@ -54,7 +56,6 @@ public:
     destroyer_ = other.destroyer_;
     mover_ = other.mover_;
     if (invoker_) {
-      // use mover to relocate storage
       mover_(&storage_, &other.storage_);
       other.invoker_ = nullptr;
       other.destroyer_ = nullptr;
@@ -69,7 +70,7 @@ public:
       destroyer_ = other.destroyer_;
       mover_ = other.mover_;
       if (invoker_) {
-        mover(&storage_, &other.storage_);
+        mover_(&storage_, &other.storage_);
         other.invoker_ = nullptr;
         other.destroyer_ = nullptr;
         other.mover_ = nullptr;
@@ -81,11 +82,9 @@ public:
   InlineCallable(const InlineCallable &) = delete;
   InlineCallable &operator=(const InlineCallable &) = delete;
 
-  ~InlineCallable() { reset(); }
-
-  void operator()(const ArgType &arg) {
+  inline void operator()(ArgType arg) {
     assert(invoker_ && "Empty InlineCallable invoked");
-    invoker(&storage_, arg);
+    invoker_(&storage_, arg);
   }
 
   explicit operator bool() const noexcept { return invoker_ != nullptr; }
@@ -100,7 +99,7 @@ public:
   }
 
 private:
-  std::aligned_storage_t<BufferSize> storage_;
+  alignas(std::max_align_t) unsigned char storage_[BufferSize];
 
   Invoker invoker_{nullptr};
   Destroyer destroyer_{nullptr};
