@@ -81,8 +81,6 @@ using Vector = std::vector<Type>;
 using Callback = std::function<void()>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
-template <typename ArgType>
-using InlineHandler = InlineCallable<ArgType, 64>;
 
 /**
  * Some helper concepts

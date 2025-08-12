@@ -27,6 +27,7 @@ public:
   using Invoker = void (*)(void *, ArgType);
   using Destroyer = void (*)(void *);
   using Mover = void (*)(void *dest, void *src);
+  using Copier = void (*)(void *dest, const void *src);
 
   InlineCallable() noexcept = default;
 
@@ -49,17 +50,24 @@ public:
       new (dplace) LambdaType(std::move(*l));
       l->~LambdaType();
     };
+    copier_ = [](void *dest, const void *src) {
+      const LambdaType *l = static_cast<const LambdaType *>(src);
+      void *dplace = dest;
+      new (dplace) LambdaType(*l);
+    };
   }
 
   InlineCallable(InlineCallable &&other) noexcept {
     invoker_ = other.invoker_;
     destroyer_ = other.destroyer_;
     mover_ = other.mover_;
+    copier_ = other.copier_;
     if (invoker_) {
       mover_(&storage_, &other.storage_);
       other.invoker_ = nullptr;
       other.destroyer_ = nullptr;
       other.mover_ = nullptr;
+      other.copier_ = nullptr;
     }
   }
 
@@ -69,18 +77,41 @@ public:
       invoker_ = other.invoker_;
       destroyer_ = other.destroyer_;
       mover_ = other.mover_;
+      copier_ = other.copier_;
       if (invoker_) {
         mover_(&storage_, &other.storage_);
         other.invoker_ = nullptr;
         other.destroyer_ = nullptr;
         other.mover_ = nullptr;
+        other.copier_ = nullptr;
       }
     }
     return *this;
   }
 
-  InlineCallable(const InlineCallable &) = delete;
-  InlineCallable &operator=(const InlineCallable &) = delete;
+  InlineCallable(const InlineCallable &other) noexcept {
+    invoker_ = other.invoker_;
+    destroyer_ = other.destroyer_;
+    mover_ = other.mover_;
+    copier_ = other.copier_;
+    if (invoker_) {
+      copier_(&storage_, &other.storage_);
+    }
+  }
+
+  InlineCallable &operator=(const InlineCallable &other) noexcept {
+    if (this != &other) {
+      reset();
+      invoker_ = other.invoker_;
+      destroyer_ = other.destroyer_;
+      mover_ = other.mover_;
+      copier_ = other.copier_;
+      if (invoker_) {
+        copier_(&storage_, &other.storage_);
+      }
+    }
+    return *this;
+  }
 
   inline void operator()(ArgType arg) {
     assert(invoker_ && "Empty InlineCallable invoked");
@@ -95,6 +126,7 @@ public:
       destroyer_ = nullptr;
       invoker_ = nullptr;
       mover_ = nullptr;
+      copier_ = nullptr;
     }
   }
 
@@ -104,6 +136,7 @@ private:
   Invoker invoker_{nullptr};
   Destroyer destroyer_{nullptr};
   Mover mover_{nullptr};
+  Copier copier_{nullptr};
 };
 
 } // namespace hft

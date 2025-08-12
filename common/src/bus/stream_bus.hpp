@@ -47,11 +47,11 @@ public:
       : rate_{Config::get<size_t>("rates.telemetry_ms")}, timer_{runner_.ioCtx},
         queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{} {}
 
-  inline IoCtx &dataIoCtx() { return runner_.ioCtx; }
+  inline IoCtx &streamIoCtx() { return runner_.ioCtx; }
 
   template <typename Event>
     requires Routed<Event>
-  void subscribe(CRefHandler<Event> handler) {
+  void subscribe(CRefHandler<Event> &&handler) {
     if (running_) {
       throw std::runtime_error("StreamBus subscribe called after start");
     }

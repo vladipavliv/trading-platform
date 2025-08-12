@@ -16,6 +16,7 @@
 #include "latency_tracker.hpp"
 #include "monitor_command.hpp"
 #include "monitor_command_parser.hpp"
+#include "monitor_types.hpp"
 #include "serialization/serializer.hpp"
 
 namespace hft::monitor {
@@ -25,10 +26,10 @@ namespace hft::monitor {
 class MonitorControlCenter {
 public:
   using MonitorConsoleReader = ConsoleReader<MonitorCommandParser>;
-  using StreamAdapter = adapters::MessageQueueAdapter<SystemBus, serialization::MetadataSerializer,
+  using StreamAdapter = adapters::MessageQueueAdapter<MonitorBus, serialization::MetadataSerializer,
                                                       MonitorCommandParser>;
 
-  MonitorControlCenter() : consoleReader_{bus_}, streamAdapter_{bus_}, tracker_{bus_} {
+  MonitorControlCenter() : consoleReader_{bus_.systemBus}, streamAdapter_{bus_}, tracker_{bus_} {
     using namespace server;
     using namespace client;
 
@@ -60,7 +61,7 @@ private:
   }
 
 private:
-  SystemBus bus_;
+  MonitorBus bus_;
 
   StreamAdapter streamAdapter_;
   MonitorConsoleReader consoleReader_;

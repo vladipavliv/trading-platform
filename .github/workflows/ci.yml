@@ -12,7 +12,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Skip this job if this is a pull request AND it's still a draft
+    env:
+      GITHUB_ACTIONS: true
+
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
 
     services:
@@ -63,6 +65,8 @@ jobs:
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        build-args: |
+          GITHUB_ACTIONS=${{ env.GITHUB_ACTIONS }}
 
     - name: Wait for Postgres to be ready
       run: |

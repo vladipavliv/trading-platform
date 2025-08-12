@@ -10,7 +10,6 @@
 #include "concepts/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "serialization/fbs/fbs_domain_serializer.hpp"
 #include "serialization/serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -32,12 +31,11 @@ public:
 
   template <typename Type>
   static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    const auto serializedMsg = Serializer::serialize(message);
-    buffer.resize(serializedMsg.size() + HEADER_SIZE);
+    buffer.resize(HEADER_SIZE); // reserve the first 2 bytes for the message size
+    const auto msgSize = Serializer::serialize(message, buffer);
 
-    const LittleEndianUInt16 bodySize = static_cast<MessageSize>(serializedMsg.size());
+    const LittleEndianUInt16 bodySize = static_cast<MessageSize>(msgSize);
     std::memcpy(buffer.data(), &bodySize, sizeof(bodySize));
-    std::memcpy(buffer.data() + sizeof(bodySize), serializedMsg.data(), serializedMsg.size());
   }
 
   template <Busable Consumer>
@@ -53,7 +51,7 @@ public:
       if (cursor + HEADER_SIZE + bodySize > dataBuffer.size()) {
         break;
       }
-      if (!Serializer::deserialize(dataPtr + cursor + HEADER_SIZE, bodySize, consumer)) {
+      if (Serializer::deserialize(dataPtr + cursor + HEADER_SIZE, bodySize, consumer) != bodySize) {
         return std::unexpected(StatusCode::Error);
       }
       cursor += bodySize + HEADER_SIZE;
