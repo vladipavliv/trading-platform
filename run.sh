@@ -19,7 +19,7 @@ fi
 if [[ " ${args[@]} " =~ " ut " ]]; then
     cd build
     export GTEST_COLOR=1
-    ctest --output-on-failure
+    ctest --output-on-failure -V
     exit 0
 fi
 
@@ -44,21 +44,34 @@ fi
 if [[ " ${args[@]} " =~ " s " ]]; then
     cd build/server
     rm -f server_log*.txt
-    sudo -E ./hft_server
+    if [[ " ${args[@]} " =~ " val " ]]; then
+        sudo -E valgrind --leak-check=full --show-leak-kinds=all --log-file=valgrind_output.log ./hft_server
+    else
+        sudo -E ./hft_server
+    fi
 elif [[ " ${args[@]} " =~ " c " ]]; then
     cd build/client
     rm -f client_log*.txt
-    sudo -E ./hft_client
+    if [[ " ${args[@]} " =~ " val " ]]; then
+        sudo -E valgrind --leak-check=full --show-leak-kinds=all --log-file=valgrind_output.log ./hft_client
+    else
+        sudo -E ./hft_client
+    fi
 elif [[ " ${args[@]} " =~ " m " ]]; then
     cd build/monitor
     rm -f monitor_log*.txt
-    sudo -E ./hft_monitor
+    if [[ " ${args[@]} " =~ " val " ]]; then
+        sudo -E valgrind --leak-check=full --show-leak-kinds=all --log-file=valgrind_output.log ./hft_monitor
+    else
+        sudo -E ./hft_monitor
+    fi
 else
-    echo "Usage: $0 [k] [s|c|m|t|b]"
+    echo "Usage: $0 [k] [s|c|m|t|b] [val]"
     echo "k - run Kafka"
     echo "s - run server"
     echo "c - run client"
     echo "m - run monitor"
     echo "t - run tests"
     echo "b - run benchmarks"
+    echo "val - run with valgrind"
 fi

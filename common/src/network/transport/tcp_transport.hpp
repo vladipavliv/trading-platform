@@ -9,7 +9,7 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
-#include "network/framing/fixed_size_framer.hpp"
+#include "network/framing/framer.hpp"
 #include "network/ring_buffer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
@@ -20,7 +20,7 @@ namespace hft {
  * @brief Asynchronous TcpSocket wrapper
  * @details Reads from the socket, unframes with FramerType, and posts to consumer
  */
-template <typename ConsumerType, typename FramerType = FixedSizeFramer<>>
+template <typename ConsumerType, typename FramerType = DefaultFramer>
 class TcpTransport {
 public:
   using Consumer = ConsumerType;

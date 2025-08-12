@@ -69,30 +69,4 @@ static void BM_Op_BoostMpmcQueue(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_BoostMpmcQueue);
 
-static void BM_Op_CRefHandlerCallable(benchmark::State &state) {
-  size_t value;
-  CRefHandler<size_t> callable{[&](CRef<size_t> val) { value = val; }};
-
-  size_t iteration{0};
-  for (auto _ : state) {
-    callable(++iteration);
-  }
-  benchmark::DoNotOptimize(value);
-  benchmark::DoNotOptimize(iteration);
-}
-BENCHMARK(BM_Op_CRefHandlerCallable);
-
-static void BM_Op_InlineCallable(benchmark::State &state) {
-  size_t value;
-  InlineCallable<size_t> callable{[&](CRef<size_t> val) { value = val; }};
-
-  size_t iteration{0};
-  for (auto _ : state) {
-    callable(++iteration);
-  }
-  benchmark::DoNotOptimize(value);
-  benchmark::DoNotOptimize(iteration);
-}
-BENCHMARK(BM_Op_InlineCallable);
-
 } // namespace hft::benchmarks

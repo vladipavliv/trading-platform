@@ -17,8 +17,8 @@
 namespace hft::adapters {
 
 #ifdef TELEMETRY_ENABLED
-template <typename Bus, typename ConsumeSerializer = serialization::ProtoMetadataSerializer,
-          typename ProduceSerializer = serialization::ProtoMetadataSerializer>
+template <typename Bus, typename ConsumeSerializer = serialization::proto::ProtoMetadataSerializer,
+          typename ProduceSerializer = serialization::proto::ProtoMetadataSerializer>
 using MessageQueueAdapter = KafkaAdapter<Bus, ConsumeSerializer, ProduceSerializer>;
 #else
 template <typename Bus, typename ConsumeVoid = void, typename ProduceVoid = void>

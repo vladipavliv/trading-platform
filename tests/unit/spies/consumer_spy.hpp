@@ -57,6 +57,8 @@ struct ConsumerSpy {
     printers[idx]();
   }
 
+  size_t size() const { return data.size(); }
+
   std::vector<std::any> data;
   std::vector<Callback> printers;
 };

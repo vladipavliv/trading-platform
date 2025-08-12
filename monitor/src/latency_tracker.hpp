@@ -9,6 +9,7 @@
 #include "bus/system_bus.hpp"
 #include "config/monitor_config.hpp"
 #include "domain_types.hpp"
+#include "monitor_types.hpp"
 #include "types.hpp"
 
 namespace hft::monitor {
@@ -24,9 +25,9 @@ class LatencyTracker {
   };
 
 public:
-  explicit LatencyTracker(SystemBus &bus)
+  explicit LatencyTracker(MonitorBus &bus)
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
-        monitorRate_{Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1)} {
+        monitorRate_{Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000)} {
     bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> msg) { onOrderTimestamp(msg); });
     bus_.subscribe<RuntimeMetrics>([this](CRef<RuntimeMetrics> msg) { onRuntimeMetrics(msg); });
     scheduleStatsTimer();
@@ -64,9 +65,9 @@ private:
   }
 
 private:
-  SystemBus &bus_;
+  MonitorBus &bus_;
 
-  const Seconds monitorRate_;
+  const Milliseconds monitorRate_;
   SteadyTimer statsTimer_;
 
   Latency rtt_;

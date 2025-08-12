@@ -31,7 +31,7 @@ public:
 
   template <typename Event>
     requires Routed<Event>
-  void subscribe(CRefHandler<Event> handler) {
+  void subscribe(CRefHandler<Event> &&handler) {
     auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
     if (handlerRef) {
       LOG_ERROR("Handler is already registered for the type {}", typeid(Event).name());
@@ -50,14 +50,6 @@ public:
     }
     handlerRef(event);
   }
-
-  void run() {
-    if (!(std::get<CRefHandler<Events>>(handlers_) && ...)) {
-      throw std::runtime_error("Some handlers are not set in MessageBus");
-    }
-  }
-
-  void stop() {}
 
 private:
   MessageBus(const MessageBus &) = delete;

@@ -64,12 +64,14 @@ BENCHMARK(BM_Ser_ProtoDeserialize);
 
 static void BM_Ser_FbsSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
-  fbs::FbsDomainSerializer::BufferType buffer;
+  ByteBuffer buffer;
+  size_t size{0};
 
   for (auto _ : state) {
-    buffer = fbs::FbsDomainSerializer::serialize(order);
+    size = fbs::FbsDomainSerializer::serialize(order, buffer);
   }
 
+  benchmark::DoNotOptimize(size);
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
@@ -81,25 +83,27 @@ static void BM_Ser_FbsDeserialize(benchmark::State &state) {
   BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
-  const auto buffer = fbs::FbsDomainSerializer::serialize(utils::generateOrder());
-  bool ok{false};
+  ByteBuffer buffer;
+  auto size = fbs::FbsDomainSerializer::serialize(utils::generateOrder(), buffer);
 
   for (auto _ : state) {
-    ok = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
+    size = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
   }
   benchmark::DoNotOptimize(&buffer);
-  benchmark::DoNotOptimize(ok);
+  benchmark::DoNotOptimize(size);
 }
 BENCHMARK(BM_Ser_FbsDeserialize);
 
 static void BM_Ser_SbeSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
   Vector<uint8_t> buffer;
+  size_t size{0};
 
   for (auto _ : state) {
-    sbe::SbeDomainSerializer::serialize(order, buffer);
+    size = sbe::SbeDomainSerializer::serialize(order, buffer);
   }
 
+  benchmark::DoNotOptimize(size);
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
@@ -114,14 +118,13 @@ static void BM_Ser_SbeDeserialize(benchmark::State &state) {
   BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
-  sbe::SbeDomainSerializer::serialize(order, buffer);
-  bool ok{false};
+  size_t size = sbe::SbeDomainSerializer::serialize(order, buffer);
 
   for (auto _ : state) {
-    ok = sbe::SbeDomainSerializer::deserialize(buffer.data(), buffer.size(), bus);
+    size = sbe::SbeDomainSerializer::deserialize(buffer.data(), buffer.size(), bus);
   }
   benchmark::DoNotOptimize(&buffer);
-  benchmark::DoNotOptimize(ok);
+  benchmark::DoNotOptimize(size);
 }
 BENCHMARK(BM_Ser_SbeDeserialize);
 

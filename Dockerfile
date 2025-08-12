@@ -1,8 +1,15 @@
 FROM ubuntu:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+ARG CXX=/usr/bin/g++
+ENV CXX=${CXX}
+
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=${BUILD_TYPE}
+
+ARG GITHUB_ACTIONS
+ENV GITHUB_ACTIONS=${GITHUB_ACTIONS}
 
 # Main dependencies
 RUN apt-get update && apt-get install -y \
@@ -73,7 +80,7 @@ RUN python3 -m venv venv && \
 COPY . /app
 
 RUN rm -rf build && mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_BENCHMARKS=ON -DBUILD_TESTS=ON .. && \
+    cmake -DCMAKE_CXX_COMPILER=${CXX} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .. && \
     cmake --build . -- -j$(nproc)
 
 CMD ["ctest", "--output-on-failure"]

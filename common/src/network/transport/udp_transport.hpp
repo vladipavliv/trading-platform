@@ -9,7 +9,7 @@
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
-#include "network/framing/fixed_size_framer.hpp"
+#include "network/framing/framer.hpp"
 #include "network/ring_buffer.hpp"
 #include "types.hpp"
 
@@ -19,7 +19,7 @@ namespace hft {
  * @brief Asynchronous UdpSocket wrapper
  * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
-template <typename ConsumerType, typename FramerType = FixedSizeFramer<>>
+template <typename ConsumerType, typename FramerType = DefaultFramer>
 class UdpTransport {
 public:
   using Consumer = ConsumerType;

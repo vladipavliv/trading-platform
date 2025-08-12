@@ -25,15 +25,15 @@ public:
   inline IoCtx &systemIoCtx() { return ioCtx_; }
 
   template <typename EventType>
-  void subscribe(CRefHandler<EventType> handler) {
-    ioCtx_.post([handler = std::move(handler)]() {
+  void subscribe(CRefHandler<EventType> &&handler) {
+    ioCtx_.post([handler = std::move(handler)]() mutable {
       getEventSubscribers<EventType>().emplace_back(std::move(handler));
     });
   }
 
   template <UnorderedMapKey EventType>
-  void subscribe(EventType event, Callback callback) {
-    ioCtx_.post([event, callback = std::move(callback)]() {
+  void subscribe(EventType event, Callback &&callback) {
+    ioCtx_.post([event, callback = std::move(callback)]() mutable {
       getValueSubscribers<EventType>()[event].emplace_back(std::move(callback));
     });
   }

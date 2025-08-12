@@ -16,7 +16,7 @@
 #include "kafka_event.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
-#include "serialization/protobuf/proto_metadata_serializer.hpp"
+#include "serialization/proto/proto_metadata_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -25,8 +25,9 @@ namespace hft::adapters {
 /**
  * @brief Reactive adapter, all communication goes through the bus
  */
-template <Busable Bus, typename ConsumeSerializerType = serialization::ProtoMetadataSerializer,
-          typename ProduceSerializerType = serialization::ProtoMetadataSerializer>
+template <Busable Bus,
+          typename ConsumeSerializerType = serialization::proto::ProtoMetadataSerializer,
+          typename ProduceSerializerType = serialization::proto::ProtoMetadataSerializer>
 class KafkaAdapter {
   static constexpr size_t FLUSH_CHUNK_TIMEOUT = 1000;
   static constexpr size_t CONSUME_CHUNK = 100;
@@ -42,7 +43,7 @@ public:
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
         consumeTopics_{Config::get<Vector<String>>("kafka.consume_topics")},
         produceTopics_{Config::get<Vector<String>>("kafka.produce_topics")},
-        timer_{bus_.dataIoCtx()} {
+        timer_{bus_.streamIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };
 
@@ -85,14 +86,12 @@ public:
 
     if (consumer_ != nullptr) {
       consumer_->unsubscribe();
-      consumer_.reset();
     }
     while (producer_ != nullptr && producer_->outq_len() > 0) {
       LOG_INFO_SYSTEM("Flushing {} messages to kafka", producer_->outq_len());
       producer_->flush(FLUSH_CHUNK_TIMEOUT);
     }
     produceTopicMap_.clear();
-    producer_.reset();
   }
 
   template <typename EventType>
@@ -199,7 +198,7 @@ private:
 
   void pollConsume() {
     using namespace RdKafka;
-    for (size_t i = 0; i < CONSUME_CHUNK; ++i) {
+    for (size_t i = 0; i < CONSUME_CHUNK && started_; ++i) {
       const UPtr<Message> msg{consumer_->consume(0)};
       if (msg->err() == RdKafka::ERR_NO_ERROR) {
         ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
@@ -248,7 +247,7 @@ private:
     for (auto &topic : produceTopics_) {
       ss << topic << " ";
     }
-    LOG_INFO(ss.str());
+    LOG_DEBUG_SYSTEM("{}", ss.str());
   }
 
   bool error() const { return !error_.empty(); }

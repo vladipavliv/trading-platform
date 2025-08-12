@@ -29,18 +29,16 @@ public:
   StreamBus streamBus;
 
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
-  inline IoCtx &dataIoCtx() { return streamBus.dataIoCtx(); }
+  inline IoCtx &streamIoCtx() { return streamBus.streamIoCtx(); }
 
   void run() {
-    systemBus.run();
-    marketBus.run();
     streamBus.run();
+    systemBus.run();
   }
 
   void stop() {
-    systemBus.stop();
-    marketBus.stop();
     streamBus.stop();
+    systemBus.stop();
   }
 
   template <typename Message>
@@ -51,8 +49,8 @@ public:
 
   template <typename Message>
     requires(MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
-  inline void subscribe(CRefHandler<Message> handler) {
-    marketBus.template subscribe<Message>(handler);
+  inline void subscribe(CRefHandler<Message> &&handler) {
+    marketBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
@@ -63,8 +61,8 @@ public:
 
   template <typename Message>
     requires(!MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
-  inline void subscribe(CRefHandler<Message> handler) {
-    streamBus.template subscribe<Message>(handler);
+  inline void subscribe(CRefHandler<Message> &&handler) {
+    streamBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
@@ -75,12 +73,12 @@ public:
 
   template <typename Message>
     requires(!MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
-  inline void subscribe(CRefHandler<Message> handler) {
-    systemBus.template subscribe<Message>(handler);
+  inline void subscribe(CRefHandler<Message> &&handler) {
+    systemBus.template subscribe<Message>(std::move(handler));
   }
 
   template <UnorderedMapKey EventType>
-  void subscribe(EventType event, Callback callback) {
+  void subscribe(EventType event, Callback &&callback) {
     systemBus.subscribe(event, std::move(callback));
   }
 
@@ -90,7 +88,7 @@ public:
 
   template <typename Message>
     requires(MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
-  inline void subscribe(CRef<Message>) = delete;
+  inline void subscribe(CRefHandler<Message>) = delete;
 };
 } // namespace hft
 
