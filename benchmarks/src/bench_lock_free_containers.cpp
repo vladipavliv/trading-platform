@@ -7,7 +7,6 @@
 #include <boost/lockfree/queue.hpp>
 #include <folly/MPMCQueue.h>
 
-#include "inline_callable.hpp"
 #include "types.hpp"
 #include "vyukov_queue.hpp"
 

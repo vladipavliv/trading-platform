@@ -3,8 +3,8 @@
  * @date 2025-03-23
  */
 
-#ifndef HFT_COMMON_TCPTRANSPORT_HPP
-#define HFT_COMMON_TCPTRANSPORT_HPP
+#ifndef HFT_COMMON_TCPCHANNEL_HPP
+#define HFT_COMMON_TCPCHANNEL_HPP
 
 #include "domain_types.hpp"
 #include "logging.hpp"
@@ -21,23 +21,23 @@ namespace hft {
  * @details Reads from the socket, unframes with FramerType, and posts to consumer
  */
 template <typename ConsumerType, typename FramerType = DefaultFramer>
-class TcpTransport {
+class TcpChannel {
 public:
   using Consumer = ConsumerType;
   using Framer = FramerType;
 
-  TcpTransport(ConnectionId id, TcpSocket socket, Consumer &consumer)
+  TcpChannel(ConnectionId id, TcpSocket socket, Consumer &consumer)
       : id_{id}, socket_{std::move(socket)}, consumer_{consumer},
         status_{ConnectionStatus::Connected} {}
 
-  TcpTransport(ConnectionId id, TcpSocket socket, TcpEndpoint endpoint, Consumer &consumer)
-      : TcpTransport(id, std::move(socket), consumer) {
+  TcpChannel(ConnectionId id, TcpSocket socket, TcpEndpoint endpoint, Consumer &consumer)
+      : TcpChannel(id, std::move(socket), consumer) {
     endpoint_ = std::move(endpoint);
     status_ = ConnectionStatus::Disconnected;
   }
 
   void connect() {
-    LOG_DEBUG("TcpTransport connect");
+    LOG_DEBUG("TcpChannel connect");
     socket_.async_connect(endpoint_, [this](BoostErrorCode code) {
       if (!code) {
         socket_.set_option(TcpSocket::protocol_type::no_delay(true));
@@ -50,13 +50,13 @@ public:
   }
 
   void reconnect() {
-    LOG_DEBUG("TcpTransport reconnect");
+    LOG_DEBUG("TcpChannel reconnect");
     socket_.close();
     connect();
   }
 
   void read() {
-    LOG_TRACE("TcpTransport read");
+    LOG_TRACE("TcpChannel read");
     socket_.async_read_some(
         buffer_.buffer(), [this](BoostErrorCode code, size_t bytes) { readHandler(code, bytes); });
   }
@@ -64,7 +64,7 @@ public:
   template <typename Type>
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
-    LOG_TRACE("TcpTransport write {}", utils::toString(msg));
+    LOG_TRACE("TcpChannel write {}", utils::toString(msg));
     const auto buffer = std::make_shared<ByteBuffer>();
     Framer::frame(msg, *buffer);
     boost::asio::async_write(

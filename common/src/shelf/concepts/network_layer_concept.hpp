@@ -32,10 +32,10 @@ concept NetworkLayer = // format
       { NetworkLayer<Listener>{listener} };
       {
         network.createTcp(std::declval<CRef<String>>(), std::declval<Port>())
-      } -> std::same_as<typename NetworkLayer<Listener>::TcpTransportType>;
+      } -> std::same_as<typename NetworkLayer<Listener>::TcpSocketType>;
       {
         network.createUdp(std::declval<Port>(), std::declval<bool>())
-      } -> std::same_as<typename NetworkLayer<Listener>::UdpTransportType>;
+      } -> std::same_as<typename NetworkLayer<Listener>::UdpSocketType>;
       { network.listen(std::declval<Port>()) } -> std::same_as<void>;
       { network.start() } -> std::same_as<void>;
       { network.stop() } -> std::same_as<void>;

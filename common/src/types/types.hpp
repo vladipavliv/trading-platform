@@ -18,7 +18,6 @@
 #include <spdlog/common.h>
 
 #include "constants.hpp"
-#include "inline_callable.hpp"
 #include "status_code.hpp"
 
 namespace hft {

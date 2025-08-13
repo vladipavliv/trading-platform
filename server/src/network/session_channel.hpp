@@ -8,7 +8,7 @@
 
 #include "boost_types.hpp"
 #include "logging.hpp"
-#include "network/transport/tcp_transport.hpp"
+#include "network/channels/tcp_channel.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
 
@@ -24,13 +24,13 @@ namespace hft::server {
  * that is a wrapper for SessionChannel to avoid exposing consumer interface, and
  * expose only the interface to send the message downstream.
  */
-class BoostSessionChannel {
+class SessionChannel {
 public:
-  using Transport = TcpTransport<BoostSessionChannel>;
+  using Channel = TcpChannel<SessionChannel>;
 
-  BoostSessionChannel(ConnectionId id, TcpSocket socket, ServerBus &bus)
-      : id_{id}, transport_{id, std::move(socket), *this}, bus_{bus} {
-    transport_.read();
+  SessionChannel(ConnectionId id, TcpSocket socket, ServerBus &bus)
+      : id_{id}, channel_{id, std::move(socket), *this}, bus_{bus} {
+    channel_.read();
   }
 
   inline void authenticate(ClientId clientId) {
@@ -55,7 +55,7 @@ public:
   inline auto clientId() const -> Optional<ClientId> { return clientId_; }
 
   void close() {
-    transport_.close();
+    channel_.close();
     clientId_.reset();
   }
 
@@ -64,12 +64,12 @@ private:
 
   ServerBus &bus_;
 
-  Transport transport_;
+  Channel channel_;
   Optional<ClientId> clientId_;
 };
 
 template <>
-inline void BoostSessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
+inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
   if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid login request: channel {} is already authenticated", id_);
     return;
@@ -78,7 +78,7 @@ inline void BoostSessionChannel::post<LoginRequest>(CRef<LoginRequest> message) 
 }
 
 template <>
-inline void BoostSessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
+inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
   if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", id_);
     return;
@@ -87,12 +87,12 @@ inline void BoostSessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> m
 }
 
 template <>
-inline void BoostSessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEvent> event) {
+inline void SessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEvent> event) {
   bus_.post(ChannelStatusEvent{clientId_, event});
 }
 
 template <>
-inline void BoostSessionChannel::post<Order>(CRef<Order> message) {
+inline void SessionChannel::post<Order>(CRef<Order> message) {
   if (!isAuthenticated()) [[unlikely]] {
     LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
@@ -101,17 +101,17 @@ inline void BoostSessionChannel::post<Order>(CRef<Order> message) {
 }
 
 template <>
-inline void BoostSessionChannel::post<LoginResponse>(CRef<LoginResponse> message) {
-  transport_.write(message);
+inline void SessionChannel::post<LoginResponse>(CRef<LoginResponse> message) {
+  channel_.write(message);
 }
 
 template <>
-inline void BoostSessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
+inline void SessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
   if (!isAuthenticated()) [[unlikely]] {
     LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
     return;
   }
-  transport_.write(message);
+  channel_.write(message);
 }
 
 } // namespace hft::server

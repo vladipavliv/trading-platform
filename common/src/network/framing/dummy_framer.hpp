@@ -29,33 +29,22 @@ public:
   template <typename EventType>
   static constexpr bool Framable = Serializer::template Serializable<EventType>;
 
-  static constexpr size_t HEADER_SIZE = 0;
-
   template <typename Type>
   static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    try {
-      Serializer::serialize(message, buffer);
-    } catch (const std::exception &e) {
-      LOG_ERROR_SYSTEM("Exception in DummyFramer::frame: {} {}", typeid(Type).name(), e.what());
-    }
+    Serializer::serialize(message, buffer);
   }
 
   template <Busable Bus>
   static auto unframe(ByteSpan buff, Bus &bus) -> Expected<size_t> {
-    try {
-      size_t processedSize{0};
-      size_t msgSize{0};
-      do {
-        const auto msgPtr = buff.data() + processedSize;
-        const auto remainSize = buff.size() - processedSize;
-        msgSize = Serializer::deserialize(msgPtr, remainSize, bus);
-        processedSize += msgSize;
-      } while (msgSize != 0);
-      return processedSize;
-    } catch (const std::exception &e) {
-      LOG_ERROR_SYSTEM("Exception in DummyFramer::unframe: {}", e.what());
-      return std::unexpected(StatusCode::Error);
-    }
+    size_t processedSize{0};
+    size_t msgSize{0};
+    do {
+      const auto msgPtr = buff.data() + processedSize;
+      const auto remainSize = buff.size() - processedSize;
+      msgSize = Serializer::deserialize(msgPtr, remainSize, bus);
+      processedSize += msgSize;
+    } while (msgSize != 0);
+    return processedSize;
   }
 };
 

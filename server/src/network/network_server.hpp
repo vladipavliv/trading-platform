@@ -10,15 +10,15 @@
 #include <format>
 #include <memory>
 
-#include "boost_broadcast_channel.hpp"
-#include "boost_session_channel.hpp"
 #include "boost_types.hpp"
+#include "broadcast_channel.hpp"
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
-#include "network/transport/udp_transport.hpp"
+#include "network/channels/udp_channel.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
+#include "session_channel.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -29,17 +29,17 @@ namespace hft::server {
  * Redirects accepted tcp sockets to the gateway
  */
 template <typename Listener>
-class BoostNetworkServer {
+class NetworkServer {
 public:
-  using SessionChannelType = BoostSessionChannel;
-  using BroadcastChannelType = BoostBroadcastChannel;
+  using SessionChannelType = SessionChannel;
+  using BroadcastChannelType = BroadcastChannel;
   using ListenerType = Listener;
 
-  BoostNetworkServer(ServerBus &bus, Listener &listener)
+  NetworkServer(ServerBus &bus, Listener &listener)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, listener_{listener},
         upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
 
-  ~BoostNetworkServer() { stop(); }
+  ~NetworkServer() { stop(); }
 
   void start() {
     const auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
@@ -55,6 +55,7 @@ public:
           ioCtx_.run();
         } catch (const std::exception &e) {
           LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+          ioCtx_.stop();
         }
       });
     };
@@ -96,7 +97,7 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();
-      auto channel = std::make_shared<BoostSessionChannel>(id, std::move(socket), bus_);
+      auto channel = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
       listener_.acceptUpstream(std::move(channel));
       acceptUpstream();
     });
@@ -120,7 +121,7 @@ private:
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();
-      auto channel = std::make_shared<BoostSessionChannel>(id, std::move(socket), bus_);
+      auto channel = std::make_shared<SessionChannel>(id, std::move(socket), bus_);
       listener_.acceptDownstream(std::move(channel));
       acceptDownstream();
     });

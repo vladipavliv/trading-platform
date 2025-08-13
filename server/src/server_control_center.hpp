@@ -14,7 +14,7 @@
 #include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "execution/coordinator.hpp"
-#include "network/boost_network_server.hpp"
+#include "network/network_server.hpp"
 #include "price_feed.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -28,8 +28,8 @@ namespace hft::server {
  */
 class ServerControlCenter {
 public:
-  using SessionManagerType = SessionManager<BoostSessionChannel, BoostBroadcastChannel>;
-  using NetworkServerType = BoostNetworkServer<SessionManagerType>;
+  using SessionManagerType = SessionManager<SessionChannel, BroadcastChannel>;
+  using NetworkServerType = NetworkServer<SessionManagerType>;
   using ServerConsoleReader = ConsoleReader<ServerCommandParser>;
   using StreamAdapter = adapters::MessageQueueAdapter<ServerBus, ServerCommandParser>;
 

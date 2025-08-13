@@ -18,9 +18,9 @@
 #include "connection_state.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
+#include "network/channels/tcp_channel.hpp"
+#include "network/channels/udp_channel.hpp"
 #include "network/connection_status.hpp"
-#include "network/transport/tcp_transport.hpp"
-#include "network/transport/udp_transport.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -31,16 +31,15 @@ namespace hft::client {
  * @brief Manages all the Tcp and Udp connections to the server, handles authentication
  */
 class NetworkClient {
-  using ClientTcpTransport = TcpTransport<ClientBus>;
-  using ClientUdpTransport = UdpTransport<ClientBus>;
+  using ClientTcpChannel = TcpChannel<ClientBus>;
+  using ClientUdpChannel = UdpChannel<ClientBus>;
 
 public:
   NetworkClient(ClientBus &bus)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus},
-        upstreamTransport_{createUpstreamTransport()},
-        downstreamTransport_{createDownstreamTransport()},
-        pricesTransport_{createPricesTransport()} {
-    bus_.subscribe<Order>([this](CRef<Order> order) { upstreamTransport_.write(order); });
+        upstreamChannel_{createUpstreamChannel()}, downstreamChannel_{createDownstreamChannel()},
+        pricesChannel_{createPricesChannel()} {
+    bus_.subscribe<Order>([this](CRef<Order> order) { upstreamChannel_.write(order); });
     bus_.subscribe<ConnectionStatusEvent>(
         [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
     bus_.subscribe<LoginResponse>([this](CRef<LoginResponse> event) { onLoginResponse(event); });
@@ -62,6 +61,7 @@ public:
           ioCtx_.run();
         } catch (const std::exception &e) {
           LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+          ioCtx_.stop();
         }
       });
     };
@@ -84,9 +84,9 @@ public:
     }
     ioCtx_.post([this]() {
       LOG_DEBUG("Connecting to the server");
-      upstreamTransport_.connect();
-      downstreamTransport_.connect();
-      pricesTransport_.read();
+      upstreamChannel_.connect();
+      downstreamChannel_.connect();
+      pricesChannel_.read();
     });
   }
 
@@ -100,20 +100,20 @@ private:
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG("{}", utils::toString(event));
     if (event.status == ConnectionStatus::Connected) {
-      if (upstreamTransport_.isConnected() && downstreamTransport_.isConnected() &&
+      if (upstreamChannel_.isConnected() && downstreamChannel_.isConnected() &&
           state_ == ConnectionState::Disconnected) {
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
         bus_.post(ClientEvent::Connected);
-        upstreamTransport_.write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
+        upstreamChannel_.write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
       }
     } else {
       const auto prevState = state_;
       state_ = ConnectionState::Disconnected;
       token_.reset();
-      if (upstreamTransport_.isError() || downstreamTransport_.isError()) {
-        upstreamTransport_.close();
-        downstreamTransport_.close();
+      if (upstreamChannel_.isError() || downstreamChannel_.isError()) {
+        upstreamChannel_.close();
+        downstreamChannel_.close();
         if (prevState != ConnectionState::Disconnected) {
           bus_.post(ClientEvent::Disconnected);
         } else {
@@ -137,7 +137,7 @@ private:
       LOG_INFO_SYSTEM("Login successfull, token: {}", event.token);
       // Now authenticate downstream socket by sending token
       state_ = ConnectionState::TokenReceived;
-      downstreamTransport_.write(TokenBindRequest{event.token});
+      downstreamChannel_.write(TokenBindRequest{event.token});
       break;
     }
     case ConnectionState::TokenReceived: {
@@ -152,19 +152,19 @@ private:
   }
 
 private:
-  ClientTcpTransport createUpstreamTransport() {
+  ClientTcpChannel createUpstreamChannel() {
     return {utils::generateConnectionId(), TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpUp},
             bus_};
   }
 
-  ClientTcpTransport createDownstreamTransport() {
+  ClientTcpChannel createDownstreamChannel() {
     return {utils::generateConnectionId(), TcpSocket{ioCtx_},
             TcpEndpoint{Ip::make_address(ClientConfig::cfg.url), ClientConfig::cfg.portTcpDown},
             bus_};
   }
 
-  ClientUdpTransport createPricesTransport() {
+  ClientUdpChannel createPricesChannel() {
     return {utils::generateConnectionId(),
             utils::createUdpSocket(ioCtx_, false, ClientConfig::cfg.portUdp),
             UdpEndpoint(Udp::v4(), ClientConfig::cfg.portUdp), bus_};
@@ -176,9 +176,9 @@ private:
 
   ClientBus &bus_;
 
-  ClientTcpTransport upstreamTransport_;
-  ClientTcpTransport downstreamTransport_;
-  ClientUdpTransport pricesTransport_;
+  ClientTcpChannel upstreamChannel_;
+  ClientTcpChannel downstreamChannel_;
+  ClientUdpChannel pricesChannel_;
 
   ConnectionState state_{ConnectionState::Disconnected};
   Optional<Token> token_;

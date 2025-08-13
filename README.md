@@ -38,7 +38,7 @@ Options:
 
 ## Usage
 ### Setup environment
-Install Postgres (essential), Kafka (if you want to enable telemetry monitoring via separate service) and ClickHouse (if you want to persist telemetry). Set them up with the scripts
+Install Postgres, Kafka (if you want to enable telemetry monitoring via separate service) and ClickHouse (if you want to persist telemetry). Set them up with the scripts
 ```bash
 python3 ./scripts/setup_postgres.py
 python3 ./scripts/setup_kafka.py

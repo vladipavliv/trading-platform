@@ -3,8 +3,8 @@
  * @date 2025-03-23
  */
 
-#ifndef HFT_COMMON_UDPTRANSPORT_HPP
-#define HFT_COMMON_UDPTRANSPORT_HPP
+#ifndef HFT_COMMON_UDPCHANNEL_HPP
+#define HFT_COMMON_UDPCHANNEL_HPP
 
 #include "domain_types.hpp"
 #include "logging.hpp"
@@ -20,12 +20,12 @@ namespace hft {
  * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
 template <typename ConsumerType, typename FramerType = DefaultFramer>
-class UdpTransport {
+class UdpChannel {
 public:
   using Consumer = ConsumerType;
   using Framer = FramerType;
 
-  UdpTransport(ConnectionId id, UdpSocket socket, UdpEndpoint endpoint, Consumer &consumer)
+  UdpChannel(ConnectionId id, UdpSocket socket, UdpEndpoint endpoint, Consumer &consumer)
       : id_{id}, socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, consumer_{consumer} {}
 
   void read() {
@@ -89,4 +89,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_UDPTRANSPORT_HPP
+#endif // HFT_COMMON_UDPCHANNEL_HPP
