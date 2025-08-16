@@ -15,6 +15,7 @@
 #include "server_market_data.hpp"
 #include "server_types.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::server {
 
@@ -128,7 +129,7 @@ private:
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
 #ifdef TELEMETRY_ENABLED
         if (telemetry_) {
-          bus_.post(RuntimeMetrics{MetadataSource::Server, getTimestamp(), rps, 0});
+          bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestamp(), rps, 0});
         }
 #endif
       }

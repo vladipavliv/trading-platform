@@ -31,11 +31,26 @@ if [[ " ${args[@]} " =~ " it " ]]; then
 fi
 
 if [[ " ${args[@]} " =~ " k " ]]; then
+    # Check if Kafka is running
     if ! pgrep -f 'kafka.Kafka' > /dev/null; then
-        echo "Starting Kafka..."
-        gnome-terminal -- bash -c "~/src/kafka_2.13-4.0.0/bin/kafka-server-start.sh ~/src/kafka_2.13-4.0.0/config/server.properties; exec bash"
-        sudo clickhouse start
-        sleep 10
+        echo "Starting Kafka"
+        
+        KAFKA_HOME="$HOME/src/kafka_2.13-4.0.0"
+        KAFKA_LOG="$HOME/kafka.log"
+
+        if [[ -x "$KAFKA_HOME/bin/kafka-server-start.sh" ]]; then
+            nohup "$KAFKA_HOME/bin/kafka-server-start.sh" \
+                "$KAFKA_HOME/config/server.properties" > "$KAFKA_LOG" 2>&1 &
+            
+            until nc -z localhost 9092; do
+                echo -n "."
+                sleep 1
+            done
+            echo "Kafka started, logging to $KAFKA_LOG"
+        else
+            echo "Kafka server script not found or not executable: $KAFKA_HOME/bin/kafka-server-start.sh"
+            exit 1
+        fi
     else
         echo "Kafka is already running."
     fi
