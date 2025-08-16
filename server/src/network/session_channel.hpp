@@ -10,31 +10,19 @@
 #include "logging.hpp"
 #include "network/channels/tcp_channel.hpp"
 #include "server_types.hpp"
+#include "session_bus.hpp"
 #include "types.hpp"
 
 namespace hft::server {
 
 /**
- * @brief Channel that acts as a session gateway
- * First waits for authentication message, then accepts other supported messages
- * Converts the domain messages to server-side wrappers with the message specific ids
- * Uses proxy bus for TcpChannel to not expose unnecessary bus interface
+ * @brief Gateway channel for the session
+ * @details Uses SessionBus to prevent unauthenticated messages to go through
  */
 class SessionChannel {
-  struct ChannelProxyBus {
-    ChannelProxyBus(SessionChannel &chan) : channel{chan} {}
-
-    template <typename Event>
-    void post(CRef<Event> e) {
-      channel.template post<Event>(e);
-    }
-
-    SessionChannel &channel;
-  };
-
 public:
   SessionChannel(ConnectionId id, TcpSocket socket, ServerBus &bus)
-      : id_{id}, bus_{bus}, proxyBus_{*this}, channel_{id, std::move(socket), proxyBus_} {
+      : id_{id}, bus_{bus}, sessionBus_{id, bus}, channel_{id, std::move(socket), sessionBus_} {
     channel_.read();
   }
 
@@ -44,19 +32,16 @@ public:
       LOG_ERROR_SYSTEM("{} is already authenticated", id_);
       return;
     }
-    clientId_ = clientId;
+    sessionBus_.authenticate(clientId);
   }
 
-  inline auto isAuthenticated() const -> bool { return clientId_.has_value(); }
+  inline auto isAuthenticated() const -> bool { return sessionBus_.isAuthenticated(); }
 
   inline auto connectionId() const -> ConnectionId { return id_; }
 
-  inline auto clientId() const -> Optional<ClientId> { return clientId_; }
+  inline auto clientId() const -> Optional<ClientId> { return sessionBus_.clientId(); }
 
-  void close() {
-    channel_.close();
-    clientId_.reset();
-  }
+  inline void close() { channel_.close(); }
 
   inline void write(CRef<LoginResponse> message) { channel_.write(message); }
 
@@ -69,55 +54,13 @@ public:
   }
 
 private:
-  template <typename MessageType>
-  inline void post(CRef<MessageType> message) {
-    // Supports only the explicitly specialized types
-    LOG_ERROR_SYSTEM("Invalid message type received at {}", id_);
-  }
-
-private:
-  friend struct ChannelProxyBus;
-
   const ConnectionId id_;
 
   ServerBus &bus_;
-  ChannelProxyBus proxyBus_;
+  SessionBus sessionBus_;
 
-  TcpChannel<ChannelProxyBus> channel_;
-  Optional<ClientId> clientId_;
+  TcpChannel<SessionBus> channel_;
 };
-
-template <>
-inline void SessionChannel::post<LoginRequest>(CRef<LoginRequest> message) {
-  if (isAuthenticated()) {
-    LOG_ERROR_SYSTEM("Invalid login request: channel {} is already authenticated", id_);
-    return;
-  }
-  bus_.post(ServerLoginRequest{id_, message});
-}
-
-template <>
-inline void SessionChannel::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
-  if (isAuthenticated()) {
-    LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", id_);
-    return;
-  }
-  bus_.post(ServerTokenBindRequest{id_, message});
-}
-
-template <>
-inline void SessionChannel::post<ConnectionStatusEvent>(CRef<ConnectionStatusEvent> event) {
-  bus_.post(ChannelStatusEvent{clientId_, event});
-}
-
-template <>
-inline void SessionChannel::post<Order>(CRef<Order> message) {
-  if (!isAuthenticated()) [[unlikely]] {
-    LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
-    return;
-  }
-  bus_.post(ServerOrder{clientId_.value(), message});
-}
 
 } // namespace hft::server
 
