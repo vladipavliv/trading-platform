@@ -28,7 +28,7 @@ namespace hft {
  */
 template <typename... Events>
 class StreamBus {
-  static constexpr size_t QUEUE_SIZE = 1024 * 128;
+  static constexpr size_t QUEUE_SIZE = 1024 * 512;
   static constexpr size_t RETRY_COUNT = 100;
 
   static constexpr size_t EventCount = sizeof...(Events);

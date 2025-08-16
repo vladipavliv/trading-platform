@@ -30,13 +30,23 @@ else()
 endif()
 
 if(IS_CICD_BUILD)
-  add_compile_definitions(SERIALIZATION_FBS)
+  set(SERIALIZATION "FBS")
   set(BUILD_TESTS ON CACHE BOOL "Build tests" FORCE)
   set(BUILD_BENCHMARKS ON CACHE BOOL "Build benchmarks" FORCE)
 else()
   if(TELEMETRY_ENABLED)
     add_compile_definitions(TELEMETRY_ENABLED)
   endif()
+  if(BUILD_BENCHMARKS)
+    set(SERIALIZATION "FBS")
+  else()
+    set(SERIALIZATION "SBE")
+  endif()
+endif()
+
+if(SERIALIZATION STREQUAL "FBS")
+  add_compile_definitions(SERIALIZATION_FBS)
+elseif(SERIALIZATION STREQUAL "SBE")
   add_compile_definitions(SERIALIZATION_SBE)
 endif()
 
@@ -52,6 +62,15 @@ find_package(Glog REQUIRED)
 find_package(Protobuf REQUIRED)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
+
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
+
+add_subdirectory(common)
+add_subdirectory(server)
+add_subdirectory(client)
+add_subdirectory(monitor)
 
 include(FetchContent)
 
@@ -71,18 +90,34 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-if(BUILD_BENCHMARKS)
-  add_subdirectory(benchmarks)
-endif()
-
 string(ASCII 27 esc)
-message(STATUS "${esc}[1;32mCMAKE_BUILD_TYPE${esc}[0m is set to: ${esc}[1;33m${CMAKE_BUILD_TYPE}${esc}[0m")
-message(STATUS "${esc}[1;32mBUILD_TESTS${esc}[0m is set to: ${esc}[1;33m${BUILD_TESTS}${esc}[0m")
-message(STATUS "${esc}[1;32mBUILD_BENCHMARKS${esc}[0m is set to: ${esc}[1;33m${BUILD_BENCHMARKS}${esc}[0m")
-message(STATUS "${esc}[1;32mTELEMETRY_ENABLED${esc}[0m is set to: ${esc}[1;33m${TELEMETRY_ENABLED}${esc}[0m")
-message(STATUS "${esc}[1;32mSPDLOG_ACTIVE_LEVEL${esc}[0m is set to: ${esc}[1;33m${SPDLOG_ACTIVE_LEVEL}${esc}[0m")
 
-add_subdirectory(common)
-add_subdirectory(server)
-add_subdirectory(client)
-add_subdirectory(monitor)
+set(vars
+    CMAKE_BUILD_TYPE
+    BUILD_TESTS
+    BUILD_BENCHMARKS
+    TELEMETRY_ENABLED
+    SPDLOG_ACTIVE_LEVEL
+    SERIALIZATION
+)
+
+# Find maximum variable name length
+set(max_len 0)
+foreach(v ${vars})
+    string(LENGTH "${v}" len)
+    if(len GREATER max_len)
+        set(max_len ${len})
+    endif()
+endforeach()
+
+# Print with padding + ANSI colors
+foreach(v ${vars})
+    string(LENGTH "${v}" len)
+    math(EXPR pad "${max_len} - ${len}")
+    string(REPEAT " " ${pad} spaces)
+
+    # Use NOTICE instead of STATUS so ANSI codes are preserved
+    message(NOTICE
+        "${esc}[1;32m${v}${spaces}${esc}[0m : ${esc}[1;33m${${v}}${esc}[0m"
+    )
+endforeach()

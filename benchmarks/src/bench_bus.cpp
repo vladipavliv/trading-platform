@@ -12,6 +12,8 @@
 
 namespace hft::benchmarks {
 
+constexpr auto failHandler = [](StatusCode code) {};
+
 static void BM_Op_MessageBusPost(benchmark::State &state) {
   size_t counter{0};
   const auto order = utils::generateOrder();
@@ -43,7 +45,7 @@ BENCHMARK(BM_Op_SystemBusPost);
 static void BM_Op_StreamBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
-  StreamBus<Order> bus;
+  StreamBus<Order> bus{failHandler};
   bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
   bus.run();
 

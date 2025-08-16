@@ -31,7 +31,6 @@ class PostgresAdapter {
   static constexpr auto TICKERS_COUNT_QUERY = "SELECT COUNT(*) FROM tickers";
   static constexpr auto SELECT_CLIENT_QUERY =
       "SELECT client_id, password FROM clients WHERE name = $1";
-  static constexpr size_t RUNTIME_TIMEOUT_MS = 50;
 
 public:
   PostgresAdapter() : connectionString_{getConnectionString()}, conn_{connectionString_} {
@@ -49,7 +48,7 @@ public:
         return Span<const TickerPrice>{tickers};
       }
       pqxx::work transaction(conn_);
-      transaction.exec_params("SET statement_timeout = $1", RUNTIME_TIMEOUT_MS);
+      transaction.exec("SET statement_timeout = 50");
       const pqxx::result countResult = transaction.exec(TICKERS_COUNT_QUERY);
 
       if (countResult.empty() || countResult[0][0].as<size_t>() == 0) {
@@ -79,7 +78,7 @@ public:
     try {
       pqxx::work transaction(conn_);
       // Set small timeout, systemBus must be responsive.
-      transaction.exec_params("SET statement_timeout = $1", RUNTIME_TIMEOUT_MS);
+      transaction.exec("SET statement_timeout = 50");
       const auto result = transaction.exec_params(SELECT_CLIENT_QUERY, name);
 
       if (!result.empty()) {
