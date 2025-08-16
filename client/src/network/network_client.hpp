@@ -104,7 +104,7 @@ private:
           state_ == ConnectionState::Disconnected) {
         // Start authentication process, first send credentials over upstream socket
         state_ = ConnectionState::Connected;
-        bus_.post(ClientEvent::Connected);
+        bus_.post(ClientState::Connected);
         upstreamChannel_.write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
       }
     } else {
@@ -115,9 +115,9 @@ private:
         upstreamChannel_.close();
         downstreamChannel_.close();
         if (prevState != ConnectionState::Disconnected) {
-          bus_.post(ClientEvent::Disconnected);
+          bus_.post(ClientState::Disconnected);
         } else {
-          bus_.post(ClientEvent::ConnectionFailed);
+          bus_.post(ClientState::ConnectionFailed);
         }
       }
     }
@@ -142,7 +142,7 @@ private:
     }
     case ConnectionState::TokenReceived: {
       LOG_INFO_SYSTEM("Authenticated");
-      bus_.post(ClientEvent::Connected);
+      bus_.post(ClientState::Connected);
       state_ = ConnectionState::Authenticated;
       break;
     }

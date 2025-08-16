@@ -29,10 +29,8 @@ public:
   using StreamAdapter = adapters::MessageQueueAdapter<MonitorBus, serialization::MetadataSerializer,
                                                       MonitorCommandParser>;
 
-  MonitorControlCenter() : consoleReader_{bus_.systemBus}, streamAdapter_{bus_}, tracker_{bus_} {
-    using namespace server;
-    using namespace client;
-
+  MonitorControlCenter()
+      : bus_{failHandler()}, consoleReader_{bus_.systemBus}, streamAdapter_{bus_}, tracker_{bus_} {
     bus_.subscribe(MonitorCommand::Shutdown, [this] { stop(); });
   }
 
@@ -58,6 +56,13 @@ private:
     LOG_INFO_SYSTEM("Configuration:");
     MonitorConfig::log();
     consoleReader_.printCommands();
+  }
+
+  auto failHandler() -> FailHandler {
+    return [this](StatusCode code) {
+      LOG_ERROR_SYSTEM("Internal error {}", utils::toString(code));
+      stop();
+    };
   }
 
 private:

@@ -21,10 +21,12 @@ namespace hft {
  * @brief Performs non blocking console input check at a certain rate
  * Uses ParserType to parse commands and post them over the system bus
  */
-template <typename ParserType>
+template <typename Parser>
 class ConsoleReader {
+  static constexpr Milliseconds INPUT_CHECK_RATE_MS = Milliseconds{200};
+
 public:
-  using Parser = ParserType;
+  using ParserType = Parser;
 
   ConsoleReader(SystemBus &bus) : bus_{bus}, timer_{bus_.systemIoCtx()} {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
@@ -41,7 +43,7 @@ public:
 
 private:
   void scheduleInputCheck() {
-    timer_.expires_after(Milliseconds(200));
+    timer_.expires_after(INPUT_CHECK_RATE_MS);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         return;

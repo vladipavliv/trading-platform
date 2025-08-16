@@ -7,6 +7,7 @@
 #define HFT_SERVER_SERVEREVENTS_HPP
 
 #include "network/connection_status.hpp"
+#include "status_code.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -15,7 +16,12 @@ namespace server {
 /**
  * @brief Server event
  */
-enum class ServerEvent : uint8_t { Operational, InternalError };
+enum class ServerState : uint8_t { Operational, InternalError };
+
+struct ServerEvent {
+  ServerState state;
+  StatusCode code;
+};
 
 struct ChannelStatusEvent {
   Optional<ClientId> clientId;
@@ -24,16 +30,21 @@ struct ChannelStatusEvent {
 } // namespace server
 
 namespace utils {
-inline String toString(const server::ServerEvent &event) {
+inline String toString(const server::ServerState &event) {
   using namespace server;
   switch (event) {
-  case ServerEvent::Operational:
+  case ServerState::Operational:
     return "server is fully operational";
-  case ServerEvent::InternalError:
+  case ServerState::InternalError:
     return "internal error";
   default:
     return std::format("unknown server event {}", static_cast<uint8_t>(event));
   }
+}
+inline String toString(CRef<server::ServerEvent> event) {
+  using namespace server;
+  return std::format("ServerEvent {} {}", utils::toString(event.state),
+                     utils::toString(event.code));
 }
 inline String toString(CRef<server::ChannelStatusEvent> event) {
   using namespace server;

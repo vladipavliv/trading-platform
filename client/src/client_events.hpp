@@ -15,19 +15,19 @@ namespace client {
 /**
  * @brief System events
  */
-enum class ClientEvent : uint8_t { Connected, Disconnected, ConnectionFailed, InternalError };
+enum class ClientState : uint8_t { Connected, Disconnected, ConnectionFailed, InternalError };
 } // namespace client
 
 namespace utils {
 template <>
-inline String toString<client::ClientEvent>(const client::ClientEvent &event) {
+inline String toString<client::ClientState>(const client::ClientState &event) {
   using namespace client;
   switch (event) {
-  case ClientEvent::Connected:
+  case ClientState::Connected:
     return "connected to the server";
-  case ClientEvent::Disconnected:
+  case ClientState::Disconnected:
     return "disconnected from the server";
-  case ClientEvent::ConnectionFailed:
+  case ClientState::ConnectionFailed:
     return "failed to connect to the server";
   default:
     return std::format("unknown event {}", static_cast<uint8_t>(event));

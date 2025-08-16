@@ -26,19 +26,25 @@ public:
       return;
     }
     using namespace utils;
+
+    auto writerExp = dbAdapter_.getWriter("orders");
+    if (!writerExp) {
+      LOG_ERROR("Failed to save data");
+      return;
+    }
     LOG_INFO_SYSTEM("Saving orders");
+
+    auto &writer = writerExp.value();
 
     size_t ordersSaved{0};
     Timestamp lastLog{getTimestamp()};
 
     for (const auto &tkrData : marketData_) {
       const auto orders = tkrData.second.orderBook.extract();
-      auto writer = dbAdapter_.getWriter("orders");
 
       for (auto &order : orders) {
         writer << order;
       }
-      writer.commit();
 
       ordersSaved += orders.size();
       const auto now = utils::getTimestamp();
@@ -47,6 +53,8 @@ public:
         lastLog = now;
       }
     }
+    writer.commit();
+
     LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
     LOG_INFO_SYSTEM("Opened orders have been saved successfully");
   }
@@ -58,18 +66,22 @@ public:
     LOG_INFO_SYSTEM("Loading orders");
     using namespace utils;
 
-    auto reader = dbAdapter_.getReader("orders");
+    auto readerExp = dbAdapter_.getReader("orders");
+    if (!readerExp) {
+      LOG_ERROR("Failed to load data");
+      return;
+    }
+    auto &reader = readerExp.value();
     Vector<ServerOrder> orders;
     orders.reserve(reader.size());
 
     size_t ordersSaved{0};
     Timestamp lastLog{getTimestamp()};
 
-    while (!reader.empty()) {
+    while (reader.next()) {
       ServerOrder order;
       reader >> order;
       orders.push_back(order);
-      reader.next();
 
       const auto now = utils::getTimestamp();
       if (Microseconds(now - lastLog) > ServerConfig::cfg.monitorRate) {

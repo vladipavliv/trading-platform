@@ -30,18 +30,18 @@ public:
   using StreamAdapter = adapters::MessageQueueAdapter<ClientBus, ClientCommandParser>;
 
   ClientControlCenter()
-      : networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_}, consoleReader_{bus_.systemBus},
-        timer_{bus_.systemIoCtx()} {
+      : bus_{failHandler()}, networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_},
+        consoleReader_{bus_.systemBus}, timer_{bus_.systemIoCtx()} {
 
-    bus_.systemBus.subscribe<ClientEvent>([this](CRef<ClientEvent> event) {
+    bus_.systemBus.subscribe<ClientState>([this](CRef<ClientState> event) {
       switch (event) {
-      case ClientEvent::Connected:
+      case ClientState::Connected:
         LOG_INFO_SYSTEM("Connected to the server");
         timer_.cancel();
         break;
-      case ClientEvent::Disconnected:
-      case ClientEvent::ConnectionFailed:
-      case ClientEvent::InternalError:
+      case ClientState::Disconnected:
+      case ClientState::ConnectionFailed:
+      case ClientState::InternalError:
         engine_.tradeStop();
         scheduleReconnect();
         break;
@@ -101,6 +101,10 @@ private:
       reconnecting_ = false;
       networkClient_.connect();
     });
+  }
+
+  auto failHandler() -> FailHandler {
+    return [this](StatusCode code) { bus_.post(ClientState::InternalError); };
   }
 
 private:

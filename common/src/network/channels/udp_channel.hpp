@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_UDPCHANNEL_HPP
 #define HFT_COMMON_UDPCHANNEL_HPP
 
+#include "concepts/busable.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
@@ -19,14 +20,14 @@ namespace hft {
  * @brief Asynchronous UdpSocket wrapper
  * @details Reads messages from the socket, unframes with FramerType, and posts to a bus
  */
-template <typename ConsumerType, typename FramerType = DefaultFramer>
+template <Busable Bus, typename Framer = DefaultFramer>
 class UdpChannel {
 public:
-  using Consumer = ConsumerType;
-  using Framer = FramerType;
+  using BusType = Bus;
+  using FramerType = Framer;
 
-  UdpChannel(ConnectionId id, UdpSocket socket, UdpEndpoint endpoint, Consumer &consumer)
-      : id_{id}, socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, consumer_{consumer} {}
+  UdpChannel(ConnectionId id, UdpSocket socket, UdpEndpoint endpoint, Bus &bus)
+      : id_{id}, socket_{std::move(socket)}, endpoint_{std::move(endpoint)}, bus_{bus} {}
 
   void read() {
     socket_.async_receive_from(
@@ -43,11 +44,11 @@ public:
         [this, buffer](BoostErrorCode code, size_t bytes) {
           if (code) {
             LOG_ERROR("Udp transport error {}", code.message());
-            consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+            bus_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
           }
           if (bytes != buffer->size()) {
             LOG_ERROR("Failed to write {}, written {}", buffer->size(), bytes);
-            consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+            bus_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
           }
         });
     return StatusCode::Ok;
@@ -61,17 +62,17 @@ private:
   void readHandler(BoostErrorCode code, size_t bytes) {
     if (code) {
       buffer_.reset();
-      consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+      bus_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
       return;
     }
     buffer_.commitWrite(bytes);
-    const auto res = Framer::unframe(buffer_.data(), consumer_);
+    const auto res = Framer::unframe(buffer_.data(), bus_);
     if (res) {
       buffer_.commitRead(*res);
     } else {
       LOG_ERROR("{}", utils::toString(res.error()));
       buffer_.reset();
-      consumer_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
+      bus_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
       return;
     }
     read();
@@ -83,7 +84,7 @@ private:
   UdpSocket socket_;
   UdpEndpoint endpoint_;
 
-  Consumer &consumer_;
+  Bus &bus_;
   RingBuffer buffer_;
 };
 

@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_TCPCHANNEL_HPP
 #define HFT_COMMON_TCPCHANNEL_HPP
 
+#include "concepts/busable.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
@@ -18,20 +19,19 @@ namespace hft {
 
 /**
  * @brief Asynchronous TcpSocket wrapper
- * @details Reads from the socket, unframes with FramerType, and posts to consumer
+ * @details Reads from the socket, unframes with FramerType, and posts to the bus
  */
-template <typename ConsumerType, typename FramerType = DefaultFramer>
+template <Busable Bus, typename Framer = DefaultFramer>
 class TcpChannel {
 public:
-  using Consumer = ConsumerType;
-  using Framer = FramerType;
+  using BusType = Bus;
+  using FramerType = Framer;
 
-  TcpChannel(ConnectionId id, TcpSocket socket, Consumer &consumer)
-      : id_{id}, socket_{std::move(socket)}, consumer_{consumer},
-        status_{ConnectionStatus::Connected} {}
+  TcpChannel(ConnectionId id, TcpSocket socket, Bus &bus)
+      : id_{id}, socket_{std::move(socket)}, bus_{bus}, status_{ConnectionStatus::Connected} {}
 
-  TcpChannel(ConnectionId id, TcpSocket socket, TcpEndpoint endpoint, Consumer &consumer)
-      : TcpChannel(id, std::move(socket), consumer) {
+  TcpChannel(ConnectionId id, TcpSocket socket, TcpEndpoint endpoint, Bus &bus)
+      : TcpChannel(id, std::move(socket), bus) {
     endpoint_ = std::move(endpoint);
     status_ = ConnectionStatus::Disconnected;
   }
@@ -95,7 +95,7 @@ private:
       return;
     }
     buffer_.commitWrite(bytes);
-    const auto res = Framer::unframe(buffer_.data(), consumer_);
+    const auto res = Framer::unframe(buffer_.data(), bus_);
     if (res) {
       buffer_.commitRead(*res);
     } else {
@@ -115,14 +115,14 @@ private:
 
   void onStatus(ConnectionStatus status) {
     status_.store(status);
-    consumer_.post(ConnectionStatusEvent{id_, status});
+    bus_.post(ConnectionStatusEvent{id_, status});
   }
 
 private:
   const ConnectionId id_;
 
   RingBuffer buffer_;
-  Consumer &consumer_;
+  Bus &bus_;
 
   TcpEndpoint endpoint_;
   TcpSocket socket_;
