@@ -10,13 +10,10 @@
 
 namespace hft {
 
-enum class StatusCode : uint8_t {
-  Ok = 0U,
-  Error = 1U,
-  DbError = 2U,
-  AuthUserNotFound = 3U,
-  AuthInvalidPassword = 4U
-};
-}
+/**
+ * @todo Extend error codes
+ */
+enum class StatusCode : uint8_t { Ok, Error, DbError, AuthUserNotFound, AuthInvalidPassword };
+} // namespace hft
 
 #endif // HFT_COMMON_STATUSCODE_HPP

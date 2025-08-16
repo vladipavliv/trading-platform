@@ -15,21 +15,26 @@
 namespace hft::server {
 
 /**
- * @brief Channel that acts as a gateway/sink for messages
+ * @brief Channel that acts as a session gateway
  * First waits for authentication message, then accepts other supported messages
  * Converts the domain messages to server-side wrappers with the message specific ids
- * Bidirectional interface routes messages in/out depending on the type
- * @todo which i am not sure is a good idea as it hides the direction of the message
- * Done for convenience. Probably better idea is to make a separate consumer
- * that is a wrapper for SessionChannel to avoid exposing consumer interface, and
- * expose only the interface to send the message downstream.
+ * Uses proxy bus for TcpChannel to not expose unnecessary bus interface
  */
 class SessionChannel {
-public:
-  using Channel = TcpChannel<SessionChannel>;
+  struct ChannelProxyBus {
+    ChannelProxyBus(SessionChannel &chan) : channel{chan} {}
 
+    template <typename Event>
+    void post(CRef<Event> e) {
+      channel.template post<Event>(e);
+    }
+
+    SessionChannel &channel;
+  };
+
+public:
   SessionChannel(ConnectionId id, TcpSocket socket, ServerBus &bus)
-      : id_{id}, channel_{id, std::move(socket), *this}, bus_{bus} {
+      : id_{id}, bus_{bus}, proxyBus_{*this}, channel_{id, std::move(socket), proxyBus_} {
     channel_.read();
   }
 
@@ -40,12 +45,6 @@ public:
       return;
     }
     clientId_ = clientId;
-  }
-
-  template <typename MessageType>
-  inline void post(CRef<MessageType> message) {
-    // Supports only the explicitly specialized types
-    LOG_ERROR_SYSTEM("Invalid message type received at {}", id_);
   }
 
   inline auto isAuthenticated() const -> bool { return clientId_.has_value(); }
@@ -59,12 +58,32 @@ public:
     clientId_.reset();
   }
 
+  inline void write(CRef<LoginResponse> message) { channel_.write(message); }
+
+  inline void write(CRef<OrderStatus> message) {
+    if (!isAuthenticated()) [[unlikely]] {
+      LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
+      return;
+    }
+    channel_.write(message);
+  }
+
 private:
+  template <typename MessageType>
+  inline void post(CRef<MessageType> message) {
+    // Supports only the explicitly specialized types
+    LOG_ERROR_SYSTEM("Invalid message type received at {}", id_);
+  }
+
+private:
+  friend struct ChannelProxyBus;
+
   const ConnectionId id_;
 
   ServerBus &bus_;
+  ChannelProxyBus proxyBus_;
 
-  Channel channel_;
+  TcpChannel<ChannelProxyBus> channel_;
   Optional<ClientId> clientId_;
 };
 
@@ -98,20 +117,6 @@ inline void SessionChannel::post<Order>(CRef<Order> message) {
     return;
   }
   bus_.post(ServerOrder{clientId_.value(), message});
-}
-
-template <>
-inline void SessionChannel::post<LoginResponse>(CRef<LoginResponse> message) {
-  channel_.write(message);
-}
-
-template <>
-inline void SessionChannel::post<OrderStatus>(CRef<OrderStatus> message) {
-  if (!isAuthenticated()) [[unlikely]] {
-    LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
-    return;
-  }
-  channel_.write(message);
 }
 
 } // namespace hft::server

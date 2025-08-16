@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_ADAPTERS_ADAPTERFACTORY_HPP
 #define HFT_COMMON_ADAPTERS_ADAPTERFACTORY_HPP
 
+#include "concepts/busable.hpp"
 #ifdef TELEMETRY_ENABLED
 #include "adapters/kafka/kafka_adapter.hpp"
 #else
@@ -17,11 +18,11 @@
 namespace hft::adapters {
 
 #ifdef TELEMETRY_ENABLED
-template <typename Bus, typename ConsumeSerializer = serialization::proto::ProtoMetadataSerializer,
+template <Busable Bus, typename ConsumeSerializer = serialization::proto::ProtoMetadataSerializer,
           typename ProduceSerializer = serialization::proto::ProtoMetadataSerializer>
 using MessageQueueAdapter = KafkaAdapter<Bus, ConsumeSerializer, ProduceSerializer>;
 #else
-template <typename Bus, typename ConsumeVoid = void, typename ProduceVoid = void>
+template <Busable Bus, typename ConsumeVoid = void, typename ProduceVoid = void>
 using MessageQueueAdapter = DummyKafkaAdapter<Bus, ConsumeVoid, ProduceVoid>;
 #endif
 using DbAdapter = PostgresAdapter;

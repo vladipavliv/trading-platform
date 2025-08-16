@@ -11,7 +11,7 @@
 - [Performance](#performance)
 
 ## Introduction
-C++ trading platform simulator based on Boost.Asio, featuring a lock-free, template-based distributed system with real-time Kafka telemetry.
+C++ trading platform built on Boost.Asio, featuring a lock-free, template-based distributed system with real-time Kafka telemetry.
 
 ## Installation
 

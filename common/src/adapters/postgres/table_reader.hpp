@@ -17,8 +17,7 @@ public:
       : work_{conn}, result_(work_.exec(query(table))) {}
 
   bool next() {
-    if (cursor_ < result_.size()) {
-      ++cursor_;
+    if (++cursor_ < static_cast<std::ptrdiff_t>(result_.size())) {
       return true;
     }
     return false;
@@ -26,6 +25,9 @@ public:
 
   template <typename ValueType>
   ValueType get(size_t col) const {
+    if (cursor_ < 0 || cursor_ >= static_cast<std::ptrdiff_t>(result_.size())) {
+      throw std::out_of_range("Row index out of range");
+    }
     if (col >= result_[cursor_].size()) {
       throw std::out_of_range("Column index out of range");
     }
@@ -36,7 +38,7 @@ public:
 
   size_t size() const { return result_.size(); }
 
-  bool empty() const { return cursor_ >= result_.size(); }
+  bool empty() const { return result_.empty(); }
 
 private:
   String query(StringView table) const { return std::format("SELECT * FROM {};", table); }
@@ -44,7 +46,7 @@ private:
 private:
   pqxx::work work_;
   pqxx::result result_;
-  size_t cursor_{0};
+  std::ptrdiff_t cursor_{-1};
 };
 } // namespace hft::adapters
 

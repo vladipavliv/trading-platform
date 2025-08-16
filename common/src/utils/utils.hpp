@@ -166,13 +166,23 @@ constexpr size_t indexOf() {
     return 1 + indexOf<EventType, Rest...>();
   } else {
     static_assert(sizeof...(Rest) > 0, "EventType not found in EventTypes pack.");
-    return -1;
   }
 }
 
 template <typename EventType, typename... Types>
 constexpr size_t getTypeIndex() {
   return indexOf<EventType, Types...>();
+}
+
+template <typename DurationType>
+inline Seconds toSeconds(DurationType duration) {
+  return std::chrono::duration_cast<std::chrono::seconds>(duration);
+}
+
+inline Price fluctuateThePrice(Price price) {
+  const int32_t delta = price * PRICE_FLUCTUATION_RATE / 100;
+  const int32_t fluctuation = RNG::generate(0, delta * 2) - delta;
+  return price + fluctuation;
 }
 
 } // namespace hft::utils

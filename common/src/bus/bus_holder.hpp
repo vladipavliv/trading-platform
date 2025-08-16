@@ -8,10 +8,12 @@
 
 #include <concepts>
 
+#include "concepts/busable.hpp"
 #include "domain_types.hpp"
 #include "message_bus.hpp"
 #include "stream_bus.hpp"
 #include "system_bus.hpp"
+#include "types.hpp"
 
 namespace hft {
 
@@ -23,6 +25,8 @@ struct BusHolder {
 public:
   using MarketBusType = MarketBus;
   using StreamBusType = StreamBus;
+
+  BusHolder(FailHandler failHandler) : streamBus{failHandler} {}
 
   SystemBus systemBus;
   MarketBus marketBus;

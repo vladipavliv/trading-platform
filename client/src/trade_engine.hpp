@@ -16,7 +16,6 @@
 #include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
 #include "types.hpp"
-#include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
 
@@ -187,10 +186,11 @@ private:
   }
 
   CtxRunner makeWorker() {
+    const auto failHandler = [this](StatusCode code) { bus_.post(ClientState::InternalError); };
     if (ClientConfig::cfg.coresApp.empty()) {
-      return CtxRunner{};
+      return CtxRunner{failHandler};
     } else {
-      return CtxRunner{0, ClientConfig::cfg.coresApp[0]};
+      return CtxRunner{0, ClientConfig::cfg.coresApp[0], failHandler};
     }
   }
 

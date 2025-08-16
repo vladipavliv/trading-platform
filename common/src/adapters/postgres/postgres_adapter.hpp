@@ -24,6 +24,7 @@ namespace hft::adapters {
 
 /**
  * @brief PostgresAdapter
+ * @details Not thread-safe, used only in SystemBus
  */
 class PostgresAdapter {
   static constexpr auto SELECT_TICKERS_QUERY = "SELECT * FROM tickers";
@@ -38,27 +39,23 @@ public:
     }
   }
 
-  auto readTickers(bool cache = true) -> Expected<Vector<TickerPrice>> {
+  auto readTickers(bool cache = true) -> Expected<Span<const TickerPrice>> {
     try {
       static std::vector<TickerPrice> tickers;
       if (!cache) {
         tickers.clear();
       } else if (!tickers.empty()) {
-        return tickers;
+        return Span<const TickerPrice>{tickers};
       }
       pqxx::work transaction(conn_);
-      transaction.exec("SET statement_timeout = 1000");
+      transaction.exec("SET statement_timeout = 50");
       const pqxx::result countResult = transaction.exec(TICKERS_COUNT_QUERY);
 
-      if (countResult.empty()) {
+      if (countResult.empty() || countResult[0][0].as<size_t>() == 0) {
         LOG_WARN("Empty tickers table");
-        return tickers;
+        return Span<const TickerPrice>{tickers};
       }
       const size_t count = countResult[0][0].as<size_t>();
-      if (count == 0) {
-        LOG_WARN("Empty tickers table");
-        return tickers;
-      }
 
       tickers.reserve(count);
       const pqxx::result tickersResult = transaction.exec(SELECT_TICKERS_QUERY);
@@ -69,7 +66,7 @@ public:
         tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
       }
       transaction.commit();
-      return tickers;
+      return Span<const TickerPrice>{tickers};
     } catch (const std::exception &e) {
       LOG_ERROR_SYSTEM("Exception during tickers read {}", e.what());
       return std::unexpected(StatusCode::DbError);
@@ -102,9 +99,23 @@ public:
     }
   }
 
-  auto getWriter(StringView table) -> TableWriter { return TableWriter{conn_, table}; }
+  auto getWriter(StringView table) -> Expected<TableWriter> {
+    try {
+      return std::expected<TableWriter, StatusCode>{std::in_place, conn_, table};
+    } catch (CRef<std::exception> e) {
+      LOG_ERROR("{}", e.what());
+      return std::unexpected(StatusCode::DbError);
+    }
+  }
 
-  auto getReader(StringView table) -> TableReader { return TableReader{conn_, table}; }
+  auto getReader(StringView table) -> Expected<TableReader> {
+    try {
+      return std::expected<TableReader, StatusCode>{std::in_place, conn_, table};
+    } catch (CRef<std::exception> e) {
+      LOG_ERROR("{}", e.what());
+      return std::unexpected(StatusCode::DbError);
+    }
+  }
 
   void clean(CRef<String> table) {
     try {

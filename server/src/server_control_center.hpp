@@ -34,14 +34,24 @@ public:
   using StreamAdapter = adapters::MessageQueueAdapter<ServerBus, ServerCommandParser>;
 
   ServerControlCenter()
-      : storage_{dbAdapter_}, sessionManager_{bus_}, networkServer_{bus_, sessionManager_},
-        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
+      : bus_{failHandler()}, storage_{dbAdapter_}, sessionManager_{bus_},
+        networkServer_{bus_, sessionManager_}, authenticator_{bus_.systemBus, dbAdapter_},
+        coordinator_{bus_, storage_.marketData()}, consoleReader_{bus_.systemBus},
+        priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
     // System bus subscriptions
-    bus_.subscribe(ServerEvent::Operational, [this] {
-      // start the network server only after internal components are fully operational
-      LOG_INFO_SYSTEM("Server is ready");
-      networkServer_.start();
+    bus_.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
+      switch (event.state) {
+      case ServerState::Operational:
+        // start the network server only after internal components are fully operational
+        LOG_INFO_SYSTEM("Server is ready");
+        networkServer_.start();
+        break;
+      case ServerState::InternalError:
+        LOG_ERROR_SYSTEM("Server is shutting down due to an error {}", utils::toString(event.code));
+        stop();
+      default:
+        break;
+      }
     });
     bus_.subscribe(ServerCommand::Shutdown, [this] { stop(); });
   }
@@ -79,6 +89,10 @@ private:
     ServerConfig::log();
     consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
+  }
+
+  auto failHandler() -> FailHandler {
+    return [this](StatusCode code) { bus_.post(ServerEvent{ServerState::InternalError, code}); };
   }
 
 private:

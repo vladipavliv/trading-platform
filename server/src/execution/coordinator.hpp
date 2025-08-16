@@ -15,6 +15,7 @@
 #include "server_market_data.hpp"
 #include "server_types.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace hft::server {
 
@@ -45,7 +46,8 @@ namespace hft::server {
 class Coordinator {
 public:
   Coordinator(ServerBus &bus, CRef<MarketData> data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemIoCtx()} {
+      : bus_{bus}, data_{data}, timer_{bus_.systemIoCtx()},
+        monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)} {
     bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) { processOrder(order); });
     bus_.subscribe(ServerCommand::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
@@ -72,6 +74,9 @@ private:
   void startWorkers() {
     const auto appCores =
         ServerConfig::cfg.coresApp.empty() ? 1 : ServerConfig::cfg.coresApp.size();
+    const auto failHandler = [this](StatusCode code) {
+      bus_.post(ServerEvent{ServerState::InternalError, code});
+    };
 
     workers_.reserve(appCores);
     // Notify the system when all the workers have started
@@ -81,16 +86,17 @@ private:
       if (startCounter->load() == appCores) {
         // Simplified notification for now that server is operational
         // ideally all the components start asynchronously and cc tracks the status
-        bus_.systemBus.post(ServerEvent::Operational);
+        bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>());
+      workers_.emplace_back(std::make_unique<CtxRunner>(failHandler));
       workers_[0]->run();
       workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        workers_.emplace_back(std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i]));
+        workers_.emplace_back(
+            std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i], failHandler));
         workers_[i]->run();
         workers_[i]->ioCtx.post(notifyClb);
       }
@@ -109,25 +115,21 @@ private:
   }
 
   void scheduleStatsTimer() {
-    using namespace utils;
-
-    timer_.expires_after(ServerConfig::cfg.monitorRate);
+    timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
         LOG_ERROR_SYSTEM("Error {}", ec.message());
         return;
       }
-      static uint64_t lastTtl = 0;
+      static std::atomic_uint64_t lastTtl = 0;
       const uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
-      const uint64_t rps =
-          (currentTtl - lastTtl) /
-          std::chrono::duration_cast<std::chrono::seconds>(ServerConfig::cfg.monitorRate).count();
+      const uint64_t rps = (currentTtl - lastTtl) / monitorRate_.count();
 
       if (rps != 0) {
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
 #ifdef TELEMETRY_ENABLED
         if (telemetry_) {
-          bus_.post(RuntimeMetrics{MetadataSource::Server, getTimestamp(), rps, 0});
+          bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestamp(), rps, 0});
         }
 #endif
       }
@@ -149,6 +151,7 @@ private:
   const MarketData &data_;
 
   SteadyTimer timer_;
+  const Seconds monitorRate_;
 
   std::atomic_uint64_t ordersTotal_;
   std::atomic_uint64_t ordersOpened_;

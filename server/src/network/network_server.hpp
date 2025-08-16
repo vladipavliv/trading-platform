@@ -42,13 +42,13 @@ public:
   ~NetworkServer() { stop(); }
 
   void start() {
-    const auto addThread = [this](uint8_t workerId, bool pinToCore, CoreId coreId = 0) {
-      workerThreads_.emplace_back([this, workerId, pinToCore, coreId]() {
+    const auto addThread = [this](uint8_t workerId, Optional<CoreId> coreId = Optional<CoreId>{}) {
+      workerThreads_.emplace_back([this, workerId, coreId]() {
         try {
           utils::setTheadRealTime();
-          if (pinToCore) {
-            utils::pinThreadToCore(coreId);
-            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId);
+          if (coreId.has_value()) {
+            utils::pinThreadToCore(coreId.value());
+            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId.value());
           } else {
             LOG_DEBUG("Worker {} started", workerId);
           }
@@ -56,16 +56,17 @@ public:
         } catch (const std::exception &e) {
           LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
           ioCtx_.stop();
+          bus_.post(ServerEvent{ServerState::InternalError, StatusCode::Error});
         }
       });
     };
     const auto cores = ServerConfig::cfg.coresNetwork.size();
     workerThreads_.reserve(cores == 0 ? 1 : cores);
     if (cores == 0) {
-      addThread(0, false);
+      addThread(0);
     }
     for (size_t i = 0; i < cores; ++i) {
-      addThread(i, true, ServerConfig::cfg.coresNetwork[i]);
+      addThread(i, ServerConfig::cfg.coresNetwork[i]);
     }
     ioCtx_.post([this]() {
       startUpstream();

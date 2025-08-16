@@ -22,12 +22,15 @@ class CtxRunner {
 public:
   IoCtx ioCtx;
 
-  CtxRunner() : guard_{MakeGuard(ioCtx.get_executor())} {}
+  CtxRunner(FailHandler failHandler)
+      : guard_{MakeGuard(ioCtx.get_executor())}, failHandler_{failHandler} {}
 
-  CtxRunner(ThreadId id) : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())} {}
+  CtxRunner(ThreadId id, FailHandler failHandler)
+      : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())}, failHandler_{failHandler} {}
 
-  CtxRunner(ThreadId id, CoreId coreId)
-      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())} {}
+  CtxRunner(ThreadId id, CoreId coreId, FailHandler failHandler)
+      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())},
+        failHandler_{failHandler} {}
 
   ~CtxRunner() { ioCtx.stop(); }
 
@@ -50,8 +53,12 @@ public:
         ioCtx.run();
       } catch (CRef<std::exception> e) {
         LOG_ERROR_SYSTEM("std::exception in CtxRunner {}", e.what());
+        stop();
+        failHandler_(StatusCode::Error);
       } catch (...) {
         LOG_ERROR_SYSTEM("unknown exception in CtxRunner");
+        stop();
+        failHandler_(StatusCode::Error);
       }
     }};
   }
@@ -64,6 +71,7 @@ public:
 private:
   const std::optional<ThreadId> threadId_;
   const std::optional<CoreId> coreId_;
+  const FailHandler failHandler_;
 
   std::atomic_bool running_{false};
 

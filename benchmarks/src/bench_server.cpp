@@ -7,6 +7,9 @@
 #include "config/config.hpp"
 
 namespace hft::benchmarks {
+namespace {
+constexpr auto failHandler = [](StatusCode code) {};
+}
 
 BM_Sys_ServerFix::BM_Sys_ServerFix() { GlobalSetUp(); }
 
@@ -70,7 +73,7 @@ void BM_Sys_ServerFix::fillOrders() {
 void BM_Sys_ServerFix::setupBus() {
   using namespace server;
 
-  bus = std::make_unique<ServerBus>();
+  bus = std::make_unique<ServerBus>(failHandler);
   bus->subscribe<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
     if (s.orderStatus.state == OrderState::Rejected) {
       throw std::runtime_error("Increase OrderBook limit");
@@ -78,10 +81,12 @@ void BM_Sys_ServerFix::setupBus() {
     BM_Sys_ServerFix::flag.clear();
     BM_Sys_ServerFix::flag.notify_all();
   });
-  bus->systemBus.subscribe(ServerEvent::Operational, [] {
-    LOG_INFO("Coordinator is ready for benchmarking");
-    BM_Sys_ServerFix::flag.clear();
-    BM_Sys_ServerFix::flag.notify_all();
+  bus->systemBus.subscribe<ServerEvent>([](CRef<ServerEvent> event) {
+    if (event.state == ServerState::Operational) {
+      LOG_INFO("Coordinator is ready for benchmarking");
+      BM_Sys_ServerFix::flag.clear();
+      BM_Sys_ServerFix::flag.notify_all();
+    }
   });
   bus->subscribe<TickerPrice>([](CRef<TickerPrice>) {});
   bus->subscribe<OrderTimestamp>([](CRef<OrderTimestamp>) {});
