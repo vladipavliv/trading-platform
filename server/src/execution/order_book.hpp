@@ -97,6 +97,7 @@ public:
       bestBid.order.partialFill(quantity);
       bestAsk.order.partialFill(quantity);
 
+      // local workaround, if client id is the same, send only a recent order notification
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
@@ -104,8 +105,9 @@ public:
 #ifdef BENCHMARK_BUILD
         notified = true;
 #endif
-      } else if ((bestBid.clientId != bestAsk.clientId) ||
-                 (bestAsk.order.created > bestBid.order.created)) {
+      }
+      if ((bestBid.clientId != bestAsk.clientId) ||
+          (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
         consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
 #ifdef BENCHMARK_BUILD

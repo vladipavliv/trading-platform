@@ -96,11 +96,11 @@ TEST_F(OrderBookFixture, 3Buy3SellMatch) {
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 3);
+  ASSERT_EQ(statusq.size(), 6);
 }
 
 TEST_F(OrderBookFixture, 10Buy1SellMatch) {
-  Quantity quantity{0};
+  Quantity quantity{1};
   Price price{10};
 
   for (uint32_t idx = 0; idx < 10; ++idx) {
@@ -112,7 +112,7 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 10);
+  ASSERT_EQ(statusq.size(), 20);
 }
 
 } // namespace hft::tests
