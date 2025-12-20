@@ -77,16 +77,24 @@ public:
     // Important to keep the order of destruction.
     // SessionManager is created before NetworkServer as the latter needs to reference it
     for (auto iter = sessionsMap_.begin(); iter != sessionsMap_.end(); ++iter) {
-      iter->second->upstreamChannel->close();
-      iter->second->downstreamChannel->close();
+      if (iter->second->upstreamChannel != nullptr) {
+        iter->second->upstreamChannel->close();
+      }
+      if (iter->second->downstreamChannel != nullptr) {
+        iter->second->downstreamChannel->close();
+      }
     }
     for (auto iter = unauthorizedUpstreamMap_.begin(); iter != unauthorizedUpstreamMap_.end();
          ++iter) {
-      iter->second->close();
+      if (iter->second != nullptr) {
+        iter->second->close();
+      }
     }
     for (auto iter = unauthorizedDownstreamMap_.begin(); iter != unauthorizedDownstreamMap_.end();
          ++iter) {
-      iter->second->close();
+      if (iter->second != nullptr) {
+        iter->second->close();
+      }
     }
     sessionsMap_.clear();
     unauthorizedUpstreamMap_.clear();
@@ -117,7 +125,7 @@ private:
       LOG_ERROR("Connection not found {}", loginResult.connectionId);
       return;
     }
-    // Copy right away to dodge iterator invalidation
+    // Copy right away so iterator wont get invalidated
     const auto channel = channelIter->second;
     unauthorizedUpstreamMap_.erase(channelIter->first);
 
@@ -167,19 +175,20 @@ private:
     if (sessionIter == sessionsMap_.end()) {
       LOG_ERROR("Invalid token received from {}", request.connectionId);
       downstreamChannel->write(LoginResponse{0, false, "Invalid token"});
-    } else {
-      const auto session = sessionIter->second;
-      if (session->downstreamChannel != nullptr) {
-        LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
-        downstreamChannel->write(LoginResponse{0, false, "Already connected"});
-      } else {
-        session->downstreamChannel = std::move(downstreamChannel);
-        session->downstreamChannel->authenticate(session->clientId);
-        session->downstreamChannel->write(LoginResponse{request.request.token, true});
-        LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
-        printStats();
-      }
+      return;
     }
+    const auto session = sessionIter->second;
+    SPtr<SessionChannel> exp;
+    if (std::atomic_compare_exchange_strong(&session->downstreamChannel, &exp, downstreamChannel)) {
+      session->downstreamChannel->authenticate(session->clientId);
+      session->downstreamChannel->write(LoginResponse{request.request.token, true});
+      LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
+    } else {
+      LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
+      downstreamChannel->write(LoginResponse{0, false, "Already connected"});
+      downstreamChannel->close();
+    }
+    printStats();
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
