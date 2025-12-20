@@ -14,6 +14,7 @@
 #include "commands/client_command_parser.hpp"
 #include "config/client_config.hpp"
 #include "console_reader.hpp"
+#include "internal_error.hpp"
 #include "logging.hpp"
 #include "network/network_client.hpp"
 #include "trade_engine.hpp"
@@ -30,10 +31,11 @@ public:
   using StreamAdapter = adapters::MessageQueueAdapter<ClientBus, ClientCommandParser>;
 
   ClientControlCenter()
-      : bus_{failHandler()}, networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_},
-        consoleReader_{bus_.systemBus}, timer_{bus_.systemIoCtx()} {
+      : networkClient_{bus_}, engine_{bus_}, streamAdapter_{bus_}, consoleReader_{bus_.systemBus},
+        timer_{bus_.systemIoCtx()} {
 
     bus_.systemBus.subscribe<ClientState>([this](CRef<ClientState> event) {
+      LOG_INFO_SYSTEM("{}", utils::toString(event));
       switch (event) {
       case ClientState::Connected:
         LOG_INFO_SYSTEM("Connected to the server");
@@ -41,13 +43,19 @@ public:
         break;
       case ClientState::Disconnected:
       case ClientState::ConnectionFailed:
-      case ClientState::InternalError:
         engine_.tradeStop();
         scheduleReconnect();
+        break;
+      case ClientState::InternalError:
+        stop();
         break;
       default:
         break;
       }
+    });
+    bus_.systemBus.subscribe<InternalError>([this](CRef<InternalError> error) {
+      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, utils::toString(error.code));
+      stop();
     });
 
     // commands
@@ -101,10 +109,6 @@ private:
       reconnecting_ = false;
       networkClient_.connect();
     });
-  }
-
-  auto failHandler() -> FailHandler {
-    return [this](StatusCode code) { bus_.post(ClientState::InternalError); };
   }
 
 private:

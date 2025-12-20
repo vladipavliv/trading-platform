@@ -186,11 +186,10 @@ private:
   }
 
   CtxRunner makeWorker() {
-    const auto failHandler = [this](StatusCode code) { bus_.post(ClientState::InternalError); };
     if (ClientConfig::cfg.coresApp.empty()) {
-      return CtxRunner{failHandler};
+      return CtxRunner(bus_.systemBus);
     } else {
-      return CtxRunner{0, ClientConfig::cfg.coresApp[0], failHandler};
+      return CtxRunner{0, ClientConfig::cfg.coresApp[0], bus_.systemBus};
     }
   }
 

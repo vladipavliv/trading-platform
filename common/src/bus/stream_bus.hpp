@@ -43,10 +43,10 @@ public:
   template <typename Event>
   static constexpr bool Routed = utils::contains<Event, Events...>;
 
-  StreamBus(FailHandler failHandler)
-      : rate_{Config::get<size_t>("rates.telemetry_ms")}, failHandler_{failHandler},
-        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
-        runner_{failHandler}, timer_{runner_.ioCtx} {}
+  explicit StreamBus(SystemBus &bus)
+      : rate_{Config::get<size_t>("rates.telemetry_ms")},
+        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{}, runner_{bus},
+        timer_{runner_.ioCtx} {}
 
   inline IoCtx &streamIoCtx() { return runner_.ioCtx; }
 
@@ -151,7 +151,6 @@ private:
 private:
   std::atomic_bool running_{false};
   const Milliseconds rate_;
-  const FailHandler failHandler_;
 
   std::tuple<UPtrLfq<Events>...> queues_;
   std::tuple<CRefHandler<Events>...> handlers_;

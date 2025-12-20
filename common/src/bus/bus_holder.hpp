@@ -26,7 +26,7 @@ public:
   using MarketBusType = MarketBus;
   using StreamBusType = StreamBus;
 
-  BusHolder(FailHandler failHandler) : streamBus{failHandler} {}
+  BusHolder() : streamBus{systemBus} {}
 
   SystemBus systemBus;
   MarketBus marketBus;

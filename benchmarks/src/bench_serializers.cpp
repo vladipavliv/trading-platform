@@ -29,7 +29,6 @@ OrderTimestamp generateOrderTimestamp() {
   return OrderTimestamp{utils::generateOrderId(), utils::getTimestamp(), utils::getTimestamp(),
                         utils::getTimestamp()};
 }
-constexpr auto failHandler = [](StatusCode code) {};
 } // namespace
 
 static void BM_Ser_ProtoSerialize(benchmark::State &state) {
@@ -48,7 +47,7 @@ BENCHMARK(BM_Ser_ProtoSerialize);
 static void BM_Ser_ProtoDeserialize(benchmark::State &state) {
   using Bustype = BusHolder<MessageBus<OrderTimestamp>>;
 
-  Bustype bus{failHandler};
+  Bustype bus;
   bus.template subscribe<OrderTimestamp>([](CRef<OrderTimestamp> o) {});
 
   const auto msg = proto::ProtoMetadataSerializer::serialize(generateOrderTimestamp());
@@ -81,7 +80,7 @@ BENCHMARK(BM_Ser_FbsSerialize);
 static void BM_Ser_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHolder<MessageBus<Order>>;
 
-  BusType bus{failHandler};
+  BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
   ByteBuffer buffer;
@@ -116,7 +115,7 @@ static void BM_Ser_SbeDeserialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
   ByteBuffer buffer;
 
-  BusType bus{failHandler};
+  BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
   size_t size = sbe::SbeDomainSerializer::serialize(order, buffer);

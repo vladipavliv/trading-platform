@@ -9,6 +9,8 @@
 #include <memory>
 
 #include "boost_types.hpp"
+#include "bus/system_bus.hpp"
+#include "internal_error.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
@@ -22,15 +24,13 @@ class CtxRunner {
 public:
   IoCtx ioCtx;
 
-  CtxRunner(FailHandler failHandler)
-      : guard_{MakeGuard(ioCtx.get_executor())}, failHandler_{failHandler} {}
+  CtxRunner(SystemBus &bus) : guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
 
-  CtxRunner(ThreadId id, FailHandler failHandler)
-      : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())}, failHandler_{failHandler} {}
+  CtxRunner(ThreadId id, SystemBus &bus)
+      : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
 
-  CtxRunner(ThreadId id, CoreId coreId, FailHandler failHandler)
-      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())},
-        failHandler_{failHandler} {}
+  CtxRunner(ThreadId id, CoreId coreId, SystemBus &bus)
+      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
 
   ~CtxRunner() { ioCtx.stop(); }
 
@@ -54,11 +54,11 @@ public:
       } catch (CRef<std::exception> e) {
         LOG_ERROR_SYSTEM("std::exception in CtxRunner {}", e.what());
         stop();
-        failHandler_(StatusCode::Error);
+        bus_.post(InternalError(StatusCode::Error, e.what()));
       } catch (...) {
         LOG_ERROR_SYSTEM("unknown exception in CtxRunner");
         stop();
-        failHandler_(StatusCode::Error);
+        bus_.post(InternalError(StatusCode::Error, "unknown exception in CtxRunner"));
       }
     }};
   }
@@ -71,10 +71,10 @@ public:
 private:
   const std::optional<ThreadId> threadId_;
   const std::optional<CoreId> coreId_;
-  const FailHandler failHandler_;
 
   std::atomic_bool running_{false};
 
+  SystemBus &bus_;
   ContextGuard guard_;
   Thread thread_;
 };

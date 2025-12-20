@@ -15,6 +15,7 @@
 #include "commands/server_command.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
+#include "internal_error.hpp"
 #include "network/channels/udp_channel.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -56,7 +57,7 @@ public:
         } catch (const std::exception &e) {
           LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
           ioCtx_.stop();
-          bus_.post(ServerEvent{ServerState::InternalError, StatusCode::Error});
+          bus_.post(InternalError(StatusCode::Error, e.what()));
         }
       });
     };

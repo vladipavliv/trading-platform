@@ -7,9 +7,6 @@
 #include "config/config.hpp"
 
 namespace hft::benchmarks {
-namespace {
-constexpr auto failHandler = [](StatusCode code) {};
-}
 
 BM_Sys_ServerFix::BM_Sys_ServerFix() { GlobalSetUp(); }
 
@@ -73,7 +70,7 @@ void BM_Sys_ServerFix::fillOrders() {
 void BM_Sys_ServerFix::setupBus() {
   using namespace server;
 
-  bus = std::make_unique<ServerBus>(failHandler);
+  bus = std::make_unique<ServerBus>();
   bus->subscribe<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
     if (s.orderStatus.state == OrderState::Rejected) {
       throw std::runtime_error("Increase OrderBook limit");

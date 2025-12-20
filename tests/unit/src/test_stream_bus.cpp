@@ -29,12 +29,11 @@ public:
   }
 
   void TearDown() override {}
-
-  void failHandler(StatusCode code) { FAIL() << utils::toString(code); }
 };
 
 TEST_F(StreamBusFixture, Post) {
-  StreamBus<size_t> bus{[this](StatusCode code) { failHandler(code); }};
+  SystemBus systemBus;
+  StreamBus<size_t> bus{systemBus};
 
   size_t eventsPushed{0};
   std::atomic_size_t eventsPopped{0};

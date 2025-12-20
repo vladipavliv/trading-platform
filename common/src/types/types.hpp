@@ -80,7 +80,6 @@ using Vector = std::vector<Type>;
 using Callback = std::function<void()>;
 template <typename ArgType>
 using CRefHandler = std::function<void(const ArgType &)>;
-using FailHandler = std::function<void(StatusCode)>;
 
 /**
  * Some helper concepts

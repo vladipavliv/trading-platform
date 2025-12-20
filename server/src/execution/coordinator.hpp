@@ -74,9 +74,6 @@ private:
   void startWorkers() {
     const auto appCores =
         ServerConfig::cfg.coresApp.empty() ? 1 : ServerConfig::cfg.coresApp.size();
-    const auto failHandler = [this](StatusCode code) {
-      bus_.post(ServerEvent{ServerState::InternalError, code});
-    };
 
     workers_.reserve(appCores);
     // Notify the system when all the workers have started
@@ -90,13 +87,13 @@ private:
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(failHandler));
+      workers_.emplace_back(std::make_unique<CtxRunner>(bus_.systemBus));
       workers_[0]->run();
       workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
         workers_.emplace_back(
-            std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i], failHandler));
+            std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i], bus_.systemBus));
         workers_[i]->run();
         workers_[i]->ioCtx.post(notifyClb);
       }
