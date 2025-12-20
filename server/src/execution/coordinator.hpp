@@ -42,6 +42,11 @@ namespace hft::server {
  * This, supposedly, would not have much effect on the workers performance
  * and it wont have to spin for too long.
  * Once worker id changes - old worker reposts the order to a new one.
+ * LLM idea improvement: instead of using separate flag to lock the book, embed this into
+ * the workerId atomic. Have uint64 instead of uint32, and use 4 bytes to store worker id,
+ * and another 4 bytes to indicate that the book is locked.
+ * So when worker tries to process the order, it does compare_exchange, and checks for the
+ * value to have its id, and flag 'free', and it exchanges it with its id and flag 'busy'
  */
 class Coordinator {
 public:
