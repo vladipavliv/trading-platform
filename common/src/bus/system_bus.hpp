@@ -7,7 +7,9 @@
 #define HFT_COMMON_SYSTEMBUS_HPP
 
 #include "boost_types.hpp"
+#include "bus_limiter.hpp"
 #include "config/config.hpp"
+#include "internal_error.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -99,6 +101,8 @@ private:
   IoCtx ioCtx_;
   ContextGuard ioCtxGuard_;
 };
+
+using ErrorBus = BusLimiter<SystemBus, InternalError>;
 
 } // namespace hft
 

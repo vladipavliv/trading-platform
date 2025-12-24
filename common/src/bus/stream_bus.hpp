@@ -45,8 +45,8 @@ public:
 
   explicit StreamBus(SystemBus &bus)
       : rate_{Config::get<size_t>("rates.telemetry_ms")},
-        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{}, runner_{bus},
-        timer_{runner_.ioCtx} {}
+        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
+        runner_{ErrorBus{bus}}, timer_{runner_.ioCtx} {}
 
   inline IoCtx &streamIoCtx() { return runner_.ioCtx; }
 

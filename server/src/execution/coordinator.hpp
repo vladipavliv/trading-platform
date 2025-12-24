@@ -92,13 +92,13 @@ private:
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(bus_.systemBus));
+      workers_.emplace_back(std::make_unique<CtxRunner>(ErrorBus(bus_.systemBus)));
       workers_[0]->run();
       workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        workers_.emplace_back(
-            std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i], bus_.systemBus));
+        workers_.emplace_back(std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i],
+                                                          ErrorBus(bus_.systemBus)));
         workers_[i]->run();
         workers_[i]->ioCtx.post(notifyClb);
       }

@@ -57,7 +57,7 @@ void BM_Sys_ServerFix::fillOrders() {
   auto dataIt = tickers.begin();
 
   // pregenerate a bunch of orders
-  const size_t orderCount = orderLimit * workerCount * tickerCount;
+  const size_t orderCount = orderLimit * tickerCount;
   orders.reserve(orderCount);
   for (size_t i = 0; i < orderCount; ++i) {
     if (dataIt == tickers.end()) {
@@ -99,12 +99,6 @@ void BM_Sys_ServerFix::setupCoordinator() {
   coordinator = std::make_unique<Coordinator>(*bus, *data);
   coordinator->start();
   flag.wait(true);
-}
-
-void BM_Sys_ServerFix::cleanupOrders() {
-  for (auto &ticker : tickers) {
-    data->at(ticker).orderBook.extract();
-  }
 }
 
 BENCHMARK_F(BM_Sys_ServerFix, ProcessOrders)(benchmark::State &state) {
