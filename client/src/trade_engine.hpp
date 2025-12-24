@@ -187,9 +187,9 @@ private:
 
   CtxRunner makeWorker() {
     if (ClientConfig::cfg.coresApp.empty()) {
-      return CtxRunner(bus_.systemBus);
+      return CtxRunner(ErrorBus{bus_.systemBus});
     } else {
-      return CtxRunner{0, ClientConfig::cfg.coresApp[0], bus_.systemBus};
+      return CtxRunner{0, ClientConfig::cfg.coresApp[0], ErrorBus{bus_.systemBus}};
     }
   }
 

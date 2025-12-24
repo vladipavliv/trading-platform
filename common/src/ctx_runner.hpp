@@ -24,13 +24,14 @@ class CtxRunner {
 public:
   IoCtx ioCtx;
 
-  CtxRunner(SystemBus &bus) : guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
+  CtxRunner(ErrorBus &&bus) : guard_{MakeGuard(ioCtx.get_executor())}, bus_{std::move(bus)} {}
 
-  CtxRunner(ThreadId id, SystemBus &bus)
-      : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
+  CtxRunner(ThreadId id, ErrorBus &&bus)
+      : threadId_{id}, guard_{MakeGuard(ioCtx.get_executor())}, bus_{std::move(bus)} {}
 
-  CtxRunner(ThreadId id, CoreId coreId, SystemBus &bus)
-      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())}, bus_{bus} {}
+  CtxRunner(ThreadId id, CoreId coreId, ErrorBus &&bus)
+      : threadId_{id}, coreId_{coreId}, guard_{MakeGuard(ioCtx.get_executor())},
+        bus_{std::move(bus)} {}
 
   ~CtxRunner() { ioCtx.stop(); }
 
@@ -74,7 +75,7 @@ private:
 
   std::atomic_bool running_{false};
 
-  SystemBus &bus_;
+  ErrorBus bus_;
   ContextGuard guard_;
   Thread thread_;
 };
