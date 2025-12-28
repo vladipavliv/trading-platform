@@ -88,13 +88,15 @@ private:
   template <typename EventType>
   static EventSubscribers<EventType> &getEventSubscribers() {
     static EventSubscribers<EventType> subscribers;
-    return subscribers;
+    static auto *fast_ptr = &subscribers;
+    return *fast_ptr;
   }
 
   template <typename EventType>
   static ValueSubscribers<EventType> &getValueSubscribers() {
     static ValueSubscribers<EventType> subscribers;
-    return subscribers;
+    static auto *fast_ptr = &subscribers;
+    return *fast_ptr;
   }
 
 private:

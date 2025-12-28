@@ -30,13 +30,17 @@ BENCHMARK(BM_Op_MessageBusPost);
 static void BM_Op_SystemBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
+  utils::pinThreadToCore(4);
+
   SystemBus bus;
+  Thread t{[&bus]() { bus.run(); }};
   bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
 
   for (auto _ : state) {
-    bus.post<Order>(order);
+    bus.post(order);
     benchmark::DoNotOptimize(&order);
   }
+  bus.stop();
 }
 BENCHMARK(BM_Op_SystemBusPost);
 

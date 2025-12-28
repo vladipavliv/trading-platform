@@ -110,12 +110,13 @@ BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
   uint64_t sent = 0;
   alignas(64) std::atomic<uint64_t> processed = 0;
 
-  bus->subscribe<ServerOrderStatus>([&sent, &processed](CRef<ServerOrderStatus> s) {
+  bus->subscribe<ServerOrderStatus>([&processed](CRef<ServerOrderStatus> s) {
     if (s.orderStatus.state == OrderState::Accepted) {
       processed.fetch_add(1, std::memory_order_relaxed);
     }
   });
 
+  const auto postStart = utils::getTimestampNs();
   auto iter = orders.begin();
   for (auto _ : state) {
     if (iter == orders.end()) {
@@ -125,9 +126,23 @@ BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
     bus->post(order);
     ++sent;
   }
+  const auto postEnd = utils::getTimestampNs();
 
+  const auto backlog = sent - processed.load(std::memory_order_relaxed);
   while (processed.load(std::memory_order_relaxed) < sent) {
     asm volatile("pause" ::: "memory");
+  }
+  const auto processEnd = utils::getTimestampNs();
+
+  const double fullTime = processEnd - postStart;
+
+  if (sent != 0 && postEnd != postStart && processEnd != postEnd && backlog != 0 && fullTime != 0) {
+    std::cout << std::setprecision(2) << "iterations: " << sent << " post: " << postEnd - postStart
+              << " avg post: " << (postEnd - postStart) / sent
+              << " backlog: " << processEnd - postEnd
+              << " avg backlog: " << (processEnd - postEnd) / backlog << "ns"
+              << " ratio: " << ((double)(postEnd - postStart)) / fullTime << "/"
+              << ((double)(processEnd - postEnd)) / fullTime << std::endl;
   }
 
   state.SetItemsProcessed(sent);

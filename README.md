@@ -122,7 +122,7 @@ BM_Op_VykovMpmcQueue                        14.1 ns         14.1 ns     49494243
 BM_Op_FollyMpmcQueue                        48.5 ns         48.5 ns     14495449
 BM_Op_BoostMpmcQueue                        36.0 ns         36.0 ns     19423840
 BM_Op_MessageBusPost                        2.07 ns         2.07 ns    342791320
-BM_Op_SystemBusPost                         66.7 ns         66.6 ns     10335613
+BM_Op_SystemBusPost                          240 ns          236 ns      3088693
 ```
 
 Stress test (Server + Python tester with 5m pregenerated orders):
