@@ -95,22 +95,22 @@ Monitor:
 
 Benchmarks:
 ```bash
-2025-12-28T07:50:50+01:00
+2025-12-28T19:30:58+01:00
 Running ./run_benchmarks
-Run on (20 X 852.908 MHz CPU s)
+Run on (20 X 4600 MHz CPU s)
 CPU Caches:
   L1 Data 48 KiB (x10)
   L1 Instruction 32 KiB (x10)
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
-Load Average: 6.19, 3.10, 2.97
+Load Average: 1.60, 1.00, 0.40
 ------------------------------------------------------------------------------------------------
 Benchmark                                      Time             CPU   Iterations UserCounters...
 ------------------------------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess_1Worker        330 ns          329 ns      2135476 items_per_second=3.04233M/s
-BM_Sys_ServerFix/AsyncProcess_2Workers       342 ns          341 ns      2051524 items_per_second=2.93678M/s
-BM_Sys_ServerFix/AsyncProcess_3Workers       467 ns          467 ns      1501962 items_per_second=2.14361M/s
-BM_Sys_ServerFix/AsyncProcess_4Workers       696 ns          694 ns       974024 items_per_second=1.44013M/s
+BM_Sys_ServerFix/AsyncProcess_1Worker        227 ns          224 ns      2966545 items_per_second=4.47133M/s
+BM_Sys_ServerFix/AsyncProcess_2Workers       273 ns          272 ns      2550539 items_per_second=3.68002M/s
+BM_Sys_ServerFix/AsyncProcess_3Workers       362 ns          361 ns      1928000 items_per_second=2.76702M/s
+BM_Sys_ServerFix/AsyncProcess_4Workers       509 ns          508 ns      1346816 items_per_second=1.96842M/s
 BM_Ser_ProtoSerialize                        182 ns          182 ns      3736254
 BM_Ser_ProtoDeserialize                      133 ns          133 ns      5200438
 BM_Ser_FbsSerialize                          150 ns          150 ns      5359374

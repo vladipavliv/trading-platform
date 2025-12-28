@@ -124,12 +124,6 @@ BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
     ServerOrder &order = *iter++;
     bus->post(order);
     ++sent;
-
-    if ((sent & 255) == 0 && sent - processed.load(std::memory_order_relaxed) > 65536) {
-      while (sent - processed.load(std::memory_order_relaxed) > 32768) {
-        asm volatile("pause" ::: "memory");
-      }
-    }
   }
 
   while (processed.load(std::memory_order_relaxed) < sent) {
