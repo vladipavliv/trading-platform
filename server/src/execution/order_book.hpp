@@ -79,14 +79,13 @@ public:
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
+
+    consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
     return true;
   }
 
   template <Busable Consumer>
   void match(Consumer &consumer) {
-#ifdef BENCHMARK_BUILD
-    bool notified{false};
-#endif
     while (!bids_.empty() && !asks_.empty()) {
       ServerOrder &bestBid = bids_.front();
       ServerOrder &bestAsk = asks_.front();
@@ -102,17 +101,11 @@ public:
           (bestBid.order.created > bestAsk.order.created)) {
         const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
         consumer.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
-#ifdef BENCHMARK_BUILD
-        notified = true;
-#endif
       }
       if ((bestBid.clientId != bestAsk.clientId) ||
           (bestAsk.order.created > bestBid.order.created)) {
         const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
         consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
-#ifdef BENCHMARK_BUILD
-        notified = true;
-#endif
       }
 
       if (bestBid.order.quantity == 0) {
@@ -124,11 +117,6 @@ public:
         asks_.pop_back();
       }
     }
-#ifdef BENCHMARK_BUILD
-    if (!notified) {
-      consumer.post(ServerOrderStatus{0, 0, 0, 0, 0, OrderState::Accepted});
-    }
-#endif
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 

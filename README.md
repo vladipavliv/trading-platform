@@ -95,39 +95,37 @@ Monitor:
 
 Benchmarks:
 ```bash
-2025-08-09T10:14:27+02:00
+2025-12-28T07:50:50+01:00
 Running ./run_benchmarks
-Run on (20 X 4600 MHz CPU s)
+Run on (20 X 852.908 MHz CPU s)
 CPU Caches:
   L1 Data 48 KiB (x10)
   L1 Instruction 32 KiB (x10)
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
-Load Average: 0.99, 1.33, 1.32
--------------------------------------------------------------------------
-Benchmark                               Time             CPU   Iterations
--------------------------------------------------------------------------
-BM_Sys_ServerFix/ProcessOrders        392 ns          375 ns      1923736 <- 1 worker
-BM_Ser_ProtoSerialize                 132 ns          132 ns      5242201
-BM_Ser_ProtoDeserialize               101 ns          101 ns      6891030
-BM_Ser_FbsSerialize                  46.9 ns         46.9 ns     15798687
-BM_Ser_FbsDeserialize                22.8 ns         22.8 ns     30067930
-BM_Ser_SbeSerialize                  1.84 ns         1.81 ns    381461765
-BM_Ser_SbeDeserialize                9.02 ns         8.87 ns     81115718
-BM_Sys_OrderBookFix/AddOrder         91.4 ns         90.3 ns      7701316
-BM_Op_VykovMpmcQueue                 13.7 ns         13.5 ns     53351781
-BM_Op_FollyMpmcQueue                 43.2 ns         43.2 ns     15866695
-BM_Op_BoostMpmcQueue                 32.1 ns         31.9 ns     22239821
-BM_Op_MessageBusPost                 1.66 ns         1.65 ns    427797353
-BM_Op_SystemBusPost                  54.6 ns         54.5 ns     13274417
-BM_Op_StreamBusPost                  12.5 ns         12.5 ns     53462939
-...
-BM_Sys_ServerFix/ProcessOrders        945 ns          920 ns       719780 <- 2 workers
-BM_Sys_ServerFix/ProcessOrders        907 ns          890 ns       758570 <- 3 workers
-BM_Sys_ServerFix/ProcessOrders       1036 ns         1005 ns       693849 <- 4 workers
+Load Average: 6.19, 3.10, 2.97
+------------------------------------------------------------------------------------------------
+Benchmark                                      Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------------------
+BM_Sys_ServerFix/AsyncProcess_1Worker        330 ns          329 ns      2135476 items_per_second=3.04233M/s
+BM_Sys_ServerFix/AsyncProcess_2Workers       342 ns          341 ns      2051524 items_per_second=2.93678M/s
+BM_Sys_ServerFix/AsyncProcess_3Workers       467 ns          467 ns      1501962 items_per_second=2.14361M/s
+BM_Sys_ServerFix/AsyncProcess_4Workers       696 ns          694 ns       974024 items_per_second=1.44013M/s
+BM_Ser_ProtoSerialize                        182 ns          182 ns      3736254
+BM_Ser_ProtoDeserialize                      133 ns          133 ns      5200438
+BM_Ser_FbsSerialize                          150 ns          150 ns      5359374
+BM_Ser_FbsDeserialize                       31.6 ns         31.6 ns     21990438
+BM_Ser_SbeSerialize                         2.43 ns         2.42 ns    288539113
+BM_Ser_SbeDeserialize                       11.7 ns         11.7 ns     63787435
+BM_Sys_OrderBookFix/AddOrder                99.9 ns         99.9 ns      6959726
+BM_Op_VykovMpmcQueue                        14.1 ns         14.1 ns     49494243
+BM_Op_FollyMpmcQueue                        48.5 ns         48.5 ns     14495449
+BM_Op_BoostMpmcQueue                        36.0 ns         36.0 ns     19423840
+BM_Op_MessageBusPost                        2.07 ns         2.07 ns    342791320
+BM_Op_SystemBusPost                         66.7 ns         66.6 ns     10335613
 ```
 
-Stress test (Server + Python tester with 5M pregenerated orders):
+Stress test (Server + Python tester with 5m pregenerated orders):
 ```bash
 00:36:28.746653 [I] Orders: [opn|ttl] 986,963|4,528,793 | Rps: 1,866,237
 [Client 0] Sent 5000000 orders in 2.70s (1852510.08 orders/sec)

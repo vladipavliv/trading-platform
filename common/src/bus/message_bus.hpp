@@ -33,11 +33,11 @@ public:
     requires Routed<Event>
   void subscribe(CRefHandler<Event> &&handler) {
     auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
-    if (handlerRef) {
-      LOG_ERROR("Handler is already registered for the type {}", typeid(Event).name());
-    } else {
-      handlerRef = std::move(handler);
-    }
+    // if (handlerRef) {
+    //   LOG_ERROR("Handler is already registered for the type {}", typeid(Event).name());
+    // } else {
+    handlerRef = std::move(handler);
+    //}
   }
 
   template <typename Event>

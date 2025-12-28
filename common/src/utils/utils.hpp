@@ -15,6 +15,7 @@
 #include <sched.h>
 #include <thread>
 #include <typeinfo>
+#include <x86intrin.h>
 
 #include "boost_types.hpp"
 #include "domain_types.hpp"
@@ -34,6 +35,11 @@ inline auto getTimestampNs() -> Timestamp {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
+}
+
+inline auto getCycles() -> Timestamp {
+  unsigned int dummy;
+  return __builtin_ia32_rdtscp(&dummy);
 }
 
 inline void pinThreadToCore(size_t coreId) {
@@ -146,7 +152,7 @@ inline Ticker generateTicker() {
 
 inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
   return Order{generateOrderId(),
-               getTimestamp(),
+               getCycles(),
                ticker,
                RNG::generate<Quantity>(0, 1000),
                RNG::generate<Price>(10, 10000),

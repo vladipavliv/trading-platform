@@ -81,7 +81,7 @@ TEST_F(OrderBookFixture, OrdersWontMatch) {
   book->match(*this);
 
   printStatusQ();
-  ASSERT_TRUE(statusq.empty());
+  ASSERT_TRUE(statusq.size() == 6);
 }
 
 TEST_F(OrderBookFixture, 3Buy3SellMatch) {
@@ -96,7 +96,7 @@ TEST_F(OrderBookFixture, 3Buy3SellMatch) {
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 6);
+  ASSERT_EQ(statusq.size(), 12);
 }
 
 TEST_F(OrderBookFixture, 10Buy1SellMatch) {
@@ -112,7 +112,7 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 20);
+  ASSERT_EQ(statusq.size(), 31);
 }
 
 } // namespace hft::tests
