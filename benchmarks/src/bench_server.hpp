@@ -47,7 +47,6 @@ public:
 
   static void fillMarketData();
   static void fillOrders();
-  static void cleanupOrders();
 };
 
 } // namespace hft::benchmarks

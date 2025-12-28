@@ -36,7 +36,7 @@ public:
   }
 
   template <typename Type>
-  auto write(CRef<Type> message) -> StatusCode {
+  void write(CRef<Type> message) {
     const auto buffer = std::make_shared<ByteBuffer>();
     Framer::frame(message, *buffer);
     socket_.async_send_to( // format
@@ -51,7 +51,6 @@ public:
             bus_.post(ConnectionStatusEvent{id_, ConnectionStatus::Error});
           }
         });
-    return StatusCode::Ok;
   }
 
   inline ConnectionId id() const { return id_; }

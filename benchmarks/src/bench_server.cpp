@@ -34,6 +34,21 @@ void BM_Sys_ServerFix::GlobalTearDown() {
   bus->stop();
 }
 
+void BM_Sys_ServerFix::setupBus() {
+  using namespace server;
+
+  bus = std::make_unique<ServerBus>();
+  bus->systemBus.subscribe<ServerEvent>([](CRef<ServerEvent> event) {
+    if (event.state == ServerState::Operational) {
+      LOG_INFO("Coordinator is ready for benchmarking");
+      BM_Sys_ServerFix::flag.test_and_set();
+      BM_Sys_ServerFix::flag.notify_all();
+    }
+  });
+
+  systemThread = std::jthread([]() { BM_Sys_ServerFix::bus->run(); });
+}
+
 void BM_Sys_ServerFix::fillMarketData() {
   using namespace server;
   using namespace utils;
@@ -52,71 +67,76 @@ void BM_Sys_ServerFix::fillMarketData() {
   }
 }
 
+void BM_Sys_ServerFix::setupCoordinator() {
+  using namespace server;
+
+  flag.clear();
+  coordinator = std::make_unique<Coordinator>(*bus, *data);
+  coordinator->start();
+  flag.wait(false);
+}
+
 void BM_Sys_ServerFix::fillOrders() {
   using namespace server;
-  auto dataIt = tickers.begin();
 
-  // pregenerate a bunch of orders
-  const size_t orderCount = orderLimit * tickerCount;
+  const size_t rawCount = orderLimit * tickerCount;
+  size_t orderCount = 1;
+  while (orderCount < rawCount) {
+    orderCount <<= 1;
+  }
+
+  orders.clear();
   orders.reserve(orderCount);
+
+  auto dataIt = tickers.begin();
   for (size_t i = 0; i < orderCount; ++i) {
     if (dataIt == tickers.end()) {
       dataIt = tickers.begin();
     }
-    orders.emplace_back(ServerOrder{0, utils::generateOrder(*dataIt++)});
+    // Generate orders for all slots up to the power of two
+    auto order = utils::generateOrder(*dataIt++);
+    order.id = i;
+    orders.push_back(ServerOrder{0, order});
   }
 }
 
-void BM_Sys_ServerFix::setupBus() {
+BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
   using namespace server;
 
-  bus = std::make_unique<ServerBus>();
-  bus->subscribe<ServerOrderStatus>([](CRef<ServerOrderStatus> s) {
-    if (s.orderStatus.state == OrderState::Rejected) {
-      throw std::runtime_error("Increase OrderBook limit");
-    }
-    BM_Sys_ServerFix::flag.clear();
-    BM_Sys_ServerFix::flag.notify_all();
-  });
-  bus->systemBus.subscribe<ServerEvent>([](CRef<ServerEvent> event) {
-    if (event.state == ServerState::Operational) {
-      LOG_INFO("Coordinator is ready for benchmarking");
-      BM_Sys_ServerFix::flag.clear();
-      BM_Sys_ServerFix::flag.notify_all();
+  if (!ServerConfig::cfg.coresNetwork.empty()) {
+    utils::pinThreadToCore(ServerConfig::cfg.coresNetwork.front());
+  }
+
+  uint64_t sent = 0;
+  alignas(64) std::atomic<uint64_t> processed = 0;
+
+  bus->subscribe<ServerOrderStatus>([&sent, &processed](CRef<ServerOrderStatus> s) {
+    if (s.orderStatus.state == OrderState::Accepted) {
+      processed.fetch_add(1, std::memory_order_relaxed);
     }
   });
-  bus->subscribe<TickerPrice>([](CRef<TickerPrice>) {});
-  bus->subscribe<OrderTimestamp>([](CRef<OrderTimestamp>) {});
-  bus->subscribe<RuntimeMetrics>([](CRef<RuntimeMetrics>) {});
-
-  systemThread = std::jthread([]() { BM_Sys_ServerFix::bus->run(); });
-}
-
-void BM_Sys_ServerFix::setupCoordinator() {
-  using namespace server;
-
-  flag.test_and_set();
-  coordinator = std::make_unique<Coordinator>(*bus, *data);
-  coordinator->start();
-  flag.wait(true);
-}
-
-BENCHMARK_F(BM_Sys_ServerFix, ProcessOrders)(benchmark::State &state) {
-  using namespace server;
 
   auto iter = orders.begin();
   for (auto _ : state) {
     if (iter == orders.end()) {
       iter = orders.begin();
     }
-    CRef<ServerOrder> order = *iter++;
-
-    flag.test_and_set();
+    ServerOrder &order = *iter++;
     bus->post(order);
-    flag.wait(true);
+    ++sent;
 
-    benchmark::DoNotOptimize(flag);
+    if ((sent & 255) == 0 && sent - processed.load(std::memory_order_relaxed) > 65536) {
+      while (sent - processed.load(std::memory_order_relaxed) > 32768) {
+        asm volatile("pause" ::: "memory");
+      }
+    }
   }
+
+  while (processed.load(std::memory_order_relaxed) < sent) {
+    asm volatile("pause" ::: "memory");
+  }
+
+  state.SetItemsProcessed(sent);
 }
 
 } // namespace hft::benchmarks

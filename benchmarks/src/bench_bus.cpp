@@ -40,7 +40,7 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_SystemBusPost);
 
-static void BM_Op_StreamBusPost(benchmark::State &state) {
+static void DISABLED_BM_Op_StreamBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
   SystemBus systemBus;
@@ -54,6 +54,6 @@ static void BM_Op_StreamBusPost(benchmark::State &state) {
   }
   streamBus.stop();
 }
-BENCHMARK(BM_Op_StreamBusPost);
+BENCHMARK(DISABLED_BM_Op_StreamBusPost);
 
 } // namespace hft::benchmarks
