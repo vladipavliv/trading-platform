@@ -8,59 +8,81 @@
 
 namespace hft::benchmarks {
 
-BM_Sys_ServerFix::BM_Sys_ServerFix() { GlobalSetUp(); }
+BM_Sys_ServerFix::BM_Sys_ServerFix() {
+  server::ServerConfig::load("bench_server_config.ini");
 
-void BM_Sys_ServerFix::GlobalSetUp() {
-  using namespace server;
-  std::call_once(initFlag, []() {
-    ServerConfig::load("bench_server_config.ini");
-    LOG_INIT(ServerConfig::cfg.logOutput);
+  tickerCount = Config::get<size_t>("bench.ticker_count");
+  orderLimit = server::ServerConfig::cfg.orderBookLimit;
 
-    tickerCount = Config::get<size_t>("bench.ticker_count");
-    orderLimit = ServerConfig::cfg.orderBookLimit;
-    workerCount = ServerConfig::cfg.coresApp.size() == 0 ? 1 : ServerConfig::cfg.coresApp.size();
-
-    LOG_DEBUG("Tickers: {} Orders:{} Workers:{}", tickerCount, orderLimit, workerCount);
-
-    setupBus();
-    fillMarketData();
-    setupCoordinator();
-    fillOrders();
-  });
+  setupBus();
 }
 
-void BM_Sys_ServerFix::GlobalTearDown() {
-  coordinator->stop();
-  bus->stop();
+BM_Sys_ServerFix::~BM_Sys_ServerFix() { bus->stop(); }
+
+void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
+  using namespace server;
+
+  workerCount = state.range(0);
+
+  if (workerCount > 4) {
+    throw std::runtime_error("Too many workers");
+  }
+
+  ServerConfig::cfg.coresApp.clear();
+  ServerConfig::cfg.coresNetwork.clear();
+
+  ServerConfig::cfg.coreSystem = 2;
+  ServerConfig::cfg.coresNetwork.push_back(4);
+
+  for (size_t i = 0; i < workerCount; ++i) {
+    ServerConfig::cfg.coresApp.push_back(6 + (i * 2));
+  }
+
+  fillMarketData();
+  setupCoordinator();
+  fillOrders();
+}
+
+void BM_Sys_ServerFix::TearDown(const ::benchmark::State &state) {
+  if (coordinator) {
+    coordinator->stop();
+    coordinator.reset();
+  }
 }
 
 void BM_Sys_ServerFix::setupBus() {
   using namespace server;
 
   bus = std::make_unique<ServerBus>();
-  bus->systemBus.subscribe<ServerEvent>([](CRef<ServerEvent> event) {
+  bus->systemBus.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
     if (event.state == ServerState::Operational) {
       LOG_INFO("Coordinator is ready for benchmarking");
-      BM_Sys_ServerFix::flag.test_and_set();
-      BM_Sys_ServerFix::flag.notify_all();
+      flag.test_and_set();
+      flag.notify_all();
     }
   });
 
-  systemThread = std::jthread([]() { BM_Sys_ServerFix::bus->run(); });
+  systemThread = std::jthread([this]() { bus->run(); });
+}
+
+void BM_Sys_ServerFix::cleanup() {
+  marketData.clear();
+  tickers.clear();
+  coordinator.reset();
 }
 
 void BM_Sys_ServerFix::fillMarketData() {
   using namespace server;
   using namespace utils;
 
-  data = std::make_unique<MarketData>(tickerCount);
+  marketData.reserve(tickerCount);
   tickers.reserve(tickerCount);
 
   size_t workerId{0};
   for (size_t i = 0; i < tickerCount; ++i) {
     const auto ticker = generateTicker();
     tickers.emplace_back(ticker);
-    data->emplace(ticker, workerId);
+    marketData.emplace(ticker, workerId);
     if (++workerId == workerCount) {
       workerId = 0;
     }
@@ -71,7 +93,7 @@ void BM_Sys_ServerFix::setupCoordinator() {
   using namespace server;
 
   flag.clear();
-  coordinator = std::make_unique<Coordinator>(*bus, *data);
+  coordinator = std::make_unique<Coordinator>(*bus, marketData);
   coordinator->start();
   flag.wait(false);
 }
@@ -93,15 +115,16 @@ void BM_Sys_ServerFix::fillOrders() {
     if (dataIt == tickers.end()) {
       dataIt = tickers.begin();
     }
-    // Generate orders for all slots up to the power of two
     auto order = utils::generateOrder(*dataIt++);
     order.id = i;
     orders.push_back(ServerOrder{0, order});
   }
 }
 
-BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
   using namespace server;
+
+  state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   if (!ServerConfig::cfg.coresNetwork.empty()) {
     utils::pinThreadToCore(ServerConfig::cfg.coresNetwork.front());
@@ -112,26 +135,32 @@ BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
   while (state.KeepRunningBatch(ordersCount)) {
     state.PauseTiming();
 
-    std::atomic<uint64_t> processed{0};
-    alignas(64) std::promise<void> completionPromise;
+    alignas(64) std::atomic<uint64_t> processed;
+    alignas(64) std::atomic_flag signal;
 
     bus->subscribe<ServerOrderStatus>([&](CRef<ServerOrderStatus> s) {
-      if (s.orderStatus.state == OrderState::Accepted) {
-        if (processed.fetch_add(1) + 1 == ordersCount) {
-          completionPromise.set_value();
-        }
+      if (s.orderStatus.state == OrderState::Accepted &&
+          processed.fetch_add(1, std::memory_order_relaxed) + 1 == ordersCount) {
+        signal.test_and_set(std::memory_order_release);
       }
     });
-
-    processed.store(0);
-    std::future<void> done = completionPromise.get_future();
     state.ResumeTiming();
 
     for (const auto &order : orders) {
       bus->post(order);
     }
-    done.wait();
+
+    while (!signal.test(std::memory_order_acquire)) {
+      asm volatile("pause" ::: "memory");
+    }
   }
 }
+
+BENCHMARK_REGISTER_F(BM_Sys_ServerFix, AsyncProcess)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(3)
+    ->Arg(4)
+    ->Unit(benchmark::kNanosecond);
 
 } // namespace hft::benchmarks

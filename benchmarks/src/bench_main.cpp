@@ -14,7 +14,5 @@ int main(int argc, char **argv) {
     return 1;
   ::benchmark::RunSpecifiedBenchmarks();
 
-  hft::benchmarks::BM_Sys_ServerFix::GlobalTearDown();
-
   return 0;
 }
