@@ -12,7 +12,7 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() {
   server::ServerConfig::load("bench_server_config.ini");
 
   tickerCount = Config::get<size_t>("bench.ticker_count");
-  orderLimit = server::ServerConfig::cfg.orderBookLimit;
+  orderLimit = 16384 * 128;
 
   setupBus();
 }
@@ -101,9 +101,8 @@ void BM_Sys_ServerFix::setupCoordinator() {
 void BM_Sys_ServerFix::fillOrders() {
   using namespace server;
 
-  const size_t rawCount = orderLimit * tickerCount;
   size_t orderCount = 1;
-  while (orderCount < rawCount) {
+  while (orderCount < orderLimit) {
     orderCount <<= 1;
   }
 
@@ -142,6 +141,8 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
       if (s.orderStatus.state == OrderState::Accepted &&
           processed.fetch_add(1, std::memory_order_relaxed) + 1 == ordersCount) {
         signal.test_and_set(std::memory_order_release);
+      } else if (s.orderStatus.state == OrderState::Rejected) {
+        throw std::runtime_error("Increase OrderBook limit");
       }
     });
     state.ResumeTiming();
