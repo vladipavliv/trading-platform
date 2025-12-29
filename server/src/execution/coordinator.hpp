@@ -120,7 +120,9 @@ private:
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
-        LOG_ERROR_SYSTEM("Error {}", ec.message());
+        if (ec != ASIO_ERR_ABORTED) {
+          LOG_ERROR_SYSTEM("Error {}", ec.message());
+        }
         return;
       }
       static std::atomic_uint64_t lastTtl = 0;

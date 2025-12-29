@@ -30,7 +30,7 @@ struct Config {
   template <typename Type>
   static Type get(CRef<String> name) {
     if (data.empty()) {
-      throw std::runtime_error("Config has not been loaded");
+      throw std::runtime_error(std::format("Failed to get {}: config has not been loaded", name));
     }
     try {
       return data.get<Type>(name);

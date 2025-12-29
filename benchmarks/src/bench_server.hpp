@@ -7,6 +7,7 @@
 #define HFT_BENCHSERVER_HPP
 
 #include <benchmark/benchmark.h>
+#include <iostream>
 
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "commands/server_command.hpp"
@@ -23,30 +24,31 @@ namespace hft::benchmarks {
 class BM_Sys_ServerFix : public benchmark::Fixture {
 public:
   BM_Sys_ServerFix();
+  ~BM_Sys_ServerFix();
 
-  inline static std::once_flag initFlag;
-  inline static UPtr<server::MarketData> data;
-  inline static UPtr<server::ServerBus> bus;
-  inline static UPtr<server::Coordinator> coordinator;
+  UPtr<server::ServerBus> bus;
 
-  inline static size_t tickerCount{10};
-  inline static size_t workerCount{1};
-  inline static size_t orderLimit{ORDER_BOOK_LIMIT};
+  size_t tickerCount{10};
+  size_t workerCount{1};
+  size_t orderLimit{ORDER_BOOK_LIMIT};
 
-  inline static std::vector<Ticker> tickers;
-  inline static std::vector<server::ServerOrder> orders;
+  std::vector<Ticker> tickers;
+  server::MarketData marketData;
+  std::vector<server::ServerOrder> orders;
 
-  inline static std::jthread systemThread;
-  inline static std::atomic_flag flag{ATOMIC_FLAG_INIT};
+  UPtr<server::Coordinator> coordinator;
 
-  static void GlobalSetUp();
-  static void GlobalTearDown();
+  std::atomic_flag flag{ATOMIC_FLAG_INIT};
+  std::jthread systemThread;
 
-  static void setupBus();
-  static void setupCoordinator();
+  void SetUp(const ::benchmark::State &state) override;
+  void TearDown(const ::benchmark::State &state) override;
 
-  static void fillMarketData();
-  static void fillOrders();
+  void setupBus();
+  void fillMarketData();
+  void setupCoordinator();
+  void fillOrders();
+  void cleanup();
 };
 
 } // namespace hft::benchmarks
