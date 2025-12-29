@@ -93,7 +93,9 @@ public:
 
   void start() {
     startWorkers();
+#ifdef TELEMETRY_ENABLED
     scheduleStatsTimer();
+#endif
   }
 
   void stop() {
@@ -122,6 +124,7 @@ private:
   }
 
   void scheduleStatsTimer() {
+#ifdef TELEMETRY_ENABLED
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
@@ -136,17 +139,18 @@ private:
 
       if (rps != 0) {
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
-#ifdef TELEMETRY_ENABLED
+
         if (telemetry_) {
           bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestamp(), rps, 0});
         }
-#endif
       }
       lastTtl = currentTtl;
       scheduleStatsTimer();
     });
+#endif
   }
 
+#ifdef TELEMETRY_ENABLED
   size_t openedOrders() const {
     size_t orders{0};
     for (auto &it : matcher_.data) {
@@ -154,6 +158,7 @@ private:
     }
     return orders;
   }
+#endif
 
 private:
   ServerBus &bus_;
