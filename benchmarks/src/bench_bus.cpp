@@ -7,6 +7,7 @@
 
 #include "bus/bus_holder.hpp"
 #include "domain_types.hpp"
+#include "lfq_runner.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
@@ -43,6 +44,44 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
   bus.stop();
 }
 BENCHMARK(BM_Op_SystemBusPost);
+
+struct alignas(64) Matcher {
+  alignas(64) std::atomic<uint64_t> consumed;
+
+  template <typename Message>
+  void process(const Message &msg) {
+    consumed.fetch_add(1, std::memory_order_relaxed);
+  }
+};
+
+static void BM_Op_LfqRunner(benchmark::State &state) {
+  const auto order = utils::generateOrder();
+
+  utils::pinThreadToCore(2);
+
+  uint64_t produced = 0;
+  Matcher matcher;
+  SystemBus bus;
+
+  LfqRunner<Order, Matcher> lfqRunner{4, matcher, ErrorBus{bus}};
+  lfqRunner.run();
+
+  for (auto _ : state) {
+    lfqRunner.post(order);
+    ++produced;
+    benchmark::DoNotOptimize(produced);
+  }
+
+  size_t waitCounter = 0;
+  while (matcher.consumed.load(std::memory_order_relaxed) < produced) {
+    if (++waitCounter > 1000000) {
+      throw std::runtime_error("Failed to benchmark LfqRunner");
+    }
+    asm volatile("pause" ::: "memory");
+  }
+  lfqRunner.stop();
+}
+BENCHMARK(BM_Op_LfqRunner);
 
 static void DISABLED_BM_Op_StreamBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();

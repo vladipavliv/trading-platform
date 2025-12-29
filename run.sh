@@ -12,7 +12,7 @@ args=("$@")
 
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks
-    sudo ./run_benchmarks --benchmark_color=yes --benchmark_filter=
+    sudo ./run_benchmarks --benchmark_color=yes --benchmark_filter=BM_Sys_ServerFix
     exit 0
 fi
 

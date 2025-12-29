@@ -80,7 +80,8 @@ public:
     }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
 
-    consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
+    // consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0,
+    // OrderState::Accepted});
     return true;
   }
 

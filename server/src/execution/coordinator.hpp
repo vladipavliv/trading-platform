@@ -10,6 +10,7 @@
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
+#include "lfq_runner.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
 #include "server_market_data.hpp"
@@ -49,11 +50,16 @@ namespace hft::server {
  * value to have its id, and flag 'free', and it exchanges it with its id and flag 'busy'
  */
 class Coordinator {
+  using Worker = LfqRunner<ServerOrder, Coordinator>;
+
 public:
   Coordinator(ServerBus &bus, CRef<MarketData> data)
       : bus_{bus}, data_{data}, timer_{bus_.systemIoCtx()},
         monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)} {
-    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) { processOrder(order); });
+    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
+      const auto &data = data_.at(order.order.ticker);
+      workers_[data.getThreadId()]->post(order);
+    });
     bus_.subscribe(ServerCommand::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
@@ -75,6 +81,14 @@ public:
     }
   }
 
+  void process(CRef<ServerOrder> so) {
+    const auto &data = data_.at(so.order.ticker);
+    if (data.orderBook.add(so, bus_)) {
+      data.orderBook.match(bus_);
+    }
+    ordersTotal_.fetch_add(1, std::memory_order_relaxed);
+  }
+
 private:
   void startWorkers() {
     const auto appCores =
@@ -92,28 +106,18 @@ private:
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(ErrorBus(bus_.systemBus)));
+      workers_.emplace_back(std::make_unique<Worker>(*this, ErrorBus(bus_.systemBus)));
       workers_[0]->run();
-      workers_[0]->ioCtx.post(notifyClb);
+      // workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        workers_.emplace_back(std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i],
-                                                          ErrorBus(bus_.systemBus)));
+        const auto coreId = ServerConfig::cfg.coresApp[i];
+        workers_.emplace_back(std::make_unique<Worker>(coreId, *this, ErrorBus(bus_.systemBus)));
         workers_[i]->run();
-        workers_[i]->ioCtx.post(notifyClb);
+        // workers_[i]->ioCtx.post(notifyClb);
       }
     }
-  }
-
-  void processOrder(CRef<ServerOrder> so) {
-    LOG_TRACE("{}", utils::toString(so));
-    const auto &data = data_.at(so.order.ticker);
-    workers_[data.getThreadId()]->ioCtx.post([this, so, &data]() {
-      if (data.orderBook.add(so, bus_)) {
-        data.orderBook.match(bus_);
-      }
-      ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    });
+    bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
   void scheduleStatsTimer() {
@@ -162,7 +166,7 @@ private:
 
   bool telemetry_{false};
 
-  Vector<UPtr<CtxRunner>> workers_;
+  Vector<UPtr<Worker>> workers_;
 };
 
 } // namespace hft::server
