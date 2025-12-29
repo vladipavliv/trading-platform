@@ -87,6 +87,12 @@ public:
   void sendAck(CRef<ServerOrder> order, Consumer &consumer) {
     consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
   }
+
+  void clear() {
+    bids_.clear();
+    asks_.clear();
+    openedOrders_ = 0;
+  }
 #endif
 
   template <Busable Consumer>

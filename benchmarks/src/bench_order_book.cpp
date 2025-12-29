@@ -19,7 +19,7 @@ using namespace server;
 
 class BM_Sys_OrderBookFix : public benchmark::Fixture {
 public:
-  UPtr<OrderBook> book;
+  uint64_t counter;
 
   inline static Vector<ServerOrder> orders;
   inline static std::once_flag initFlag;
@@ -29,12 +29,14 @@ public:
       ServerConfig::load("bench_server_config.ini");
       LOG_INIT(ServerConfig::cfg.logOutput);
 
-      orders.reserve(ServerConfig::cfg.orderBookLimit);
-      for (size_t i = 0; i < ServerConfig::cfg.orderBookLimit; ++i) {
+      // const size_t ordersCount = ServerConfig::cfg.orderBookLimit - 1;
+      const size_t ordersCount = 16384;
+
+      orders.reserve(ordersCount);
+      for (size_t i = 0; i < ordersCount; ++i) {
         orders.emplace_back(ServerOrder{0, utils::generateOrder()});
       }
     });
-    book = std::make_unique<OrderBook>();
   }
 
   template <typename EventType>
@@ -48,25 +50,22 @@ public:
 template <>
 void BM_Sys_OrderBookFix::post<ServerOrderStatus>(CRef<ServerOrderStatus> event) {
   if (event.orderStatus.state == OrderState::Rejected) {
-    book->extract();
+    throw std::runtime_error("Increase OrderBook limit");
   }
+  ++counter;
 }
 
 BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
-  Vector<ServerOrder>::iterator iter = orders.begin();
-  for (auto _ : state) {
-    if (iter == orders.end()) {
-      iter = orders.begin();
-    }
+  OrderBook book;
+  while (state.KeepRunningBatch(orders.size())) {
+    book.clear();
 
-    CRef<ServerOrder> order = *iter++;
-    bool added = book->add(order, *this);
-    if (added) {
-      book->match(*this);
+    for (auto &order : orders) {
+      if (book.add(order, *this)) {
+        book.match(*this);
+      }
     }
-
-    benchmark::DoNotOptimize(&order);
-    benchmark::DoNotOptimize(added);
+    benchmark::DoNotOptimize(counter);
   }
 }
 

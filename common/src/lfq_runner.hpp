@@ -72,14 +72,15 @@ public:
 
   void stop() { running_.store(false, std::memory_order_release); }
 
-  void post(CRef<MessageType> message) {
+  bool post(CRef<MessageType> message) {
     size_t waitCycles = 0;
     while (!queue_.write(message)) {
       if (++waitCycles > MAX_EMPTY_CYCLES) {
-        throw std::runtime_error("failed to post to lfq runner");
+        return false;
       }
       asm volatile("pause" ::: "memory");
     }
+    return true;
   }
 
 private:

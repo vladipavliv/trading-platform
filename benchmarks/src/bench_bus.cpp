@@ -67,7 +67,12 @@ static void BM_Op_LfqRunner(benchmark::State &state) {
   lfqRunner.run();
 
   for (auto _ : state) {
-    lfqRunner.post(order);
+    auto tid = (uint32_t)order.ticker[0];
+    benchmark::DoNotOptimize(tid);
+
+    if (!lfqRunner.post(order)) {
+      asm volatile("pause" ::: "memory");
+    }
     ++produced;
     benchmark::DoNotOptimize(produced);
   }
