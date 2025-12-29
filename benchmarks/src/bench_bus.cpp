@@ -45,11 +45,11 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_SystemBusPost);
 
-struct alignas(64) Matcher {
+struct alignas(64) Consumer {
   alignas(64) std::atomic<uint64_t> consumed;
 
   template <typename Message>
-  void process(const Message &msg) {
+  void post(const Message &msg) {
     consumed.fetch_add(1, std::memory_order_relaxed);
   }
 };
@@ -60,10 +60,10 @@ static void BM_Op_LfqRunner(benchmark::State &state) {
   utils::pinThreadToCore(2);
 
   uint64_t produced = 0;
-  Matcher matcher;
+  Consumer consumer;
   SystemBus bus;
 
-  LfqRunner<Order, Matcher> lfqRunner{4, matcher, ErrorBus{bus}};
+  LfqRunner<Order, Consumer> lfqRunner(4, consumer, ErrorBus{bus});
   lfqRunner.run();
 
   for (auto _ : state) {
@@ -73,7 +73,7 @@ static void BM_Op_LfqRunner(benchmark::State &state) {
   }
 
   size_t waitCounter = 0;
-  while (matcher.consumed.load(std::memory_order_relaxed) < produced) {
+  while (consumer.consumed.load(std::memory_order_relaxed) < produced) {
     if (++waitCounter > 1000000) {
       throw std::runtime_error("Failed to benchmark LfqRunner");
     }

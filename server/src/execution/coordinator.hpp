@@ -53,7 +53,7 @@ class Coordinator {
   struct Matcher {
     Matcher(ServerBus &bus, const MarketData &data) : bus{bus}, data{data} {}
 
-    void process(CRef<ServerOrder> so) {
+    inline void post(CRef<ServerOrder> so) {
       const auto &oData = data.at(so.order.ticker);
       if (oData.orderBook.add(so, bus)) {
         oData.orderBook.match(bus);
@@ -103,24 +103,14 @@ private:
         ServerConfig::cfg.coresApp.empty() ? 1 : ServerConfig::cfg.coresApp.size();
 
     workers_.reserve(appCores);
-    // Notify the system when all the workers have started
-    const auto startCounter = std::make_shared<std::atomic_size_t>();
-    const auto notifyClb = [this, startCounter, appCores]() {
-      startCounter->fetch_add(1);
-      if (startCounter->load() == appCores) {
-        bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
-      };
-    };
     if (ServerConfig::cfg.coresApp.empty()) {
       workers_.emplace_back(std::make_unique<Worker>(matcher_, ErrorBus(bus_.systemBus)));
       workers_[0]->run();
-      // workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
         const auto coreId = ServerConfig::cfg.coresApp[i];
         workers_.emplace_back(std::make_unique<Worker>(coreId, matcher_, ErrorBus(bus_.systemBus)));
         workers_[i]->run();
-        // workers_[i]->ioCtx.post(notifyClb);
       }
     }
     bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});

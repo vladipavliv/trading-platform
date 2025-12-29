@@ -31,11 +31,11 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
   ServerConfig::cfg.coresApp.clear();
   ServerConfig::cfg.coresNetwork.clear();
 
-  ServerConfig::cfg.coreSystem = 2;
-  ServerConfig::cfg.coresNetwork.push_back(4);
+  ServerConfig::cfg.coreSystem = 12;
+  ServerConfig::cfg.coresNetwork.push_back(2);
 
   for (size_t i = 0; i < workerCount; ++i) {
-    ServerConfig::cfg.coresApp.push_back(6 + (i * 2));
+    ServerConfig::cfg.coresApp.push_back(4 + (i * 2));
   }
 
   fillMarketData();

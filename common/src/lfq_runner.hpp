@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <boost/lockfree/spsc_queue.hpp>
+#include <folly/ProducerConsumerQueue.h>
 #include <thread>
 
 #include "boost_types.hpp"
@@ -18,37 +19,44 @@
 #include "logging.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
+#include "vyukov_queue.hpp"
 
 namespace hft {
 
 /**
  * @brief
  */
-template <typename MessageType, typename Matcher>
+template <typename MessageType, typename Consumer>
 class LfqRunner {
-  using Queue = boost::lockfree::spsc_queue<MessageType>;
-  const size_t MAX_EMPTY_CYCLES = 10'000'000;
+  static constexpr size_t MAX_EMPTY_CYCLES = 1'000'000;
+  static constexpr size_t CAPACITY = 2'097'152;
+
+  // using Queue = boost::lockfree::spsc_queue<MessageType>;
+  // using Queue = VyukovQueue<MessageType, CAPACITY>;
+  using Queue = folly::ProducerConsumerQueue<MessageType>;
 
 public:
-  LfqRunner(Matcher &matcher, ErrorBus &&bus) : queue_{1000000}, matcher_{matcher} {}
+  LfqRunner(Consumer &consumer, ErrorBus &&bus) : queue_{CAPACITY}, consumer_{consumer} {}
 
-  LfqRunner(CoreId id, Matcher &matcher, ErrorBus &&bus)
-      : coreId_{id}, queue_{1000000}, matcher_{matcher} {}
+  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus)
+      : coreId_{id}, queue_{CAPACITY}, consumer_{consumer} {}
 
   ~LfqRunner() {}
 
   void run() {
-    running_ = true;
     thread_ = Thread([this]() {
       if (coreId_.has_value()) {
         utils::pinThreadToCore(coreId_.value());
       }
 
+      running_.store(true);
+      running_.notify_all();
+
       MessageType message;
       size_t idleCycles = 0;
-      while (running_.load(std::memory_order_relaxed)) {
-        if (queue_.pop(message)) {
-          matcher_.process(message);
+      while (running_.load(std::memory_order_acquire)) {
+        if (queue_.read(message)) {
+          consumer_.post(message);
         } else {
           if (++idleCycles < MAX_EMPTY_CYCLES) {
             asm volatile("pause" ::: "memory");
@@ -59,13 +67,14 @@ public:
         }
       }
     });
+    running_.wait(false);
   }
 
-  void stop() { running_ = false; }
+  void stop() { running_.store(false, std::memory_order_release); }
 
   void post(CRef<MessageType> message) {
     size_t waitCycles = 0;
-    while (!queue_.push(message)) {
+    while (!queue_.write(message)) {
       if (++waitCycles > MAX_EMPTY_CYCLES) {
         throw std::runtime_error("failed to post to lfq runner");
       }
@@ -79,7 +88,7 @@ private:
   Queue queue_;
   std::atomic_bool running_{false};
 
-  Matcher &matcher_;
+  Consumer &consumer_;
   Thread thread_;
 };
 
