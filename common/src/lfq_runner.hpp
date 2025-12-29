@@ -53,7 +53,7 @@ public:
           if (++idleCycles < MAX_EMPTY_CYCLES) {
             asm volatile("pause" ::: "memory");
           } else {
-            // std::this_thread::yield();
+            std::this_thread::yield();
             idleCycles = 0;
           }
         }

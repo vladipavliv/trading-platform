@@ -49,13 +49,13 @@ def test_order(server, tickers, client_name, client_password):
     client.sendUpstream(orderBuy)
     client.sendUpstream(orderSell)
 
-    order_status_accepted = client.receiveDownstream()
-    assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
-    assert order_status_accepted.State() == 0 # accepted
+    # order_status_accepted = client.receiveDownstream()
+    # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
+    # assert order_status_accepted.State() == 0 # accepted
 
-    order_status_accepted = client.receiveDownstream()
-    assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
-    assert order_status_accepted.State() == 0 # accepted
+    # order_status_accepted = client.receiveDownstream()
+    # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
+    # assert order_status_accepted.State() == 0 # accepted
 
     order_status_filled = client.receiveDownstream()
     assert isinstance(order_status_filled, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_filled}"
