@@ -53,17 +53,14 @@ public:
       running_.notify_all();
 
       MessageType message;
-      size_t idleCycles = 0;
+      // size_t idleCycles = 0;
       while (running_.load(std::memory_order_acquire)) {
         if (queue_.read(message)) {
-          consumer_.post(message);
+          do {
+            consumer_.post(message);
+          } while (queue_.read(message));
         } else {
-          if (++idleCycles < MAX_EMPTY_CYCLES) {
-            asm volatile("pause" ::: "memory");
-          } else {
-            std::this_thread::yield();
-            idleCycles = 0;
-          }
+          asm volatile("pause" ::: "memory");
         }
       }
     });

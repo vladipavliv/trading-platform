@@ -12,8 +12,13 @@
 
 namespace hft::client {
 
-using ClientBus = BusHolder<MessageBus<Order, OrderStatus, TickerPrice>,
-                            StreamBus<OrderTimestamp, RuntimeMetrics>>;
-}
+#ifdef TELEMETRY_ENABLED
+using StreamBusType = StreamBus<OrderTimestamp, RuntimeMetrics>;
+#else
+using StreamBusType = StreamBus<>;
+#endif
+
+using ClientBus = BusHolder<MessageBus<Order, OrderStatus, TickerPrice>, StreamBusType>;
+} // namespace hft::client
 
 #endif // HFT_CLIENT_CLIENTTYPES_HPP

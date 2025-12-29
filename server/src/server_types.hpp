@@ -48,8 +48,13 @@ struct ServerOrderStatus {
   OrderStatus orderStatus;
 };
 
-using ServerBus = BusHolder<MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>,
-                            StreamBus<OrderTimestamp, RuntimeMetrics>>;
+#ifdef TELEMETRY_ENABLED
+using StreamBusType = StreamBus<OrderTimestamp, RuntimeMetrics>;
+#else
+using StreamBusType = StreamBus<>;
+#endif
+
+using ServerBus = BusHolder<MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>, StreamBusType>;
 } // namespace hft::server
 
 namespace hft::utils {

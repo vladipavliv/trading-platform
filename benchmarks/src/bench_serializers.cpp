@@ -31,7 +31,7 @@ OrderTimestamp generateOrderTimestamp() {
 }
 } // namespace
 
-static void BM_Ser_ProtoSerialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_ProtoSerialize(benchmark::State &state) {
   const OrderTimestamp ot{generateOrderTimestamp()};
   String data;
 
@@ -42,9 +42,9 @@ static void BM_Ser_ProtoSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&data);
   benchmark::DoNotOptimize(&ot);
 }
-BENCHMARK(BM_Ser_ProtoSerialize);
+BENCHMARK(DISABLED_BM_Ser_ProtoSerialize);
 
-static void BM_Ser_ProtoDeserialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_ProtoDeserialize(benchmark::State &state) {
   using Bustype = BusHolder<MessageBus<OrderTimestamp>>;
 
   Bustype bus;
@@ -60,9 +60,9 @@ static void BM_Ser_ProtoDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&msg);
   benchmark::DoNotOptimize(&ok);
 }
-BENCHMARK(BM_Ser_ProtoDeserialize);
+BENCHMARK(DISABLED_BM_Ser_ProtoDeserialize);
 
-static void BM_Ser_FbsSerialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
   ByteBuffer buffer;
   size_t size{0};
@@ -75,9 +75,9 @@ static void BM_Ser_FbsSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
-BENCHMARK(BM_Ser_FbsSerialize);
+BENCHMARK(DISABLED_BM_Ser_FbsSerialize);
 
-static void BM_Ser_FbsDeserialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHolder<MessageBus<Order>>;
 
   BusType bus;
@@ -92,9 +92,9 @@ static void BM_Ser_FbsDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);
 }
-BENCHMARK(BM_Ser_FbsDeserialize);
+BENCHMARK(DISABLED_BM_Ser_FbsDeserialize);
 
-static void BM_Ser_SbeSerialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
   Vector<uint8_t> buffer;
   size_t size{0};
@@ -107,9 +107,9 @@ static void BM_Ser_SbeSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
-BENCHMARK(BM_Ser_SbeSerialize);
+BENCHMARK(DISABLED_BM_Ser_SbeSerialize);
 
-static void BM_Ser_SbeDeserialize(benchmark::State &state) {
+static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   using BusType = BusHolder<MessageBus<Order>>;
 
   const Order order = utils::generateOrder();
@@ -126,6 +126,6 @@ static void BM_Ser_SbeDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);
 }
-BENCHMARK(BM_Ser_SbeDeserialize);
+BENCHMARK(DISABLED_BM_Ser_SbeDeserialize);
 
 } // namespace hft::benchmarks

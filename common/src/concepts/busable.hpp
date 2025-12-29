@@ -18,7 +18,7 @@ template <typename Bus>
 concept Busable = [] {
   struct ProbeType {};
   return requires(Bus &bus) {
-    { bus.template post<ProbeType>(std::declval<const ProbeType &>()) } -> std::same_as<void>;
+    { bus.template post<ProbeType>(std::declval<const ProbeType &>()) };
   };
 }();
 

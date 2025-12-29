@@ -29,7 +29,7 @@ namespace hft {
 template <typename... Events>
 class StreamBus {
   static constexpr size_t QUEUE_SIZE = 1024 * 512;
-  static constexpr size_t RETRY_COUNT = 100;
+  static constexpr size_t RETRY_COUNT = 1'000'000;
 
   static constexpr size_t EventCount = sizeof...(Events);
 
@@ -47,6 +47,11 @@ public:
       : rate_{Config::get<size_t>("rates.telemetry_ms")},
         queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
         runner_{ErrorBus{bus}}, timer_{runner_.ioCtx} {}
+
+  explicit StreamBus(CoreId coreId, SystemBus &bus)
+      : rate_{Config::get<size_t>("rates.telemetry_ms")},
+        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
+        runner_{0, coreId, ErrorBus{bus}}, timer_{runner_.ioCtx} {}
 
   inline IoCtx &streamIoCtx() { return runner_.ioCtx; }
 
@@ -66,27 +71,28 @@ public:
 
   template <typename Event>
     requires Routed<Event>
-  inline void post(CRef<Event> event) {
+  inline bool post(CRef<Event> event) {
     if (!running_) {
       LOG_ERROR_SYSTEM("StreamBus is not running");
-      return;
+      return false;
     }
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
     auto &handler = std::get<CRefHandler<Event>>(handlers_);
 
     if (!handler) {
       LOG_ERROR("Handler is not set for the type {}", typeid(Event).name());
-      return;
+      return false;
     }
 
     size_t pushRetry{0};
     while (!queue->push(event)) {
       if (++pushRetry > RETRY_COUNT) {
         LOG_ERROR_SYSTEM("StreamBus event queue is full for {}", typeid(Event).name());
-        return;
+        return false;
       }
-      std::this_thread::yield();
+      asm volatile("pause" ::: "memory");
     }
+    return true;
   }
 
   void run() {
@@ -124,6 +130,7 @@ private:
       while (!empty()) {
         (process<Events>(), ...);
       }
+      asm volatile("pause" ::: "memory");
       scheduleStatsTimer();
     });
   }
@@ -157,6 +164,35 @@ private:
 
   CtxRunner runner_;
   SteadyTimer timer_;
+};
+
+template <>
+class StreamBus<> {
+public:
+  template <typename Event>
+  static constexpr bool Routed = false;
+
+  explicit StreamBus(SystemBus &) {}
+  explicit StreamBus(CoreId, SystemBus &) {}
+
+  inline IoCtx *streamIoCtx() {
+    LOG_ERROR("Use of uninitialized StreamBus");
+    return nullptr;
+  }
+
+  template <typename Event>
+  void subscribe(CRefHandler<Event> &&) {
+    LOG_ERROR("Use of uninitialized StreamBus");
+  }
+
+  template <typename Event>
+  inline bool post(CRef<Event>) {
+    LOG_ERROR("Use of uninitialized StreamBus");
+    return false;
+  }
+
+  void run() {}
+  void stop() {}
 };
 
 } // namespace hft

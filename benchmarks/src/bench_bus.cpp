@@ -13,12 +13,12 @@
 
 namespace hft::benchmarks {
 
-static void BM_Op_MessageBusPost(benchmark::State &state) {
+static void DISABLED_BM_Op_MessageBusPost(benchmark::State &state) {
   size_t counter{0};
   const auto order = utils::generateOrder();
 
   MessageBus<Order> bus;
-  bus.subscribe<Order>([&counter](CRef<Order> order) { counter += order.id; });
+  bus.subscribe<Order>([&counter, &state, order](CRef<Order> o) { counter += o.id; });
 
   for (auto _ : state) {
     bus.post<Order>(order);
@@ -26,9 +26,9 @@ static void BM_Op_MessageBusPost(benchmark::State &state) {
     benchmark::DoNotOptimize(counter);
   }
 }
-BENCHMARK(BM_Op_MessageBusPost);
+BENCHMARK(DISABLED_BM_Op_MessageBusPost);
 
-static void BM_Op_SystemBusPost(benchmark::State &state) {
+static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
   utils::pinThreadToCore(4);
@@ -43,7 +43,7 @@ static void BM_Op_SystemBusPost(benchmark::State &state) {
   }
   bus.stop();
 }
-BENCHMARK(BM_Op_SystemBusPost);
+BENCHMARK(DISABLED_BM_Op_SystemBusPost);
 
 struct alignas(64) Consumer {
   alignas(64) std::atomic<uint64_t> consumed;
@@ -88,20 +88,44 @@ static void BM_Op_LfqRunner(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_LfqRunner);
 
-static void DISABLED_BM_Op_StreamBusPost(benchmark::State &state) {
+static void BM_Op_StreamBusPost(benchmark::State &state) {
   const auto order = utils::generateOrder();
 
+  utils::pinThreadToCore(2);
+
+  uint64_t produced = 0;
+  std::atomic_uint64_t consumed;
+
   SystemBus systemBus;
-  StreamBus<Order> streamBus{systemBus};
-  streamBus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
+  StreamBus<Order> streamBus{Config::get<CoreId>("bench.stream_core"), systemBus};
+
+  streamBus.subscribe<Order>([&consumed](CRef<Order> o) {
+    consumed.fetch_add(1, std::memory_order_relaxed);
+    o.partialFill(1);
+  });
   streamBus.run();
 
   for (auto _ : state) {
-    streamBus.post<Order>(order);
+    auto tid = (uint32_t)order.ticker[0];
+    benchmark::DoNotOptimize(tid);
+
+    if (!streamBus.post<Order>(order)) {
+      asm volatile("pause" ::: "memory");
+    }
+    ++produced;
     benchmark::DoNotOptimize(&order);
   }
+  uint64_t waitCycles = 0;
+  while (consumed.load(std::memory_order_relaxed) < produced) {
+    if (++waitCycles > 10000000) {
+      throw std::runtime_error(std::format("BM_Op_StreamBusPost produced: {} consumed: {}",
+                                           produced, consumed.load(std::memory_order_relaxed)));
+    }
+    asm volatile("pause" ::: "memory");
+  }
+
   streamBus.stop();
 }
-BENCHMARK(DISABLED_BM_Op_StreamBusPost);
+BENCHMARK(BM_Op_StreamBusPost);
 
 } // namespace hft::benchmarks

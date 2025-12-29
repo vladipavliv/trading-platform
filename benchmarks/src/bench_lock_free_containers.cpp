@@ -14,7 +14,7 @@ namespace hft::benchmarks {
 
 constexpr size_t capacity{1ULL << 15};
 
-static void BM_Op_VykovMpmcQueue(benchmark::State &state) {
+static void DISABLED_BM_Op_VykovMpmcQueue(benchmark::State &state) {
   auto queue = std::make_unique<VyukovQueue<size_t, capacity>>();
 
   size_t value{0};
@@ -30,9 +30,9 @@ static void BM_Op_VykovMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(value);
   benchmark::DoNotOptimize(write);
 }
-BENCHMARK(BM_Op_VykovMpmcQueue);
+BENCHMARK(DISABLED_BM_Op_VykovMpmcQueue);
 
-static void BM_Op_FollyMpmcQueue(benchmark::State &state) {
+static void DISABLED_BM_Op_FollyMpmcQueue(benchmark::State &state) {
   auto queue = std::make_unique<folly::MPMCQueue<size_t>>(capacity);
 
   size_t value;
@@ -48,9 +48,9 @@ static void BM_Op_FollyMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(value);
   benchmark::DoNotOptimize(write);
 }
-BENCHMARK(BM_Op_FollyMpmcQueue);
+BENCHMARK(DISABLED_BM_Op_FollyMpmcQueue);
 
-static void BM_Op_BoostMpmcQueue(benchmark::State &state) {
+static void DISABLED_BM_Op_BoostMpmcQueue(benchmark::State &state) {
   auto queue = std::make_unique<boost::lockfree::queue<size_t>>(capacity);
 
   size_t value{0};
@@ -66,6 +66,6 @@ static void BM_Op_BoostMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(value);
   benchmark::DoNotOptimize(write);
 }
-BENCHMARK(BM_Op_BoostMpmcQueue);
+BENCHMARK(DISABLED_BM_Op_BoostMpmcQueue);
 
 } // namespace hft::benchmarks

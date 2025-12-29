@@ -95,7 +95,7 @@ Monitor:
 
 Benchmarks:
 ```bash
-2025-12-29T07:15:13+01:00
+2025-12-29T23:03:50+01:00
 Running ./run_benchmarks
 Run on (20 X 4600 MHz CPU s)
 CPU Caches:
@@ -103,27 +103,18 @@ CPU Caches:
   L1 Instruction 32 KiB (x10)
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
-Load Average: 1.45, 1.48, 1.50
+Load Average: 3.39, 1.71, 1.53
 ***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 --------------------------------------------------------------------------
 Benchmark                                Time             CPU   Iterations
 --------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1        124 ns          124 ns      6291456 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2       71.1 ns         71.1 ns     10485760 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3       49.2 ns         49.2 ns     14680064 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4       43.9 ns         43.9 ns     14680064 4 worker(s)
-BM_Ser_ProtoSerialize                  155 ns          155 ns      4703107
-BM_Ser_ProtoDeserialize                106 ns          106 ns      6239428
-BM_Ser_FbsSerialize                    127 ns          127 ns      5884048
-BM_Ser_FbsDeserialize                 27.4 ns         25.9 ns     28605473
-BM_Ser_SbeSerialize                   4.07 ns         3.93 ns    171509780
-BM_Ser_SbeDeserialize                 13.7 ns         13.3 ns     53795182
-BM_Sys_OrderBookFix/AddOrder           116 ns          115 ns      5887201
-BM_Op_VykovMpmcQueue                  13.4 ns         13.4 ns     49638099
-BM_Op_FollyMpmcQueue                  43.7 ns         43.7 ns     15873203
-BM_Op_BoostMpmcQueue                  34.3 ns         34.3 ns     20681295
-BM_Op_MessageBusPost                  1.79 ns         1.79 ns    397134516
-BM_Op_SystemBusPost                    217 ns          215 ns      3198985
+BM_Sys_ServerFix/AsyncProcess/1        127 ns          127 ns      6291456 1 worker(s)
+BM_Sys_ServerFix/AsyncProcess/2       81.6 ns         81.6 ns     10485760 2 worker(s)
+BM_Sys_ServerFix/AsyncProcess/3       60.2 ns         60.1 ns     12582912 3 worker(s)
+BM_Sys_ServerFix/AsyncProcess/4       52.5 ns         52.5 ns     14680064 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder          69.3 ns         69.3 ns      9830400
+BM_Op_LfqRunner                       38.5 ns         38.4 ns     22548237
+BM_Op_StreamBusPost                   20.6 ns         20.6 ns     33024150
 ```
 
 Stress test (Server + Python tester with 5m pregenerated orders):
