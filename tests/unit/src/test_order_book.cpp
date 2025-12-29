@@ -55,6 +55,11 @@ public:
 
   template <typename EventType>
   void post(CRef<EventType>) {}
+
+  void addOrder(ServerOrder order) {
+    book->add(order, *this);
+    book->sendAck(order, *this);
+  }
 };
 
 template <>
@@ -70,13 +75,13 @@ TEST_F(OrderBookFixture, OrderBookLimitReqched) {
 }
 
 TEST_F(OrderBookFixture, OrdersWontMatch) {
-  book->add<OrderBookFixture>({cId(), {oId(), ts(), tkr, 1, 40, SELL}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 50, SELL}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 60, SELL}}, *this);
+  addOrder({cId(), {oId(), ts(), tkr, 1, 40, SELL}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 50, SELL}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 60, SELL}});
 
-  book->add({cId(), {oId(), ts(), tkr, 1, 30, BUY}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 20, BUY}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 10, BUY}}, *this);
+  addOrder({cId(), {oId(), ts(), tkr, 1, 30, BUY}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 20, BUY}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 10, BUY}});
 
   book->match(*this);
 
@@ -85,13 +90,13 @@ TEST_F(OrderBookFixture, OrdersWontMatch) {
 }
 
 TEST_F(OrderBookFixture, 3Buy3SellMatch) {
-  book->add({cId(), {oId(), ts(), tkr, 1, 40, BUY}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 50, BUY}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 60, BUY}}, *this);
+  addOrder({cId(), {oId(), ts(), tkr, 1, 40, BUY}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 50, BUY}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 60, BUY}});
 
-  book->add({cId(), {oId(), ts(), tkr, 1, 30, SELL}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 20, SELL}}, *this);
-  book->add({cId(), {oId(), ts(), tkr, 1, 10, SELL}}, *this);
+  addOrder({cId(), {oId(), ts(), tkr, 1, 30, SELL}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 20, SELL}});
+  addOrder({cId(), {oId(), ts(), tkr, 1, 10, SELL}});
 
   book->match(*this);
 
@@ -104,11 +109,11 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   Price price{10};
 
   for (uint32_t idx = 0; idx < 10; ++idx) {
-    book->add({cId(), {oId(), ts(), tkr, idx, price, BUY}}, *this);
+    addOrder({cId(), {oId(), ts(), tkr, idx, price, BUY}});
     quantity += idx;
   }
 
-  book->add({cId(), {oId(), ts(), tkr, quantity, price, SELL}}, *this);
+  addOrder({cId(), {oId(), ts(), tkr, quantity, price, SELL}});
   book->match(*this);
 
   printStatusQ();

@@ -38,7 +38,7 @@ struct ServerLoginResponse {
   String error{""};
 };
 
-struct alignas(8) ServerOrder {
+struct ServerOrder {
   ClientId clientId;
   Order order;
 };

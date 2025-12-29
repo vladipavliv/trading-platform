@@ -23,8 +23,10 @@ inline Ticker makeTicker(const std::string &str) {
 }
 
 struct TickerHash {
-  std::size_t operator()(const Ticker &t) const {
-    return std::hash<std::string_view>{}(std::string_view(t.data(), t.size()));
+  std::size_t operator()(const Ticker &t) const noexcept {
+    uint32_t val;
+    std::memcpy(&val, t.data(), 4);
+    return static_cast<std::size_t>(val);
   }
 };
 
