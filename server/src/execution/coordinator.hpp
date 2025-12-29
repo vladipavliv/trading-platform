@@ -58,7 +58,12 @@ class Coordinator {
       if (oData.orderBook.add(so, bus)) {
         oData.orderBook.match(bus);
       }
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
+      oData.orderBook.sendAck(so, bus);
+#endif
+#ifdef TELEMETRY_ENABLED
       ordersTotal.fetch_add(1, std::memory_order_relaxed);
+#endif
     }
 
     ServerBus &bus;

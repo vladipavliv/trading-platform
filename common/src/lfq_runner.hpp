@@ -27,7 +27,7 @@ namespace hft {
  * @brief
  */
 template <typename MessageType, typename Consumer>
-class LfqRunner {
+class alignas(64) LfqRunner {
   static constexpr size_t MAX_EMPTY_CYCLES = 1'000'000;
   static constexpr size_t CAPACITY = 2'097'152;
 
