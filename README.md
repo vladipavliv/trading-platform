@@ -108,10 +108,10 @@ Load Average: 1.45, 1.48, 1.50
 --------------------------------------------------------------------------
 Benchmark                                Time             CPU   Iterations
 --------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1        274 ns          271 ns      8388608 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2        232 ns          231 ns      8388608 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3        264 ns          264 ns      8388608 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4        313 ns          312 ns      8388608 4 worker(s)
+BM_Sys_ServerFix/AsyncProcess/1        196 ns          196 ns      8388608 1 worker(s)
+BM_Sys_ServerFix/AsyncProcess/2        111 ns          111 ns      8388608 2 worker(s)
+BM_Sys_ServerFix/AsyncProcess/3       87.6 ns         87.6 ns      8388608 3 worker(s)
+BM_Sys_ServerFix/AsyncProcess/4       97.7 ns         97.6 ns      8388608 4 worker(s)
 BM_Ser_ProtoSerialize                  155 ns          155 ns      4703107
 BM_Ser_ProtoDeserialize                106 ns          106 ns      6239428
 BM_Ser_FbsSerialize                    127 ns          127 ns      5884048
@@ -137,9 +137,9 @@ Manual localhost tests:
 1 client, all threads pinned, 1us trade rate:
 ```bash
 Server:
-01:36:13.608573 [I] Orders: [opn|ttl] 2,066,553|9,492,642 | Rps: 136,410
+12:58:51.861771 [I] Orders: [opn|ttl] 1802821|8349663 | Rps: 145634
 Client:
-01:36:12.287540 [I] Rtt: [<50us|>50us] 99.76% avg:17us 0.24% avg:66us
+12:58:51.198196 [I] Rtt: [<50us|>50us] 99.98% avg:14us 0.02% avg:99us
 ```
 
 3 clients, no client pinning, 6us trade rate:

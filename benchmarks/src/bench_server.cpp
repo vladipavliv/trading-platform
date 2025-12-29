@@ -48,6 +48,7 @@ void BM_Sys_ServerFix::TearDown(const ::benchmark::State &state) {
     coordinator->stop();
     coordinator.reset();
   }
+  cleanup();
 }
 
 void BM_Sys_ServerFix::setupBus() {
@@ -56,7 +57,6 @@ void BM_Sys_ServerFix::setupBus() {
   bus = std::make_unique<ServerBus>();
   bus->systemBus.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
     if (event.state == ServerState::Operational) {
-      LOG_INFO("Coordinator is ready for benchmarking");
       flag.test_and_set();
       flag.notify_all();
     }
@@ -153,6 +153,8 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
     while (!signal.test(std::memory_order_acquire)) {
       asm volatile("pause" ::: "memory");
     }
+    benchmark::DoNotOptimize(processed);
+    benchmark::DoNotOptimize(signal);
   }
 }
 

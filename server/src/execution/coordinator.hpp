@@ -10,6 +10,7 @@
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
+#include "lfq_runner.hpp"
 #include "order_book.hpp"
 #include "server_events.hpp"
 #include "server_market_data.hpp"
@@ -49,11 +50,32 @@ namespace hft::server {
  * value to have its id, and flag 'free', and it exchanges it with its id and flag 'busy'
  */
 class Coordinator {
+  struct Matcher {
+    Matcher(ServerBus &bus, const MarketData &data) : bus{bus}, data{data} {}
+
+    void process(CRef<ServerOrder> so) {
+      const auto &oData = data.at(so.order.ticker);
+      if (oData.orderBook.add(so, bus)) {
+        oData.orderBook.match(bus);
+      }
+      ordersTotal.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    ServerBus &bus;
+    const MarketData &data;
+    std::atomic_uint64_t ordersTotal;
+  };
+
+  using Worker = LfqRunner<ServerOrder, Matcher>;
+
 public:
   Coordinator(ServerBus &bus, CRef<MarketData> data)
-      : bus_{bus}, data_{data}, timer_{bus_.systemIoCtx()},
-        monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)} {
-    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) { processOrder(order); });
+      : bus_{bus}, timer_{bus_.systemIoCtx()},
+        monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
+    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
+      const auto &data = matcher_.data.at(order.order.ticker);
+      workers_[data.getThreadId()]->post(order);
+    });
     bus_.subscribe(ServerCommand::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
@@ -86,34 +108,22 @@ private:
     const auto notifyClb = [this, startCounter, appCores]() {
       startCounter->fetch_add(1);
       if (startCounter->load() == appCores) {
-        // Simplified notification for now that server is operational
-        // ideally all the components start asynchronously and cc tracks the status
         bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
       };
     };
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<CtxRunner>(ErrorBus(bus_.systemBus)));
+      workers_.emplace_back(std::make_unique<Worker>(matcher_, ErrorBus(bus_.systemBus)));
       workers_[0]->run();
-      workers_[0]->ioCtx.post(notifyClb);
+      // workers_[0]->ioCtx.post(notifyClb);
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        workers_.emplace_back(std::make_unique<CtxRunner>(i, ServerConfig::cfg.coresApp[i],
-                                                          ErrorBus(bus_.systemBus)));
+        const auto coreId = ServerConfig::cfg.coresApp[i];
+        workers_.emplace_back(std::make_unique<Worker>(coreId, matcher_, ErrorBus(bus_.systemBus)));
         workers_[i]->run();
-        workers_[i]->ioCtx.post(notifyClb);
+        // workers_[i]->ioCtx.post(notifyClb);
       }
     }
-  }
-
-  void processOrder(CRef<ServerOrder> so) {
-    LOG_TRACE("{}", utils::toString(so));
-    const auto &data = data_.at(so.order.ticker);
-    workers_[data.getThreadId()]->ioCtx.post([this, so, &data]() {
-      if (data.orderBook.add(so, bus_)) {
-        data.orderBook.match(bus_);
-      }
-      ordersTotal_.fetch_add(1, std::memory_order_relaxed);
-    });
+    bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
   void scheduleStatsTimer() {
@@ -126,7 +136,7 @@ private:
         return;
       }
       static std::atomic_uint64_t lastTtl = 0;
-      const uint64_t currentTtl = ordersTotal_.load(std::memory_order_relaxed);
+      const uint64_t currentTtl = matcher_.ordersTotal.load(std::memory_order_relaxed);
       const uint64_t rps = (currentTtl - lastTtl) / monitorRate_.count();
 
       if (rps != 0) {
@@ -144,7 +154,7 @@ private:
 
   size_t openedOrders() const {
     size_t orders{0};
-    for (auto &it : data_) {
+    for (auto &it : matcher_.data) {
       orders += it.second.orderBook.openedOrders();
     }
     return orders;
@@ -152,17 +162,14 @@ private:
 
 private:
   ServerBus &bus_;
-  const MarketData &data_;
 
   SteadyTimer timer_;
   const Seconds monitorRate_;
 
-  std::atomic_uint64_t ordersTotal_;
-  std::atomic_uint64_t ordersOpened_;
-
+  Matcher matcher_;
   bool telemetry_{false};
 
-  Vector<UPtr<CtxRunner>> workers_;
+  Vector<UPtr<Worker>> workers_;
 };
 
 } // namespace hft::server

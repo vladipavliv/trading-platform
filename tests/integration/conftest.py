@@ -24,7 +24,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--stress-iterations", 
         action="store", 
-        default="1000000", 
+        default="5000000", 
         help="Iterations for stress test"
     )
 

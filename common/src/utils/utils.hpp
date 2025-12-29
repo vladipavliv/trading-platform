@@ -152,7 +152,7 @@ inline Ticker generateTicker() {
 
 inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
   return Order{generateOrderId(),
-               getCycles(),
+               getTimestamp(),
                ticker,
                RNG::generate<Quantity>(0, 1000),
                RNG::generate<Price>(10, 10000),

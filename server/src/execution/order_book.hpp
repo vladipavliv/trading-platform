@@ -80,7 +80,9 @@ public:
     }
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
 
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
     consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
+#endif
     return true;
   }
 
