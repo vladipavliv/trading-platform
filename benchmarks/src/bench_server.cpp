@@ -107,45 +107,31 @@ BENCHMARK_F(BM_Sys_ServerFix, AsyncProcess_1Worker)(benchmark::State &state) {
     utils::pinThreadToCore(ServerConfig::cfg.coresNetwork.front());
   }
 
-  uint64_t sent = 0;
-  alignas(64) std::atomic<uint64_t> processed = 0;
+  const uint64_t ordersCount = orders.size();
 
-  bus->subscribe<ServerOrderStatus>([&processed](CRef<ServerOrderStatus> s) {
-    if (s.orderStatus.state == OrderState::Accepted) {
-      processed.fetch_add(1, std::memory_order_relaxed);
+  while (state.KeepRunningBatch(ordersCount)) {
+    state.PauseTiming();
+
+    std::atomic<uint64_t> processed{0};
+    alignas(64) std::promise<void> completionPromise;
+
+    bus->subscribe<ServerOrderStatus>([&](CRef<ServerOrderStatus> s) {
+      if (s.orderStatus.state == OrderState::Accepted) {
+        if (processed.fetch_add(1) + 1 == ordersCount) {
+          completionPromise.set_value();
+        }
+      }
+    });
+
+    processed.store(0);
+    std::future<void> done = completionPromise.get_future();
+    state.ResumeTiming();
+
+    for (const auto &order : orders) {
+      bus->post(order);
     }
-  });
-
-  const auto postStart = utils::getTimestampNs();
-  auto iter = orders.begin();
-  for (auto _ : state) {
-    if (iter == orders.end()) {
-      iter = orders.begin();
-    }
-    ServerOrder &order = *iter++;
-    bus->post(order);
-    ++sent;
+    done.wait();
   }
-  const auto postEnd = utils::getTimestampNs();
-
-  const auto backlog = sent - processed.load(std::memory_order_relaxed);
-  while (processed.load(std::memory_order_relaxed) < sent) {
-    asm volatile("pause" ::: "memory");
-  }
-  const auto processEnd = utils::getTimestampNs();
-
-  const double fullTime = processEnd - postStart;
-
-  if (sent != 0 && postEnd != postStart && processEnd != postEnd && backlog != 0 && fullTime != 0) {
-    std::cout << std::setprecision(2) << "iterations: " << sent << " post: " << postEnd - postStart
-              << " avg post: " << (postEnd - postStart) / sent
-              << " backlog: " << processEnd - postEnd
-              << " avg backlog: " << (processEnd - postEnd) / backlog << "ns"
-              << " ratio: " << ((double)(postEnd - postStart)) / fullTime << "/"
-              << ((double)(processEnd - postEnd)) / fullTime << std::endl;
-  }
-
-  state.SetItemsProcessed(sent);
 }
 
 } // namespace hft::benchmarks

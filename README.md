@@ -107,10 +107,10 @@ Load Average: 1.60, 1.00, 0.40
 ------------------------------------------------------------------------------------------------
 Benchmark                                      Time             CPU   Iterations UserCounters...
 ------------------------------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess_1Worker        227 ns          224 ns      2966545 items_per_second=4.47133M/s
-BM_Sys_ServerFix/AsyncProcess_2Workers       273 ns          272 ns      2550539 items_per_second=3.68002M/s
-BM_Sys_ServerFix/AsyncProcess_3Workers       362 ns          361 ns      1928000 items_per_second=2.76702M/s
-BM_Sys_ServerFix/AsyncProcess_4Workers       509 ns          508 ns      1346816 items_per_second=1.96842M/s
+BM_Sys_ServerFix/AsyncProcess_1Worker        291 ns          227 ns      8388608
+BM_Sys_ServerFix/AsyncProcess_2Workers       267 ns          266 ns      8388608
+BM_Sys_ServerFix/AsyncProcess_3Workers       358 ns          357 ns      8388608
+BM_Sys_ServerFix/AsyncProcess_4Workers       459 ns          458 ns      8388608
 BM_Ser_ProtoSerialize                        182 ns          182 ns      3736254
 BM_Ser_ProtoDeserialize                      133 ns          133 ns      5200438
 BM_Ser_FbsSerialize                          150 ns          150 ns      5359374
