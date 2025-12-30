@@ -53,41 +53,7 @@ static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
 }
 BENCHMARK(DISABLED_BM_Op_SystemBusPost);
 
-static void BM_Op_LfqRunnerPost(benchmark::State &state) {
-  const auto order = ServerOrder{0, generateOrder()};
-
-  pinThreadToCore(2);
-
-  uint64_t produced = 0;
-  Consumer consumer;
-  SystemBus bus;
-
-  LfqRunner<ServerOrder, Consumer, CAPACITY> lfqRunner(4, consumer, ErrorBus{bus});
-  lfqRunner.run();
-
-  for (auto _ : state) {
-    auto tid = (uint32_t)order.order.ticker[0];
-    benchmark::DoNotOptimize(tid);
-
-    if (!lfqRunner.post(order)) {
-      asm volatile("pause" ::: "memory");
-    }
-    ++produced;
-    benchmark::DoNotOptimize(produced);
-  }
-
-  size_t waitCounter = 0;
-  while (consumer.processed.load(std::memory_order_relaxed) < produced) {
-    if (++waitCounter > 1000000) {
-      throw std::runtime_error("Failed to benchmark LfqRunner");
-    }
-    asm volatile("pause" ::: "memory");
-  }
-  lfqRunner.stop();
-}
-BENCHMARK(BM_Op_LfqRunnerPost);
-
-static void BM_Op_LfqRunnerRtt(benchmark::State &state) {
+static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
 
@@ -121,47 +87,9 @@ static void BM_Op_LfqRunnerRtt(benchmark::State &state) {
 
   lfqRunner.stop();
 }
-BENCHMARK(BM_Op_LfqRunnerRtt);
+BENCHMARK(BM_Op_LfqRunnerThroughput);
 
-static void BM_Op_StreamBusPost(benchmark::State &state) {
-  const auto order = ServerOrder{0, generateOrder()};
-
-  pinThreadToCore(2);
-
-  uint64_t produced = 0;
-  std::atomic_uint64_t consumed;
-
-  SystemBus systemBus;
-  StreamBus<CAPACITY, ServerOrder> streamBus{Config::get<CoreId>("bench.stream_core"), systemBus};
-
-  streamBus.subscribe<ServerOrder>(
-      [&consumed](CRef<ServerOrder> o) { consumed.fetch_add(1, std::memory_order_relaxed); });
-  streamBus.run();
-
-  for (auto _ : state) {
-    auto tid = (uint32_t)order.order.ticker[0];
-    benchmark::DoNotOptimize(tid);
-
-    if (!streamBus.post<ServerOrder>(order)) {
-      asm volatile("pause" ::: "memory");
-    }
-    ++produced;
-    benchmark::DoNotOptimize(&order);
-  }
-  uint64_t waitCycles = 0;
-  while (consumed.load(std::memory_order_relaxed) < produced) {
-    if (++waitCycles > 10000000) {
-      throw std::runtime_error(std::format("BM_Op_StreamBusPost produced: {} consumed: {}",
-                                           produced, consumed.load(std::memory_order_relaxed)));
-    }
-    asm volatile("pause" ::: "memory");
-  }
-
-  streamBus.stop();
-}
-BENCHMARK(BM_Op_StreamBusPost);
-
-static void BM_Op_StreamBusRtt(benchmark::State &state) {
+static void BM_Op_StreamBusThroughput(benchmark::State &state) {
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
 
@@ -202,6 +130,6 @@ static void BM_Op_StreamBusRtt(benchmark::State &state) {
 
   streamBus.stop();
 }
-BENCHMARK(BM_Op_StreamBusRtt);
+BENCHMARK(BM_Op_StreamBusThroughput);
 
 } // namespace hft::benchmarks

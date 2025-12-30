@@ -113,10 +113,8 @@ BM_Sys_ServerFix/AsyncProcess/2       74.5 ns         74.5 ns     10485760 2 wor
 BM_Sys_ServerFix/AsyncProcess/3       55.9 ns         55.9 ns     14680064 3 worker(s)
 BM_Sys_ServerFix/AsyncProcess/4       46.6 ns         46.6 ns     16777216 4 worker(s)
 BM_Sys_OrderBookFix/AddOrder          65.9 ns         65.9 ns     10403840
-BM_Op_LfqRunnerPost                   10.2 ns         10.2 ns     65848161
-BM_Op_LfqRunnerRtt                    10.1 ns         10.1 ns     69206016
-BM_Op_StreamBusPost                   13.0 ns         12.9 ns     61816808
-BM_Op_StreamBusRtt                    12.6 ns         12.6 ns     56623104
+BM_Op_LfqRunnerThroughput             10.1 ns         10.1 ns     69206016
+BM_Op_StreamBusThroughput             12.6 ns         12.6 ns     56623104
 ```
 
 Stress test (Server + Python tester with 5m pregenerated orders):
