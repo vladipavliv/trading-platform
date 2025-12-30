@@ -20,6 +20,7 @@ using namespace server;
 constexpr size_t CAPACITY = 65536;
 constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
+constexpr double CPU_FREQ = 4.6;
 
 static void DISABLED_BM_Op_MessageBusPost(benchmark::State &state) {
   size_t counter{0};
@@ -54,6 +55,8 @@ static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Op_SystemBusPost);
 
 static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
+  using Runner = LfqRunner<ServerOrder, Consumer, CAPACITY>;
+
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
 
@@ -62,8 +65,8 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
   Consumer consumer;
 
   SystemBus bus;
-  LfqRunner<ServerOrder, Consumer, CAPACITY> lfqRunner(4, consumer, ErrorBus{bus});
-  lfqRunner.run();
+  auto lfqRunner = std::make_unique<Runner>(4, consumer, ErrorBus{bus});
+  lfqRunner->run();
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
     consumer.processed = 0;
@@ -73,7 +76,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
       auto tid = (uint32_t)order.order.ticker[0];
       benchmark::DoNotOptimize(tid);
 
-      if (!lfqRunner.post(order)) {
+      if (!lfqRunner->post(order)) {
         asm volatile("pause" ::: "memory");
       }
     }
@@ -85,9 +88,55 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
     benchmark::DoNotOptimize(consumer.signal);
   }
 
-  lfqRunner.stop();
+  lfqRunner->stop();
 }
 BENCHMARK(BM_Op_LfqRunnerThroughput);
+
+static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
+  using Runner = LfqRunner<ServerOrder, Consumer, CAPACITY>;
+
+  TestTickerData tkrData{TICKER_COUNT};
+  TestOrderData orData{tkrData, ORDER_COUNT};
+  pinThreadToCore(2);
+
+  Consumer consumer;
+  SystemBus bus;
+  auto lfqRunner = std::make_unique<Runner>(4, consumer, ErrorBus{bus});
+  lfqRunner->run();
+
+  std::vector<uint64_t> tscLogs(ORDER_COUNT + 1);
+
+  while (state.KeepRunningBatch(ORDER_COUNT)) {
+    consumer.processed = 0;
+    consumer.signal.clear();
+
+    size_t cycle = 0;
+    for (auto &order : orData.orders) {
+      uint64_t start = __rdtsc();
+
+      while (!lfqRunner->post(order)) {
+        asm volatile("pause" ::: "memory");
+      }
+
+      tscLogs[cycle++] = __rdtsc() - start;
+    }
+
+    while (!consumer.signal.test(std::memory_order_acquire)) {
+      asm volatile("pause" ::: "memory");
+    }
+  }
+
+  std::sort(tscLogs.begin(), tscLogs.end());
+
+  state.counters["Min_ns"] = tscLogs[0] / CPU_FREQ;
+  state.counters["P50_ns"] = tscLogs[ORDER_COUNT / 2] / CPU_FREQ;
+  state.counters["P99_ns"] = tscLogs[ORDER_COUNT * 99 / 100] / CPU_FREQ;
+  state.counters["P99.9_ns"] = tscLogs[ORDER_COUNT * 999 / 1000] / CPU_FREQ;
+  state.counters["Max_ns"] = tscLogs[ORDER_COUNT - 1] / CPU_FREQ;
+
+  lfqRunner->stop();
+}
+BENCHMARK(BM_Op_LfqRunnerTailSpy);
 
 static void BM_Op_StreamBusThroughput(benchmark::State &state) {
   TestTickerData tkrData{TICKER_COUNT};

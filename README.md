@@ -95,7 +95,7 @@ Monitor:
 
 Benchmarks:
 ```bash
-2025-12-30T09:35:20+01:00
+2025-12-30T20:56:28+01:00
 Running ./run_benchmarks
 Run on (20 X 4600 MHz CPU s)
 CPU Caches:
@@ -103,18 +103,19 @@ CPU Caches:
   L1 Instruction 32 KiB (x10)
   L2 Unified 1280 KiB (x10)
   L3 Unified 24576 KiB (x1)
-Load Average: 2.40, 1.28, 0.54
+Load Average: 0.22, 0.49, 0.54
 ***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 --------------------------------------------------------------------------
 Benchmark                                Time             CPU   Iterations
 --------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1        128 ns          128 ns      6291456 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2       74.5 ns         74.5 ns     10485760 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3       55.9 ns         55.9 ns     14680064 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4       46.6 ns         46.6 ns     16777216 4 worker(s)
-BM_Sys_OrderBookFix/AddOrder          65.9 ns         65.9 ns     10403840
-BM_Op_LfqRunnerThroughput             10.1 ns         10.1 ns     69206016
-BM_Op_StreamBusThroughput             12.6 ns         12.6 ns     56623104
+BM_Sys_ServerFix/AsyncProcess/1        164 ns          164 ns      6291456 1 worker(s)
+BM_Sys_ServerFix/AsyncProcess/2       86.1 ns         86.1 ns      8388608 2 worker(s)
+BM_Sys_ServerFix/AsyncProcess/3       59.1 ns         59.1 ns     12582912 3 worker(s)
+BM_Sys_ServerFix/AsyncProcess/4       47.2 ns         47.2 ns     14680064 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder          64.4 ns         64.4 ns     10813440
+BM_Op_LfqRunnerThroughput             16.7 ns         16.7 ns     44040192
+BM_Op_LfqRunnerTailSpy                24.7 ns         24.7 ns     20971520 Max_ns=4.69826k Min_ns=0 P50_ns=9.13043 P99.9_ns=33.913 P99_ns=25.2174
+BM_Op_StreamBusThroughput             12.8 ns         12.8 ns     60817408
 ```
 
 Stress test (Server + Python tester with 5m pregenerated orders):

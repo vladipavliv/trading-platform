@@ -50,6 +50,8 @@ elseif(SERIALIZATION STREQUAL "SBE")
   add_compile_definitions(SERIALIZATION_SBE)
 endif()
 
+add_compile_options(-Wno-interference-size)
+
 find_package(Boost 1.83 REQUIRED COMPONENTS thread)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -67,12 +69,20 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
+include(FetchContent)
+
+FetchContent_Declare(
+  SPSCQueue
+  GIT_REPOSITORY https://github.com/rigtorp/SPSCQueue.git
+  GIT_TAG master
+)
+
+FetchContent_MakeAvailable(SPSCQueue)
+
 add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(client)
 add_subdirectory(monitor)
-
-include(FetchContent)
 
 if(BUILD_TESTS)
   enable_testing()
