@@ -26,15 +26,13 @@ namespace hft {
  * also for consuming. Here we dont care as much for consume side, cause we optimizing for
  * minimal effect on a hot path. In the hot path both sides matter
  */
-template <typename... Events>
+template <size_t Capacity = 65536, typename... Events>
 class StreamBus {
-  static constexpr size_t QUEUE_SIZE = 1024 * 512;
   static constexpr size_t RETRY_COUNT = 1'000'000;
-
   static constexpr size_t EventCount = sizeof...(Events);
 
   template <typename Event>
-  using Lfq = VyukovQueue<Event, QUEUE_SIZE>;
+  using Lfq = VyukovQueue<Event, Capacity>;
 
   template <typename Event>
   using UPtrLfq = UPtr<Lfq<Event>>;
@@ -169,6 +167,8 @@ private:
 template <>
 class StreamBus<> {
 public:
+  static constexpr size_t Capacity = 65536;
+
   template <typename Event>
   static constexpr bool Routed = false;
 

@@ -17,6 +17,7 @@
 #include "storage/storage.hpp"
 #include "types.hpp"
 #include "types/constants.hpp"
+#include "utils/test_data.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::benchmarks {
@@ -32,9 +33,9 @@ public:
   size_t workerCount{1};
   size_t orderLimit{ORDER_BOOK_LIMIT};
 
-  std::vector<Ticker> tickers;
-  server::MarketData marketData;
-  std::vector<server::ServerOrder> orders;
+  TestTickerData tickers;
+  TestOrderData orders;
+  TestMarketData marketData;
 
   UPtr<server::Coordinator> coordinator;
 
@@ -45,10 +46,7 @@ public:
   void TearDown(const ::benchmark::State &state) override;
 
   void setupBus();
-  void fillMarketData();
   void setupCoordinator();
-  void fillOrders();
-  void cleanup();
 };
 
 } // namespace hft::benchmarks

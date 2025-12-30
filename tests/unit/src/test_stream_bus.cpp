@@ -33,7 +33,7 @@ public:
 
 TEST_F(StreamBusFixture, Post) {
   SystemBus systemBus;
-  StreamBus<size_t> bus{systemBus};
+  StreamBus<StreamBus<>::Capacity, size_t> bus{systemBus};
 
   size_t eventsPushed{0};
   std::atomic_size_t eventsPopped{0};

@@ -8,11 +8,15 @@
 
 namespace hft::benchmarks {
 
-BM_Sys_ServerFix::BM_Sys_ServerFix() {
+BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   server::ServerConfig::load("bench_server_config.ini");
 
   tickerCount = Config::get<size_t>("bench.ticker_count");
   orderLimit = 16384 * 128;
+
+  tickers.generate(tickerCount);
+  orders.generate(orderLimit);
+  marketData.generate(workerCount);
 
   setupBus();
 }
@@ -38,9 +42,7 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
     ServerConfig::cfg.coresApp.push_back(4 + (i * 2));
   }
 
-  fillMarketData();
   setupCoordinator();
-  fillOrders();
 }
 
 void BM_Sys_ServerFix::TearDown(const ::benchmark::State &state) {
@@ -48,7 +50,6 @@ void BM_Sys_ServerFix::TearDown(const ::benchmark::State &state) {
     coordinator->stop();
     coordinator.reset();
   }
-  cleanup();
 }
 
 void BM_Sys_ServerFix::setupBus() {
@@ -65,59 +66,21 @@ void BM_Sys_ServerFix::setupBus() {
   systemThread = std::jthread([this]() { bus->run(); });
 }
 
-void BM_Sys_ServerFix::cleanup() {
-  marketData.clear();
-  tickers.clear();
-  coordinator.reset();
-}
-
-void BM_Sys_ServerFix::fillMarketData() {
-  using namespace server;
-  using namespace utils;
-
-  marketData.reserve(tickerCount);
-  tickers.reserve(tickerCount);
-
-  size_t workerId{0};
-  for (size_t i = 0; i < tickerCount; ++i) {
-    const auto ticker = generateTicker();
-    tickers.emplace_back(ticker);
-    marketData.emplace(ticker, workerId);
-    if (++workerId == workerCount) {
-      workerId = 0;
-    }
-  }
-}
-
 void BM_Sys_ServerFix::setupCoordinator() {
   using namespace server;
 
+  ThreadId id = 0;
+  for (auto &tkrData : marketData.marketData) {
+    tkrData.second.setThreadId(id);
+    if (++id == workerCount) {
+      id = 0;
+    }
+  }
+
   flag.clear();
-  coordinator = std::make_unique<Coordinator>(*bus, marketData);
+  coordinator = std::make_unique<Coordinator>(*bus, marketData.marketData);
   coordinator->start();
   flag.wait(false);
-}
-
-void BM_Sys_ServerFix::fillOrders() {
-  using namespace server;
-
-  size_t orderCount = 1;
-  while (orderCount < orderLimit) {
-    orderCount <<= 1;
-  }
-
-  orders.clear();
-  orders.reserve(orderCount);
-
-  auto dataIt = tickers.begin();
-  for (size_t i = 0; i < orderCount; ++i) {
-    if (dataIt == tickers.end()) {
-      dataIt = tickers.begin();
-    }
-    auto order = utils::generateOrder(*dataIt++);
-    order.id = i;
-    orders.push_back(ServerOrder{0, order});
-  }
 }
 
 BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
@@ -129,25 +92,25 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
     utils::pinThreadToCore(ServerConfig::cfg.coresNetwork.front());
   }
 
-  const uint64_t ordersCount = orders.size();
+  const uint64_t ordersCount = orders.orders.size();
+
+  alignas(64) std::atomic<uint64_t> processed;
+  alignas(64) std::atomic_flag signal;
+
+  bus->subscribe<ServerOrderStatus>([&processed, &signal, ordersCount](CRef<ServerOrderStatus> s) {
+    if (s.orderStatus.state == OrderState::Accepted &&
+        processed.fetch_add(1, std::memory_order_relaxed) + 1 == ordersCount) {
+      signal.test_and_set(std::memory_order_release);
+    } else if (s.orderStatus.state == OrderState::Rejected) {
+      throw std::runtime_error("Increase OrderBook limit");
+    }
+  });
 
   while (state.KeepRunningBatch(ordersCount)) {
-    state.PauseTiming();
+    processed = 0;
+    signal.clear();
 
-    alignas(64) std::atomic<uint64_t> processed;
-    alignas(64) std::atomic_flag signal;
-
-    bus->subscribe<ServerOrderStatus>([&](CRef<ServerOrderStatus> s) {
-      if (s.orderStatus.state == OrderState::Accepted &&
-          processed.fetch_add(1, std::memory_order_relaxed) + 1 == ordersCount) {
-        signal.test_and_set(std::memory_order_release);
-      } else if (s.orderStatus.state == OrderState::Rejected) {
-        throw std::runtime_error("Increase OrderBook limit");
-      }
-    });
-    state.ResumeTiming();
-
-    for (const auto &order : orders) {
+    for (const auto &order : orders.orders) {
       bus->post(order);
     }
 
