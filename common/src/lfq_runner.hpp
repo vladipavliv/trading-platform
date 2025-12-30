@@ -26,20 +26,18 @@ namespace hft {
 /**
  * @brief
  */
-template <typename MessageType, typename Consumer>
+template <typename MessageType, typename Consumer, size_t Capacity = 65536>
 class alignas(64) LfqRunner {
   static constexpr size_t MAX_EMPTY_CYCLES = 1'000'000;
-  static constexpr size_t CAPACITY = 2'097'152;
 
   // using Queue = boost::lockfree::spsc_queue<MessageType>;
-  // using Queue = VyukovQueue<MessageType, CAPACITY>;
-  using Queue = folly::ProducerConsumerQueue<MessageType>;
+  using Queue = VyukovQueue<MessageType, Capacity>;
+  // using Queue = folly::ProducerConsumerQueue<MessageType>;
 
 public:
-  LfqRunner(Consumer &consumer, ErrorBus &&bus) : queue_{CAPACITY}, consumer_{consumer} {}
+  LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer} {}
 
-  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus)
-      : coreId_{id}, queue_{CAPACITY}, consumer_{consumer} {}
+  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus) : coreId_{id}, consumer_{consumer} {}
 
   ~LfqRunner() {}
 
@@ -55,10 +53,10 @@ public:
       MessageType message;
       // size_t idleCycles = 0;
       while (running_.load(std::memory_order_acquire)) {
-        if (queue_.read(message)) {
+        if (queue_.pop(message)) {
           do {
             consumer_.post(message);
-          } while (queue_.read(message));
+          } while (queue_.pop(message));
         } else {
           asm volatile("pause" ::: "memory");
         }
@@ -69,9 +67,9 @@ public:
 
   void stop() { running_.store(false, std::memory_order_release); }
 
-  bool post(CRef<MessageType> message) {
+  inline bool post(CRef<MessageType> message) {
     size_t waitCycles = 0;
-    while (!queue_.write(message)) {
+    while (!queue_.push(message)) {
       if (++waitCycles > MAX_EMPTY_CYCLES) {
         return false;
       }

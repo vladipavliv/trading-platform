@@ -13,7 +13,7 @@
 namespace hft::client {
 
 #ifdef TELEMETRY_ENABLED
-using StreamBusType = StreamBus<OrderTimestamp, RuntimeMetrics>;
+using StreamBusType = StreamBus<StreamBus<>::Capacity, OrderTimestamp, RuntimeMetrics>;
 #else
 using StreamBusType = StreamBus<>;
 #endif

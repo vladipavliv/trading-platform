@@ -12,7 +12,8 @@
 
 namespace hft::monitor {
 
-using MonitorBus = BusHolder<MessageBus<>, StreamBus<OrderTimestamp, RuntimeMetrics>>;
+using MonitorBus =
+    BusHolder<MessageBus<>, StreamBus<StreamBus<>::Capacity, OrderTimestamp, RuntimeMetrics>>;
 }
 
 #endif // HFT_MONITOR_MONITORTYPES_HPP

@@ -191,6 +191,22 @@ inline Price fluctuateThePrice(Price price) {
   return price + fluctuation;
 }
 
+struct alignas(64) Consumer {
+  Consumer(size_t target = 0) : target{target} {}
+
+  const size_t target;
+  alignas(64) std::atomic<uint64_t> processed;
+  alignas(64) std::atomic_flag signal;
+
+  template <typename Message>
+  void post(const Message &msg) {
+    auto counter = processed.fetch_add(1, std::memory_order_relaxed);
+    if (counter == target) {
+      signal.test_and_set(std::memory_order_release);
+    }
+  }
+};
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_UTILITIES_HPP
