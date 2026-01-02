@@ -95,51 +95,39 @@ Monitor:
 
 Benchmarks:
 ```bash
-2025-12-30T20:56:28+01:00
+2026-01-02T07:39:34+01:00
 Running ./run_benchmarks
-Run on (20 X 4600 MHz CPU s)
+Run on (16 X 5231.35 MHz CPU s)
 CPU Caches:
-  L1 Data 48 KiB (x10)
-  L1 Instruction 32 KiB (x10)
-  L2 Unified 1280 KiB (x10)
-  L3 Unified 24576 KiB (x1)
-Load Average: 0.22, 0.49, 0.54
-***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+  L1 Data 48 KiB (x8)
+  L1 Instruction 32 KiB (x8)
+  L2 Unified 1024 KiB (x8)
+  L3 Unified 98304 KiB (x1)
+Load Average: 2.38, 0.88, 0.71
+***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
 --------------------------------------------------------------------------
 Benchmark                                Time             CPU   Iterations
 --------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1        164 ns          164 ns      6291456 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2       86.1 ns         86.1 ns      8388608 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3       59.1 ns         59.1 ns     12582912 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4       47.2 ns         47.2 ns     14680064 4 worker(s)
-BM_Sys_OrderBookFix/AddOrder          64.4 ns         64.4 ns     10813440
-BM_Op_LfqRunnerThroughput             16.7 ns         16.7 ns     44040192
-BM_Op_LfqRunnerTailSpy                24.7 ns         24.7 ns     20971520 Max_ns=4.69826k Min_ns=0 P50_ns=9.13043 P99.9_ns=33.913 P99_ns=25.2174
-BM_Op_StreamBusThroughput             12.8 ns         12.8 ns     60817408
+BM_Sys_ServerFix/AsyncProcess/1        110 ns          110 ns      8388608 1 worker(s)
+BM_Sys_ServerFix/AsyncProcess/2       65.2 ns         65.2 ns     12582912 2 worker(s)
+BM_Sys_ServerFix/AsyncProcess/3       51.2 ns         51.2 ns     14680064 3 worker(s)
+BM_Sys_ServerFix/AsyncProcess/4       46.4 ns         46.4 ns     16777216 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder          43.8 ns         43.7 ns     15777792
+BM_Op_LfqRunnerThroughput             15.6 ns         15.5 ns     46137344
+BM_Op_LfqRunnerTailSpy                20.0 ns         20.0 ns     35651584 Max_ns=162.692 Min_ns=0 P50_ns=9.03846 P99.9_ns=63.2692 P99_ns=45.1923
+BM_Op_StreamBusThroughput             20.0 ns         20.0 ns     35651584
 ```
 
 Stress test (Server + Python tester with 5m pregenerated orders):
 ```bash
-00:36:28.746653 [I] Orders: [opn|ttl] 986,963|4,528,793 | Rps: 1,866,237
-[Client 0] Sent 5000000 orders in 2.70s (1852510.08 orders/sec)
+06:43:54.258145 [I] Orders: [opn|ttl] 810116|3711460 | Rps: 2875861
+Sent 5000000 orders in 1.74s (2877129.41 orders/sec)
 ```
 
 Manual localhost tests:
-
-1 client, all threads pinned, 1us trade rate:
 ```bash
 Server:
-12:58:51.861771 [I] Orders: [opn|ttl] 1802821|8349663 | Rps: 145634
+06:51:24.006830 [I] Orders: [opn|ttl] 295867|1357312 | Rps: 73961
 Client:
-12:58:51.198196 [I] Rtt: [<50us|>50us] 99.98% avg:14us 0.02% avg:99us
-```
-
-3 clients, no client pinning, 6us trade rate:
-```bash
-Server:
-23:10:23.747329 [I] Orders: [opn|ttl] 20,439,753|94,833,660 | Rps: 213,990
-Client:
-23:10:23.241168 [I] Rtt: [<50us|>50us] 98.35% avg:23us 1.65% avg:72us
-23:10:23.670371 [I] Rtt: [<50us|>50us] 98.19% avg:25us 1.81% avg:76us
-23:10:23.814607 [I] Rtt: [<50us|>50us] 98.53% avg:23us 1.47% avg:76us
+06:51:23.672385 [I] Rtt: [<50us|>50us] 100.00% avg:8us 0.00% avg:75us
 ```

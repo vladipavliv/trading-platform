@@ -22,7 +22,8 @@ using namespace server;
 constexpr size_t LFQ_CAPACITY = 65536;
 constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
-constexpr double CPU_FREQ = 4.6;
+constexpr double CPU_FREQ = 5.2;
+constexpr size_t MAX_SPIN_CYCLES = 1000000;
 
 static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
   using Runner = LfqRunner<ServerOrder, Consumer, LFQ_CAPACITY>;
@@ -32,7 +33,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
 
   pinThreadToCore(getCore(0));
 
-  Consumer consumer;
+  Consumer consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
   auto lfqRunner = std::make_unique<Runner>(getCore(1), consumer, ErrorBus{bus});
@@ -69,7 +70,8 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
   TestOrderData orData{tkrData, ORDER_COUNT};
   pinThreadToCore(getCore(0));
 
-  Consumer consumer;
+  Consumer consumer{ORDER_COUNT - 1};
+
   SystemBus bus;
   auto lfqRunner = std::make_unique<Runner>(getCore(1), consumer, ErrorBus{bus});
   lfqRunner->run();
