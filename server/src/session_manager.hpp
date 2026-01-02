@@ -102,19 +102,28 @@ public:
     broadcastChannel_.reset();
   }
 
+  inline void poll() {
+    ServerOrderStatus status;
+    while (outgoing_.pop(status)) {
+      LOG_DEBUG("{}", utils::toString(status));
+      const auto sessionIter = sessionsMap_.find(status.clientId);
+      if (sessionIter == sessionsMap_.end()) [[unlikely]] {
+        LOG_DEBUG("Client {} is offline", status.clientId);
+        return;
+      }
+      const auto session = sessionIter->second;
+      if (session->downstreamChannel != nullptr) [[likely]] {
+        session->downstreamChannel->write(status.orderStatus);
+      } else {
+        LOG_INFO("No downstream connection for {}", status.clientId);
+      }
+    }
+  }
+
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
-    LOG_DEBUG("{}", utils::toString(status));
-    const auto sessionIter = sessionsMap_.find(status.clientId);
-    if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-      LOG_DEBUG("Client {} is offline", status.clientId);
-      return;
-    }
-    const auto session = sessionIter->second;
-    if (session->downstreamChannel != nullptr) [[likely]] {
-      session->downstreamChannel->write(status.orderStatus);
-    } else {
-      LOG_INFO("No downstream connection for {}", status.clientId);
+    while (!outgoing_.push(status)) {
+      asm volatile("pause" ::: "memory");
     }
   }
 
@@ -224,6 +233,8 @@ private:
   folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
 
   folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
+
+  VyukovQueue<ServerOrderStatus> outgoing_;
 
   SPtr<BroadcastChannel> broadcastChannel_;
 };

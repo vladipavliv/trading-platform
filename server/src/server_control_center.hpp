@@ -27,6 +27,8 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
+  static constexpr size_t POLL_CHUNK = 16;
+
 public:
   using SessionManagerType = SessionManager<SessionChannel, BroadcastChannel>;
   using NetworkServerType = NetworkServer<SessionManagerType>;
@@ -43,7 +45,7 @@ public:
       case ServerState::Operational:
         // start the network server only after internal components are fully operational
         LOG_INFO_SYSTEM("Server is ready");
-        networkServer_.start();
+        startNetwork();
         break;
       default:
         break;
@@ -57,6 +59,7 @@ public:
   }
 
   void start() {
+    running_ = true;
     storage_.load();
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
@@ -72,6 +75,8 @@ public:
   }
 
   void stop() {
+    running_ = false;
+
     networkServer_.stop();
     sessionManager_.close();
     streamAdapter_.stop();
@@ -91,6 +96,43 @@ private:
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
+  void startNetwork() {
+    const auto addThread = [this](uint8_t workerId, Optional<CoreId> coreId = Optional<CoreId>{}) {
+      workerThreads_.emplace_back([this, workerId, coreId]() {
+        try {
+          utils::setTheadRealTime();
+          if (coreId.has_value()) {
+            utils::pinThreadToCore(coreId.value());
+            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId.value());
+          } else {
+            LOG_DEBUG("Worker {} started", workerId);
+          }
+          networkLoop();
+        } catch (const std::exception &e) {
+          LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+          bus_.post(InternalError(StatusCode::Error, e.what()));
+        }
+      });
+    };
+    const auto cores = ServerConfig::cfg.coresNetwork.size();
+    workerThreads_.reserve(cores == 0 ? 1 : cores);
+    if (cores == 0) {
+      addThread(0);
+    }
+    for (size_t i = 0; i < cores; ++i) {
+      addThread(i, ServerConfig::cfg.coresNetwork[i]);
+    }
+  }
+
+  void networkLoop() {
+    while (running_) {
+      for (int i = 0; i < POLL_CHUNK; ++i) {
+        networkServer_.pollOne();
+      }
+      sessionManager_.poll();
+    }
+  }
+
 private:
   ServerBus bus_;
 
@@ -104,6 +146,9 @@ private:
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
   StreamAdapter streamAdapter_;
+
+  std::atomic_bool running_{false};
+  std::vector<Thread> workerThreads_;
 };
 
 } // namespace hft::server
