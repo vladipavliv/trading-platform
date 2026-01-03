@@ -75,7 +75,12 @@ public:
     }
   }
 
-  void stop() { ioCtx_.stop(); }
+  void stop() {
+    downstreamChannel_.close();
+    upstreamChannel_.close();
+    pricesChannel_.close();
+    ioCtx_.stop();
+  }
 
   void connect() {
     if (state_ != ConnectionState::Disconnected) {

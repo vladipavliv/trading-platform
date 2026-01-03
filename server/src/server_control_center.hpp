@@ -43,7 +43,7 @@ public:
       case ServerState::Operational:
         // start the network server only after internal components are fully operational
         LOG_INFO_SYSTEM("Server is ready");
-        networkServer_.start();
+        startNetwork();
         break;
       default:
         break;
@@ -57,6 +57,7 @@ public:
   }
 
   void start() {
+    running_ = true;
     storage_.load();
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
@@ -72,6 +73,8 @@ public:
   }
 
   void stop() {
+    running_ = false;
+
     networkServer_.stop();
     sessionManager_.close();
     streamAdapter_.stop();
@@ -91,6 +94,36 @@ private:
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
+  void startNetwork() {
+    workerThreads_.emplace_back([this]() {
+      try {
+        utils::setTheadRealTime();
+        if (!ServerConfig::cfg.coresNetwork.empty()) {
+          const size_t coreId = ServerConfig::cfg.coresNetwork[0];
+          utils::pinThreadToCore(coreId);
+          LOG_DEBUG("Started network thread on the core {}", coreId);
+        } else {
+          LOG_DEBUG("Started network thread");
+        }
+        networkLoop();
+      } catch (const std::exception &e) {
+        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        bus_.post(InternalError(StatusCode::Error, e.what()));
+      }
+    });
+  }
+
+  void networkLoop() {
+    while (running_) {
+      size_t processed = 0;
+      processed += networkServer_.poll();
+      processed += sessionManager_.poll();
+      if (processed == 0) {
+        __builtin_ia32_pause();
+      }
+    }
+  }
+
 private:
   ServerBus bus_;
 
@@ -104,6 +137,9 @@ private:
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
   StreamAdapter streamAdapter_;
+
+  std::atomic_bool running_{false};
+  std::vector<Thread> workerThreads_;
 };
 
 } // namespace hft::server

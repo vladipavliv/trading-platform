@@ -3,10 +3,11 @@
  * @date 2025-03-29
  */
 
-#ifndef HFT_SERVER_SESSIONMANAGER_HPP
-#define HFT_SERVER_SESSIONMANAGER_HPP
+#ifndef HFT_SERVER_SESSIONMANAGERMT_HPP
+#define HFT_SERVER_SESSIONMANAGERMT_HPP
 
-#include <boost/unordered/unordered_flat_map.hpp>
+#include <folly/AtomicHashMap.h>
+#include <folly/container/F14Map.h>
 
 #include "boost_types.hpp"
 #include "constants.hpp"
@@ -23,7 +24,7 @@ namespace hft::server {
  * @brief Manages sessions, generates tokens, authenticates channels
  */
 template <typename SessionChannel, typename BroadcastChannel>
-class SessionManager {
+class SessionManagerMt {
   /**
    * @brief Client session info
    * @todo Make rate limiting counter
@@ -36,7 +37,9 @@ class SessionManager {
   };
 
 public:
-  explicit SessionManager(ServerBus &bus) : bus_{bus} {
+  explicit SessionManager(ServerBus &bus)
+      : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
+        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     bus_.subscribe<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
     bus_.subscribe<ServerLoginResponse>(
@@ -99,15 +102,14 @@ public:
     broadcastChannel_.reset();
   }
 
-  inline size_t poll() {
-    size_t processed = 0;
+  inline void poll() {
     ServerOrderStatus status;
     while (outgoing_.pop(status)) {
       LOG_DEBUG("{}", utils::toString(status));
       const auto sessionIter = sessionsMap_.find(status.clientId);
       if (sessionIter == sessionsMap_.end()) [[unlikely]] {
         LOG_DEBUG("Client {} is offline", status.clientId);
-        continue;
+        return;
       }
       const auto session = sessionIter->second;
       if (session->downstreamChannel != nullptr) [[likely]] {
@@ -115,11 +117,7 @@ public:
       } else {
         LOG_INFO("No downstream connection for {}", status.clientId);
       }
-      if (++processed > 16) {
-        return processed;
-      }
     }
-    return processed;
   }
 
 private:
@@ -189,8 +187,8 @@ private:
       return;
     }
     const auto session = sessionIter->second;
-    if (session->downstreamChannel == nullptr) {
-      session->downstreamChannel = std::move(downstreamChannel);
+    SPtr<SessionChannel> exp;
+    if (std::atomic_compare_exchange_strong(&session->downstreamChannel, &exp, downstreamChannel)) {
       session->downstreamChannel->authenticate(session->clientId);
       session->downstreamChannel->write(LoginResponse{request.request.token, true});
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
@@ -231,10 +229,10 @@ private:
 private:
   ServerBus &bus_;
 
-  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
-  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
 
-  boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
+  folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
 
   VyukovQueue<ServerOrderStatus> outgoing_;
 

@@ -114,7 +114,7 @@ public:
     return size;
   }
 
-  static size_t serialize(CRef<LoginRequest> request, ByteBuffer &buffer) {
+  static size_t serialize(CRef<LoginRequest> request, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateLoginRequest(
@@ -123,30 +123,22 @@ public:
     builder.Finish(CreateMessage(builder, MessageUnion_LoginRequest, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<TokenBindRequest> request, ByteBuffer &buffer) {
+  static size_t serialize(CRef<TokenBindRequest> request, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTokenBindRequest(builder, request.token);
     builder.Finish(CreateMessage(builder, MessageUnion_TokenBindRequest, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<LoginResponse> response, ByteBuffer &buffer) {
+  static size_t serialize(CRef<LoginResponse> response, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg =
@@ -155,15 +147,11 @@ public:
     builder.Finish(CreateMessage(builder, MessageUnion_LoginResponse, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<Order> order, ByteBuffer &buffer) {
+  static size_t serialize(CRef<Order> order, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrder(builder, order.id, order.created,
@@ -172,15 +160,11 @@ public:
     builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<OrderStatus> status, ByteBuffer &buffer) {
+  static size_t serialize(CRef<OrderStatus> status, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrderStatus(builder, status.orderId, status.timeStamp, status.quantity,
@@ -188,15 +172,11 @@ public:
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<TickerPrice> price, ByteBuffer &buffer) {
+  static size_t serialize(CRef<TickerPrice> price, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateTickerPrice(
@@ -204,11 +184,7 @@ public:
     builder.Finish(CreateMessage(builder, MessageUnion_TickerPrice, msg.Union()));
     const auto serializedMsg = builder.Release();
 
-    const auto initialBufferSize = buffer.size();
-    const auto serializedMsgSize = serializedMsg.size();
-
-    buffer.resize(initialBufferSize + serializedMsgSize);
-    std::memcpy(buffer.data() + initialBufferSize, serializedMsg.data(), serializedMsg.size());
+    std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());
     return serializedMsg.size();
   }
 };

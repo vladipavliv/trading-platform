@@ -78,9 +78,9 @@ public:
   }
 
   void stop() {
+    engine_.stop();
     streamAdapter_.stop();
     networkClient_.stop();
-    engine_.stop();
     bus_.stop();
 
     LOG_INFO_SYSTEM("stonk");

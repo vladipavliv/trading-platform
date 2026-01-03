@@ -30,8 +30,8 @@ public:
   static constexpr bool Framable = Serializer::template Serializable<EventType>;
 
   template <typename Type>
-  static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    Serializer::serialize(message, buffer);
+  static size_t frame(CRef<Type> message, uint8_t *buffer) {
+    return Serializer::serialize(message, buffer);
   }
 
   template <Busable Bus>

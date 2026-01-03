@@ -54,7 +54,6 @@ private:
   TickerData(const TickerData &) = delete;
   TickerData &operator=(const TickerData &other) = delete;
 };
-static_assert(sizeof(TickerData) == 64);
 
 using MarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
 

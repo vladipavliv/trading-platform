@@ -107,68 +107,68 @@ public:
     }
   }
 
-  static size_t serialize(CRef<LoginRequest> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<LoginRequest> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::LoginRequest::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::LoginRequest::sbeBlockAndHeaderLength();
 
     domain::LoginRequest msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.name().putChar32(r.name);
     msg.password().putChar32(r.password);
-    return domain::LoginRequest::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 
-  static size_t serialize(CRef<TokenBindRequest> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<TokenBindRequest> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::TokenBindRequest::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::TokenBindRequest::sbeBlockAndHeaderLength();
 
     domain::TokenBindRequest msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.token(r.token);
-    return domain::TokenBindRequest::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 
-  static size_t serialize(CRef<LoginResponse> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<LoginResponse> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::LoginResponse::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::LoginResponse::sbeBlockAndHeaderLength();
 
     domain::LoginResponse msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.token(r.token).ok(r.ok).error_msg().putChar32(r.error);
-    return domain::LoginResponse::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 
-  static size_t serialize(CRef<Order> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<Order> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::Order::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::Order::sbeBlockAndHeaderLength();
 
     domain::Order msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.id(r.id).created(r.created).ticker().putChar4(r.ticker.data());
     msg.quantity(r.quantity).price(r.price).action(convert(r.action));
-    return domain::Order::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 
-  static size_t serialize(CRef<OrderStatus> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<OrderStatus> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::OrderStatus::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::OrderStatus::sbeBlockAndHeaderLength();
 
     domain::OrderStatus msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.order_id(r.orderId).timestamp(r.timeStamp).quantity(r.quantity);
     msg.fill_price(r.fillPrice).state(convert(r.state));
-    return domain::OrderStatus::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 
-  static size_t serialize(CRef<TickerPrice> r, ByteBuffer &buffer) {
+  static size_t serialize(CRef<TickerPrice> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    buffer.resize(domain::TickerPrice::sbeBlockAndHeaderLength());
+    const size_t msgSize = domain::TickerPrice::sbeBlockAndHeaderLength();
 
     domain::TickerPrice msg;
-    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer.data()), 0, buffer.size());
+    msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.ticker().putChar4(r.ticker.data());
     msg.price(r.price);
-    return domain::TickerPrice::sbeBlockAndHeaderLength();
+    return msgSize;
   }
 };
 

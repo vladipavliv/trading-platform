@@ -176,10 +176,10 @@ private:
   OrderBook &operator=(const OrderBook &other) = delete;
 
 private:
-  Vector<ServerOrder> bids_;
-  Vector<ServerOrder> asks_;
+  alignas(64) Vector<ServerOrder> bids_;
+  alignas(64) Vector<ServerOrder> asks_;
 
-  std::atomic_size_t openedOrders_{0};
+  alignas(64) std::atomic_size_t openedOrders_{0};
 };
 
 } // namespace hft::server

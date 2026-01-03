@@ -61,9 +61,7 @@ class Coordinator {
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
       oData.orderBook.sendAck(so, bus);
 #endif
-#ifdef TELEMETRY_ENABLED
       ordersTotal.fetch_add(1, std::memory_order_relaxed);
-#endif
     }
 
     ServerBus &bus;
@@ -93,9 +91,7 @@ public:
 
   void start() {
     startWorkers();
-#ifdef TELEMETRY_ENABLED
     scheduleStatsTimer();
-#endif
   }
 
   void stop() {
@@ -124,7 +120,6 @@ private:
   }
 
   void scheduleStatsTimer() {
-#ifdef TELEMETRY_ENABLED
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
@@ -147,10 +142,8 @@ private:
       lastTtl = currentTtl;
       scheduleStatsTimer();
     });
-#endif
   }
 
-#ifdef TELEMETRY_ENABLED
   size_t openedOrders() const {
     size_t orders{0};
     for (auto &it : matcher_.data) {
@@ -158,7 +151,6 @@ private:
     }
     return orders;
   }
-#endif
 
 private:
   ServerBus &bus_;

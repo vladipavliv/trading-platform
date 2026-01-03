@@ -17,15 +17,14 @@ TEST(FbsSerializerTest, serializeDeserialize) {
   ConsumerSpy spy;
 
   LoginRequest request{"name", "password"};
-  ByteBuffer buffer;
+  ByteBuffer buffer(128);
 
-  const size_t serializedSIze = FbsDomainSerializer::serialize(request, buffer);
-  ASSERT_TRUE(serializedSIze != 0);
-  ASSERT_EQ(buffer.size(), serializedSIze);
+  const size_t serSize = FbsDomainSerializer::serialize(request, buffer.data());
+  ASSERT_TRUE(serSize != 0);
 
-  const size_t deserializedSize =
-      FbsDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), buffer.size(), spy);
-  ASSERT_EQ(deserializedSize, serializedSIze);
+  const size_t deserSize =
+      FbsDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
+  ASSERT_EQ(deserSize, serSize);
 
   ASSERT_EQ(spy.size(), 1);
   ASSERT_TRUE(spy.checkValue(0, request));

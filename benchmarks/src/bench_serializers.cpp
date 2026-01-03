@@ -64,11 +64,11 @@ BENCHMARK(DISABLED_BM_Ser_ProtoDeserialize);
 
 static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
-  ByteBuffer buffer;
+  ByteBuffer buffer(128);
   size_t size{0};
 
   for (auto _ : state) {
-    size = fbs::FbsDomainSerializer::serialize(order, buffer);
+    size = fbs::FbsDomainSerializer::serialize(order, buffer.data());
   }
 
   benchmark::DoNotOptimize(size);
@@ -83,8 +83,8 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
-  ByteBuffer buffer;
-  auto size = fbs::FbsDomainSerializer::serialize(utils::generateOrder(), buffer);
+  ByteBuffer buffer(128);
+  auto size = fbs::FbsDomainSerializer::serialize(utils::generateOrder(), buffer.data());
 
   for (auto _ : state) {
     size = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
@@ -96,11 +96,11 @@ BENCHMARK(DISABLED_BM_Ser_FbsDeserialize);
 
 static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();
-  Vector<uint8_t> buffer;
+  Vector<uint8_t> buffer(128);
   size_t size{0};
 
   for (auto _ : state) {
-    size = sbe::SbeDomainSerializer::serialize(order, buffer);
+    size = sbe::SbeDomainSerializer::serialize(order, buffer.data());
   }
 
   benchmark::DoNotOptimize(size);
@@ -113,12 +113,12 @@ static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   using BusType = BusHolder<MessageBus<Order>>;
 
   const Order order = utils::generateOrder();
-  ByteBuffer buffer;
+  ByteBuffer buffer(128);
 
   BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
 
-  size_t size = sbe::SbeDomainSerializer::serialize(order, buffer);
+  size_t size = sbe::SbeDomainSerializer::serialize(order, buffer.data());
 
   for (auto _ : state) {
     size = sbe::SbeDomainSerializer::deserialize(buffer.data(), buffer.size(), bus);
