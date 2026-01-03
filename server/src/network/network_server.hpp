@@ -50,7 +50,9 @@ public:
 
   ~NetworkServer() { stop(); }
 
-  inline void pollOne() { ioCtx_.poll_one(); }
+  inline auto pollOne() { return ioCtx_.poll_one(); }
+
+  inline auto poll() { return ioCtx_.poll(); }
 
   void stop() { ioCtx_.stop(); }
 
@@ -70,6 +72,8 @@ private:
         LOG_ERROR("Failed to accept connection {}", ec.message());
         return;
       }
+      socket.set_option(boost::asio::socket_base::send_buffer_size{1024 * 1024 * 4});
+      socket.set_option(boost::asio::socket_base::receive_buffer_size{1024 * 1024 * 4});
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();
@@ -94,6 +98,8 @@ private:
         LOG_ERROR("Failed to accept connection: {}", ec.message());
         return;
       }
+      socket.set_option(boost::asio::socket_base::send_buffer_size{1024 * 1024 * 4});
+      socket.set_option(boost::asio::socket_base::receive_buffer_size{1024 * 1024 * 4});
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();

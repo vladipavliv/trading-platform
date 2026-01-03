@@ -21,7 +21,8 @@ namespace hft {
 struct Config {
   static void load(CRef<String> fileName) {
     if (fileName.empty() || !std::filesystem::exists(fileName)) {
-      throw std::runtime_error(std::format("Config file not found {}", fileName));
+      throw std::runtime_error(std::format("Config file not found {} {}",
+                                           std::filesystem::current_path().c_str(), fileName));
     }
     file = fileName;
     boost::property_tree::read_ini(fileName, data);

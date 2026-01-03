@@ -27,8 +27,6 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
-  static constexpr size_t POLL_CHUNK = 16;
-
 public:
   using SessionManagerType = SessionManager<SessionChannel, BroadcastChannel>;
   using NetworkServerType = NetworkServer<SessionManagerType>;
@@ -97,39 +95,32 @@ private:
   }
 
   void startNetwork() {
-    const auto addThread = [this](uint8_t workerId, Optional<CoreId> coreId = Optional<CoreId>{}) {
-      workerThreads_.emplace_back([this, workerId, coreId]() {
-        try {
-          utils::setTheadRealTime();
-          if (coreId.has_value()) {
-            utils::pinThreadToCore(coreId.value());
-            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId.value());
-          } else {
-            LOG_DEBUG("Worker {} started", workerId);
-          }
-          networkLoop();
-        } catch (const std::exception &e) {
-          LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
-          bus_.post(InternalError(StatusCode::Error, e.what()));
+    workerThreads_.emplace_back([this]() {
+      try {
+        utils::setTheadRealTime();
+        if (!ServerConfig::cfg.coresNetwork.empty()) {
+          const size_t coreId = ServerConfig::cfg.coresNetwork[0];
+          utils::pinThreadToCore(coreId);
+          LOG_DEBUG("Started network thread on the core {}", coreId);
+        } else {
+          LOG_DEBUG("Started network thread");
         }
-      });
-    };
-    const auto cores = ServerConfig::cfg.coresNetwork.size();
-    workerThreads_.reserve(cores == 0 ? 1 : cores);
-    if (cores == 0) {
-      addThread(0);
-    }
-    for (size_t i = 0; i < cores; ++i) {
-      addThread(i, ServerConfig::cfg.coresNetwork[i]);
-    }
+        networkLoop();
+      } catch (const std::exception &e) {
+        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        bus_.post(InternalError(StatusCode::Error, e.what()));
+      }
+    });
   }
 
   void networkLoop() {
     while (running_) {
-      for (int i = 0; i < POLL_CHUNK; ++i) {
-        networkServer_.pollOne();
+      size_t processed = 0;
+      processed += networkServer_.poll();
+      processed += sessionManager_.poll();
+      if (processed == 0) {
+        __builtin_ia32_pause();
       }
-      sessionManager_.poll();
     }
   }
 

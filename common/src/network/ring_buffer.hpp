@@ -44,6 +44,9 @@ public:
   }
 
   inline void commitWrite(size_t bytes) {
+    if (head_ + bytes > capacity_) {
+      throw std::runtime_error("RingBuffer overflow");
+    }
     assert(head_ + bytes <= capacity_);
     head_ += bytes;
   }
@@ -53,6 +56,8 @@ public:
     tail_ += bytes;
     if (tail_ == head_) {
       reset();
+    } else if (tail_ > (capacity_ / 2)) {
+      rotate();
     }
   }
 
@@ -60,11 +65,18 @@ public:
 
 private:
   inline void rotate() {
-    if (tail_ > 0 && capacity_ - head_ < MIN_READ_CAPACITY) {
-      std::memmove(buffer_.data(), buffer_.data() + tail_, head_ - tail_);
-      head_ = head_ - tail_;
-      tail_ = 0;
+    if (tail_ == 0)
+      return;
+
+    if (head_ < tail_) {
+      throw std::runtime_error("head_ < tail_");
     }
+    size_t dataSize = head_ - tail_;
+    if (dataSize > 0) {
+      std::memmove(buffer_.data(), buffer_.data() + tail_, dataSize);
+    }
+    head_ = dataSize;
+    tail_ = 0;
   }
 
 private:
