@@ -38,8 +38,11 @@ def config(request):
     return parser
 
 @pytest.fixture(scope="session")
-def stress_iterations(request):
-    return int(request.config.getoption("--stress-iterations"))
+def stress_iterations(config):
+    try:
+        return config.getint("stress", "iterations")
+    except (configparser.NoSectionError, configparser.NoOptionError):
+        return 5000000
 
 @pytest.fixture(scope="session")
 def tickers():

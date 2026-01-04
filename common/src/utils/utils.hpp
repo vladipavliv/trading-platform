@@ -207,6 +207,27 @@ struct alignas(64) Consumer {
   }
 };
 
+struct OpCounter {
+  std::atomic<size_t> *value{nullptr};
+
+  explicit OpCounter(std::atomic<size_t> *v) : value{v} {
+    if (value)
+      value->fetch_add(1, std::memory_order_relaxed);
+  }
+
+  OpCounter(OpCounter &&other) noexcept : value(other.value) { other.value = nullptr; }
+
+  OpCounter &operator=(OpCounter &&other) = delete;
+
+  ~OpCounter() {
+    if (value)
+      value->fetch_sub(1, std::memory_order_release);
+  }
+
+  OpCounter(const OpCounter &) = delete;
+  OpCounter &operator=(const OpCounter &) = delete;
+};
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_UTILITIES_HPP

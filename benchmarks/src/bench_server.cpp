@@ -5,6 +5,7 @@
 
 #include "bench_server.hpp"
 #include "config/config.hpp"
+#include "utils/bench_utils.hpp"
 
 namespace hft::benchmarks {
 
@@ -12,7 +13,7 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   server::ServerConfig::load("bench_server_config.ini");
 
   tickerCount = Config::get<size_t>("bench.ticker_count");
-  orderLimit = 16384 * 128;
+  orderLimit = Config::get<size_t>("bench.order_count");
 
   tickers.generate(tickerCount);
   orders.generate(orderLimit);
@@ -35,11 +36,11 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
   ServerConfig::cfg.coresApp.clear();
   ServerConfig::cfg.coresNetwork.clear();
 
-  ServerConfig::cfg.coreSystem = 12;
-  ServerConfig::cfg.coresNetwork.push_back(2);
+  ServerConfig::cfg.coreSystem = Config::get<size_t>("bench.bench_e_core");
+  ServerConfig::cfg.coresNetwork.push_back(getCore(0));
 
-  for (size_t i = 0; i < workerCount; ++i) {
-    ServerConfig::cfg.coresApp.push_back(4 + (i * 2));
+  for (size_t i = 1; i <= workerCount; ++i) {
+    ServerConfig::cfg.coresApp.push_back(getCore(i));
   }
 
   setupCoordinator();

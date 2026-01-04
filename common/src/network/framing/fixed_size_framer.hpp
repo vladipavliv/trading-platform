@@ -30,12 +30,12 @@ public:
   static constexpr size_t HEADER_SIZE = sizeof(MessageSize);
 
   template <typename Type>
-  static void frame(CRef<Type> message, ByteBuffer &buffer) {
-    buffer.resize(HEADER_SIZE); // reserve the first 2 bytes for the message size
-    const auto msgSize = Serializer::serialize(message, buffer);
+  static size_t frame(CRef<Type> message, uint8_t *buffer) {
+    const auto msgSize = Serializer::serialize(message, buffer + HEADER_SIZE);
 
     const LittleEndianUInt16 bodySize = static_cast<MessageSize>(msgSize);
-    std::memcpy(buffer.data(), &bodySize, sizeof(bodySize));
+    std::memcpy(buffer, &bodySize, sizeof(bodySize));
+    return HEADER_SIZE + msgSize;
   }
 
   template <Busable Consumer>

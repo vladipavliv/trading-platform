@@ -9,8 +9,9 @@
 #include <memory>
 
 #include <atomic>
-#include <boost/lockfree/spsc_queue.hpp>
-#include <folly/ProducerConsumerQueue.h>
+// #include <boost/lockfree/spsc_queue.hpp>
+// #include <folly/ProducerConsumerQueue.h>
+// #include <rigtorp/SPSCQueue.h>
 #include <thread>
 
 #include "boost_types.hpp"
@@ -27,12 +28,13 @@ namespace hft {
  * @brief
  */
 template <typename MessageType, typename Consumer, size_t Capacity = 65536>
-class alignas(64) LfqRunner {
+class LfqRunner {
   static constexpr size_t MAX_EMPTY_CYCLES = 1'000'000;
 
-  // using Queue = boost::lockfree::spsc_queue<MessageType>;
-  using Queue = VyukovQueue<MessageType, Capacity>;
-  // using Queue = folly::ProducerConsumerQueue<MessageType>;
+  using Queue = VyukovQueue<MessageType, Capacity>; // <= 10.2 ns
+  // using Queue = rigtorp::SPSCQueue<MessageType>; // <= 15.6 ns
+  // using Queue = boost::lockfree::spsc_queue<MessageType>; // <= 36.9 ns
+  // using Queue = folly::ProducerConsumerQueue<MessageType>; // <= 38.3 ns
 
 public:
   LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer} {}

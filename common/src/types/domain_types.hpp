@@ -42,13 +42,13 @@ struct Order {
   OrderId id;
   Timestamp created;
   Ticker ticker;
-  mutable Quantity quantity;
+  Quantity quantity;
   Price price;
   OrderAction action;
 
   char padding[3] = {0};
 
-  void partialFill(Quantity amount) const { quantity = quantity < amount ? 0 : quantity - amount; }
+  inline void partialFill(Quantity amount) { quantity = quantity < amount ? 0 : quantity - amount; }
   auto operator<=>(CRef<Order>) const = default;
 };
 

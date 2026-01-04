@@ -38,37 +38,7 @@ public:
 
   NetworkServer(ServerBus &bus, Listener &listener)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, listener_{listener},
-        upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {}
-
-  ~NetworkServer() { stop(); }
-
-  void start() {
-    const auto addThread = [this](uint8_t workerId, Optional<CoreId> coreId = Optional<CoreId>{}) {
-      workerThreads_.emplace_back([this, workerId, coreId]() {
-        try {
-          utils::setTheadRealTime();
-          if (coreId.has_value()) {
-            utils::pinThreadToCore(coreId.value());
-            LOG_DEBUG("Worker {} started on the core {}", workerId, coreId.value());
-          } else {
-            LOG_DEBUG("Worker {} started", workerId);
-          }
-          ioCtx_.run();
-        } catch (const std::exception &e) {
-          LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
-          ioCtx_.stop();
-          bus_.post(InternalError(StatusCode::Error, e.what()));
-        }
-      });
-    };
-    const auto cores = ServerConfig::cfg.coresNetwork.size();
-    workerThreads_.reserve(cores == 0 ? 1 : cores);
-    if (cores == 0) {
-      addThread(0);
-    }
-    for (size_t i = 0; i < cores; ++i) {
-      addThread(i, ServerConfig::cfg.coresNetwork[i]);
-    }
+        upstreamAcceptor_{ioCtx_}, downstreamAcceptor_{ioCtx_} {
     ioCtx_.post([this]() {
       startUpstream();
       startDownstream();
@@ -77,6 +47,12 @@ public:
       LOG_INFO_SYSTEM("Network server started");
     });
   }
+
+  ~NetworkServer() { stop(); }
+
+  inline auto pollOne() { return ioCtx_.poll_one(); }
+
+  inline auto poll() { return ioCtx_.poll(); }
 
   void stop() { ioCtx_.stop(); }
 
@@ -96,6 +72,8 @@ private:
         LOG_ERROR("Failed to accept connection {}", ec.message());
         return;
       }
+      socket.set_option(boost::asio::socket_base::send_buffer_size{1024 * 1024 * 4});
+      socket.set_option(boost::asio::socket_base::receive_buffer_size{1024 * 1024 * 4});
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();
@@ -120,6 +98,8 @@ private:
         LOG_ERROR("Failed to accept connection: {}", ec.message());
         return;
       }
+      socket.set_option(boost::asio::socket_base::send_buffer_size{1024 * 1024 * 4});
+      socket.set_option(boost::asio::socket_base::receive_buffer_size{1024 * 1024 * 4});
       socket.set_option(TcpSocket::protocol_type::no_delay(true));
 
       const auto id = utils::generateConnectionId();
@@ -138,8 +118,6 @@ private:
 
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;
-
-  std::vector<Thread> workerThreads_;
 };
 
 } // namespace hft::server

@@ -19,9 +19,10 @@ target_include_directories(hft_common PUBLIC
     ${LIBPQXX_INCLUDE_DIRS}
     ${RDKAFKA_INCLUDE_DIRS}
     ${Protobuf_INCLUDE_DIRS}
+    ${spscqueue_SOURCE_DIR}/include
 )
 
-target_link_libraries(hft_common PRIVATE 
+target_link_libraries(hft_common PUBLIC 
     ${Protobuf_LIBRARIES}
     ${LIBPQXX_LIBRARIES}
     ${Boost_LIBRARIES}
