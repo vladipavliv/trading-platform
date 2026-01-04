@@ -40,21 +40,31 @@ public:
         upstreamChannel_->write(order);
       }
     });
-    bus_.subscribe<ConnectionStatusEvent>(
+    bus_.subscribe<ConnectionStatusEvent>( // format
         [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
-    bus_.subscribe<LoginResponse>([this](CRef<LoginResponse> event) { onLoginResponse(event); });
+    bus_.subscribe<LoginResponse>( // format
+        [this](CRef<LoginResponse> event) { onLoginResponse(event); });
   }
 
 private:
   void onUpstreamConnected(StreamTransport &&transport) {
+    if (upstreamChannel_) {
+      LOG_ERROR_SYSTEM("Already connected upstream");
+      return;
+    }
     const size_t id = utils::generateConnectionId();
     upstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
-    upstreamChannel_->write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
+    tryAuthenticate();
   }
 
   void onDownstreamConnected(StreamTransport &&transport) {
+    if (downstreamChannel_) {
+      LOG_ERROR_SYSTEM("Already connected downstream");
+      return;
+    }
     const size_t id = utils::generateConnectionId();
     downstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
+    tryAuthenticate();
   }
 
   void onDatagramConnected(DatagramTransport &&transport) {
@@ -69,8 +79,15 @@ private:
     }
   }
 
+  void tryAuthenticate() {
+    if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
+      state_ = ConnectionState::Connected;
+      upstreamChannel_->write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
+    }
+  }
+
   void onLoginResponse(CRef<LoginResponse> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_INFO_SYSTEM("{}", utils::toString(event));
     if (event.ok) {
       token_ = event.token;
     } else {

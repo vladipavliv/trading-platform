@@ -30,14 +30,9 @@ public:
   UPtr<OrderBook> book;
   Vector<ServerOrderStatus> statusq;
 
-  inline static std::once_flag initFlag;
-
   void SetUp() override {
-    std::call_once(initFlag, []() {
-      // Config could be also loaded in other benches
-      ServerConfig::load("utest_server_config.ini");
-      LOG_INIT(ServerConfig::cfg.logOutput);
-    });
+    ServerConfig::load("utest_server_config.ini");
+    LOG_INIT(ServerConfig::cfg.logOutput);
     book = std::make_unique<OrderBook>();
   }
 
@@ -67,7 +62,7 @@ void OrderBookFixture::post<ServerOrderStatus>(CRef<ServerOrderStatus> event) {
   statusq.push_back(event);
 }
 
-TEST_F(OrderBookFixture, OrderBookLimitReqched) {
+TEST_F(OrderBookFixture, OrderBookLimitReached) {
   for (size_t idx = 0; idx < ServerConfig::cfg.orderBookLimit; ++idx) {
     ASSERT_TRUE(book->add({0, generateOrder()}, *this));
   }

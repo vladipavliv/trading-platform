@@ -31,13 +31,15 @@ public:
   using Framer = F;
 
   Channel(Transport &&transport, ConnectionId id, Bus &bus)
-      : transport_{std::move(transport)}, id_{id}, bus_{bus} {}
+      : transport_{std::move(transport)}, id_{id}, bus_{bus} {
+    read();
+  }
 
   ~Channel() { close(); }
 
   void read() {
     using namespace utils;
-    LOG_DEBUG("read {}", activeOps_.load());
+    LOG_TRACE("read {}", activeOps_.load());
     if (status_ != ConnectionStatus::Connected) {
       LOG_ERROR_SYSTEM("read called on disconnected socket");
       return;
@@ -52,7 +54,7 @@ public:
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
     using namespace utils;
-    LOG_DEBUG("write {} active ops: {}", toString(msg), activeOps_.load());
+    LOG_TRACE("write {} active ops: {}", toString(msg), activeOps_.load());
     if (status_ != ConnectionStatus::Connected) {
       LOG_ERROR_SYSTEM("write called on disconnected socket");
       return;
@@ -60,11 +62,10 @@ public:
 
     NetworkBuffer netBuff{BufferPool<>::instance().acquire(), &activeOps_};
     if (!netBuff) {
-      LOG_ERROR("Failed to acquire network buffer, message dropped");
+      LOG_ERROR_SYSTEM("Failed to acquire network buffer, message dropped");
       return;
     }
     netBuff.setSize(Framer::frame(msg, netBuff.data()));
-
     transport_.asyncTx( // format
         netBuff.dataSpan(), [this, buff = std::move(netBuff)](IoResult code, size_t bytes) {
           BufferPool<>::instance().release(buff.index());

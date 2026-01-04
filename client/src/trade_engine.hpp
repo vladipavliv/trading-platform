@@ -36,8 +36,6 @@ public:
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe(ClientCommand::Start, [this] { tradeStart(); });
-    bus_.systemBus.subscribe(ClientCommand::Stop, [this] { tradeStop(); });
     bus_.systemBus.subscribe(ClientCommand::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;

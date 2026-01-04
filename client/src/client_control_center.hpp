@@ -43,6 +43,7 @@ public:
 
     bus_.systemBus.subscribe<ClientState>([this](CRef<ClientState> event) {
       LOG_INFO_SYSTEM("{}", utils::toString(event));
+      state_ = event;
       switch (event) {
       case ClientState::Connected:
         LOG_INFO_SYSTEM("Connected to the server");
@@ -58,6 +59,16 @@ public:
         break;
       }
     });
+
+    bus_.systemBus.subscribe(ClientCommand::Start, [this] {
+      if (state_ != ClientState::Connected) {
+        LOG_ERROR_SYSTEM("Not connected to the server");
+        return;
+      }
+      engine_.tradeStart();
+    });
+    bus_.systemBus.subscribe(ClientCommand::Stop, [this] { engine_.tradeStop(); });
+
     bus_.systemBus.subscribe<InternalError>([this](CRef<InternalError> error) {
       LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, utils::toString(error.code));
       stop();
@@ -107,6 +118,8 @@ private:
   TradeEngine engine_;
   StreamAdapter streamAdapter_;
   ConsoleRdr consoleReader_;
+
+  ClientState state_{ClientState::Disconnected};
 };
 } // namespace hft::client
 

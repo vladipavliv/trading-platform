@@ -26,6 +26,8 @@ namespace hft::server {
  */
 template <AsyncTransport T>
 class SessionManager {
+  static constexpr size_t STATUS_CHUNK = 16;
+
   using Chan = SessionChannel<T>;
 
   /**
@@ -108,16 +110,16 @@ public:
       LOG_DEBUG("{}", utils::toString(status));
       const auto sessionIter = sessionsMap_.find(status.clientId);
       if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-        LOG_DEBUG("Client {} is offline", status.clientId);
+        LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
         continue;
       }
       const auto session = sessionIter->second;
       if (session->downstreamChannel != nullptr) [[likely]] {
         session->downstreamChannel->write(status.orderStatus);
       } else {
-        LOG_INFO("No downstream connection for {}", status.clientId);
+        LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
       }
-      if (++processed > 16) {
+      if (++processed > STATUS_CHUNK) {
         return processed;
       }
     }
@@ -126,8 +128,12 @@ public:
 
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
+    size_t iterations = 0;
     while (!statusQueue_.push(status)) {
       asm volatile("pause" ::: "memory");
+      if (++iterations > BUSY_WAIT_CYCLES) {
+        throw std::runtime_error("Status queue is full");
+      }
     }
   }
 
@@ -167,7 +173,7 @@ private:
   }
 
   void onTokenBindRequest(CRef<ServerTokenBindRequest> request) {
-    LOG_DEBUG("Token bind request {} {}", request.connectionId, request.request.token);
+    LOG_INFO_SYSTEM("Token bind request {} {}", request.connectionId, request.request.token);
     const auto channelIter = unauthorizedDownstreamMap_.find(request.connectionId);
     if (channelIter == unauthorizedDownstreamMap_.end()) {
       LOG_WARN("Client already disconnected");
@@ -185,7 +191,7 @@ private:
           return session.second->token == token;
         });
     if (sessionIter == sessionsMap_.end()) {
-      LOG_ERROR("Invalid token received from {}", request.connectionId);
+      LOG_ERROR_SYSTEM("Invalid token received from {}", request.connectionId);
       downstreamChannel->write(LoginResponse{0, false, "Invalid token"});
       return;
     }
@@ -196,7 +202,7 @@ private:
       session->downstreamChannel->write(LoginResponse{request.request.token, true});
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
     } else {
-      LOG_ERROR("Downstream channel {} is already connected", request.connectionId);
+      LOG_ERROR_SYSTEM("Downstream channel {} is already connected", request.connectionId);
       downstreamChannel->write(LoginResponse{0, false, "Already connected"});
       downstreamChannel->close();
     }
