@@ -46,8 +46,8 @@ def test_order(server, tickers, client_name, client_password):
     orderBuy = serialization.create_order_message(1, 2, tickers[0]['ticker'], quantity, price, 0)
     orderSell = serialization.create_order_message(3, 4, tickers[0]['ticker'], quantity, price, 1)
 
-    client.sendUpstream(orderBuy, "orderBuy")
-    client.sendUpstream(orderSell, "orderSell")
+    client.sendUpstream(orderBuy)
+    client.sendUpstream(orderSell)
 
     # order_status_accepted = client.receiveDownstream()
     # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
@@ -91,11 +91,8 @@ def spam_orders(num_orders: int, tickers, client_name, client_password):
             print(f"Generated and saved {num_orders} orders in {gen_duration:.2f}s")
 
         send_start = time.time()
-        for i, order in enumerate(orders):
-            if i % 100 == 0:
-                client.drainDownstreamAndForget()
-            client.sendUpstream(order, str(i))
-            
+        for order in orders:
+            client.sendUpstream(order)
         send_duration = time.time() - send_start
 
         print(f"Sent {num_orders} orders in {send_duration:.2f}s "

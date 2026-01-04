@@ -121,8 +121,8 @@ BM_Op_StreamBusThroughput             20.1 ns         20.1 ns     35651584
 
 Stress test (Server + Python tester with 5m pregenerated orders):
 ```bash
-06:43:54.258145 [I] Orders: [opn|ttl] 810116|3711460 | Rps: 2875861
-Sent 5000000 orders in 1.74s (2877129.41 orders/sec)
+02:16:10.878183 [I] Orders: [opn|ttl] 1815149|8323623 | Rps: 3195897
+Sent 10000000 orders in 3.16s (3160574.80 orders/sec)
 ```
 
 Manual localhost tests:

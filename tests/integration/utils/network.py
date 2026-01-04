@@ -1,30 +1,29 @@
-import socket
 import struct
-import time
+import socket
 
-def recv_framed_message(sock: socket.socket, timeout: float = 2.0) -> bytes:
-    deadline = time.time() + timeout
-    
-    def read_exactly(n):
-        chunks = []
-        bytes_recvd = 0
-        while bytes_recvd < n:
-            if time.time() > deadline:
-                raise TimeoutError(f"Read timed out. Got {bytes_recvd}/{n} bytes")
-            try:
-                chunk = sock.recv(n - bytes_recvd)
-                if not chunk:
-                    raise ConnectionError("Server closed connection")
-                chunks.append(chunk)
-                bytes_recvd += len(chunk)
-            except (BlockingIOError, socket.error):
-                time.sleep(0.001) # Yield to CPU
-                continue
-        return b"".join(chunks)
+def recv_framed_message(sock: socket.socket, timeout: float = 0.1) -> bytes:
+    sock.settimeout(timeout)
+    try:
+        size_bytes = b""
+        while len(size_bytes) < 2:
+            chunk = sock.recv(2 - len(size_bytes))
+            if not chunk:
+                raise ConnectionError("Socket closed while reading size header")
+            size_bytes += chunk
 
-    # Read Header (2 bytes)
-    size_bytes = read_exactly(2)
-    size = struct.unpack('<H', size_bytes)[0]
+        size = struct.unpack('<H', size_bytes)[0]
 
-    # Read Payload
-    return read_exactly(size)
+        payload = b""
+        while len(payload) < size:
+            chunk = sock.recv(size - len(payload))
+            if not chunk:
+                raise ConnectionError("Socket closed while reading payload")
+            payload += chunk
+
+        return payload
+
+    except socket.timeout:
+        raise TimeoutError("Receiving data timed out")
+
+    finally:
+        sock.settimeout(None)

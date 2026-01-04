@@ -87,6 +87,10 @@ public:
 
     LOG_TRACE("TcpChannel write {}", utils::toString(msg));
     const auto buffer = BufferPool<>::instance().acquire();
+    if (buffer.data == nullptr) {
+      LOG_ERROR("Droping message due to overflow");
+      return;
+    }
     const auto msgSize = Framer::frame(msg, buffer.data);
     boost::asio::async_write( // format
         socket_, boost::asio::buffer(buffer.data, msgSize),
@@ -104,21 +108,26 @@ public:
 
   inline auto isError() const -> bool { return status_ == ConnectionStatus::Error; }
 
-  inline void close() {
-    LOG_DEBUG("write {}", activeOps_.load());
-    boost::system::error_code ec;
-    socket_.cancel(ec);
-    socket_.close(ec);
-    status_ = ConnectionStatus::Disconnected;
+  inline void close() noexcept {
+    try {
+      LOG_DEBUG("write {}", activeOps_.load());
+      boost::system::error_code ec;
+      socket_.cancel(ec);
+      socket_.close(ec);
+      status_ = ConnectionStatus::Disconnected;
 
-    auto ops = activeOps_.load();
-    size_t cycles = 0;
-    while (activeOps_.load(std::memory_order_acquire) > 0) {
-      asm volatile("pause" ::: "memory");
-      if (++cycles > 10000000) {
-        throw std::runtime_error(
-            std::format("Failed to complete socket operations {} {}", ops, activeOps_.load()));
+      size_t cycles = 0;
+      while (activeOps_.load(std::memory_order_acquire) > 0) {
+        asm volatile("pause" ::: "memory");
+        if (++cycles > BUSY_WAIT_CYCLES) {
+          throw std::runtime_error(
+              std::format("Failed to complete {} socket operations", activeOps_.load()));
+        }
       }
+    } catch (const std::exception &ex) {
+      LOG_ERROR_SYSTEM("exception in tcp_channel::close {}", ex.what());
+    } catch (...) {
+      LOG_ERROR_SYSTEM("unknown exception in tcp_channel::close");
     }
   }
 

@@ -1,10 +1,8 @@
-import os
 import sys
 import time
 import socket
 import subprocess
 import pathlib
-import subprocess
 from contextlib import contextmanager
 from threading import Thread
 
@@ -24,6 +22,7 @@ HOST = '127.0.0.1'
 PORT_UP = 8080
 PORT_DOWN = 8081
 PORT_UDP = 8082
+
 
 def _start_process(name, log_to_console=True):
     bin_path, cfg_path = BINARIES[name]
@@ -50,6 +49,7 @@ def _start_process(name, log_to_console=True):
 
     return proc
 
+
 def stop(proc):
     try:
         proc.stdin.write('q\n')
@@ -73,36 +73,9 @@ def print_stream(stream, prefix):
         print(f"{prefix}: {line.rstrip()}")
     stream.close()
 
-def is_server_running(process_name="hft_server"):
-    pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
-    for pid in pids:
-        try:
-            # 1. Check the short name (comm)
-            with open(os.path.join('/proc', pid, 'comm'), 'r') as f:
-                if f.read().strip() == process_name:
-                    return True
-            
-            # 2. Check the full command line (in case it's prefixed by gdb)
-            with open(os.path.join('/proc', pid, 'cmdline'), 'r') as f:
-                # cmdline uses null bytes (\0) as delimiters
-                cmdline = f.read().replace('\0', ' ')
-                if process_name in cmdline:
-                    return True
-                    
-        except (IOError, OSError):
-            continue
-    return False
 
 @contextmanager
 def running_process(name, log_to_console=True):
-    if name == "server" and is_server_running():
-        print(f"Server is already running. Skipping startup.")
-        try:
-            yield None
-        finally:
-            print(f"Server was already running; leaving it alive.")
-            return
-
     proc = _start_process(name, log_to_console)
 
     stdout_thread = None
