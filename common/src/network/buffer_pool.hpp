@@ -13,6 +13,15 @@
 
 namespace hft {
 
+struct Buffer {
+  uint8_t *data{nullptr};
+  size_t size{0};
+  size_t index{0};
+
+  constexpr explicit operator bool() const noexcept { return data != nullptr; }
+  constexpr bool operator!() const noexcept { return data == nullptr; }
+};
+
 template <size_t BufferSize = 128, size_t PoolSize = 1024 * 1024>
 class BufferPool {
 public:
@@ -27,21 +36,15 @@ public:
     return *instance;
   }
 
-  struct Lease {
-    uint8_t *data{nullptr};
-    size_t size{0};
-    size_t index{0};
-  };
-
   BufferPool() : freePtr_(PoolSize) {
     for (size_t i = 0; i < PoolSize; ++i) {
       freeIndices_[i] = i;
     }
   }
 
-  inline auto acquire() -> Lease {
+  inline auto acquire() -> Buffer {
     if (freePtr_ == 0) [[unlikely]] {
-      return Lease{};
+      return Buffer{};
     }
     size_t idx = freeIndices_[--freePtr_];
     return {&storage_[idx * BufferSize], BufferSize, idx};

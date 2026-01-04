@@ -8,7 +8,7 @@
 
 #include <concepts>
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 
 namespace hft {
 

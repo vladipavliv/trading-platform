@@ -43,6 +43,9 @@ inline auto getCycles() -> Timestamp {
 }
 
 inline void pinThreadToCore(size_t coreId) {
+  if (coreId == 0) {
+    throw std::runtime_error("Cannot pin thread to core 0");
+  }
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(coreId, &cpuset);
@@ -200,7 +203,7 @@ struct alignas(64) Consumer {
 
   template <typename Message>
   void post(const Message &msg) {
-    auto counter = processed.fetch_add(1, std::memory_order_relaxed);
+    auto counter = processed.fetch_add(1);
     if (counter == target) {
       signal.test_and_set(std::memory_order_release);
     }
@@ -211,8 +214,9 @@ struct OpCounter {
   std::atomic<size_t> *value{nullptr};
 
   explicit OpCounter(std::atomic<size_t> *v) : value{v} {
-    if (value)
-      value->fetch_add(1, std::memory_order_relaxed);
+    if (value) {
+      value->fetch_add(1);
+    }
   }
 
   OpCounter(OpCounter &&other) noexcept : value(other.value) { other.value = nullptr; }
@@ -221,7 +225,7 @@ struct OpCounter {
 
   ~OpCounter() {
     if (value)
-      value->fetch_sub(1, std::memory_order_release);
+      value->fetch_sub(1);
   }
 
   OpCounter(const OpCounter &) = delete;

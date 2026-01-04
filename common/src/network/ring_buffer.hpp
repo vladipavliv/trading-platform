@@ -15,7 +15,7 @@
 namespace hft {
 
 /**
- * @brief Wrapper for a ring buffer to use with boost sockets
+ * @brief
  */
 class RingBuffer {
   static constexpr size_t MIN_READ_CAPACITY = 512;
@@ -28,14 +28,9 @@ public:
     buffer_.resize(capacity_);
   }
 
-  /**
-   * @brief Returns write buffer
-   * @details read/write are not used in the interface to avoid confusion
-   * whos reading and whos writing. Socket is reading from network but writing to a buffer
-   */
-  inline auto buffer() -> MutableBuffer {
+  inline auto buffer() -> ByteSpan {
     rotate();
-    return MutableBuffer(buffer_.data() + head_, capacity_ - head_);
+    return ByteSpan(buffer_.data() + head_, capacity_ - head_);
   }
 
   inline auto data() -> ByteSpan {

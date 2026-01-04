@@ -8,7 +8,7 @@
 
 #include <map>
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "logging.hpp"
 #include "server_command.hpp"
 #include "types.hpp"

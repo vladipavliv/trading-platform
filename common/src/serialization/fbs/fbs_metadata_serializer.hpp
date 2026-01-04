@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_METADATASERIALIZER_HPP
 #define HFT_COMMON_METADATASERIALIZER_HPP
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "fbs_converter.hpp"
 #include "gen/fbs/cpp/metadata_messages_generated.h"
 #include "metadata_types.hpp"

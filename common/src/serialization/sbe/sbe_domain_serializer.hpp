@@ -19,7 +19,7 @@
 #include "gen/sbe/cpp/hft_serialization_gen_sbe_domain/TickerPrice.h"
 #include "gen/sbe/cpp/hft_serialization_gen_sbe_domain/TokenBindRequest.h"
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "domain_types.hpp"
 #include "sbe_converter.hpp"
 #include "ticker.hpp"

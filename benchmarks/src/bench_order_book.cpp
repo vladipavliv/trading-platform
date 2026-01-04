@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "config/server_config.hpp"
 #include "execution/order_book.hpp"
 #include "server_types.hpp"

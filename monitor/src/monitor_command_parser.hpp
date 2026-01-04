@@ -9,11 +9,11 @@
 #include <map>
 
 #include "boost_types.hpp"
+#include "bus/busable.hpp"
 #include "commands/client_command.hpp"
 #include "commands/client_command_parser.hpp"
 #include "commands/server_command.hpp"
 #include "commands/server_command_parser.hpp"
-#include "concepts/busable.hpp"
 #include "logging.hpp"
 #include "monitor_command.hpp"
 #include "types.hpp"

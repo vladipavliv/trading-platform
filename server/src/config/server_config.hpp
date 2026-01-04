@@ -26,7 +26,7 @@ struct ServerConfig {
 
   // Cores
   Optional<CoreId> coreSystem;
-  std::vector<CoreId> coresNetwork;
+  Optional<CoreId> coreNetwork;
   std::vector<CoreId> coresApp;
 
   // Rates
@@ -55,12 +55,29 @@ struct ServerConfig {
     // Cores
     if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
       cfg.coreSystem = *core;
+      if (*core == 0) {
+        throw std::runtime_error("Invalid cores configuration");
+      }
     }
-    if (const auto cores = Config::get_optional<String>("cpu.cores_network")) {
-      cfg.coresNetwork = utils::split(*cores);
+    if (const auto core = Config::get_optional<size_t>("cpu.core_network")) {
+      cfg.coreNetwork = *core;
+      if (cfg.coreSystem.has_value() && cfg.coreSystem == *core) {
+        throw std::runtime_error("Invalid cores configuration");
+      }
+      if (*core == 0) {
+        throw std::runtime_error("Invalid cores configuration");
+      }
     }
     if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
       cfg.coresApp = utils::split(*cores);
+      if (cfg.coreSystem.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
+                                                  *cfg.coreSystem) != cfg.coresApp.end()) {
+        throw std::runtime_error("Invalid cores configuration");
+      }
+      if (cfg.coreNetwork.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
+                                                   *cfg.coreNetwork) != cfg.coresApp.end()) {
+        throw std::runtime_error("Invalid cores configuration");
+      }
     }
 
     // Rates
@@ -75,34 +92,13 @@ struct ServerConfig {
 
     // Logging
     cfg.logOutput = Config::get<String>("log.output");
-
-    verify();
-  }
-
-  static void verify() {
-    if (cfg.url.empty() || cfg.portTcpUp == 0 || cfg.portTcpDown == 0 || cfg.portUdp == 0) {
-      throw std::runtime_error("Invalid network configuration");
-    }
-    if (utils::hasIntersection(cfg.coresApp, cfg.coresNetwork)) {
-      throw std::runtime_error("Invalid cores configuration");
-    }
-    if (std::find(cfg.coresApp.begin(), cfg.coresApp.end(), cfg.coreSystem) != cfg.coresApp.end()) {
-      throw std::runtime_error("Invalid cores configuration");
-    }
-    if (std::find(cfg.coresNetwork.begin(), cfg.coresNetwork.end(), cfg.coreSystem) !=
-        cfg.coresNetwork.end()) {
-      throw std::runtime_error("Invalid cores configuration");
-    }
-    if (cfg.monitorRate.count() == 0) {
-      throw std::runtime_error("Invalid rates configuration");
-    }
   }
 
   static void log() {
     LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                     cfg.portUdp);
-    LOG_INFO_SYSTEM("SystemCore:{} NetworkCores:{} AppCores:{} PriceFeedRate:{}us",
-                    cfg.coreSystem.value_or(0), utils::toString(cfg.coresNetwork),
+    LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} PriceFeedRate:{}us",
+                    cfg.coreSystem.value_or(0), cfg.coreNetwork.value_or(0),
                     utils::toString(cfg.coresApp), cfg.priceFeedRate.count());
     LOG_INFO_SYSTEM("OrderBookLimit: {} OrderBookPersist: {}", cfg.orderBookLimit,
                     cfg.orderBookPersist);
