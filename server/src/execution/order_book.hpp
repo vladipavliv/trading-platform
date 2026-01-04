@@ -75,7 +75,7 @@ public:
 
   template <Busable Consumer>
   bool add(CRef<ServerOrder> order, Consumer &consumer) {
-    if (openedOrders_ >= ServerConfig::cfg.orderBookLimit) {
+    if (bids_.size() + asks_.size() >= ServerConfig::cfg.orderBookLimit) {
       LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
