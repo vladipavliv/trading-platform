@@ -175,16 +175,17 @@ static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
 
   pinThreadToCore(getCore(0));
 
+  size_t counter = 0;
   SystemBus bus;
   Thread t{[&bus]() {
     pinThreadToCore(getCore(1));
     bus.run();
   }};
-  bus.subscribe<Order>([](CRef<Order> o) { o.partialFill(1); });
+  bus.subscribe<Order>([&counter](CRef<Order> o) { counter += o.id; });
 
   for (auto _ : state) {
     bus.post(order);
-    benchmark::DoNotOptimize(&order);
+    benchmark::DoNotOptimize(counter);
   }
   bus.stop();
 }

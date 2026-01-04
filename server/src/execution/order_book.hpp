@@ -25,26 +25,35 @@ namespace hft::server {
  * @details Since testing is done locally, all the orders have the same client id
  * so every match would come with two notifications, about recent order and a previous one
  * To avoid this the order status is sent only about the most recent order
- * @todo At some point it might make sense to split Order to hot and cold data
- * Currently for simple limit orders all the data is hot, and there are no iterations
- * without sending status, so separating it doesnt make sense for now.
- * Reconsider for more complex order types later on.
- * @todo Works with the single ticker, and has separate container for bids and asks
- * So ticker and action could be thrown away to reduce memory footprint
- * Would complicate things a bit, but help keeping order under 32 bytes and have 2 orders
- * in a single cache line
  */
 class OrderBook {
-  static inline bool compareBids(CRef<ServerOrder> left, CRef<ServerOrder> right) {
-    return left.order.price < right.order.price;
+  struct InternalOrder {
+    ClientId clientId;
+    OrderId id;
+    Timestamp created;
+    Quantity quantity;
+    Price price;
+
+    inline void partialFill(Quantity amount) {
+      quantity = quantity < amount ? 0 : quantity - amount;
+    }
+  };
+
+  static inline bool compareBids(CRef<InternalOrder> left, CRef<InternalOrder> right) {
+    return left.price < right.price;
   }
-  static inline bool compareAsks(CRef<ServerOrder> left, CRef<ServerOrder> right) {
-    return left.order.price > right.order.price;
+  static inline bool compareAsks(CRef<InternalOrder> left, CRef<InternalOrder> right) {
+    return left.price > right.price;
+  }
+  static inline ServerOrderStatus getStatus( // format
+      CRef<InternalOrder> o, Quantity quantity, Price price, OrderState state) {
+    return ServerOrderStatus( // format
+        o.clientId, {o.id, utils::getTimestamp(), quantity, price, state});
   }
   static inline ServerOrderStatus getStatus( // format
       CRef<ServerOrder> o, Quantity quantity, Price price, OrderState state) {
-    return ServerOrderStatus(
-        o.clientId, OrderStatus{o.order.id, utils::getTimestamp(), quantity, price, state});
+    return ServerOrderStatus( // format
+        o.clientId, {o.order.id, utils::getTimestamp(), quantity, price, state});
   }
 
 public:
@@ -72,14 +81,14 @@ public:
       return false;
     }
     if (order.order.action == OrderAction::Buy) {
-      bids_.push_back(order);
+      bids_.push_back(InternalOrder{order.clientId, order.order.id, order.order.created,
+                                    order.order.quantity, order.order.price});
       std::push_heap(bids_.begin(), bids_.end(), compareBids);
     } else {
-      asks_.push_back(order);
+      asks_.push_back(InternalOrder{order.clientId, order.order.id, order.order.created,
+                                    order.order.quantity, order.order.price});
       std::push_heap(asks_.begin(), asks_.end(), compareAsks);
     }
-    openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
-
     return true;
   }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
@@ -98,32 +107,30 @@ public:
   template <Busable Consumer>
   void match(Consumer &consumer) {
     while (!bids_.empty() && !asks_.empty()) {
-      ServerOrder &bestBid = bids_.front();
-      ServerOrder &bestAsk = asks_.front();
-      if (bestBid.order.price < bestAsk.order.price) {
+      InternalOrder &bestBid = bids_.front();
+      InternalOrder &bestAsk = asks_.front();
+      if (bestBid.price < bestAsk.price) {
         break;
       }
-      const auto quantity = std::min(bestBid.order.quantity, bestAsk.order.quantity);
-      bestBid.order.partialFill(quantity);
-      bestAsk.order.partialFill(quantity);
+      const auto quantity = std::min(bestBid.quantity, bestAsk.quantity);
+      bestBid.partialFill(quantity);
+      bestAsk.partialFill(quantity);
 
       // local workaround, if client id is the same, send only a recent order notification
-      if ((bestBid.clientId != bestAsk.clientId) ||
-          (bestBid.order.created > bestAsk.order.created)) {
-        const auto state = (bestBid.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        consumer.post(getStatus(bestBid, quantity, bestAsk.order.price, state));
+      if ((bestBid.clientId != bestAsk.clientId) || (bestBid.created > bestAsk.created)) {
+        const auto state = (bestBid.quantity == 0) ? OrderState::Full : OrderState::Partial;
+        consumer.post(getStatus(bestBid, quantity, bestAsk.price, state));
       }
-      if ((bestBid.clientId != bestAsk.clientId) ||
-          (bestAsk.order.created > bestBid.order.created)) {
-        const auto state = (bestAsk.order.quantity == 0) ? OrderState::Full : OrderState::Partial;
-        consumer.post(getStatus(bestAsk, quantity, bestAsk.order.price, state));
+      if ((bestBid.clientId != bestAsk.clientId) || (bestAsk.created > bestBid.created)) {
+        const auto state = (bestAsk.quantity == 0) ? OrderState::Full : OrderState::Partial;
+        consumer.post(getStatus(bestAsk, quantity, bestAsk.price, state));
       }
 
-      if (bestBid.order.quantity == 0) {
+      if (bestBid.quantity == 0) {
         std::pop_heap(bids_.begin(), bids_.end(), compareBids);
         bids_.pop_back();
       }
-      if (bestAsk.order.quantity == 0) {
+      if (bestAsk.quantity == 0) {
         std::pop_heap(asks_.begin(), asks_.end(), compareAsks);
         asks_.pop_back();
       }
@@ -133,27 +140,27 @@ public:
 
   auto extract() const -> Vector<ServerOrder> {
     Vector<ServerOrder> orders;
-    orders.reserve(bids_.size() + asks_.size());
-    orders.insert(orders.end(), bids_.begin(), bids_.end());
-    orders.insert(orders.end(), asks_.begin(), asks_.end());
+    //    orders.reserve(bids_.size() + asks_.size());
+    //    orders.insert(orders.end(), bids_.begin(), bids_.end());
+    //    orders.insert(orders.end(), asks_.begin(), asks_.end());
     return orders;
   }
 
   auto extract() -> Vector<ServerOrder> {
     Vector<ServerOrder> orders;
-    orders.reserve(bids_.size() + asks_.size());
-    orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
-                  std::make_move_iterator(bids_.end()));
-    orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
-                  std::make_move_iterator(asks_.end()));
-    bids_.clear();
-    asks_.clear();
-    openedOrders_ = 0;
+    // orders.reserve(bids_.size() + asks_.size());
+    // orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
+    //               std::make_move_iterator(bids_.end()));
+    // orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
+    //               std::make_move_iterator(asks_.end()));
+    // bids_.clear();
+    // asks_.clear();
+    // openedOrders_ = 0;
     return orders;
   }
 
   void inject(Span<const ServerOrder> orders) {
-    for (const auto &order : orders) {
+    /*for (const auto &order : orders) {
       if (openedOrders() >= ServerConfig::cfg.orderBookLimit) {
         LOG_ERROR_SYSTEM("Failed to inject orders: limit reached");
         break;
@@ -166,7 +173,7 @@ public:
         asks_.push_back(order);
         std::push_heap(asks_.begin(), asks_.end(), compareAsks);
       }
-    }
+    }*/
   }
 
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
@@ -176,8 +183,8 @@ private:
   OrderBook &operator=(const OrderBook &other) = delete;
 
 private:
-  alignas(64) Vector<ServerOrder> bids_;
-  alignas(64) Vector<ServerOrder> asks_;
+  alignas(64) Vector<InternalOrder> bids_;
+  alignas(64) Vector<InternalOrder> asks_;
 
   alignas(64) std::atomic_size_t openedOrders_{0};
 };
