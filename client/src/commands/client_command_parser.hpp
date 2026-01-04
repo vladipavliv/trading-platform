@@ -8,8 +8,8 @@
 
 #include <map>
 
+#include "bus/busable.hpp"
 #include "client_command.hpp"
-#include "concepts/busable.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 

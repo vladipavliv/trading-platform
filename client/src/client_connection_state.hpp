@@ -3,8 +3,8 @@
  * @date 2025-02-13
  */
 
-#ifndef HFT_CLIENT_CONNECTIONSTATE_HPP
-#define HFT_CLIENT_CONNECTIONSTATE_HPP
+#ifndef HFT_CLIENT_CLIENTCONNECTIONSTATE_HPP
+#define HFT_CLIENT_CLIENTCONNECTIONSTATE_HPP
 
 #include "utils/string_utils.hpp"
 
@@ -34,4 +34,4 @@ inline String toString(const client::ConnectionState &event) {
 } // namespace utils
 } // namespace hft
 
-#endif // HFT_CLIENT_CONNECTIONSTATE_HPP
+#endif // HFT_CLIENT_CLIENTCONNECTIONSTATE_HPP

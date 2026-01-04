@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include "boost_types.hpp"
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "config/config.hpp"
 #include "kafka_callbacks.hpp"
 #include "kafka_event.hpp"

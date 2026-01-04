@@ -128,7 +128,7 @@ Sent 10000000 orders in 3.16s (3160574.80 orders/sec)
 Manual localhost tests:
 ```bash
 Server:
-05:38:42.106367 [I] Orders: [opn|ttl] 132532|604277 | Rps: 69551
+10:01:26.241245 [I] Orders: [opn|ttl] 672564|675128 | Rps: 74487
 Client:
-05:38:41.386266 [I] Rtt: [<50us|>50us] 100.00% avg:6us 0%
+10:01:25.176907 [I] Rtt: [<50us|>50us] 100.00% avg:6us 0%
 ```

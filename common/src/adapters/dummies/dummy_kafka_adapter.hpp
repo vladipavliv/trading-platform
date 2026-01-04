@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 #define HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "types.hpp"

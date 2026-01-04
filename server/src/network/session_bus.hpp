@@ -8,7 +8,6 @@
 
 #include "boost_types.hpp"
 #include "logging.hpp"
-#include "network/channels/tcp_channel.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
 #include "types.hpp"
@@ -47,6 +46,7 @@ template <>
 inline void SessionBus::post<LoginRequest>(CRef<LoginRequest> message) {
   if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid login request: SessionBus for {} is already authenticated", connId_);
+    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
     return;
   }
   bus_.post(ServerLoginRequest{connId_, message});
@@ -56,6 +56,7 @@ template <>
 inline void SessionBus::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
   if (isAuthenticated()) {
     LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", connId_);
+    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
     return;
   }
   bus_.post(ServerTokenBindRequest{connId_, message});
@@ -70,6 +71,7 @@ template <>
 inline void SessionBus::post<Order>(CRef<Order> message) {
   if (!isAuthenticated()) [[unlikely]] {
     LOG_ERROR_SYSTEM("Channel {} is not authenticated", connId_);
+    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
     return;
   }
   bus_.post(ServerOrder{clientId_.value(), message});

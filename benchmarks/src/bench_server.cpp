@@ -34,10 +34,9 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
   }
 
   ServerConfig::cfg.coresApp.clear();
-  ServerConfig::cfg.coresNetwork.clear();
 
   ServerConfig::cfg.coreSystem = Config::get<size_t>("bench.bench_e_core");
-  ServerConfig::cfg.coresNetwork.push_back(getCore(0));
+  ServerConfig::cfg.coreNetwork = getCore(0);
 
   for (size_t i = 1; i <= workerCount; ++i) {
     ServerConfig::cfg.coresApp.push_back(getCore(i));
@@ -89,8 +88,8 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
 
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
-  if (!ServerConfig::cfg.coresNetwork.empty()) {
-    utils::pinThreadToCore(ServerConfig::cfg.coresNetwork.front());
+  if (ServerConfig::cfg.coreNetwork) {
+    utils::pinThreadToCore(ServerConfig::cfg.coreNetwork.value());
   }
 
   const uint64_t ordersCount = orders.orders.size();

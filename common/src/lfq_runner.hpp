@@ -29,8 +29,6 @@ namespace hft {
  */
 template <typename MessageType, typename Consumer, size_t Capacity = 65536>
 class LfqRunner {
-  static constexpr size_t MAX_EMPTY_CYCLES = 1'000'000;
-
   using Queue = VyukovQueue<MessageType, Capacity>; // <= 10.2 ns
   // using Queue = rigtorp::SPSCQueue<MessageType>; // <= 15.6 ns
   // using Queue = boost::lockfree::spsc_queue<MessageType>; // <= 36.9 ns
@@ -53,7 +51,6 @@ public:
       running_.notify_all();
 
       MessageType message;
-      // size_t idleCycles = 0;
       while (running_.load(std::memory_order_acquire)) {
         if (queue_.pop(message)) {
           do {
@@ -72,7 +69,7 @@ public:
   inline bool post(CRef<MessageType> message) {
     size_t waitCycles = 0;
     while (!queue_.push(message)) {
-      if (++waitCycles > MAX_EMPTY_CYCLES) {
+      if (++waitCycles > BUSY_WAIT_CYCLES) {
         return false;
       }
       asm volatile("pause" ::: "memory");

@@ -7,7 +7,7 @@
 #define HFT_COMMON_FIXEDSIZEFRAMER_HPP
 
 #include "boost_types.hpp"
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
 #include "serialization/serializer.hpp"

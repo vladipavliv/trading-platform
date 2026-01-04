@@ -8,7 +8,7 @@
 
 #include <concepts>
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #include "domain_types.hpp"
 #include "message_bus.hpp"
 #include "stream_bus.hpp"

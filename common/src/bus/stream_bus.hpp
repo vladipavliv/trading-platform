@@ -28,7 +28,6 @@ namespace hft {
  */
 template <size_t Capacity = 65536, typename... Events>
 class StreamBus {
-  static constexpr size_t RETRY_COUNT = 1'000'000;
   static constexpr size_t EventCount = sizeof...(Events);
 
   template <typename Event>
@@ -84,7 +83,7 @@ public:
 
     size_t pushRetry{0};
     while (!queue->push(event)) {
-      if (++pushRetry > RETRY_COUNT) {
+      if (++pushRetry > BUSY_WAIT_CYCLES) {
         LOG_ERROR_SYSTEM("StreamBus event queue is full for {}", typeid(Event).name());
         return false;
       }

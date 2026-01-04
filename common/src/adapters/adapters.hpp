@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_ADAPTERS_ADAPTERFACTORY_HPP
 #define HFT_COMMON_ADAPTERS_ADAPTERFACTORY_HPP
 
-#include "concepts/busable.hpp"
+#include "bus/busable.hpp"
 #ifdef TELEMETRY_ENABLED
 #include "adapters/kafka/kafka_adapter.hpp"
 #else
