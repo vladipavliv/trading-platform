@@ -26,8 +26,6 @@ namespace hft::server {
  */
 template <AsyncTransport T>
 class SessionManager {
-  static constexpr size_t STATUS_CHUNK = 16;
-
   using Chan = SessionChannel<T>;
 
   /**
@@ -118,9 +116,6 @@ public:
         session->downstreamChannel->write(status.orderStatus);
       } else {
         LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
-      }
-      if (++processed > STATUS_CHUNK) {
-        return processed;
       }
     }
     return processed;

@@ -31,8 +31,7 @@ public:
   using Tracker = RttTracker<50>;
 
   explicit TradeEngine(ClientBus &bus)
-      : bus_{bus}, marketData_{loadMarketData()}, worker_{makeWorker()}, tradeTimer_{worker_.ioCtx},
-        statsTimer_{bus_.systemIoCtx()} {
+      : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
@@ -51,13 +50,13 @@ public:
       return;
     }
     LOG_DEBUG("Starting trade engine");
-    startWorkers();
     started_ = true;
+    startWorkers();
   }
 
   void stop() {
     LOG_DEBUG("Stopping trade engine");
-    worker_.stop();
+    started_ = false;
   }
 
   void tradeStart() {
@@ -66,12 +65,10 @@ public:
     }
     LOG_INFO_SYSTEM("Trade start");
     trading_ = true;
-    scheduleTradeTimer();
     scheduleStatsTimer();
   }
 
   void tradeStop() {
-    tradeTimer_.cancel();
     if (!trading_) {
       return;
     }
@@ -81,26 +78,14 @@ public:
 
 private:
   void startWorkers() {
-    // Design is not yet clear here so a single worker for now
     LOG_INFO_SYSTEM("Starting trade worker");
-    worker_.run();
-  }
-
-  void scheduleTradeTimer() {
-    if (!trading_) {
-      return;
-    }
-    tradeTimer_.expires_after(ClientConfig::cfg.tradeRate);
-    tradeTimer_.async_wait([this](BoostErrorCode code) {
-      if (code) {
-        if (code != ASIO_ERR_ABORTED) {
-          LOG_ERROR_SYSTEM("{}", code.message());
-        }
-        return;
+    worker_ = Thread{[this]() {
+      utils::setTheadRealTime();
+      if (!ClientConfig::cfg.coresApp.empty()) {
+        utils::pinThreadToCore(ClientConfig::cfg.coresApp[0]);
       }
-      tradeSomething();
-      scheduleTradeTimer();
-    });
+      tradeLoop();
+    }};
   }
 
   auto loadMarketData() -> MarketData {
@@ -120,20 +105,31 @@ private:
     return data;
   }
 
-  void tradeSomething() {
-    using namespace utils;
-    static auto cursor = marketData_.begin();
-    if (cursor == marketData_.end()) {
-      cursor = marketData_.begin();
+  void tradeLoop() {
+    while (started_) {
+      if (!trading_) {
+        asm volatile("pause" ::: "memory");
+        continue;
+      }
+      using namespace utils;
+      static auto cursor = marketData_.begin();
+      if (cursor == marketData_.end()) {
+        cursor = marketData_.begin();
+      }
+      auto &p = *cursor++;
+      const auto newPrice = fluctuateThePrice(p.second.getPrice());
+      const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
+      const auto quantity = RNG::generate<Quantity>(0, 100);
+      const auto id = getTimestamp(); // TODO(self)
+      Order order{id, id, p.first, quantity, newPrice, action};
+      LOG_TRACE("Placing order {}", utils::toString(order));
+      bus_.marketBus.post(order);
+
+      for (int i = 0; i < 5; ++i) {
+        std::this_thread::yield();
+      }
+      // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
     }
-    auto &p = *cursor++;
-    const auto newPrice = fluctuateThePrice(p.second.getPrice());
-    const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    const auto quantity = RNG::generate<Quantity>(0, 100);
-    const auto id = getTimestamp(); // TODO(self)
-    Order order{id, id, p.first, quantity, newPrice, action};
-    LOG_TRACE("Placing order {}", utils::toString(order));
-    bus_.marketBus.post(order);
   }
 
   void onOrderStatus(CRef<OrderStatus> s) {
@@ -183,27 +179,18 @@ private:
     });
   }
 
-  CtxRunner makeWorker() {
-    if (ClientConfig::cfg.coresApp.empty()) {
-      return CtxRunner(ErrorBus{bus_.systemBus});
-    } else {
-      return CtxRunner{0, ClientConfig::cfg.coresApp[0], ErrorBus{bus_.systemBus}};
-    }
-  }
-
 private:
   adapters::DbAdapter dbAdapter_;
   const MarketData marketData_;
 
   ClientBus &bus_;
-  CtxRunner worker_;
+  Thread worker_;
 
-  SteadyTimer tradeTimer_;
   SteadyTimer statsTimer_;
 
-  bool started_{false};
-  bool trading_{false};
-  bool telemetry_{false};
+  std::atomic_bool started_{false};
+  std::atomic_bool trading_{false};
+  std::atomic_bool telemetry_{false};
 };
 } // namespace hft::client
 
