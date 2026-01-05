@@ -41,6 +41,7 @@ class SessionManager {
 
 public:
   using Transport = T;
+  using DrainHook = std::function<void(Callback &&)>;
 
   explicit SessionManager(ServerBus &bus) : bus_{bus} {
     bus_.subscribe<ServerOrderStatus>(
@@ -52,6 +53,8 @@ public:
     bus_.subscribe<ChannelStatusEvent>(
         [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
+
+  void setDrainHook(DrainHook &&drainHook) { drainHook_ = std::move(drainHook); }
 
   void acceptUpstream(Transport &&transport) {
     const auto id = utils::generateConnectionId();
@@ -101,26 +104,6 @@ public:
     unauthorizedDownstreamMap_.clear();
   }
 
-  inline size_t poll() {
-    size_t processed = 0;
-    ServerOrderStatus status;
-    while (statusQueue_.pop(status)) {
-      LOG_DEBUG("{}", utils::toString(status));
-      const auto sessionIter = sessionsMap_.find(status.clientId);
-      if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-        LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
-        continue;
-      }
-      const auto session = sessionIter->second;
-      if (session->downstreamChannel != nullptr) [[likely]] {
-        session->downstreamChannel->write(status.orderStatus);
-      } else {
-        LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
-      }
-    }
-    return processed;
-  }
-
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     size_t iterations = 0;
@@ -129,6 +112,9 @@ private:
       if (++iterations > BUSY_WAIT_CYCLES) {
         throw std::runtime_error("Status queue is full");
       }
+    }
+    if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
+      drainHook_([this]() { drainStatusQueue(); });
     }
   }
 
@@ -228,6 +214,34 @@ private:
     }
   }
 
+  inline void drainStatusQueue() {
+    ServerOrderStatus status;
+    while (statusQueue_.pop(status)) {
+      processStatus(status);
+    }
+    drainScheduled_.store(false, std::memory_order_release);
+    if (!statusQueue_.empty()) {
+      if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
+        drainHook_([this]() { drainStatusQueue(); });
+      }
+    }
+  }
+
+  inline void processStatus(ServerOrderStatus &status) {
+    LOG_DEBUG("{}", utils::toString(status));
+    const auto sessionIter = sessionsMap_.find(status.clientId);
+    if (sessionIter == sessionsMap_.end()) [[unlikely]] {
+      LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
+      return;
+    }
+    const auto session = sessionIter->second;
+    if (session->downstreamChannel != nullptr) [[likely]] {
+      session->downstreamChannel->write(status.orderStatus);
+    } else {
+      LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
+    }
+  }
+
   inline void printStats() const { LOG_INFO_SYSTEM("Active sessions: {}", sessionsMap_.size()); }
 
 private:
@@ -238,6 +252,8 @@ private:
 
   boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
 
+  DrainHook drainHook_;
+  std::atomic_bool drainScheduled_{false};
   VyukovQueue<ServerOrderStatus> statusQueue_;
 };
 

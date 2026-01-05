@@ -34,8 +34,8 @@ public:
   using StreamClb = std::function<void(StreamTransport &&transport)>;
   using DatagramClb = std::function<void(DatagramTransport &&transport)>;
 
-  BoostNetworkServer()
-      : guard_{MakeGuard(ioCtx_.get_executor())}, upstreamAcceptor_{ioCtx_},
+  explicit BoostNetworkServer(ErrorBus &&bus)
+      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{std::move(bus)}, upstreamAcceptor_{ioCtx_},
         downstreamAcceptor_{ioCtx_} {}
 
   ~BoostNetworkServer() { stop(); }
@@ -46,11 +46,24 @@ public:
 
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
-  inline auto pollOne() { return ioCtx_.poll_one(); }
-
-  inline auto poll() { return ioCtx_.poll(); }
-
   void start() {
+    workerThread_ = Thread([this]() {
+      try {
+        utils::setTheadRealTime();
+        if (ServerConfig::cfg.coreNetwork.has_value()) {
+          const CoreId id = ServerConfig::cfg.coreNetwork.value();
+          utils::pinThreadToCore(id);
+          LOG_DEBUG("Network thread started on the core {}", id);
+        } else {
+          LOG_DEBUG("Network thread started");
+        }
+        ioCtx_.run();
+      } catch (const std::exception &e) {
+        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        ioCtx_.stop();
+        bus_.post(InternalError(StatusCode::Error, e.what()));
+      }
+    });
     ioCtx_.post([this]() {
       startUpstream();
       startDownstream();
@@ -59,6 +72,10 @@ public:
   }
 
   void stop() { ioCtx_.stop(); }
+
+  auto getHook() -> std::function<void(Callback &&clb)> {
+    return [this](Callback &&clb) { ioCtx_.post(std::move(clb)); };
+  }
 
 private:
   void startUpstream() {
@@ -144,12 +161,16 @@ private:
   IoCtx ioCtx_;
   ContextGuard guard_;
 
+  ErrorBus bus_;
+
   StreamClb upStreamClb_;
   StreamClb downStreamClb_;
   DatagramClb datagramClb_;
 
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;
+
+  Thread workerThread_;
 };
 
 } // namespace hft::server
