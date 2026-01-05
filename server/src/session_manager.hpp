@@ -76,6 +76,7 @@ public:
       return;
     }
     auto chan = std::make_shared<Chan>(std::move(transport), id, bus_);
+    chan->read();
     unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
 

@@ -29,7 +29,9 @@ public:
   }
 
   inline auto buffer() -> ByteSpan {
-    rotate();
+    if (capacity_ - head_ < MIN_READ_CAPACITY) {
+      rotate();
+    }
     return ByteSpan(buffer_.data() + head_, capacity_ - head_);
   }
 
@@ -51,8 +53,6 @@ public:
     tail_ += bytes;
     if (tail_ == head_) {
       reset();
-    } else if (tail_ > (capacity_ / 2)) {
-      rotate();
     }
   }
 

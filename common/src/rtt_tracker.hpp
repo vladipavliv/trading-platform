@@ -54,7 +54,7 @@ public:
 
   static Timestamp logRtt(Timestamp first, Timestamp second, bool multiThreaded = true) {
     if (first > second) {
-      std::swap(first, second); // keep behavior, avoid UB
+      std::swap(first, second);
     }
 
     const uint64_t rttNs = second - first;

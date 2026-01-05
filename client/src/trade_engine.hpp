@@ -125,11 +125,11 @@ private:
       LOG_TRACE("Placing order {}", utils::toString(order));
       bus_.marketBus.post(order);
 
-      /*for (int i = 0; i < 5; ++i) {
+      for (int i = 0; i < 10; ++i) {
         std::this_thread::yield();
-      }*/
-      std::this_thread::yield();
-      // std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
+      }
+      // std::this_thread::yield();
+      std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
     }
   }
 

@@ -83,7 +83,7 @@ public:
 
   inline void close() noexcept {
     try {
-      LOG_DEBUG("write {}", activeOps_.load());
+      LOG_DEBUG("close {}", activeOps_.load());
       transport_.close();
       status_ = ConnectionStatus::Disconnected;
 
@@ -106,19 +106,16 @@ private:
   void readHandler(IoResult code, size_t bytes) {
     if (code != IoResult::Ok) {
       buffer_.reset();
+      LOG_ERROR("readHandler error");
       onStatus(ConnectionStatus::Error);
       return;
     }
     buffer_.commitWrite(bytes);
     const auto res = Framer::unframe(buffer_.data(), bus_);
     if (res) {
-      if (*res != 0) {
-        buffer_.commitRead(*res);
-      } else {
-        read();
-      }
+      buffer_.commitRead(*res);
     } else {
-      LOG_ERROR("{}", utils::toString(res.error()));
+      LOG_ERROR("Failed to unframe message {}", utils::toString(res.error()));
       buffer_.reset();
       onStatus(ConnectionStatus::Error);
       return;
@@ -128,6 +125,7 @@ private:
 
   void writeHandler(IoResult code, size_t bytes) {
     if (code != IoResult::Ok) {
+      LOG_ERROR("writeHandler error");
       onStatus(ConnectionStatus::Error);
     }
   }

@@ -34,12 +34,12 @@ public:
   template <Busable Consumer>
   static size_t deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
-      LOG_ERROR("Failed to verify Buffer");
+      LOG_ERROR("Failed to verify Buffer {}", size);
       return 0;
     }
     const auto message = flatbuffers::GetRoot<Message>(data);
     if (message == nullptr) {
-      LOG_ERROR("Failed to extract Message");
+      LOG_ERROR("Failed to extract Message {}", size);
       return 0;
     }
     const auto type = message->message_type();

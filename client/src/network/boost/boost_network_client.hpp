@@ -57,6 +57,13 @@ public:
         } else {
           LOG_DEBUG("Network thread started");
         }
+        ioCtx_.post([this]() {
+          LOG_DEBUG("Connecting to the server");
+          asyncConnect(ClientConfig::cfg.portTcpUp, upStreamClb_);
+          asyncConnect(ClientConfig::cfg.portTcpDown, downStreamClb_);
+
+          createPrices();
+        });
         ioCtx_.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
@@ -67,16 +74,6 @@ public:
   }
 
   void stop() { ioCtx_.stop(); }
-
-  void connect() {
-    ioCtx_.post([this]() {
-      LOG_DEBUG("Connecting to the server");
-      asyncConnect(ClientConfig::cfg.portTcpUp, upStreamClb_);
-      asyncConnect(ClientConfig::cfg.portTcpDown, downStreamClb_);
-
-      createPrices();
-    });
-  }
 
 private:
   void asyncConnect(uint16_t port, const StreamClb &callback) {

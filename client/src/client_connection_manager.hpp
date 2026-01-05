@@ -56,6 +56,7 @@ private:
     }
     const size_t id = utils::generateConnectionId();
     upstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
+    upstreamChannel_->read();
     tryAuthenticate();
   }
 
