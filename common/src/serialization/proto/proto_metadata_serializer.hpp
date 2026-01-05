@@ -53,7 +53,7 @@ public:
     auto *protoMsg = envelope.mutable_runtime_metrics();
 
     protoMsg->set_source(convert(msg.source));
-    protoMsg->set_timestamp_us(utils::getTimestamp());
+    protoMsg->set_timestamp_us(utils::getTimestampNs());
     protoMsg->set_rps(msg.rps);
     protoMsg->set_avg_latency_us(msg.avgLatencyUs);
 

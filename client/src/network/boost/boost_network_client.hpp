@@ -35,7 +35,8 @@ public:
   using StreamClb = std::function<void(StreamTransport &&)>;
   using DatagramClb = std::function<void(DatagramTransport &&)>;
 
-  BoostNetworkClient() : guard_{MakeGuard(ioCtx_.get_executor())} {}
+  explicit BoostNetworkClient(ClientBus &bus)
+      : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())} {}
 
   ~BoostNetworkClient() { stop(); }
 
@@ -46,7 +47,7 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    workerThreads_.emplace_back([this]() {
+    workerThread_ = Thread([this]() {
       try {
         utils::setTheadRealTime();
         if (ClientConfig::cfg.coreNetwork.has_value()) {
@@ -60,6 +61,7 @@ public:
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
         ioCtx_.stop();
+        bus_.post(InternalError(StatusCode::Error, e.what()));
       }
     });
   }
@@ -130,11 +132,13 @@ private:
   IoCtx ioCtx_;
   ContextGuard guard_;
 
+  ClientBus &bus_;
+
   StreamClb upStreamClb_;
   StreamClb downStreamClb_;
   DatagramClb datagramClb_;
 
-  std::vector<Thread> workerThreads_;
+  Thread workerThread_;
 };
 
 } // namespace hft::client

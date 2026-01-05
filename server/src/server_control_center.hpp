@@ -15,6 +15,7 @@
 #include "domain_types.hpp"
 #include "execution/coordinator.hpp"
 #include "network/boost/boost_network_server.hpp"
+#include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -27,7 +28,7 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
-  using NetworkServer = BoostNetworkServer;
+  using NetworkServer = BoostNetworkServer; // ShmServer;
   using StreamTransport = NetworkServer::StreamTransport;
   using DatagramTransport = NetworkServer::DatagramTransport;
 
@@ -40,7 +41,7 @@ class ServerControlCenter {
 
 public:
   ServerControlCenter()
-      : storage_{dbAdapter_}, sessionMgr_{bus_}, networkServer_{ErrorBus{bus_.systemBus}},
+      : storage_{dbAdapter_}, sessionMgr_{bus_}, networkServer_{bus_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
         consoleRdr_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
     // System bus subscriptions

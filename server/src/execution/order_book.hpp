@@ -48,12 +48,12 @@ class OrderBook {
   static inline ServerOrderStatus getStatus( // format
       CRef<InternalOrder> o, Quantity quantity, Price price, OrderState state) {
     return ServerOrderStatus( // format
-        o.clientId, {o.id, utils::getTimestamp(), quantity, price, state});
+        o.clientId, {o.id, utils::getTimestampNs(), quantity, price, state});
   }
   static inline ServerOrderStatus getStatus( // format
       CRef<ServerOrder> o, Quantity quantity, Price price, OrderState state) {
     return ServerOrderStatus( // format
-        o.clientId, {o.order.id, utils::getTimestamp(), quantity, price, state});
+        o.clientId, {o.order.id, utils::getTimestampNs(), quantity, price, state});
   }
 
 public:

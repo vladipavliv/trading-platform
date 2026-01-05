@@ -27,9 +27,7 @@ public:
   using ChannelType = Channel<Transport, SessionBus>;
 
   SessionChannel(Transport &&transport, ConnectionId id, ServerBus &bus)
-      : channel_{std::move(transport), id, sessionBus_}, id_{id}, bus_{bus}, sessionBus_{id, bus} {
-    channel_.read();
-  }
+      : channel_{std::move(transport), id, sessionBus_}, id_{id}, bus_{bus}, sessionBus_{id, bus} {}
 
   inline void authenticate(ClientId clientId) {
     LOG_INFO_SYSTEM("Authenticate channel {} {}", id_, clientId);
@@ -57,6 +55,8 @@ public:
     }
     channel_.write(message);
   }
+
+  inline void read() { channel_.read(); }
 
 private:
   const ConnectionId id_;

@@ -136,7 +136,7 @@ private:
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
 
         if (telemetry_) {
-          bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestamp(), rps, 0});
+          bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestampNs(), rps, 0});
         }
       }
       lastTtl = currentTtl;

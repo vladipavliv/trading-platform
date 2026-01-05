@@ -82,7 +82,7 @@ inline auto generateConnectionId() -> ConnectionId {
 
 inline auto generateToken() -> Token {
   static std::atomic<Token> counter{0};
-  return getTimestamp() + counter.fetch_add(1);
+  return counter.fetch_add(1);
 }
 
 inline auto createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0) -> UdpSocket {
@@ -124,15 +124,20 @@ constexpr bool is_ascending() {
   }
 }
 
-inline void futexWait(std::atomic<uint32_t> &futex) {
-  const uint32_t val = futex.load(std::memory_order_acquire);
-  syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT_PRIVATE, val, nullptr,
-          nullptr, 0);
+inline void futexWait(std::atomic<uint32_t> &futex, uint32_t val, uint32_t timeout_ms = 0) {
+  if (timeout_ms == 0) {
+    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, val, nullptr, nullptr, 0);
+  } else {
+    struct timespec ts {
+      .tv_sec = static_cast<time_t>(timeout_ms / 1000),
+      .tv_nsec = static_cast<long>((timeout_ms % 1000) * 1000000)
+    };
+    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, val, &ts, nullptr, 0);
+  }
 }
 
 inline void futexWake(std::atomic<uint32_t> &futex) {
-  syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr,
-          0);
+  syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE, 1, nullptr, nullptr, 0);
 }
 
 template <typename T>

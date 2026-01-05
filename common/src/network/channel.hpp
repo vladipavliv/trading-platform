@@ -96,9 +96,9 @@ public:
         }
       }
     } catch (const std::exception &ex) {
-      LOG_ERROR_SYSTEM("exception in tcp_channel::close {}", ex.what());
+      LOG_ERROR_SYSTEM("exception in Channel::close {}", ex.what());
     } catch (...) {
-      LOG_ERROR_SYSTEM("unknown exception in tcp_channel::close");
+      LOG_ERROR_SYSTEM("unknown exception in Channel::close");
     }
   }
 
@@ -112,7 +112,11 @@ private:
     buffer_.commitWrite(bytes);
     const auto res = Framer::unframe(buffer_.data(), bus_);
     if (res) {
-      buffer_.commitRead(*res);
+      if (*res != 0) {
+        buffer_.commitRead(*res);
+      } else {
+        read();
+      }
     } else {
       LOG_ERROR("{}", utils::toString(res.error()));
       buffer_.reset();

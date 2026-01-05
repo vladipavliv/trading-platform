@@ -14,7 +14,7 @@
 
 #include "config/client_config.hpp"
 #include "network/transport/shm/shm_layout.hpp"
-#include "network/transport/shm/shm_read_ctx.hpp"
+#include "network/transport/shm/shm_reactor.hpp"
 #include "network/transport/shm/shm_transport.hpp"
 #include "utils/utils.hpp"
 
@@ -33,8 +33,9 @@ public:
   using StreamClb = std::function<void(StreamTransport &&transport)>;
   using DatagramClb = std::function<void(DatagramTransport &&transport)>;
 
-  ShmClient()
-      : name_{Config::get<String>("shm.shm_name")}, size_{Config::get<size_t>("shm.shm_size")} {}
+  explicit ShmClient(ClientBus &bus)
+      : bus_{bus}, name_{Config::get<String>("shm.shm_name")},
+        size_{Config::get<size_t>("shm.shm_size")}, reactor_{init(), ReactorType::Client} {}
 
   ~ShmClient() { stop(); }
 
@@ -45,25 +46,8 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    shm_.reset(new SharedMemory(boost::interprocess::open_only, name_.c_str()));
-    if (!shm_) {
-      throw std::runtime_error("Failed to construct shared memory object");
-    }
-
-    auto [ptr, size] = shm_->find<ShmLayout>("Layout");
-    if (ptr == nullptr) {
-      throw std::runtime_error("Failed to construct shared memory layout");
-    }
-
-    layout_ = ptr;
-    if (!layout_->serverReady.load(std::memory_order_acquire)) {
-      throw std::runtime_error("Server is down");
-    }
-    layout_->clientConnected.store(true, std::memory_order_release);
-
     workerThread_ = Thread([this]() {
       try {
-        running_ = true;
         utils::setTheadRealTime();
         if (ClientConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ClientConfig::cfg.coreNetwork;
@@ -72,93 +56,103 @@ public:
         } else {
           LOG_DEBUG("Network thread started");
         }
-        pollLoop();
+        notifyConnected();
+
+        bus_.post(LoginResponse{0, true, ""});
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        bus_.post(LoginResponse{0, true, ""});
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        running_ = true;
+        reactor_.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
-        stop();
+        bus_.post(InternalError(StatusCode::Error, e.what()));
       }
     });
-    LOG_INFO_SYSTEM("Shared memory initialized: {}", name_);
   }
 
-  void connect() {
-    LOG_INFO_SYSTEM("Connecting to the server");
+  void stop() {
+    if (!running_) {
+      return;
+    }
+    running_ = false;
+    reactor_.stop();
+
+    if (workerThread_.joinable()) {
+      workerThread_.join();
+    }
+
+    if (layout_) {
+      munmap(layout_, size_);
+      layout_ = nullptr;
+    }
+    LOG_INFO_SYSTEM("ShmClient shutdown");
+  }
+
+private:
+  ShmLayout *init() {
+    int fd = open(name_.c_str(), O_RDWR);
+    if (fd == -1) {
+      throw std::runtime_error("Failed to open SHM. Is the server running?");
+    }
+
+    void *addr = mmap(NULL, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (addr == MAP_FAILED) {
+      throw std::runtime_error("Hugepage mmap failed on client");
+    }
+
+    // Warm up the client's process page table
+    volatile uint8_t *p = static_cast<volatile uint8_t *>(addr);
+    for (size_t i = 0; i < size_; i += 4096) {
+      uint8_t dummy = p[i];
+      (void)dummy;
+    }
+
+    layout_ = static_cast<ShmLayout *>(addr);
+
+    if (mlock(addr, size_) != 0) {
+      LOG_ERROR_SYSTEM("Could not mlock SHM on client.");
+    }
+
+    if (layout_->downstreamFtx.load(std::memory_order_acquire) == 0) {
+      throw std::runtime_error("Server is down");
+    }
+
+    layout_->upstreamFtx.store(1, std::memory_order_release);
+    utils::futexWake(layout_->upstreamFtx);
+
+    LOG_INFO_SYSTEM("Client attached to SHM: {}", name_);
+    return layout_;
+  }
+
+  void notifyConnected() {
     if (upstreamClb_) {
       LOG_INFO_SYSTEM("Connected upstream");
-      upstreamClb_(ShmTransport(layout_->upstream, upstreamRdCtx_));
+      upstreamClb_(ShmTransport(ShmTransportType::Upstream, layout_->upstream, reactor_));
     }
 
     if (downstreamClb_) {
       LOG_INFO_SYSTEM("Connected downstream");
-      downstreamClb_(ShmTransport(layout_->downstream, downstreamRdCtx_));
+      downstreamClb_(ShmTransport(ShmTransportType::Downstream, layout_->downstream, reactor_));
     }
 
     if (datagramClb_) {
       LOG_INFO_SYSTEM("Connected datagram");
-      datagramClb_(ShmTransport(layout_->broadcast, datagramRdCtx_));
+      datagramClb_(ShmTransport(ShmTransportType::Datagram, layout_->broadcast, reactor_));
     }
   }
 
-  void stop() { running_ = false; }
-
 private:
-  void pollLoop() {
-    while (running_) {
-      size_t bytesProcessed = 0;
-      if (upstreamRdCtx_) {
-        auto ctx = upstreamRdCtx_;
-        upstreamRdCtx_.reset();
-        size_t bytesRead = layout_->upstream.read(ctx.dest.data(), ctx.dest.size());
-        if (bytesRead != 0) {
-          bytesProcessed += bytesRead;
-          ctx.clb(IoResult::Ok, bytesRead);
-        } else {
-          upstreamRdCtx_ = ctx;
-        }
-      }
-      if (downstreamRdCtx_) {
-        auto ctx = downstreamRdCtx_;
-        downstreamRdCtx_.reset();
-        size_t bytesRead = layout_->downstream.read(ctx.dest.data(), ctx.dest.size());
-        if (bytesRead != 0) {
-          bytesProcessed += bytesRead;
-          ctx.clb(IoResult::Ok, bytesRead);
-        } else {
-          downstreamRdCtx_ = ctx;
-        }
-      }
-      if (datagramRdCtx_) {
-        auto ctx = datagramRdCtx_;
-        datagramRdCtx_.reset();
-        size_t bytesRead = layout_->broadcast.read(ctx.dest.data(), ctx.dest.size());
-        if (bytesRead != 0) {
-          bytesProcessed += bytesRead;
-          ctx.clb(IoResult::Ok, bytesRead);
-        } else {
-          datagramRdCtx_ = ctx;
-        }
-      }
-      if (bytesProcessed == 0) {
-        asm volatile("pause" ::: "memory");
-      }
-    }
-    if (layout_) {
-      layout_->clientConnected.store(false, std::memory_order_release);
-      layout_ = nullptr;
-    }
-    shm_.reset();
-  }
+  ClientBus &bus_;
 
-private:
   const String name_;
   const size_t size_;
 
-  UPtr<SharedMemory> shm_;
   ShmLayout *layout_;
 
-  ShmReadCtx upstreamRdCtx_;
-  ShmReadCtx downstreamRdCtx_;
-  ShmReadCtx datagramRdCtx_;
+  ShmReactor<ShmTransport> reactor_;
 
   StreamClb upstreamClb_;
   StreamClb downstreamClb_;

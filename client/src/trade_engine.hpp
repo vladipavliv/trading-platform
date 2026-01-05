@@ -28,7 +28,7 @@ namespace hft::client {
  */
 class TradeEngine {
 public:
-  using Tracker = RttTracker<50>;
+  using Tracker = RttTracker<1000>;
 
   explicit TradeEngine(ClientBus &bus)
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
@@ -120,15 +120,16 @@ private:
       const auto newPrice = fluctuateThePrice(p.second.getPrice());
       const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
       const auto quantity = RNG::generate<Quantity>(0, 100);
-      const auto id = getTimestamp(); // TODO(self)
+      const auto id = getTimestampNs(); // TODO(self)
       Order order{id, id, p.first, quantity, newPrice, action};
       LOG_TRACE("Placing order {}", utils::toString(order));
       bus_.marketBus.post(order);
 
-      for (int i = 0; i < 5; ++i) {
+      /*for (int i = 0; i < 5; ++i) {
         std::this_thread::yield();
-      }
-      // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
+      }*/
+      std::this_thread::yield();
+      // std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
     }
   }
 
@@ -144,7 +145,7 @@ private:
       Tracker::logRtt(s.orderId);
 #ifdef TELEMETRY_ENABLED
       if (telemetry_) {
-        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, getTimestamp()});
+        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, getTimestampNs()});
       }
 #endif
       break;

@@ -34,8 +34,8 @@ public:
   using StreamClb = std::function<void(StreamTransport &&transport)>;
   using DatagramClb = std::function<void(DatagramTransport &&transport)>;
 
-  explicit BoostNetworkServer(ErrorBus &&bus)
-      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{std::move(bus)}, upstreamAcceptor_{ioCtx_},
+  explicit BoostNetworkServer(ServerBus &bus)
+      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, upstreamAcceptor_{ioCtx_},
         downstreamAcceptor_{ioCtx_} {}
 
   ~BoostNetworkServer() { stop(); }
@@ -161,7 +161,7 @@ private:
   IoCtx ioCtx_;
   ContextGuard guard_;
 
-  ErrorBus bus_;
+  ServerBus &bus_;
 
   StreamClb upStreamClb_;
   StreamClb downStreamClb_;

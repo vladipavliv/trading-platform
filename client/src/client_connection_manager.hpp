@@ -46,6 +46,8 @@ public:
         [this](CRef<LoginResponse> event) { onLoginResponse(event); });
   }
 
+  void close() { reset(); }
+
 private:
   void onUpstreamConnected(StreamTransport &&transport) {
     if (upstreamChannel_) {
@@ -64,6 +66,7 @@ private:
     }
     const size_t id = utils::generateConnectionId();
     downstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
+    downstreamChannel_->read();
     tryAuthenticate();
   }
 
@@ -81,6 +84,7 @@ private:
 
   void tryAuthenticate() {
     if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
+      LOG_INFO_SYSTEM("Authenticating");
       state_ = ConnectionState::Connected;
       upstreamChannel_->write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
     }

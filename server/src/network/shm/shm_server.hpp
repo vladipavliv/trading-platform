@@ -3,8 +3,8 @@
  * @date 2026-01-04
  */
 
-#ifndef HFT_SERVER_SHARED_MEMORY_SERVER_HPP
-#define HFT_SERVER_SHARED_MEMORY_SERVER_HPP
+#ifndef HFT_SERVER_SHMSERVER_HPP
+#define HFT_SERVER_SHMSERVER_HPP
 
 #include <boost/interprocess/managed_shared_memory.hpp>
 
@@ -34,9 +34,9 @@ public:
   using StreamClb = std::function<void(StreamTransport &&transport)>;
   using DatagramClb = std::function<void(DatagramTransport &&transport)>;
 
-  ShmServer()
-      : name_{Config::get<String>("shm.shm_name")}, size_{Config::get<size_t>("shm.shm_size")},
-        reactor_{init()} {}
+  explicit ShmServer(ServerBus &bus)
+      : bus_{bus}, name_{Config::get<String>("shm.shm_name")},
+        size_{Config::get<size_t>("shm.shm_size")}, reactor_{init(), ReactorType::Server} {}
 
   ~ShmServer() { stop(); }
 
@@ -46,73 +46,125 @@ public:
 
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
-  void run() {}
+  void start() {
+    workerThread_ = Thread([this]() {
+      try {
+        utils::setTheadRealTime();
+        if (ServerConfig::cfg.coreNetwork.has_value()) {
+          const auto coreId = *ServerConfig::cfg.coreNetwork;
+          utils::pinThreadToCore(coreId);
+          LOG_DEBUG("Network thread started on the core {}", coreId);
+        } else {
+          LOG_DEBUG("Network thread started");
+        }
 
-  void stop() {
-    if (layout_) {
-      layout_->clientConnected.store(false);
-      layout_->serverReady.store(false);
+        waitForConnection();
+        notifyClientConnected();
 
-      shm_->destroy<ShmLayout>("Layout");
-      layout_ = nullptr;
-    }
+        bus_.post(ServerLoginRequest{0, {"client0", "password0"}});
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        bus_.post(ServerTokenBindRequest{1, {0}});
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    if (shm_) {
-      shm_.reset();
-      boost::interprocess::shared_memory_object::remove(name_.c_str());
-      LOG_INFO_SYSTEM("Shared memory cleaned up");
-    }
+        running_ = true;
+        reactor_.run();
+      } catch (const std::exception &e) {
+        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        bus_.post(InternalError(StatusCode::Error, e.what()));
+      }
+    });
   }
 
-  size_t poll() {
-    if (!running_ && layout_->clientConnected.load(std::memory_order_acquire)) {
-      notifyClientConnected();
-      running_ = true;
+  void stop() {
+    if (!running_) {
+      return;
     }
-    if (running_ && !layout_->clientConnected.load(std::memory_order_acquire)) {
-      running_ = false;
+    running_ = false;
+    reactor_.stop();
+
+    if (workerThread_.joinable()) {
+      workerThread_.join();
     }
 
-    return 0;
+    if (layout_) {
+      munmap(layout_, size_);
+      unlink(name_.c_str());
+      layout_ = nullptr;
+    }
+    LOG_INFO_SYSTEM("ShmServer shutdown");
+  }
+
+  auto getHook() -> std::function<void(Callback &&clb)> {
+    // execute right away on the same thread
+    return [](Callback &&clb) { clb(); };
+  }
+
+private:
+  void waitForConnection() {
+    LOG_INFO_SYSTEM("Waiting for client connection");
+    size_t clientConnected = layout_->upstreamFtx.load(std::memory_order_acquire);
+    while (clientConnected == 0) {
+      utils::futexWait(layout_->upstreamFtx, clientConnected);
+      clientConnected = layout_->upstreamFtx.load(std::memory_order_acquire);
+    }
+    LOG_INFO_SYSTEM("Client connected");
   }
 
 private:
   ShmLayout *init() {
-    boost::interprocess::shared_memory_object::remove(name_.c_str());
+    // manual mm open for huge pages
+    unlink(name_.c_str());
 
-    shm_.reset(new SharedMemory(boost::interprocess::create_only, name_.c_str(), size_));
-    if (!shm_) {
-      throw std::runtime_error("Failed to construct shared memory object");
+    int fd = open(name_.c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
+    if (ftruncate(fd, size_) == -1) {
+      close(fd);
+      throw std::runtime_error("Failed to ftruncate SHM file: " + std::string(strerror(errno)));
     }
 
-    layout_ = shm_->construct<ShmLayout>("Layout")();
+    void *addr = mmap(NULL, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (addr == MAP_FAILED) {
+      throw std::runtime_error("Hugepage mmap failed");
+    }
+    volatile uint8_t *p = static_cast<volatile uint8_t *>(addr);
+    for (size_t i = 0; i < size_; i += 4096) {
+      p[i] = 0;
+    }
+
+    layout_ = new (addr) ShmLayout();
     if (!layout_) {
       throw std::runtime_error("Failed to construct shared memory layout");
     }
 
-    layout_->serverReady.store(true, std::memory_order_release);
-    LOG_INFO_SYSTEM("Shared memory initialized: {}", name_);
+    if (mlock(addr, size_) != 0) {
+      LOG_ERROR_SYSTEM("mlock failed: {} (errno: {})", strerror(errno), errno);
+    }
 
+    layout_->downstreamFtx.store(1, std::memory_order_release);
+    utils::futexWake(layout_->downstreamFtx);
+
+    LOG_INFO_SYSTEM("Shared memory initialized: {}", name_);
     return layout_;
   }
 
   void notifyClientConnected() {
     if (upstreamClb_) {
-      upstreamClb_(ShmTransport(layout_->upstream, reactor_));
+      upstreamClb_(ShmTransport(ShmTransportType::Upstream, layout_->upstream, reactor_));
     }
     if (downstreamClb_) {
-      downstreamClb_(ShmTransport(layout_->downstream, reactor_));
+      downstreamClb_(ShmTransport(ShmTransportType::Downstream, layout_->downstream, reactor_));
     }
     if (datagramClb_) {
-      datagramClb_(ShmTransport(layout_->broadcast, reactor_));
+      datagramClb_(ShmTransport(ShmTransportType::Datagram, layout_->broadcast, reactor_));
     }
   }
 
 private:
+  ServerBus &bus_;
+
   const String name_;
   const size_t size_;
 
-  UPtr<SharedMemory> shm_;
   ShmLayout *layout_;
 
   ShmReactor<ShmTransport> reactor_;
@@ -121,8 +173,9 @@ private:
   StreamClb downstreamClb_;
   DatagramClb datagramClb_;
 
-  bool running_{false};
+  std::atomic_bool running_{false};
+  Thread workerThread_;
 };
 } // namespace hft::server
 
-#endif // HFT_SERVER_SHARED_MEMORY_SERVER_HPP
+#endif // HFT_SERVER_SHMSERVER_HPP

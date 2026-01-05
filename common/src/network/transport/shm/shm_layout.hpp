@@ -17,10 +17,8 @@ namespace hft {
  * @brief Shared memory layout
  */
 struct ShmLayout {
-  std::atomic<bool> clientConnected{false};
-  std::atomic<bool> serverReady{false};
-
-  alignas(64) std::atomic<uint32_t> futex{0};
+  alignas(64) std::atomic<uint32_t> upstreamFtx{0};
+  alignas(64) std::atomic<uint32_t> downstreamFtx{0};
 
   ShmRingBuffer upstream;
   ShmRingBuffer downstream;

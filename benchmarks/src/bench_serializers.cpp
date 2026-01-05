@@ -26,8 +26,8 @@ using namespace serialization;
 
 namespace {
 OrderTimestamp generateOrderTimestamp() {
-  return OrderTimestamp{utils::generateOrderId(), utils::getTimestamp(), utils::getTimestamp(),
-                        utils::getTimestamp()};
+  return OrderTimestamp{utils::generateOrderId(), utils::getTimestampNs(), utils::getTimestampNs(),
+                        utils::getTimestampNs()};
 }
 } // namespace
 
