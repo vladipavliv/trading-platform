@@ -1,5 +1,5 @@
 # Server Target
-file(GLOB_RECURSE MONITOR_SOURCES "src/*.cpp" "src/**/*.cpp" "src/*.hpp" "src/**/*.hpp")
+file(GLOB_RECURSE MONITOR_SOURCES "src/*.cpp" "src/**/*.cpp")
 
 add_executable(hft_monitor ${MONITOR_SOURCES})
 
@@ -9,9 +9,9 @@ target_link_libraries(hft_monitor PRIVATE
     ${Boost_LIBRARIES} 
     ${LIBPQXX_LIBRARIES} 
     spdlog::spdlog 
-    atomic
-    iberty
-    bfd
+    #atomic
+    #iberty
+    # bfd
 )
 
 target_include_directories(hft_monitor PRIVATE 

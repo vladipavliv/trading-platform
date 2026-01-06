@@ -69,8 +69,13 @@ using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
 using MonitorBus = BusHub<MessageBus<>, StreamBus<LFQ_CAPACITY, OrderTimestamp, RuntimeMetrics>>;
 
+#ifdef TELEMETRY_ENABLED
 template <typename BusT, typename ConsumeSerializerT, typename ProduceSerializerT>
 using MessageQueueAdapter = adapters::KafkaAdapter<BusT, ConsumeSerializerT, ProduceSerializerT>;
+#else
+template <typename BusT, typename ConsumeSerializerT = void, typename ProduceSerializerT = void>
+using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
+#endif
 
 using StreamAdapter = MessageQueueAdapter<MonitorBus, MetadataSerializer, CommandParser>;
 using MonitorConsoleReader = ConsoleReader<CommandParser>;

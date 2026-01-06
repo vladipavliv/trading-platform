@@ -19,6 +19,7 @@ inline adapters::TableWriter &operator<<(adapters::TableWriter &writer, CRef<Ser
                                    utils::toString(msg.order.ticker), msg.order.quantity,
                                    msg.order.price, static_cast<uint16_t>(msg.order.action));
 }
+
 inline adapters::TableReader &operator>>(adapters::TableReader &reader, ServerOrder &msg) {
   size_t idx{0};
   msg.clientId = reader.get<ClientId>(idx++);

@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <boost/lockfree/queue.hpp>
-#include <folly/MPMCQueue.h>
+// #include <folly/MPMCQueue.h>
 
 #include "types.hpp"
 #include "vyukov_queue.hpp"
@@ -32,24 +32,6 @@ static void DISABLED_BM_Op_VykovMpmcQueue(benchmark::State &state) {
 }
 BENCHMARK(DISABLED_BM_Op_VykovMpmcQueue);
 
-static void DISABLED_BM_Op_FollyMpmcQueue(benchmark::State &state) {
-  auto queue = std::make_unique<folly::MPMCQueue<size_t>>(capacity);
-
-  size_t value;
-  bool write{true};
-  for (auto _ : state) {
-    if (write && !queue->write(++value)) {
-      write = false;
-    }
-    if (!write || queue->isEmpty() || !queue->read(value)) {
-      write = true;
-    }
-  }
-  benchmark::DoNotOptimize(value);
-  benchmark::DoNotOptimize(write);
-}
-BENCHMARK(DISABLED_BM_Op_FollyMpmcQueue);
-
 static void DISABLED_BM_Op_BoostMpmcQueue(benchmark::State &state) {
   auto queue = std::make_unique<boost::lockfree::queue<size_t>>(capacity);
 
@@ -67,5 +49,24 @@ static void DISABLED_BM_Op_BoostMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(write);
 }
 BENCHMARK(DISABLED_BM_Op_BoostMpmcQueue);
+/*
+static void DISABLED_BM_Op_FollyMpmcQueue(benchmark::State &state) {
+  auto queue = std::make_unique<folly::MPMCQueue<size_t>>(capacity);
+
+  size_t value;
+  bool write{true};
+  for (auto _ : state) {
+    if (write && !queue->write(++value)) {
+      write = false;
+    }
+    if (!write || queue->isEmpty() || !queue->read(value)) {
+      write = true;
+    }
+  }
+  benchmark::DoNotOptimize(value);
+  benchmark::DoNotOptimize(write);
+}
+BENCHMARK(DISABLED_BM_Op_FollyMpmcQueue);
+*/
 
 } // namespace hft::benchmarks

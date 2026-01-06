@@ -6,6 +6,9 @@
 #ifndef HFT_COMMON_ADAPTERS_POSTGRESTABLEWRITER_HPP
 #define HFT_COMMON_ADAPTERS_POSTGRESTABLEWRITER_HPP
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include <pqxx/pqxx>
 #include <pqxx/stream_to>
 
@@ -15,7 +18,7 @@ namespace hft::adapters {
 
 class TableWriter {
 public:
-  TableWriter(pqxx::connection &conn, StringView table) : work_{conn}, stream_{work_, table} {}
+  TableWriter(pqxx::connection &conn, StringView table);
 
   template <typename RowType>
   TableWriter &operator<<(const RowType &row) {
@@ -23,10 +26,7 @@ public:
     return *this;
   }
 
-  void commit() {
-    stream_.complete();
-    work_.commit();
-  }
+  void commit();
 
 private:
   pqxx::work work_;
@@ -35,3 +35,5 @@ private:
 } // namespace hft::adapters
 
 #endif // HFT_COMMON_ADAPTERS_POSTGRESTABLEWRITER_HPP
+
+#pragma GCC diagnostic pop
