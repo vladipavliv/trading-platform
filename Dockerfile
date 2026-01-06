@@ -57,6 +57,7 @@ COPY --from=builder /app/build /app/build
 COPY --from=builder /opt/venv /opt/venv
 
 RUN apt-get update && apt-get install -y \
+    cmake \
     libgoogle-glog0v6 libdouble-conversion3 libspdlog1.12 \
     librdkafka1 libpq5 openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/* && ldconfig

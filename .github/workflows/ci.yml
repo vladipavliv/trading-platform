@@ -76,8 +76,8 @@ jobs:
           done
 
     - name: Run unit tests
-          run: |
-            docker run --rm hft-platform:latest ctest --test-dir build --output-on-failure
+      run: |
+          docker run --rm hft-platform:latest ctest --test-dir build --output-on-failure
 
     - name: Set up Python
       uses: actions/setup-python@v5
