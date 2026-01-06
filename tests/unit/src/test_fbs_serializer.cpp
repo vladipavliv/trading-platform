@@ -22,9 +22,9 @@ TEST(FbsSerializerTest, serializeDeserialize) {
   const size_t serSize = FbsDomainSerializer::serialize(request, buffer.data());
   ASSERT_TRUE(serSize != 0);
 
-  const size_t deserSize =
-      FbsDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
-  ASSERT_EQ(deserSize, serSize);
+  const auto deserSize = FbsDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
+  ASSERT_TRUE(deserSize);
+  ASSERT_EQ(*deserSize, serSize);
 
   ASSERT_EQ(spy.size(), 1);
   ASSERT_TRUE(spy.checkValue(0, request));

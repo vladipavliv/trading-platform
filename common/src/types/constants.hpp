@@ -14,7 +14,7 @@ constexpr size_t BUFFER_SIZE = 1024 * 32;
 constexpr size_t ORDER_BOOK_LIMIT = 10000;
 constexpr size_t CACHE_LINE_SIZE = 64;
 constexpr size_t LOG_FILE_SIZE = 25 * 1024 * 1024;
-constexpr size_t MAX_CONNECTIONS = 1000;
+constexpr size_t MAX_CONNECTIONS = 10;
 constexpr size_t PRICE_FLUCTUATION_RATE = 5;
 
 } // namespace hft

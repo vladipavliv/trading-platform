@@ -35,12 +35,14 @@ public:
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
-  static size_t deserialize(const uint8_t *buffer, size_t size, Busable auto &consumer) {
+  static auto deserialize(const uint8_t *buffer, size_t size,
+                          Busable auto &consumer) -> Expected<size_t> {
     using namespace hft::serialization::gen::sbe;
     char *data = reinterpret_cast<char *>(const_cast<uint8_t *>(buffer));
 
     if (size < domain::MessageHeader::encodedLength()) {
-      return 0;
+      LOG_ERROR("Not enough data");
+      return std::unexpected(StatusCode::Error);
     }
 
     domain::MessageHeader header(data, size);
@@ -51,7 +53,8 @@ public:
     switch (header.templateId()) {
     case domain::LoginRequest::sbeTemplateId(): {
       if (size < domain::LoginRequest::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough LoginRequest data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::LoginRequest msg(data + headerSize, messageSize);
       consumer.post(
@@ -60,7 +63,8 @@ public:
     }
     case domain::TokenBindRequest::sbeTemplateId(): {
       if (size < domain::TokenBindRequest::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough TokenBindRequest data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::TokenBindRequest msg(data + headerSize, messageSize);
       consumer.post(TokenBindRequest{msg.token()});
@@ -68,7 +72,8 @@ public:
     }
     case domain::LoginResponse::sbeTemplateId(): {
       if (size < domain::LoginResponse::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough LoginResponse data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::LoginResponse msg(data + headerSize, messageSize);
       consumer.post(LoginResponse{msg.token(), msg.ok() == 1, msg.error_msg().getChar32AsString()});
@@ -76,7 +81,8 @@ public:
     }
     case domain::Order::sbeTemplateId(): {
       if (size < domain::Order::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough Order data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::Order msg(data + headerSize, messageSize);
       consumer.post(Order{msg.id(), msg.created(), makeTicker(msg.ticker().getChar4AsString()),
@@ -85,7 +91,8 @@ public:
     }
     case domain::OrderStatus::sbeTemplateId(): {
       if (size < domain::OrderStatus::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough OrderStatus data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::OrderStatus msg(data + headerSize, messageSize);
       consumer.post(OrderStatus{msg.order_id(), msg.timestamp(), msg.quantity(), msg.fill_price(),
@@ -94,7 +101,8 @@ public:
     }
     case domain::TickerPrice::sbeTemplateId(): {
       if (size < domain::TickerPrice::sbeBlockAndHeaderLength()) {
-        return 0;
+        LOG_ERROR("Not enough TickerPrice data");
+        return std::unexpected(StatusCode::Error);
       }
       domain::TickerPrice msg(data + headerSize, messageSize);
       consumer.post(TickerPrice{makeTicker(msg.ticker().getChar4AsString()), msg.price()});
@@ -102,7 +110,7 @@ public:
     }
     default:
       LOG_ERROR("Unknown sbe message type {}", header.templateId());
-      return 0;
+      return std::unexpected(StatusCode::Error);
     }
   }
 

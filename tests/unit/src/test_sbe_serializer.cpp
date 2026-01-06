@@ -22,9 +22,10 @@ TEST(SbeSerializerTest, serializeDeserialize) {
   const size_t serSize = SbeDomainSerializer::serialize(request, buffer.data());
   ASSERT_TRUE(serSize != 0);
 
-  size_t deserSize = SbeDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
+  auto deserSize = SbeDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
 
-  ASSERT_TRUE(deserSize != 0);
+  ASSERT_TRUE(deserSize);
+  ASSERT_TRUE(*deserSize != 0);
   ASSERT_TRUE(spy.checkValue(0, request));
   spy.printAll();
 }
@@ -51,14 +52,17 @@ TEST(SbeSerializerTest, SeveralMessagesInOneBuffer) {
   const auto ptr1 = buffer.data() + domain::LoginRequest::sbeBlockAndHeaderLength();
   const auto size1 = buffer.size() - domain::LoginRequest::sbeBlockAndHeaderLength();
 
-  const size_t deserSize0 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr0, size0, spy);
-  const size_t deserSize1 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr1, size1, spy);
+  const auto deserSize0 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr0, size0, spy);
+  const auto deserSize1 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr1, size1, spy);
+
+  ASSERT_TRUE(deserSize0);
+  ASSERT_TRUE(deserSize1);
 
   ASSERT_TRUE(serSize0 == domain::LoginRequest::sbeBlockAndHeaderLength());
   ASSERT_TRUE(serSize1 == domain::LoginRequest::sbeBlockAndHeaderLength());
 
-  ASSERT_TRUE(deserSize0 == domain::LoginRequest::sbeBlockAndHeaderLength());
-  ASSERT_TRUE(deserSize1 == domain::LoginRequest::sbeBlockAndHeaderLength());
+  ASSERT_TRUE(*deserSize0 == domain::LoginRequest::sbeBlockAndHeaderLength());
+  ASSERT_TRUE(*deserSize1 == domain::LoginRequest::sbeBlockAndHeaderLength());
 
   ASSERT_TRUE(spy.checkValue(0, request0));
   ASSERT_TRUE(spy.checkValue(1, request1));

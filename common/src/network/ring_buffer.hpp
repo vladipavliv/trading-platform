@@ -41,6 +41,7 @@ public:
   }
 
   inline void commitWrite(size_t bytes) {
+    LOG_DEBUG("commit write {} {} {}", head_, tail_, bytes);
     if (head_ + bytes > capacity_) {
       throw std::runtime_error("RingBuffer overflow");
     }
@@ -49,6 +50,7 @@ public:
   }
 
   inline void commitRead(size_t bytes) {
+    LOG_DEBUG("commit read {} {} {}", head_, tail_, bytes);
     assert(tail_ + bytes <= head_);
     tail_ += bytes;
     if (tail_ == head_) {
