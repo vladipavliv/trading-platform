@@ -16,7 +16,6 @@
 #include "kafka_event.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
-#include "serialization/proto/proto_metadata_serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 

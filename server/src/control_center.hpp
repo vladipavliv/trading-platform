@@ -26,7 +26,7 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
-  using PricesChannel = Channel<DatagramTransport, ServerBus>;
+  using PricesChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
   ServerControlCenter()
@@ -60,7 +60,7 @@ public:
     networkServer_.setDatagramClb([this](DatagramTransport &&transport) {
       const auto id = utils::generateConnectionId();
       LOG_INFO_SYSTEM("UDP prices channel created {}", id);
-      pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, bus_);
+      pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
       bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
     });
 

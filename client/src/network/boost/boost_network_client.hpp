@@ -29,11 +29,8 @@ namespace hft::client {
  */
 class BoostNetworkClient {
 public:
-  using StreamTransport = TcpTransport;
-  using DatagramTransport = UdpTransport;
-
-  using StreamClb = std::function<void(StreamTransport &&)>;
-  using DatagramClb = std::function<void(DatagramTransport &&)>;
+  using StreamClb = std::function<void(BoostTcpTransport &&)>;
+  using DatagramClb = std::function<void(BoostUdpTransport &&)>;
 
   explicit BoostNetworkClient(ClientBus &bus)
       : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())} {}
@@ -83,7 +80,7 @@ private:
     socket->async_connect(endpoint, [this, socket, callback, port](BoostErrorCode ec) {
       if (!ec) [[likely]] {
         configureTcpSocket(*socket);
-        callback(StreamTransport{std::move(*socket)});
+        callback(BoostTcpTransport{std::move(*socket)});
         LOG_INFO_SYSTEM("TCP connection established on port {}", port);
       } else {
         LOG_ERROR_SYSTEM("Connection failed on port {}: {}", port, ec.message());
@@ -101,7 +98,7 @@ private:
       UdpEndpoint listenEndpoint(Udp::v4(), ClientConfig::cfg.portUdp);
       socket.bind(listenEndpoint);
 
-      datagramClb_(DatagramTransport{std::move(socket)});
+      datagramClb_(BoostUdpTransport{std::move(socket)});
       LOG_INFO_SYSTEM("UDP listener bound to port {}", ClientConfig::cfg.portUdp);
     } catch (const std::exception &e) {
       LOG_ERROR_SYSTEM("Failed to setup UDP pricing: {}", e.what());

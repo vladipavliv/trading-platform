@@ -14,14 +14,11 @@
 #include "serialization/fbs/fbs_domain_serializer.hpp"
 #endif
 
-#include "network/transport/shm/shm_transport.hpp"
+#ifdef TELEMETRY_ENABLED
 #include "serialization/proto/proto_metadata_serializer.hpp"
+#endif
 
 namespace hft {
-
-using StreamTransport = ShmTransport;
-using DatagramTransport = ShmTransport;
-
 #ifdef SERIALIZATION_SBE
 using DomainSerializer = serialization::sbe::SbeDomainSerializer;
 using Framer = DummyFramer<DomainSerializer>;
@@ -30,7 +27,9 @@ using DomainSerializer = serialization::fbs::FbsDomainSerializer;
 using Framer = FixedSizeFramer<DomainSerializer>;
 #endif
 
+#ifdef TELEMETRY_ENABLED
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
+#endif
 
 } // namespace hft
 

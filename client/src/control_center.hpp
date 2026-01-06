@@ -15,8 +15,6 @@
 #include "events.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
-#include "network/boost/boost_network_client.hpp"
-#include "network/shm/shm_client.hpp"
 #include "trade_engine.hpp"
 #include "traits.hpp"
 #include "types.hpp"

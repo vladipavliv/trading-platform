@@ -20,6 +20,12 @@ class StreamBus;
 template <typename MarketBusT = MessageBus<>, typename StreamBusT = StreamBus<LFQ_CAPACITY>>
 struct BusHub;
 
+template <typename BusT, typename... MessageTs>
+struct BusLimiter;
+
+template <typename BusT, typename... MessageTs>
+struct BusRestrictor;
+
 template <typename Parser>
 class ConsoleReader;
 
@@ -27,6 +33,8 @@ template <typename Serializer>
 class DummyFramer;
 
 class ShmTransport;
+class BoostTcpTransport;
+class BoostUdpTransport;
 
 template <typename SerializerType>
 class FixedSizeFramer;
@@ -41,6 +49,15 @@ class FbsDomainSerializer;
 namespace sbe {
 class SbeDomainSerializer;
 }
+
+#ifdef SERIALIZATION_SBE
+using DomainSerializer = serialization::sbe::SbeDomainSerializer;
+using Framer = DummyFramer<DomainSerializer>;
+#else
+using DomainSerializer = serialization::fbs::FbsDomainSerializer;
+using Framer = FixedSizeFramer<DomainSerializer>;
+#endif
+
 } // namespace serialization
 
 namespace adapters {
@@ -52,11 +69,15 @@ template <typename BusType>
 class DummyKafkaAdapter;
 class PostgresAdapter;
 } // namespace adapters
+
+struct ChannelStatusEvent;
+struct ConnectionStatusEvent;
 } // namespace hft
 
 namespace hft::client {
-class ShmClient;
 class CommandParser;
+class ShmClient;
+class BoostNetworkClient;
 
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
@@ -71,20 +92,24 @@ using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
 #endif
 
-#ifdef SERIALIZATION_SBE
-using DomainSerializer = serialization::sbe::SbeDomainSerializer;
-using Framer = DummyFramer<DomainSerializer>;
-#else
-using DomainSerializer = serialization::fbs::FbsDomainSerializer;
-using Framer = FixedSizeFramer<DomainSerializer>;
-#endif
-
+#ifdef COMM_SHM
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkClient = ShmClient;
+#else
+using StreamTransport = BoostTcpTransport;
+using DatagramTransport = BoostUdpTransport;
+using NetworkClient = BoostNetworkClient;
+#endif
 
 using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice>;
 using ClientBus = BusHub<ClientMessageBus, ClientStreamBus>;
+using UpstreamBus =
+    BusRestrictor<ClientBus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
+using DownstreamBus =
+    BusRestrictor<ClientBus, LoginResponse, OrderStatus, ChannelStatusEvent, ConnectionStatusEvent>;
+using DatagramBus =
+    BusRestrictor<ClientBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
 

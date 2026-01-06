@@ -14,9 +14,9 @@
 
 namespace hft {
 
-class TcpTransport {
+class BoostTcpTransport {
 public:
-  TcpTransport(TcpSocket &&socket) : socket_{std::move(socket)} {}
+  explicit BoostTcpTransport(TcpSocket &&socket) : socket_{std::move(socket)} {}
 
   template <typename Callback>
   void asyncRx(ByteSpan buf, Callback &&clb) {

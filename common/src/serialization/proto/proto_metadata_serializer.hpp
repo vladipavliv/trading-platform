@@ -7,8 +7,8 @@
 #define HFT_COMMON_SERIALIZATION_PROTOMETADATASERIALIZER_HPP
 
 #include "bus/busable.hpp"
-#include "gen/proto/cpp/metadata_messages.pb.h"
 #include "metadata_types.hpp"
+#include "proto/cpp/metadata_messages.pb.h"
 #include "proto_converter.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"

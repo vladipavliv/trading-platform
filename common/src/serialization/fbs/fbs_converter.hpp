@@ -7,7 +7,7 @@
 #define HFT_COMMON_SERIALIZATION_FBSCONVERTER_HPP
 
 #include "domain_types.hpp"
-#include "gen/fbs/cpp/domain_messages_generated.h"
+#include "fbs/cpp/domain_messages_generated.h"
 #include "logging.hpp"
 #include "types.hpp"
 

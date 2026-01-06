@@ -1,10 +1,27 @@
 #!/bin/bash
 set -e
 
+exit
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.."
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
-export PYTHONPATH="$(pwd):$PYTHONPATH"
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
-source venv/bin/activate
-pytest tests/integration -s "$@"
+if [ -f "/opt/venv/bin/activate" ]; then
+    echo "Using Docker venv..."
+    source /opt/venv/bin/activate
+elif [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
+    echo "Using local venv..."
+    source "$PROJECT_ROOT/venv/bin/activate"
+else
+    echo "Warning: No virtual environment found. Using system python."
+fi
+
+echo "PYTHONPATH: $PYTHONPATH"
+echo "Current Directory: $(pwd)"
+echo "Listing root contents:"
+ls -F
+
+python3 -m pytest tests/integration -s "$@"

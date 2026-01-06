@@ -30,11 +30,8 @@ namespace hft::server {
  */
 class ShmServer {
 public:
-  using StreamTransport = ShmTransport;
-  using DatagramTransport = ShmTransport;
-
-  using StreamClb = std::function<void(StreamTransport &&transport)>;
-  using DatagramClb = std::function<void(DatagramTransport &&transport)>;
+  using StreamClb = std::function<void(ShmTransport &&transport)>;
+  using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
   explicit ShmServer(ServerBus &bus)
       : bus_{bus}, name_{Config::get<String>("shm.shm_name")},
@@ -66,7 +63,6 @@ public:
         bus_.post(ServerLoginRequest{0, {"client0", "password0"}});
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         bus_.post(ServerTokenBindRequest{1, {0}});
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         running_ = true;
         reactor_.run();

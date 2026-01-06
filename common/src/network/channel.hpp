@@ -24,55 +24,69 @@ namespace hft {
  * @brief
  */
 template <typename TransportT, typename BusT>
-class Channel {
+class Channel : public std::enable_shared_from_this<Channel<TransportT, BusT>> {
 public:
   static_assert(AsyncTransport<TransportT>, "TransportT must satisfy the AsyncTransport concept");
   static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
 
-  Channel(TransportT &&transport, ConnectionId id, BusT &bus)
-      : transport_{std::move(transport)}, id_{id}, bus_{bus} {
-    read();
+  Channel(TransportT &&transport, ConnectionId id, BusT &&bus)
+      : transport_{std::move(transport)}, id_{id}, bus_{std::move(bus)} {
+    LOG_DEBUG("Channel ctor");
   }
 
-  ~Channel() { close(); }
+  ~Channel() {
+    LOG_DEBUG("Channel dtor");
+    close();
+  }
 
   void read() {
     using namespace utils;
-    LOG_TRACE("read {}", activeOps_.load());
     if (status_ != ConnectionStatus::Connected) {
       LOG_ERROR_SYSTEM("read called on disconnected socket");
       return;
     }
-    transport_.asyncRx(buffer_.buffer(),
-                       [this, guard = OpCounter{&activeOps_}](IoResult code, size_t bytes) {
-                         readHandler(code, bytes);
-                       });
+    transport_.asyncRx( // format
+        buffer_.buffer(), [self = this->weak_from_this()](IoResult code, size_t bytes) {
+          auto sharedSelf = self.lock();
+          if (!sharedSelf) {
+            LOG_ERROR("Channel vanished");
+            return;
+          }
+          sharedSelf->readHandler(code, bytes);
+        });
   }
 
   template <typename Type>
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
     using namespace utils;
-    LOG_TRACE("write {} active ops: {}", toString(msg), activeOps_.load());
     if (status_ != ConnectionStatus::Connected) {
       LOG_ERROR_SYSTEM("write called on disconnected socket");
       return;
     }
 
-    NetworkBuffer netBuff{BufferPool<>::instance().acquire(), &activeOps_};
+    NetworkBuffer netBuff{BufferPool<>::instance().acquire()};
     if (!netBuff) {
       LOG_ERROR_SYSTEM("Failed to acquire network buffer, message dropped");
       return;
     }
     netBuff.setSize(Framer::frame(msg, netBuff.data()));
-    transport_.asyncTx( // format
-        netBuff.dataSpan(), [this, buff = std::move(netBuff)](IoResult code, size_t bytes) {
+    transport_.asyncTx(
+        netBuff.dataSpan(),
+        [self = this->weak_from_this(), buff = std::move(netBuff)](IoResult code, size_t bytes) {
           BufferPool<>::instance().release(buff.index());
-          writeHandler(code, bytes);
+          auto sharedSelf = self.lock();
+          if (!sharedSelf) {
+            LOG_ERROR("Channel vanished");
+            return;
+          }
+          sharedSelf->writeHandler(code, bytes);
         });
   }
 
   inline ConnectionId id() const { return id_; }
+
+  inline BusT &bus() { return bus_; }
 
   inline auto status() const -> ConnectionStatus { return status_; }
 
@@ -81,24 +95,9 @@ public:
   inline auto isError() const -> bool { return status_ == ConnectionStatus::Error; }
 
   inline void close() noexcept {
-    try {
-      LOG_DEBUG("close {}", activeOps_.load());
-      transport_.close();
-      status_ = ConnectionStatus::Disconnected;
-
-      size_t cycles = 0;
-      while (activeOps_.load(std::memory_order_acquire) > 0) {
-        asm volatile("pause" ::: "memory");
-        if (++cycles > BUSY_WAIT_CYCLES) {
-          throw std::runtime_error(
-              std::format("Failed to complete {} socket operations", activeOps_.load()));
-        }
-      }
-    } catch (const std::exception &ex) {
-      LOG_ERROR_SYSTEM("exception in Channel::close {}", ex.what());
-    } catch (...) {
-      LOG_ERROR_SYSTEM("unknown exception in Channel::close");
-    }
+    LOG_DEBUG("Channel close");
+    transport_.close();
+    status_ = ConnectionStatus::Disconnected;
   }
 
 private:
@@ -137,12 +136,10 @@ private:
 private:
   const ConnectionId id_;
 
-  BusT &bus_;
+  BusT bus_;
   TransportT transport_;
-
   RingBuffer buffer_;
 
-  Atomic<size_t> activeOps_{0};
   Atomic<ConnectionStatus> status_{ConnectionStatus::Connected};
 };
 

@@ -9,8 +9,8 @@
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
+#include "fbs/cpp/domain_messages_generated.h"
 #include "fbs_converter.hpp"
-#include "gen/fbs/cpp/domain_messages_generated.h"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 

@@ -7,7 +7,10 @@ from contextlib import contextmanager
 from threading import Thread
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-GEN_PATH = ROOT / "common" / "src" / "gen" / "fbs" / "python"
+GEN_PATH = ROOT / "build" / "gen" / "fbs" / "python"
+
+if str(GEN_PATH) not in sys.path:
+    sys.path.insert(0, str(GEN_PATH))
 
 BINARIES = {
     "server": (ROOT / "build" / "server" / "hft_server",

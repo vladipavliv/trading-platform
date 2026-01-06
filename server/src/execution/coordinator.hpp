@@ -78,6 +78,11 @@ public:
       : bus_{bus}, timer_{bus_.systemIoCtx()},
         monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
     bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
+      if (matcher_.data.count(order.order.ticker) == 0) {
+        LOG_ERROR_SYSTEM("{} is not found in the data {}", utils::toString(order.order.ticker),
+                         matcher_.data.size());
+        return;
+      }
       const auto &data = matcher_.data.at(order.order.ticker);
       workers_[data.getThreadId()]->post(order);
     });

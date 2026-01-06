@@ -29,8 +29,8 @@ namespace hft::client {
  */
 class ShmClient {
 public:
-  using StreamClb = std::function<void(StreamTransport &&transport)>;
-  using DatagramClb = std::function<void(DatagramTransport &&transport)>;
+  using StreamClb = std::function<void(ShmTransport &&transport)>;
+  using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
   explicit ShmClient(ClientBus &bus)
       : bus_{bus}, name_{Config::get<String>("shm.shm_name")},

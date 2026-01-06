@@ -14,9 +14,9 @@
 
 namespace hft {
 
-class UdpTransport {
+class BoostUdpTransport {
 public:
-  UdpTransport(UdpSocket &&socket) : socket_{std::move(socket)} {}
+  explicit BoostUdpTransport(UdpSocket &&socket) : socket_{std::move(socket)} {}
 
   template <typename Callback>
   void asyncRx(ByteSpan buf, Callback &&clb) {

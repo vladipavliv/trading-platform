@@ -5,7 +5,7 @@ message(STATUS "--- [FBS] Configuring generator ---")
 set(FBS_DOMAIN_SCHEMA ${CMAKE_SOURCE_DIR}/schema/fbs/domain_messages.fbs)
 set(FBS_METADATA_SCHEMA ${CMAKE_SOURCE_DIR}/schema/fbs/metadata_messages.fbs)
 
-set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
+set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
 set(GEN_DIR_FBS_CPP ${GEN_DIR}/fbs/cpp)
 set(GEN_DIR_FBS_PYTHON ${GEN_DIR}/fbs/python)
 

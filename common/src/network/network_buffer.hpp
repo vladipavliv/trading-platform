@@ -13,8 +13,7 @@ namespace hft {
 
 class NetworkBuffer {
 public:
-  NetworkBuffer(Buffer &&b, std::atomic<size_t> *counter)
-      : buffer_{std::move(b)}, guard_(counter) {}
+  NetworkBuffer(Buffer &&b) : buffer_{std::move(b)} {}
 
   constexpr explicit operator bool() const noexcept { return buffer_.data != nullptr; }
   constexpr bool operator!() const noexcept { return buffer_.data == nullptr; }
@@ -27,7 +26,6 @@ public:
 
 private:
   Buffer buffer_;
-  utils::OpCounter guard_;
 };
 
 } // namespace hft
