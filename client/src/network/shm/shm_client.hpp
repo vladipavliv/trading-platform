@@ -60,7 +60,6 @@ public:
         bus_.post(LoginResponse{0, true, ""});
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         bus_.post(LoginResponse{0, true, ""});
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         running_ = true;
         reactor_.run();

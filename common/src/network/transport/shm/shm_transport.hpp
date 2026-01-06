@@ -58,19 +58,9 @@ public:
       LOG_ERROR("Reactor is not running");
       return;
     }
-    size_t cycles = 0;
     while (!buffer_.write(buffer.data(), buffer.size())) {
-      asm volatile("pause" ::: "memory");
-
-      LOG_ERROR_SYSTEM("Shm ringbuffer is full");
-      std::this_thread::sleep_for(std::chrono::microseconds(10000));
-      if (++cycles > BUSY_WAIT_CYCLES) {
-        LOG_ERROR_SYSTEM("Shm ringbuffer is full, dropping message");
-        clb(IoResult::Error, 0);
-        return;
-      }
+      std::this_thread::yield();
     }
-    reactor_.notify();
     clb(IoResult::Ok, buffer.size());
   }
 

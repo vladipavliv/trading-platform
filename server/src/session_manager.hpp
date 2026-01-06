@@ -30,8 +30,7 @@ class SessionManager {
   using UpstreamChan = SessionChannel<UpstreamBus>;
   using DownstreamChan = SessionChannel<DownstreamBus>;
 
-  static constexpr size_t DRAIN_CHUNK = 128 * 128;
-
+  static constexpr size_t DRAIN_CHUNK = 1024;
   /**
    * @brief Client session info
    * @todo Make rate limiting counter
@@ -113,17 +112,19 @@ public:
 
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
-    processStatus(status);
-    return;
-    size_t iterations = 0;
-    while (!statusQueue_.push(status)) {
-      asm volatile("pause" ::: "memory");
-      if (++iterations > BUSY_WAIT_CYCLES) {
-        throw std::runtime_error("Status queue is full");
+    if (drainLocal_) {
+      processStatus(status);
+    } else {
+      size_t iterations = 0;
+      while (!statusQueue_.push(status)) {
+        asm volatile("pause" ::: "memory");
+        if (++iterations > BUSY_WAIT_CYCLES) {
+          throw std::runtime_error("Status queue is full");
+        }
       }
-    }
-    if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
-      drainHook_([this]() { drainStatusQueue(); });
+      if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
+        drainHook_([this]() { drainStatusQueue(); });
+      }
     }
   }
 
@@ -268,6 +269,8 @@ private:
 
   folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
 
+  // drain the status queue right away, or delegate it via hook
+  const bool drainLocal_{true};
   DrainHook drainHook_;
   std::atomic_bool drainScheduled_{false};
   VyukovQueue<ServerOrderStatus, 8> statusQueue_;
