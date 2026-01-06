@@ -6,16 +6,20 @@
 #ifndef HFT_CLIENT_SHMCLIENT_HPP
 #define HFT_CLIENT_SHMCLIENT_HPP
 
-#include <boost/interprocess/managed_shared_memory.hpp>
-
 #include <functional>
 #include <memory>
 #include <string>
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "config/client_config.hpp"
 #include "network/transport/shm/shm_layout.hpp"
 #include "network/transport/shm/shm_reactor.hpp"
 #include "network/transport/shm/shm_transport.hpp"
+#include "traits.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::client {
@@ -24,12 +28,7 @@ namespace hft::client {
  * @brief Client that creates and manages shared memory
  */
 class ShmClient {
-  using SharedMemory = boost::interprocess::managed_shared_memory;
-
 public:
-  using StreamTransport = ShmTransport;
-  using DatagramTransport = ShmTransport;
-
   using StreamClb = std::function<void(StreamTransport &&transport)>;
   using DatagramClb = std::function<void(DatagramTransport &&transport)>;
 

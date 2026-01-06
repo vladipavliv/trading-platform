@@ -3,8 +3,8 @@
  * @date 2025-03-06
  */
 
-#ifndef HFT_SERVER_CLIENTCOMMAND_HPP
-#define HFT_SERVER_CLIENTCOMMAND_HPP
+#ifndef HFT_CLIENT_COMMAND_HPP
+#define HFT_CLIENT_COMMAND_HPP
 
 #include <stdint.h>
 
@@ -14,24 +14,24 @@ namespace hft::client {
 /**
  * @brief Command for console management
  */
-enum class ClientCommand : uint8_t { Start, Stop, Telemetry_Start, Telemetry_Stop, Shutdown };
+enum class Command : uint8_t { Start, Stop, Telemetry_Start, Telemetry_Stop, Shutdown };
 } // namespace hft::client
 
 namespace hft::utils {
 
 template <>
-inline String toString<client::ClientCommand>(const client::ClientCommand &command) {
+inline String toString<client::Command>(const client::Command &command) {
   using namespace client;
   switch (command) {
-  case ClientCommand::Start:
+  case Command::Start:
     return "start";
-  case ClientCommand::Stop:
+  case Command::Stop:
     return "stop";
-  case ClientCommand::Telemetry_Start:
+  case Command::Telemetry_Start:
     return "telemetry start";
-  case ClientCommand::Telemetry_Stop:
+  case Command::Telemetry_Stop:
     return "telemetry stop";
-  case ClientCommand::Shutdown:
+  case Command::Shutdown:
     return "shutdown";
   default:
     return std::format("unknown command {}", static_cast<uint8_t>(command));
@@ -40,4 +40,4 @@ inline String toString<client::ClientCommand>(const client::ClientCommand &comma
 
 } // namespace hft::utils
 
-#endif // HFT_SERVER_CLIENTCOMMAND_HPP
+#endif // HFT_CLIENT_COMMAND_HPP

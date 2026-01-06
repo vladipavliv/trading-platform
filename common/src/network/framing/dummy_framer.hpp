@@ -10,7 +10,6 @@
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "serialization/serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -21,11 +20,9 @@ namespace hft {
  * @details Usefull when serializer does framing automatically, or the size of all messages is fixed
  * @todo Unify serializers interfaces
  */
-template <typename SerializerType = serialization::DomainSerializer>
+template <typename Serializer>
 class DummyFramer {
 public:
-  using Serializer = SerializerType;
-
   template <typename EventType>
   static constexpr bool Framable = Serializer::template Serializable<EventType>;
 
@@ -34,8 +31,7 @@ public:
     return Serializer::serialize(message, buffer);
   }
 
-  template <Busable Bus>
-  static auto unframe(ByteSpan buff, Bus &bus) -> Expected<size_t> {
+  static auto unframe(ByteSpan buff, Busable auto &bus) -> Expected<size_t> {
     size_t processedSize{0};
     size_t msgSize{0};
     do {

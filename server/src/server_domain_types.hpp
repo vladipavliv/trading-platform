@@ -3,10 +3,9 @@
  * @date 2025-04-18
  */
 
-#ifndef HFT_SERVER_SERVERTYPES_HPP
-#define HFT_SERVER_SERVERTYPES_HPP
+#ifndef HFT_SERVER_SERVERDOMAINTYPES_HPP
+#define HFT_SERVER_SERVERDOMAINTYPES_HPP
 
-#include "bus/bus_holder.hpp"
 #include "domain_types.hpp"
 #include "metadata_types.hpp"
 #include "types.hpp"
@@ -14,13 +13,6 @@
 
 namespace hft::server {
 
-/**
- * @brief These server side wrappers are convenient and help keeping domain
- * types clean, but they do introduce additional copy converting domain message
- * to a server-side message. To avoid this - separate serializers could be made
- * so on the server side message gets deserialized directly to a server local type
- * and all the server side fields would get filled afterwards
- */
 struct ServerLoginRequest {
   ConnectionId connectionId;
   LoginRequest request;
@@ -47,14 +39,6 @@ struct ServerOrderStatus {
   ClientId clientId;
   OrderStatus orderStatus;
 };
-
-#ifdef TELEMETRY_ENABLED
-using StreamBusType = StreamBus<StreamBus<>::Capacity, OrderTimestamp, RuntimeMetrics>;
-#else
-using StreamBusType = StreamBus<>;
-#endif
-
-using ServerBus = BusHolder<MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>, StreamBusType>;
 } // namespace hft::server
 
 namespace hft::utils {
@@ -80,4 +64,4 @@ inline String toString<server::ServerOrderStatus>(const server::ServerOrderStatu
 }
 } // namespace hft::utils
 
-#endif // HFT_SERVER_SERVERTYPES_HPP
+#endif // HFT_SERVER_SERVERDOMAINTYPES_HPP

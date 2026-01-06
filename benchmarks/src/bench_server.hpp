@@ -10,10 +10,9 @@
 #include <iostream>
 
 #include "adapters/postgres/postgres_adapter.hpp"
-#include "commands/server_command.hpp"
+#include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "execution/coordinator.hpp"
-#include "server_types.hpp"
 #include "storage/storage.hpp"
 #include "types.hpp"
 #include "types/constants.hpp"

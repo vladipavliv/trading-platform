@@ -3,12 +3,12 @@
  * @date 2025-03-21
  */
 
-#ifndef HFT_COMMON_BUSHOLDER_HPP
-#define HFT_COMMON_BUSHOLDER_HPP
+#ifndef HFT_COMMON_BUSHUB_HPP
+#define HFT_COMMON_BUSHUB_HPP
 
 #include <concepts>
 
-#include "bus/busable.hpp"
+#include "busable.hpp"
 #include "domain_types.hpp"
 #include "message_bus.hpp"
 #include "stream_bus.hpp"
@@ -18,19 +18,16 @@
 namespace hft {
 
 /**
- * @brief Holds different types of buses, routes calls to a proper bus
+ * @brief
  */
-template <typename MarketBus = MessageBus<>, typename StreamBus = StreamBus<>>
-struct BusHolder {
+template <typename MarketBusT, typename StreamBusT>
+struct BusHub {
 public:
-  using MarketBusType = MarketBus;
-  using StreamBusType = StreamBus;
-
-  BusHolder() : streamBus{systemBus} {}
+  BusHub() : streamBus{systemBus} {}
 
   SystemBus systemBus;
-  MarketBus marketBus;
-  StreamBus streamBus;
+  MarketBusT marketBus;
+  StreamBusT streamBus;
 
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
   inline IoCtx &streamIoCtx() { return streamBus.streamIoCtx(); }
@@ -46,37 +43,37 @@ public:
   }
 
   template <typename Message>
-    requires(MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
   inline void post(CRef<Message> message) {
     marketBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     marketBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
-    requires(!MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
   inline void post(CRef<Message> message) {
     streamBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(!MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     streamBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
-    requires(!MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
   inline void post(CRef<Message> message) {
     systemBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(!MarketBus::template Routed<Message> && !StreamBus::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     systemBus.template subscribe<Message>(std::move(handler));
   }
@@ -87,13 +84,13 @@ public:
   }
 
   template <typename Message>
-    requires(MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
   inline void post(CRef<Message>) = delete;
 
   template <typename Message>
-    requires(MarketBus::template Routed<Message> && StreamBus::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message>) = delete;
 };
 } // namespace hft
 
-#endif // HFT_COMMON_BUSHOLDER_HPP
+#endif // HFT_COMMON_BUSHUB_HPP

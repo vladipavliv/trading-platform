@@ -14,7 +14,7 @@
 #include "bus/busable.hpp"
 #include "config/server_config.hpp"
 #include "constants.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -73,8 +73,7 @@ public:
     return *this;
   };
 
-  template <Busable Consumer>
-  bool add(CRef<ServerOrder> order, Consumer &consumer) {
+  bool add(CRef<ServerOrder> order, Busable auto &consumer) {
     if (bids_.size() + asks_.size() >= ServerConfig::cfg.orderBookLimit) {
       LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
@@ -92,8 +91,7 @@ public:
     return true;
   }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-  template <Busable Consumer>
-  void sendAck(CRef<ServerOrder> order, Consumer &consumer) {
+  void sendAck(CRef<ServerOrder> order, Busable auto &consumer) {
     consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
   }
 
@@ -104,8 +102,7 @@ public:
   }
 #endif
 
-  template <Busable Consumer>
-  void match(Consumer &consumer) {
+  void match(Busable auto &consumer) {
     while (!bids_.empty() && !asks_.empty()) {
       InternalOrder &bestBid = bids_.front();
       InternalOrder &bestAsk = asks_.front();

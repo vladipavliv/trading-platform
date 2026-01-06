@@ -18,8 +18,7 @@ target_include_directories(hft_monitor PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src 
     ${CMAKE_SOURCE_DIR}/common/src
-    ${CMAKE_SOURCE_DIR}/server/src
-    ${CMAKE_SOURCE_DIR}/client/src
+    ${CMAKE_SOURCE_DIR}
 )
 
 add_custom_command(

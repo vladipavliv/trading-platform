@@ -10,7 +10,6 @@
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "serialization/serializer.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -19,7 +18,7 @@ namespace hft {
 /**
  * @brief Frames messages by writing message size and then serialized data
  */
-template <typename SerializerType = serialization::DomainSerializer>
+template <typename SerializerType>
 class FixedSizeFramer {
 public:
   using Serializer = SerializerType;
@@ -38,8 +37,7 @@ public:
     return HEADER_SIZE + msgSize;
   }
 
-  template <Busable Consumer>
-  static auto unframe(ByteSpan dataBuffer, Consumer &consumer) -> Expected<size_t> {
+  static auto unframe(ByteSpan dataBuffer, Busable auto &consumer) -> Expected<size_t> {
     const auto dataPtr = dataBuffer.data();
     size_t cursor{0};
 

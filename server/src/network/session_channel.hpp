@@ -10,8 +10,9 @@
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/channel.hpp"
-#include "server_types.hpp"
+#include "network_traits.hpp"
 #include "session_bus.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 
 namespace hft::server {
@@ -20,14 +21,12 @@ namespace hft::server {
  * @brief Gateway channel for the session
  * @details Uses SessionBus to prevent unauthenticated messages to go through
  */
-template <AsyncTransport T>
 class SessionChannel {
-public:
-  using Transport = T;
-  using ChannelType = Channel<Transport, SessionBus>;
+  using Chan = Channel<StreamTransport, SessionBus>;
 
-  SessionChannel(Transport &&transport, ConnectionId id, ServerBus &bus)
-      : channel_{std::move(transport), id, sessionBus_}, id_{id}, bus_{bus}, sessionBus_{id, bus} {}
+public:
+  SessionChannel(StreamTransport &&transport, ConnectionId id, ServerBus &bus)
+      : id_{id}, sessionBus_{id, bus}, channel_{std::move(transport), id, sessionBus_} {}
 
   inline void authenticate(ClientId clientId) {
     LOG_INFO_SYSTEM("Authenticate channel {} {}", id_, clientId);
@@ -61,10 +60,8 @@ public:
 private:
   const ConnectionId id_;
 
-  ServerBus &bus_;
   SessionBus sessionBus_;
-
-  ChannelType channel_;
+  Chan channel_;
 };
 
 } // namespace hft::server

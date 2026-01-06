@@ -8,7 +8,7 @@
 
 #include "adapters/postgres/table_reader.hpp"
 #include "adapters/postgres/table_writer.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 

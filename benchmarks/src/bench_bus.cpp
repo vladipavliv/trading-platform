@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "bus/bus_holder.hpp"
+#include "bus/bus_hub.hpp"
 #include "config/config.hpp"
 #include "domain_types.hpp"
 #include "lfq_runner.hpp"

@@ -6,15 +6,17 @@
 #ifndef HFT_SERVER_COORDINATOR_HPP
 #define HFT_SERVER_COORDINATOR_HPP
 
-#include "commands/server_command.hpp"
+#include "bus/bus_hub.hpp"
+#include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
+#include "events.hpp"
 #include "lfq_runner.hpp"
+#include "market_data.hpp"
 #include "order_book.hpp"
-#include "server_events.hpp"
-#include "server_market_data.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
+#include "traits.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
@@ -79,11 +81,11 @@ public:
       const auto &data = matcher_.data.at(order.order.ticker);
       workers_[data.getThreadId()]->post(order);
     });
-    bus_.subscribe(ServerCommand::Telemetry_Start, [this] {
+    bus_.subscribe(Command::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
     });
-    bus_.subscribe(ServerCommand::Telemetry_Stop, [this] {
+    bus_.subscribe(Command::Telemetry_Stop, [this] {
       LOG_INFO_SYSTEM("Stop telemetry stream");
       telemetry_ = false;
     });

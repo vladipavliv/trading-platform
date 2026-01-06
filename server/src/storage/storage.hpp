@@ -6,10 +6,8 @@
 #ifndef HFT_SERVER_STORAGE_HPP
 #define HFT_SERVER_STORAGE_HPP
 
-#include "adapters/adapters.hpp"
-#include "execution/server_market_data.hpp"
+#include "execution/market_data.hpp"
 #include "logging.hpp"
-#include "server_type_converters.hpp"
 #include "type_converters.hpp"
 #include "types.hpp"
 
@@ -17,7 +15,7 @@ namespace hft::server {
 
 class Storage {
 public:
-  explicit Storage(adapters::DbAdapter &dbAdapter)
+  explicit Storage(DbAdapter &dbAdapter)
       : dbAdapter_{dbAdapter}, marketData_{loadMarketData()},
         persist_{ServerConfig::cfg.orderBookPersist} {}
 
@@ -141,7 +139,7 @@ private:
   }
 
 private:
-  adapters::DbAdapter &dbAdapter_;
+  DbAdapter &dbAdapter_;
 
   const MarketData marketData_;
   const bool persist_;

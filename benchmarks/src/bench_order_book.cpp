@@ -8,7 +8,7 @@
 #include "bus/busable.hpp"
 #include "config/server_config.hpp"
 #include "execution/order_book.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"

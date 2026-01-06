@@ -6,15 +6,14 @@
 #ifndef HFT_SERVER_AUTHENTICATOR_HPP
 #define HFT_SERVER_AUTHENTICATOR_HPP
 
-#include "adapters/adapters.hpp"
 #include "logging.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
 
 namespace hft::server {
 
 class Authenticator {
 public:
-  Authenticator(SystemBus &bus, adapters::DbAdapter &dbAdapter) : bus_{bus}, dbAdapter_{dbAdapter} {
+  Authenticator(SystemBus &bus, DbAdapter &dbAdapter) : bus_{bus}, dbAdapter_{dbAdapter} {
     bus_.subscribe<ServerLoginRequest>(
         [this](CRef<ServerLoginRequest> request) { onAuthenticate(request); });
   }
@@ -37,7 +36,7 @@ private:
 
 private:
   SystemBus &bus_;
-  adapters::DbAdapter &dbAdapter_;
+  DbAdapter &dbAdapter_;
 };
 } // namespace hft::server
 

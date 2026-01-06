@@ -12,8 +12,8 @@
 #include "network/async_transport.hpp"
 #include "network/buffer_pool.hpp"
 #include "network/connection_status.hpp"
-#include "network/framing/framer.hpp"
 #include "network/ring_buffer.hpp"
+#include "network_traits.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -23,14 +23,13 @@ namespace hft {
 /**
  * @brief
  */
-template <AsyncTransport T, Busable B, typename F = DefaultFramer>
+template <typename TransportT, typename BusT>
 class Channel {
 public:
-  using Transport = T;
-  using Bus = B;
-  using Framer = F;
+  static_assert(AsyncTransport<TransportT>, "TransportT must satisfy the AsyncTransport concept");
+  static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
 
-  Channel(Transport &&transport, ConnectionId id, Bus &bus)
+  Channel(TransportT &&transport, ConnectionId id, BusT &bus)
       : transport_{std::move(transport)}, id_{id}, bus_{bus} {
     read();
   }
@@ -138,10 +137,10 @@ private:
 private:
   const ConnectionId id_;
 
-  RingBuffer buffer_;
-  Bus &bus_;
+  BusT &bus_;
+  TransportT transport_;
 
-  Transport transport_;
+  RingBuffer buffer_;
 
   Atomic<size_t> activeOps_{0};
   Atomic<ConnectionStatus> status_{ConnectionStatus::Connected};

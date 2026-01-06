@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "network/async_transport.hpp"
+#include "shm_reactor.hpp"
 #include "shm_ring_buffer.hpp"
 #include "shm_types.hpp"
 #include "types.hpp"

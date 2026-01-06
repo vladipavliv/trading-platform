@@ -9,7 +9,7 @@
 #include <map>
 
 #include "bus/busable.hpp"
-#include "client_command.hpp"
+#include "command.hpp"
 #include "logging.hpp"
 #include "types.hpp"
 
@@ -20,12 +20,11 @@ namespace hft::client {
  * For now incoming from kafka messages are simple strings so there is no need
  * of a full blown serializer.
  */
-class ClientCommandParser {
+class CommandParser {
 public:
-  static const std::map<String, ClientCommand> commands;
+  static const std::map<String, Command> commands;
 
-  template <Busable Consumer>
-  static bool parse(CRef<String> cmd, Consumer &consumer) {
+  static bool parse(CRef<String> cmd, Busable auto &consumer) {
     const auto cmdIt = commands.find(cmd);
     if (cmdIt == commands.end()) {
       return false;
@@ -34,15 +33,11 @@ public:
     return true;
   }
 
-  /**
-   * @brief Interface so it can be used as serializer when simple string map is sufficient
-   */
-  template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Busable auto &consumer) {
     return parse(String(reinterpret_cast<const char *>(data), size), consumer);
   }
 
-  static ByteBuffer serialize(ClientCommand cmd) {
+  static ByteBuffer serialize(Command cmd) {
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {
@@ -53,12 +48,13 @@ public:
   }
 };
 
-inline const std::map<String, ClientCommand> ClientCommandParser::commands{
-    {"s+", ClientCommand::Start},
-    {"s-", ClientCommand::Stop},
-    {"t+", ClientCommand::Telemetry_Start},
-    {"t-", ClientCommand::Telemetry_Stop},
-    {"q", ClientCommand::Shutdown}};
+inline const std::map<String, Command> CommandParser::commands{
+
+    {"s+", Command::Start},
+    {"s-", Command::Stop},
+    {"t+", Command::Telemetry_Start},
+    {"t-", Command::Telemetry_Stop},
+    {"q", Command::Shutdown}};
 
 } // namespace hft::client
 
