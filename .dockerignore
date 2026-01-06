@@ -1,0 +1,15 @@
+# Ignore the local build folder
+build/
+
+# Ignore local python virtual environments
+venv/
+.venv/
+__pycache__/
+
+# Ignore IDE settings
+.vscode/
+.idea/
+
+# Ignore git history (makes the COPY step much faster)
+.git
+.gitignore
