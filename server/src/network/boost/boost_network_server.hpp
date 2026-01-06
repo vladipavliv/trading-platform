@@ -28,11 +28,8 @@ namespace hft::server {
  */
 class BoostNetworkServer {
 public:
-  using StreamTransport = TcpTransport;
-  using DatagramTransport = UdpTransport;
-
-  using StreamClb = std::function<void(StreamTransport &&transport)>;
-  using DatagramClb = std::function<void(DatagramTransport &&transport)>;
+  using StreamClb = std::function<void(BoostTcpTransport &&transport)>;
+  using DatagramClb = std::function<void(BoostUdpTransport &&transport)>;
 
   explicit BoostNetworkServer(ServerBus &bus)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, upstreamAcceptor_{ioCtx_},
@@ -40,9 +37,9 @@ public:
 
   ~BoostNetworkServer() { stop(); }
 
-  void setUpstreamClb(StreamClb &&streamClb) { upStreamClb_ = std::move(streamClb); }
+  void setUpstreamClb(StreamClb &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
-  void setDownstreamClb(StreamClb &&streamClb) { downStreamClb_ = std::move(streamClb); }
+  void setDownstreamClb(StreamClb &&streamClb) { downstreamClb_ = std::move(streamClb); }
 
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
@@ -94,7 +91,7 @@ private:
         return;
       }
       configureTcpSocket(socket);
-      upStreamClb_(TcpTransport{std::move(socket)});
+      upstreamClb_(BoostTcpTransport{std::move(socket)});
       acceptUpstream();
     });
   }
@@ -115,7 +112,7 @@ private:
         return;
       }
       configureTcpSocket(socket);
-      downStreamClb_(TcpTransport{std::move(socket)});
+      downstreamClb_(BoostTcpTransport{std::move(socket)});
       acceptDownstream();
     });
   }
@@ -151,7 +148,7 @@ private:
 
       LOG_INFO_SYSTEM("UDP initialized {}:{}", endpoint.address().to_string(), endpoint.port());
 
-      datagramClb_(DatagramTransport{std::move(socket)});
+      datagramClb_(BoostUdpTransport{std::move(socket)});
     } catch (const std::exception &ex) {
       LOG_ERROR_SYSTEM("Failed to create datagram transport: {}", ex.what());
     }
@@ -163,8 +160,8 @@ private:
 
   ServerBus &bus_;
 
-  StreamClb upStreamClb_;
-  StreamClb downStreamClb_;
+  StreamClb upstreamClb_;
+  StreamClb downstreamClb_;
   DatagramClb datagramClb_;
 
   TcpAcceptor upstreamAcceptor_;

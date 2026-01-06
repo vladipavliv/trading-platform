@@ -22,6 +22,7 @@ option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(TELEMETRY_ENABLED "Enable telemetry" OFF)
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR" CACHE STRING "spdlog active level")
+option(COMM_TYPE_SHM "Use Shared Memory for IPC instead of Sockets" OFF)
 
 if(DEFINED ENV{GITHUB_ACTIONS})
   message(STATUS "CI/CD build detected: GitHub Actions")
@@ -29,6 +30,16 @@ if(DEFINED ENV{GITHUB_ACTIONS})
 else()
   message(STATUS "Local build")
   set(IS_CICD_BUILD OFF)
+endif()
+
+if(COMM_TYPE_SHM)
+    set(COMMUNICATION "SHM")
+    add_compile_definitions(COMM_SHM)
+    message(STATUS "Build Mode: IPC via Shared Memory")
+else()
+    set(COMMUNICATION "SOCK")
+    add_compile_definitions(COMM_SOCK)
+    message(STATUS "Build Mode: IPC via Sockets")
 endif()
 
 if(IS_CICD_BUILD)
@@ -110,8 +121,9 @@ set(vars
     BUILD_TESTS
     BUILD_BENCHMARKS
     TELEMETRY_ENABLED
-    SPDLOG_ACTIVE_LEVEL
     SERIALIZATION
+    COMMUNICATION
+    SPDLOG_ACTIVE_LEVEL
 )
 
 set_directory_properties(PROPERTIES ADDITIONAL_CLEAN_FILES "${GEN_DIR}")

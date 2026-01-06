@@ -33,6 +33,8 @@ template <typename Serializer>
 class DummyFramer;
 
 class ShmTransport;
+class BoostTcpTransport;
+class BoostUdpTransport;
 
 template <typename SerializerType>
 class FixedSizeFramer;
@@ -73,8 +75,9 @@ struct ConnectionStatusEvent;
 } // namespace hft
 
 namespace hft::client {
-class ShmClient;
 class CommandParser;
+class ShmClient;
+class BoostNetworkClient;
 
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
@@ -89,9 +92,15 @@ using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
 #endif
 
+#ifdef COMM_SHM
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkClient = ShmClient;
+#else
+using StreamTransport = BoostTcpTransport;
+using DatagramTransport = BoostUdpTransport;
+using NetworkClient = BoostNetworkClient;
+#endif
 
 using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice>;
 using ClientBus = BusHub<ClientMessageBus, ClientStreamBus>;

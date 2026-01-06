@@ -29,6 +29,8 @@ template <typename Parser>
 class ConsoleReader;
 
 class ShmTransport;
+class BoostTcpTransport;
+class BoostUdpTransport;
 
 template <typename Serializer>
 class DummyFramer;
@@ -73,6 +75,7 @@ struct ConnectionStatusEvent;
 namespace hft::server {
 class ShmServer;
 class CommandParser;
+class BoostNetworkServer;
 
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
@@ -87,16 +90,22 @@ using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ServerStreamBus = StreamBus<LFQ_CAPACITY>;
 #endif
 
+#ifdef COMM_SHM
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkServer = ShmServer;
+#else
+using StreamTransport = BoostTcpTransport;
+using DatagramTransport = BoostUdpTransport;
+using NetworkServer = BoostNetworkServer;
+#endif
 
 using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>;
 using ServerBus = BusHub<ServerMessageBus, ServerStreamBus>;
-using UpstreamBus =
-    BusRestrictor<ServerBus, LoginRequest, ServerOrder, ChannelStatusEvent, ConnectionStatusEvent>;
+using UpstreamBus = BusRestrictor<ServerBus, ServerLoginRequest, ServerOrder, ChannelStatusEvent,
+                                  ConnectionStatusEvent>;
 using DownstreamBus =
-    BusRestrictor<ServerBus, TokenBindRequest, ChannelStatusEvent, ConnectionStatusEvent>;
+    BusRestrictor<ServerBus, ServerTokenBindRequest, ChannelStatusEvent, ConnectionStatusEvent>;
 using DatagramBus =
     BusRestrictor<ServerBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
