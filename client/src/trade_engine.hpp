@@ -129,8 +129,6 @@ private:
       for (int i = 0; i < ClientConfig::cfg.tradeRate.count(); ++i) {
         std::this_thread::yield();
       }
-      // std::this_thread::yield();
-      // std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
     }
   }
 

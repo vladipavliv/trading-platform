@@ -136,7 +136,7 @@ Client:
 Manual shared memory tests:
 ```bash
 Server:
-15:32:09.204617 [I] Orders: [opn|ttl] 11065605|51178954 | Rps: 3248902
+23:22:04.253590 [I] Orders: [opn|ttl] 9098932|42028517 | Rps: 4952156
 Client:
-15:32:08.457118 [I] Rtt: [<1us|>1us] 53.00% avg:628ns 47.00% avg:1us
+23:22:04.770930 [I] Rtt: [<1us|>1us] 96.35% avg:482ns 3.65% avg:1us
 ```

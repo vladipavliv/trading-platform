@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
 #include "network/async_transport.hpp"
 #include "network/transport/shm/shm_layout.hpp"

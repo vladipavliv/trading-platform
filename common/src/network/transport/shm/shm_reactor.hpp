@@ -19,45 +19,25 @@ class ShmReactor {
 public:
   explicit ShmReactor(ShmLayout *layout, ReactorType type) : type_{type}, layout_{layout} {}
 
-  void add(Transport *t) { transports_.push_back(t); }
+  void add(Transport *t) {
+    if (type_ == ReactorType::Server && t->type() == ShmTransportType::Upstream) {
+      transport_ = t;
+    } else if (type_ == ReactorType::Client && t->type() == ShmTransportType::Downstream) {
+      transport_ = t;
+    }
+  }
 
   void remove(Transport *t) {
-    transports_.erase(std::remove(transports_.begin(), transports_.end(), t), transports_.end());
+    if (t == transport_) {
+      transport_ = nullptr;
+    }
   }
 
   void run() {
     LOG_INFO_SYSTEM("ShmReactor run");
-
     running_ = true;
-    size_t spins = 0;
-    auto &ftx = localFtx();
     while (running_) {
-      uint32_t currentCounter = ftx.load(std::memory_order_acquire);
-      LOG_DEBUG("Reactor loop {} {}", seqCounter_, currentCounter);
-      while (running_ && currentCounter == seqCounter_) {
-        if (spins < BUSY_WAIT_CYCLES) {
-          asm volatile("pause" ::: "memory");
-          ++spins;
-        } else {
-          utils::futexWait(ftx, currentCounter);
-          // std::this_thread::yield();
-          spins = 0;
-        }
-        currentCounter = ftx.load(std::memory_order_acquire);
-      }
-      if (!running_) {
-        return;
-      }
-      for (auto *t : transports_) {
-        if (type_ == ReactorType::Server && t->type() == ShmTransportType::Upstream) {
-          t->tryDrain();
-        } else if (type_ == ReactorType::Client && t->type() != ShmTransportType::Upstream) {
-          t->tryDrain();
-        }
-      }
-
-      seqCounter_ = currentCounter;
-      spins = 0;
+      transport_->tryDrain();
     }
   }
 
@@ -88,11 +68,9 @@ private:
 private:
   const ReactorType type_;
 
-  uint32_t seqCounter_{0};
+  ShmLayout *layout_{nullptr};
 
-  ShmLayout *layout_;
-
-  std::vector<Transport *> transports_;
+  Transport *transport_{nullptr};
   std::atomic<bool> running_{false};
 };
 
