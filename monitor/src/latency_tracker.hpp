@@ -9,7 +9,7 @@
 #include "bus/system_bus.hpp"
 #include "config/monitor_config.hpp"
 #include "domain_types.hpp"
-#include "monitor_types.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 
 namespace hft::monitor {

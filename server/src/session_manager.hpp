@@ -10,12 +10,12 @@
 
 #include "boost_types.hpp"
 #include "constants.hpp"
+#include "events.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/connection_status.hpp"
 #include "network/session_channel.hpp"
-#include "server_events.hpp"
-#include "server_types.hpp"
+#include "traits.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
@@ -24,10 +24,7 @@ namespace hft::server {
 /**
  * @brief Manages sessions, generates tokens, authenticates channels
  */
-template <AsyncTransport T>
 class SessionManager {
-  using Chan = SessionChannel<T>;
-
   /**
    * @brief Client session info
    * @todo Make rate limiting counter
@@ -35,12 +32,11 @@ class SessionManager {
   struct Session {
     ClientId clientId;
     Token token;
-    SPtr<Chan> upstreamChannel;
-    SPtr<Chan> downstreamChannel;
+    SPtr<SessionChannel> upstreamChannel;
+    SPtr<SessionChannel> downstreamChannel;
   };
 
 public:
-  using Transport = T;
   using DrainHook = std::function<void(Callback &&)>;
 
   explicit SessionManager(ServerBus &bus) : bus_{bus} {
@@ -56,26 +52,26 @@ public:
 
   void setDrainHook(DrainHook &&drainHook) { drainHook_ = std::move(drainHook); }
 
-  void acceptUpstream(Transport &&transport) {
+  void acceptUpstream(StreamTransport &&transport) {
     const auto id = utils::generateConnectionId();
     LOG_INFO_SYSTEM("New upstream connection id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<Chan>(std::move(transport), id, bus_);
+    auto chan = std::make_shared<SessionChannel>(std::move(transport), id, bus_);
     chan->read();
     unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
 
-  void acceptDownstream(Transport &&transport) {
+  void acceptDownstream(StreamTransport &&transport) {
     const auto id = utils::generateConnectionId();
     LOG_INFO_SYSTEM("New downstream connection Id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<Chan>(std::move(transport), id, bus_);
+    auto chan = std::make_shared<SessionChannel>(std::move(transport), id, bus_);
     chan->read();
     unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
@@ -251,8 +247,8 @@ private:
 private:
   ServerBus &bus_;
 
-  boost::unordered_flat_map<ConnectionId, SPtr<Chan>> unauthorizedUpstreamMap_;
-  boost::unordered_flat_map<ConnectionId, SPtr<Chan>> unauthorizedDownstreamMap_;
+  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
+  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
 
   boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
 

@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
+#include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
 #include "domain_types.hpp"
 #include "execution/order_book.hpp"
@@ -13,7 +14,8 @@
 #include "serialization/fbs/fbs_metadata_serializer.hpp"
 #include "serialization/proto/proto_metadata_serializer.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
@@ -45,7 +47,7 @@ static void DISABLED_BM_Ser_ProtoSerialize(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Ser_ProtoSerialize);
 
 static void DISABLED_BM_Ser_ProtoDeserialize(benchmark::State &state) {
-  using Bustype = BusHolder<MessageBus<OrderTimestamp>>;
+  using Bustype = BusHub<MessageBus<OrderTimestamp>>;
 
   Bustype bus;
   bus.template subscribe<OrderTimestamp>([](CRef<OrderTimestamp> o) {});
@@ -78,7 +80,7 @@ static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Ser_FbsSerialize);
 
 static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
-  using BusType = BusHolder<MessageBus<Order>>;
+  using BusType = BusHub<MessageBus<Order>>;
 
   BusType bus;
   bus.template subscribe<Order>([](CRef<Order> o) {});
@@ -110,7 +112,7 @@ static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Ser_SbeSerialize);
 
 static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
-  using BusType = BusHolder<MessageBus<Order>>;
+  using BusType = BusHub<MessageBus<Order>>;
 
   const Order order = utils::generateOrder();
   ByteBuffer buffer(128);

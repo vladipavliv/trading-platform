@@ -26,7 +26,7 @@ namespace hft {
  * also for consuming. Here we dont care as much for consume side, cause we optimizing for
  * minimal effect on a hot path. In the hot path both sides matter
  */
-template <size_t Capacity = 65536, typename... Events>
+template <size_t Capacity, typename... Events>
 class StreamBus {
   static constexpr size_t EventCount = sizeof...(Events);
 
@@ -163,10 +163,10 @@ private:
   SteadyTimer timer_;
 };
 
-template <>
-class StreamBus<> {
+template <size_t Capacity>
+class StreamBus<Capacity> {
 public:
-  static constexpr size_t Capacity = 65536;
+  static constexpr size_t capacity = Capacity;
 
   template <typename Event>
   static constexpr bool Routed = false;

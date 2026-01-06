@@ -8,13 +8,12 @@
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
-#include "adapters/adapters.hpp"
-#include "client_market_data.hpp"
-#include "client_types.hpp"
 #include "config/client_config.hpp"
 #include "ctx_runner.hpp"
+#include "market_data.hpp"
 #include "metadata_types.hpp"
 #include "rtt_tracker.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 #include "utils/rng.hpp"
 #include "utils/utils.hpp"
@@ -35,11 +34,11 @@ public:
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe(ClientCommand::Telemetry_Start, [this] {
+    bus_.systemBus.subscribe(Command::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
     });
-    bus_.systemBus.subscribe(ClientCommand::Telemetry_Stop, [this] {
+    bus_.systemBus.subscribe(Command::Telemetry_Stop, [this] {
       LOG_INFO_SYSTEM("Stop telemetry stream");
       telemetry_ = false;
     });
@@ -181,7 +180,7 @@ private:
   }
 
 private:
-  adapters::DbAdapter dbAdapter_;
+  DbAdapter dbAdapter_;
   const MarketData marketData_;
 
   ClientBus &bus_;

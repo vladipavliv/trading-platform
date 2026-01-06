@@ -15,14 +15,16 @@ namespace hft {
 /**
  * @brief Limits message types that could be posted to the bus
  */
-template <Busable Bus, typename... MessageTypes>
+template <typename BusT, typename... MessageTs>
 struct BusLimiter {
 public:
-  explicit BusLimiter(Bus &bus) : bus_{bus} {}
+  static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
+
+  explicit BusLimiter(BusT &bus) : bus_{bus} {}
 
   template <typename T>
   static constexpr bool isAllowed() {
-    return (std::is_same_v<T, MessageTypes> || ...);
+    return (std::is_same_v<T, MessageTs> || ...);
   }
 
   template <typename T>
@@ -32,7 +34,7 @@ public:
   }
 
 private:
-  Bus &bus_;
+  BusT &bus_;
 };
 } // namespace hft
 

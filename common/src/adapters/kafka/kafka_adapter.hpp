@@ -25,19 +25,15 @@ namespace hft::adapters {
 /**
  * @brief Reactive adapter, all communication goes through the bus
  */
-template <Busable Bus,
-          typename ConsumeSerializerType = serialization::proto::ProtoMetadataSerializer,
-          typename ProduceSerializerType = serialization::proto::ProtoMetadataSerializer>
+template <typename BusT, typename ConsumeSerializerT, typename ProduceSerializerT>
 class KafkaAdapter {
+  static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
+
   static constexpr size_t FLUSH_CHUNK_TIMEOUT = 1000;
   static constexpr size_t CONSUME_CHUNK = 100;
 
 public:
-  using ConsumeSerializer = ConsumeSerializerType;
-  using ProduceSerializer = ProduceSerializerType;
-  using BusType = Bus;
-
-  explicit KafkaAdapter(Bus &bus)
+  explicit KafkaAdapter(BusT &bus)
       : bus_{bus}, broker_{Config::get<String>("kafka.broker")},
         consumerGroup_{Config::get<String>("kafka.consumer_group")},
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
@@ -103,7 +99,7 @@ public:
       LOG_ERROR("Not connected to the topic {}", topic);
       return;
     }
-    auto serializedMsg = ProduceSerializer::serialize(event);
+    auto serializedMsg = ProduceSerializerT::serialize(event);
     const ErrorCode result =
         producer_->produce(topicIt->second.get(), Topic::PARTITION_UA, Producer::RK_MSG_COPY,
                            serializedMsg.data(), serializedMsg.size(), nullptr, nullptr);
@@ -201,7 +197,7 @@ private:
     for (size_t i = 0; i < CONSUME_CHUNK && started_; ++i) {
       const UPtr<Message> msg{consumer_->consume(0)};
       if (msg->err() == RdKafka::ERR_NO_ERROR) {
-        ConsumeSerializer::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
+        ConsumeSerializerT::deserialize(static_cast<uint8_t *>(msg->payload()), msg->len(), bus_);
       } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
         LOG_ERROR("Failed to poll kafka messages: {}", static_cast<int32_t>(msg->err()));
         break;
@@ -253,7 +249,7 @@ private:
   bool error() const { return !error_.empty(); }
 
 private:
-  Bus &bus_;
+  BusT &bus_;
 
   const String broker_;
   const String consumerGroup_;

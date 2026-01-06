@@ -1,5 +1,5 @@
 # Server Target
-file(GLOB_RECURSE MONITOR_SOURCES "src/*.cpp" "src/**/*.cpp" "src/*.hpp" "src/**/*.hpp")
+file(GLOB_RECURSE MONITOR_SOURCES "src/*.cpp" "src/**/*.cpp")
 
 add_executable(hft_monitor ${MONITOR_SOURCES})
 
@@ -9,17 +9,16 @@ target_link_libraries(hft_monitor PRIVATE
     ${Boost_LIBRARIES} 
     ${LIBPQXX_LIBRARIES} 
     spdlog::spdlog 
-    atomic
-    iberty
-    bfd
+    #atomic
+    #iberty
+    # bfd
 )
 
 target_include_directories(hft_monitor PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src 
     ${CMAKE_SOURCE_DIR}/common/src
-    ${CMAKE_SOURCE_DIR}/server/src
-    ${CMAKE_SOURCE_DIR}/client/src
+    ${CMAKE_SOURCE_DIR}
 )
 
 add_custom_command(

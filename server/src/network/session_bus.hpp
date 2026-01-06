@@ -7,9 +7,9 @@
 #define HFT_SERVER_SESSIONBUS_HPP
 
 #include "boost_types.hpp"
+#include "events.hpp"
 #include "logging.hpp"
-#include "server_events.hpp"
-#include "server_types.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 
 namespace hft::server {

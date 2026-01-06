@@ -11,13 +11,13 @@
 #include <vector>
 
 #include "boost_types.hpp"
-#include "client_events.hpp"
-#include "client_types.hpp"
 #include "config/client_config.hpp"
+#include "events.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
 #include "network/transport/boost/boost_tcp_transport.hpp"
 #include "network/transport/boost/boost_udp_transport.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"

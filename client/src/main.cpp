@@ -7,8 +7,14 @@
 
 #include <boost/program_options.hpp>
 
-#include "client_control_center.hpp"
+#include "adapters/dummies/dummy_kafka_adapter.hpp"
+#include "adapters/kafka/kafka_adapter.hpp"
+#include "adapters/postgres/postgres_adapter.hpp"
+#include "bus/bus_hub.hpp"
+#include "network/shm/shm_client.hpp"
+
 #include "config/client_config.hpp"
+#include "control_center.hpp"
 #include "logging.hpp"
 
 int main(int argc, char *argv[]) {

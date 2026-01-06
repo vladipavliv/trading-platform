@@ -80,8 +80,7 @@ public:
     return result;
   }
 
-  template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Busable auto &consumer) {
     using namespace google::protobuf::io;
 
     ArrayInputStream arrayInputStream(data, static_cast<int>(size));

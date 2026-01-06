@@ -3,30 +3,27 @@
  * @date 2025-04-06
  */
 
-#ifndef HFT_CLIENT_CLIENTCONNECTIONMANAGER_HPP
-#define HFT_CLIENT_CLIENTCONNECTIONMANAGER_HPP
+#ifndef HFT_CLIENT_CONNECTIONMANAGER_HPP
+#define HFT_CLIENT_CONNECTIONMANAGER_HPP
 
-#include "client_connection_state.hpp"
-#include "client_events.hpp"
-#include "client_types.hpp"
+#include "bus/bus_hub.hpp"
 #include "config/client_config.hpp"
+#include "connection_state.hpp"
+#include "events.hpp"
 #include "network/channel.hpp"
 #include "network/connection_status.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::client {
 
-template <typename NetworkClient>
-class ClientConnectionManager {
-  using StreamTransport = NetworkClient::StreamTransport;
-  using DatagramTransport = NetworkClient::DatagramTransport;
-
+class ConnectionManager {
   using StreamChannel = Channel<StreamTransport, ClientBus>;
   using DatagramChannel = Channel<DatagramTransport, ClientBus>;
 
 public:
-  ClientConnectionManager(ClientBus &bus, NetworkClient &networkClient)
+  ConnectionManager(ClientBus &bus, NetworkClient &networkClient)
       : bus_{bus}, networkClient_{networkClient} {
     networkClient_.setUpstreamClb(
         [this](StreamTransport &&transport) { onUpstreamConnected(std::move(transport)); });
@@ -142,4 +139,4 @@ private:
 };
 } // namespace hft::client
 
-#endif // HFT_CLIENT_CLIENTCONNECTIONMANAGER_HPP
+#endif // HFT_CLIENT_CONNECTIONMANAGER_HPP

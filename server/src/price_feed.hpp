@@ -6,12 +6,11 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
-#include "adapters/adapters.hpp"
 #include "boost_types.hpp"
-#include "commands/server_command.hpp"
+#include "commands/command.hpp"
 #include "config/server_config.hpp"
-#include "execution/server_market_data.hpp"
-#include "server_types.hpp"
+#include "execution/market_data.hpp"
+#include "server_domain_types.hpp"
 #include "utils/rng.hpp"
 
 namespace hft::server {
@@ -80,7 +79,7 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(ServerBus &bus, adapters::DbAdapter &dbAdapter)
+  PriceFeed(ServerBus &bus, DbAdapter &dbAdapter)
       : bus_{bus}, priceUpdateTimer_{bus_.systemIoCtx()},
         updateInterval_{ServerConfig::cfg.priceFeedRate} {
     const auto dataResult = dbAdapter.readTickers();
@@ -93,8 +92,8 @@ public:
     for (auto &value : tickerData) {
       fluctuations_.push_back(Fluctuation(value));
     }
-    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeed_Start, [this] { start(); });
-    bus_.systemBus.subscribe<ServerCommand>(ServerCommand::PriceFeed_Stop, [this] { stop(); });
+    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Start, [this] { start(); });
+    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Stop, [this] { stop(); });
   }
 
   void start() {

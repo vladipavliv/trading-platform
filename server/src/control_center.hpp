@@ -3,24 +3,22 @@
  * @date 2025-03-07
  */
 
-#ifndef HFT_SERVER_SERVERCONTROLCENTER_HPP
-#define HFT_SERVER_SERVERCONTROLCENTER_HPP
+#ifndef HFT_SERVER_CONTROLCENTER_HPP
+#define HFT_SERVER_CONTROLCENTER_HPP
 
-#include "adapters/adapters.hpp"
 #include "authenticator.hpp"
-#include "commands/server_command.hpp"
-#include "commands/server_command_parser.hpp"
+#include "commands/command.hpp"
+#include "commands/command_parser.hpp"
 #include "config/server_config.hpp"
 #include "console_reader.hpp"
 #include "domain_types.hpp"
+#include "events.hpp"
 #include "execution/coordinator.hpp"
-#include "network/boost/boost_network_server.hpp"
 #include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
-#include "server_events.hpp"
-#include "server_types.hpp"
 #include "session_manager.hpp"
 #include "storage/storage.hpp"
+#include "traits.hpp"
 
 namespace hft::server {
 
@@ -28,22 +26,13 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
-  using NetworkServer = BoostNetworkServer; // ShmServer;
-  using StreamTransport = NetworkServer::StreamTransport;
-  using DatagramTransport = NetworkServer::DatagramTransport;
-
-  using SessionMgr = SessionManager<StreamTransport>;
-
-  using ConsoleRdr = ConsoleReader<ServerCommandParser>;
-  using StreamAdapter = adapters::MessageQueueAdapter<ServerBus, ServerCommandParser>;
-
   using PricesChannel = Channel<DatagramTransport, ServerBus>;
 
 public:
   ServerControlCenter()
       : storage_{dbAdapter_}, sessionMgr_{bus_}, networkServer_{bus_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleRdr_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
     // System bus subscriptions
     bus_.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
       switch (event.state) {
@@ -76,7 +65,7 @@ public:
     });
 
     // commands
-    bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
+    bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });
 
     sessionMgr_.setDrainHook(networkServer_.getHook());
   }
@@ -112,21 +101,21 @@ private:
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
     ServerConfig::log();
-    consoleRdr_.printCommands();
+    consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
 private:
   ServerBus bus_;
 
-  adapters::DbAdapter dbAdapter_;
+  DbAdapter dbAdapter_;
   Storage storage_;
 
-  SessionMgr sessionMgr_;
+  SessionManager sessionMgr_;
   NetworkServer networkServer_;
   Authenticator authenticator_;
   Coordinator coordinator_;
-  ConsoleRdr consoleRdr_;
+  ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
   StreamAdapter streamAdapter_;
 
@@ -135,4 +124,4 @@ private:
 
 } // namespace hft::server
 
-#endif // HFT_SERVER_SERVERCONTROLCENTER_HPP
+#endif // HFT_SERVER_CONTROLCENTER_HPP

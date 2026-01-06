@@ -13,10 +13,10 @@
 
 namespace hft::adapters {
 
-template <Busable BusType, typename ConsumeSerializer = void, typename ProduceSerializer = void>
+template <typename BusT>
 class DummyKafkaAdapter {
 public:
-  DummyKafkaAdapter(BusType &bus) { LOG_DEBUG("Kafka dummy adapter"); }
+  DummyKafkaAdapter(BusT &bus) { LOG_DEBUG("Kafka dummy adapter"); }
 
   void start() {}
   void stop() {}

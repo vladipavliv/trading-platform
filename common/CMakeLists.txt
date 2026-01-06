@@ -1,13 +1,24 @@
 # Common static library 
-include(cmake/code_generator.cmake)
+file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
-file(GLOB_RECURSE COMMON_SOURCES "src/*.cpp" "src/*.hpp")
+if(SERIALIZATION STREQUAL "SBE" OR BUILD_TESTS OR BUILD_BENCHMARKS)
+    include(cmake/sbe_code_generator.cmake)
+endif()
 
-list(APPEND COMMON_SOURCES
-    ${GEN_DIR_FBS_CPP}/domain_messages_generated.h
-    ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.cc
-    ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.h
-)
+if(SERIALIZATION STREQUAL "FBS" OR BUILD_TESTS OR BUILD_BENCHMARKS)
+    include(cmake/fbs_code_generator.cmake)
+    list(APPEND COMMON_SOURCES
+        ${GEN_DIR_FBS_CPP}/domain_messages_generated.h
+    )
+endif()
+
+if(TELEMETRY_ENABLED OR BUILD_TESTS OR BUILD_BENCHMARKS)
+    include(cmake/proto_code_generator.cmake)
+    list(APPEND COMMON_SOURCES
+        ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.cc
+        ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.h
+    )
+endif()
 
 add_library(hft_common STATIC ${COMMON_SOURCES})
 
@@ -19,7 +30,7 @@ target_include_directories(hft_common PUBLIC
     ${LIBPQXX_INCLUDE_DIRS}
     ${RDKAFKA_INCLUDE_DIRS}
     ${Protobuf_INCLUDE_DIRS}
-    ${spscqueue_SOURCE_DIR}/include
+    #${spscqueue_SOURCE_DIR}/include
 )
 
 target_link_libraries(hft_common PUBLIC 
@@ -29,30 +40,27 @@ target_link_libraries(hft_common PUBLIC
     ${RDKAFKAXX_LIB}
     spdlog::spdlog 
     pthread
-    iberty 
-    atomic
-    folly
-    glog
     pq 
-    dl 
-    bfd
+    #atomic
+    #iberty 
+    #folly
+    #glog
+    #dl 
+    # bfd
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 
-add_dependencies(hft_common sbe_cpp_domain_code_gen)
-add_dependencies(hft_common fbs_cpp_domain_code_gen)
-add_dependencies(hft_common fbs_cpp_metadata_code_gen)
-add_dependencies(hft_common fbs_python_domain_code_gen)
-add_dependencies(hft_common proto_cpp_metadata_code_gen)
+if(SERIALIZATION STREQUAL "SBE")
+    add_dependencies(hft_common sbe_cpp_domain_code_gen)
+elseif(SERIALIZATION STREQUAL "FBS")
+    add_dependencies(hft_common fbs_cpp_domain_code_gen)
+    add_dependencies(hft_common fbs_cpp_metadata_code_gen)
+    add_dependencies(hft_common fbs_python_domain_code_gen)
+endif()
 
-# Make library
-set(CMAKE_AR "/usr/bin/ar")
-set(CMAKE_RANLIB "/usr/bin/ranlib")
-
-add_custom_command(TARGET hft_common POST_BUILD
-    COMMAND ranlib ${CMAKE_CURRENT_BINARY_DIR}/libhft_common.a
-    COMMENT "Running ranlib on libhft_common.a"
-)
+if(TELEMETRY_ENABLED)
+    add_dependencies(hft_common proto_cpp_metadata_code_gen)
+endif()
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_OUTPUT)

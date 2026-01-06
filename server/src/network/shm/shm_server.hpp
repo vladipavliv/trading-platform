@@ -6,17 +6,21 @@
 #ifndef HFT_SERVER_SHMSERVER_HPP
 #define HFT_SERVER_SHMSERVER_HPP
 
-#include <boost/interprocess/managed_shared_memory.hpp>
-
 #include <functional>
 #include <memory>
 #include <string>
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "config/server_config.hpp"
 #include "network/async_transport.hpp"
 #include "network/transport/shm/shm_layout.hpp"
 #include "network/transport/shm/shm_reactor.hpp"
 #include "network/transport/shm/shm_transport.hpp"
+#include "traits.hpp"
 #include "utils/utils.hpp"
 
 namespace hft::server {
@@ -25,8 +29,6 @@ namespace hft::server {
  * @brief
  */
 class ShmServer {
-  using SharedMemory = boost::interprocess::managed_shared_memory;
-
 public:
   using StreamTransport = ShmTransport;
   using DatagramTransport = ShmTransport;

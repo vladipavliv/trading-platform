@@ -7,10 +7,15 @@
 
 #include <boost/program_options.hpp>
 
+#include "adapters/dummies/dummy_kafka_adapter.hpp"
+#include "adapters/kafka/kafka_adapter.hpp"
+#include "adapters/postgres/postgres_adapter.hpp"
+#include "bus/bus_hub.hpp"
+
+#include "commands/command.hpp"
 #include "config/monitor_config.hpp"
+#include "control_center.hpp"
 #include "logging.hpp"
-#include "monitor_command.hpp"
-#include "monitor_control_center.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;

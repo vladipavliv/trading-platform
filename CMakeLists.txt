@@ -52,14 +52,14 @@ endif()
 
 add_compile_options(-Wno-interference-size)
 
-find_package(Boost 1.83 REQUIRED COMPONENTS thread)
+find_package(Boost 1.83 REQUIRED COMPONENTS thread program_options)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_library(RDKAFKAXX_LIB rdkafka++)
 find_package(PostgreSQL REQUIRED)
 find_package(libpqxx REQUIRED)
 find_package(benchmark REQUIRED)
-find_package(folly REQUIRED)
+#find_package(folly REQUIRED)
 find_package(Glog REQUIRED)
 find_package(Protobuf REQUIRED)
 
@@ -71,13 +71,14 @@ endif()
 
 include(FetchContent)
 
+#[[
 FetchContent_Declare(
   SPSCQueue
   GIT_REPOSITORY https://github.com/rigtorp/SPSCQueue.git
   GIT_TAG master
 )
-
 FetchContent_MakeAvailable(SPSCQueue)
+]]
 
 add_subdirectory(common)
 add_subdirectory(server)
@@ -110,6 +111,8 @@ set(vars
     SPDLOG_ACTIVE_LEVEL
     SERIALIZATION
 )
+
+set_directory_properties(PROPERTIES ADDITIONAL_CLEAN_FILES "${GEN_DIR}")
 
 # Find maximum variable name length
 set(max_len 0)

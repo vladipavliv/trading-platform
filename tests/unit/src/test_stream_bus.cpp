@@ -9,6 +9,7 @@
 
 #include "bus/stream_bus.hpp"
 #include "config/server_config.hpp"
+#include "constants.hpp"
 #include "execution/order_book.hpp"
 
 namespace hft::tests {
@@ -33,7 +34,7 @@ public:
 
 TEST_F(StreamBusFixture, Post) {
   SystemBus systemBus;
-  StreamBus<StreamBus<>::Capacity, size_t> bus{systemBus};
+  StreamBus<LFQ_CAPACITY, size_t> bus{systemBus};
 
   size_t eventsPushed{0};
   std::atomic_size_t eventsPopped{0};

@@ -6,6 +6,9 @@
 #ifndef HFT_COMMON_ADAPTERS_POSTGRESTABLEREADER_HPP
 #define HFT_COMMON_ADAPTERS_POSTGRESTABLEREADER_HPP
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include <pqxx/pqxx>
 
 #include "types.hpp"
@@ -13,15 +16,12 @@
 namespace hft::adapters {
 class TableReader {
 public:
-  TableReader(pqxx::connection &conn, StringView table)
-      : work_{conn}, result_(work_.exec(query(table))) {}
+  TableReader(pqxx::connection &conn, StringView table);
 
-  bool next() {
-    if (++cursor_ < static_cast<std::ptrdiff_t>(result_.size())) {
-      return true;
-    }
-    return false;
-  }
+  bool next();
+  void commit();
+  size_t size() const;
+  bool empty() const;
 
   template <typename ValueType>
   ValueType get(size_t col) const {
@@ -34,14 +34,8 @@ public:
     return result_[cursor_][col].as<ValueType>();
   }
 
-  void commit() { work_.commit(); }
-
-  size_t size() const { return result_.size(); }
-
-  bool empty() const { return result_.empty(); }
-
 private:
-  String query(StringView table) const { return std::format("SELECT * FROM {};", table); }
+  String query(StringView table) const;
 
 private:
   pqxx::work work_;
@@ -51,3 +45,5 @@ private:
 } // namespace hft::adapters
 
 #endif // HFT_COMMON_ADAPTERS_POSTGRESTABLEREADER_HPP
+
+#pragma GCC diagnostic pop

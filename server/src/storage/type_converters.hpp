@@ -8,7 +8,7 @@
 
 #include "adapters/postgres/table_reader.hpp"
 #include "adapters/postgres/table_writer.hpp"
-#include "server_types.hpp"
+#include "server_domain_types.hpp"
 #include "types.hpp"
 #include "utils/string_utils.hpp"
 
@@ -19,6 +19,7 @@ inline adapters::TableWriter &operator<<(adapters::TableWriter &writer, CRef<Ser
                                    utils::toString(msg.order.ticker), msg.order.quantity,
                                    msg.order.price, static_cast<uint16_t>(msg.order.action));
 }
+
 inline adapters::TableReader &operator>>(adapters::TableReader &reader, ServerOrder &msg) {
   size_t idx{0};
   msg.clientId = reader.get<ClientId>(idx++);

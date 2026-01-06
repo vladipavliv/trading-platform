@@ -10,13 +10,13 @@
 #include <memory>
 
 #include "boost_types.hpp"
-#include "commands/server_command.hpp"
+#include "commands/command.hpp"
 #include "config/server_config.hpp"
+#include "events.hpp"
 #include "internal_error.hpp"
 #include "network/transport/boost/boost_tcp_transport.hpp"
 #include "network/transport/boost/boost_udp_transport.hpp"
-#include "server_events.hpp"
-#include "server_types.hpp"
+#include "traits.hpp"
 #include "types.hpp"
 #include "utils/utils.hpp"
 

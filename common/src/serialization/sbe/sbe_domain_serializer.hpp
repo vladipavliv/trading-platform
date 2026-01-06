@@ -35,8 +35,7 @@ public:
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
-  template <Busable Consumer>
-  static size_t deserialize(const uint8_t *buffer, size_t size, Consumer &consumer) {
+  static size_t deserialize(const uint8_t *buffer, size_t size, Busable auto &consumer) {
     using namespace hft::serialization::gen::sbe;
     char *data = reinterpret_cast<char *>(const_cast<uint8_t *>(buffer));
 

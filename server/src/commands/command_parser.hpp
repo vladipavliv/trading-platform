@@ -9,8 +9,8 @@
 #include <map>
 
 #include "bus/busable.hpp"
+#include "command.hpp"
 #include "logging.hpp"
-#include "server_command.hpp"
 #include "types.hpp"
 
 namespace hft::server {
@@ -20,12 +20,11 @@ namespace hft::server {
  * For now incoming from kafka messages are simple strings so there is no need
  * of a full blown serializer.
  */
-class ServerCommandParser {
+class CommandParser {
 public:
-  static const std::map<String, ServerCommand> commands;
+  static const std::map<String, Command> commands;
 
-  template <Busable Consumer>
-  static bool parse(CRef<String> cmd, Consumer &consumer) {
+  static bool parse(CRef<String> cmd, Busable auto &consumer) {
     const auto cmdIt = commands.find(cmd);
     if (cmdIt == commands.end()) {
       return false;
@@ -34,15 +33,11 @@ public:
     return true;
   }
 
-  /**
-   * @brief Interface so it can be used as serializer when simple string map is sufficient
-   */
-  template <Busable Consumer>
-  static bool deserialize(const uint8_t *data, size_t size, Consumer &consumer) {
+  static bool deserialize(const uint8_t *data, size_t size, Busable auto &consumer) {
     return parse(String(reinterpret_cast<const char *>(data), size), consumer);
   }
 
-  static ByteBuffer serialize(ServerCommand cmd) {
+  static ByteBuffer serialize(Command cmd) {
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {
@@ -53,12 +48,13 @@ public:
   }
 };
 
-inline const std::map<String, ServerCommand> ServerCommandParser::commands{
-    {"p+", ServerCommand::PriceFeed_Start},
-    {"p-", ServerCommand::PriceFeed_Stop},
-    {"t+", ServerCommand::Telemetry_Start},
-    {"t-", ServerCommand::Telemetry_Stop},
-    {"q", ServerCommand::Shutdown}};
+inline const std::map<String, Command> CommandParser::commands{
+
+    {"p+", Command::PriceFeed_Start},
+    {"p-", Command::PriceFeed_Stop},
+    {"t+", Command::Telemetry_Start},
+    {"t-", Command::Telemetry_Stop},
+    {"q", Command::Shutdown}};
 
 } // namespace hft::server
 
