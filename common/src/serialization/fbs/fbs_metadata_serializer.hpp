@@ -7,8 +7,8 @@
 #define HFT_COMMON_METADATASERIALIZER_HPP
 
 #include "bus/busable.hpp"
+#include "fbs/cpp/metadata_messages_generated.h"
 #include "fbs_converter.hpp"
-#include "gen/fbs/cpp/metadata_messages_generated.h"
 #include "metadata_types.hpp"
 
 namespace hft::serialization::fbs {

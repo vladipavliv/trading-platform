@@ -7,10 +7,10 @@
 #define HFT_SERVER_SESSIONCHANNEL_HPP
 
 #include "boost_types.hpp"
+#include "bus/bus_restrictor.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/channel.hpp"
-#include "network_traits.hpp"
 #include "session_bus.hpp"
 #include "traits.hpp"
 #include "types.hpp"
@@ -21,47 +21,44 @@ namespace hft::server {
  * @brief Gateway channel for the session
  * @details Uses SessionBus to prevent unauthenticated messages to go through
  */
+template <typename BusT>
 class SessionChannel {
-  using Chan = Channel<StreamTransport, SessionBus>;
+  using Chan = Channel<StreamTransport, SessionBus<BusT>>;
 
 public:
-  SessionChannel(StreamTransport &&transport, ConnectionId id, ServerBus &bus)
-      : id_{id}, sessionBus_{id, bus}, channel_{std::move(transport), id, sessionBus_} {}
+  SessionChannel(StreamTransport &&transport, ConnectionId id, BusT &&bus)
+      : channel_{std::make_shared<Chan>(std::move(transport), id,
+                                        SessionBus<BusT>(id, std::move(bus)))} {}
 
   inline void authenticate(ClientId clientId) {
-    LOG_INFO_SYSTEM("Authenticate channel {} {}", id_, clientId);
+    LOG_INFO_SYSTEM("Authenticate channel {} {}", channel_->id(), clientId);
     if (isAuthenticated()) {
-      LOG_ERROR_SYSTEM("{} is already authenticated", id_);
+      LOG_ERROR_SYSTEM("{} is already authenticated", channel_->id());
       return;
     }
-    sessionBus_.authenticate(clientId);
+    channel_->bus().authenticate(clientId);
   }
 
-  inline auto isAuthenticated() const -> bool { return sessionBus_.isAuthenticated(); }
+  inline auto isAuthenticated() const -> bool { return channel_->bus().isAuthenticated(); }
 
-  inline auto connectionId() const -> ConnectionId { return id_; }
+  inline auto connectionId() const -> ConnectionId { return channel_->id(); }
 
-  inline auto clientId() const -> Optional<ClientId> { return sessionBus_.clientId(); }
+  inline void close() { channel_->close(); }
 
-  inline void close() { channel_.close(); }
-
-  inline void write(CRef<LoginResponse> message) { channel_.write(message); }
+  inline void write(CRef<LoginResponse> message) { channel_->write(message); }
 
   inline void write(CRef<OrderStatus> message) {
     if (!isAuthenticated()) [[unlikely]] {
-      LOG_ERROR_SYSTEM("Channel {} is not authenticated", id_);
+      LOG_ERROR_SYSTEM("Channel {} is not authenticated", channel_->id());
       return;
     }
-    channel_.write(message);
+    channel_->write(message);
   }
 
-  inline void read() { channel_.read(); }
+  inline void read() { channel_->read(); }
 
 private:
-  const ConnectionId id_;
-
-  SessionBus sessionBus_;
-  Chan channel_;
+  SPtr<Chan> channel_;
 };
 
 } // namespace hft::server

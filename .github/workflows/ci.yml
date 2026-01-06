@@ -57,6 +57,14 @@ jobs:
           -p 5432:5432 \
           postgres:15
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Setup Python venv and install requirements
+      run: ./scripts/setup_venv.sh
+
     - name: Build Docker image with cache
       uses: docker/build-push-action@v5
       with:
@@ -79,14 +87,6 @@ jobs:
       run: |
           docker run --rm hft-platform:latest ctest --test-dir build --output-on-failure
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Setup Python venv and install requirements
-      run: ./scripts/setup_venv.sh
-
     - name: Run Postgres setup + integration tests in Docker
       run: |
         docker run --rm --network hft-network \
@@ -95,7 +95,7 @@ jobs:
           -e POSTGRES_USER=postgres \
           -e POSTGRES_PASSWORD=password \
           -e POSTGRES_DB=hft_db \
-          hft-platform /bin/bash -c "source /app/venv/bin/activate && python3 scripts/setup_postgres.py && ./tests/integration/it_run.sh"
+          hft-platform:latest /bin/bash -c "source /opt/venv/bin/activate && python3 scripts/setup_postgres.py && ./tests/integration/it_run.sh"
 
     - name: Cleanup Docker network
       if: always()

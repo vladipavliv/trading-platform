@@ -8,6 +8,8 @@
 
 #include <boost/unordered/unordered_flat_map.hpp>
 
+#include "bus/bus_hub.hpp"
+#include "commands/command.hpp"
 #include "config/client_config.hpp"
 #include "ctx_runner.hpp"
 #include "market_data.hpp"
@@ -34,7 +36,7 @@ public:
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
 
-    bus_.systemBus.subscribe(Command::Telemetry_Start, [this] {
+    bus_.systemBus.subscribe<Command>(Command::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
       telemetry_ = true;
     });
@@ -124,11 +126,11 @@ private:
       LOG_TRACE("Placing order {}", utils::toString(order));
       bus_.marketBus.post(order);
 
-      for (int i = 0; i < 10; ++i) {
+      for (int i = 0; i < ClientConfig::cfg.tradeRate.count(); ++i) {
         std::this_thread::yield();
       }
       // std::this_thread::yield();
-      std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
+      // std::this_thread::sleep_for(std::chrono::microseconds(ClientConfig::cfg.tradeRate));
     }
   }
 

@@ -19,63 +19,51 @@ namespace hft::server {
  * @details First waits for auth message and blocks other types, after successfull
  * auth routes other messages converted to a server-side wrappers
  */
+template <typename BusT>
 class SessionBus {
 public:
-  SessionBus(ConnectionId id, ServerBus &bus) : connId_{id}, bus_{bus} {}
-
-  template <typename MessageType>
-  inline void post(CRef<MessageType> message) {
-    // Supports only the explicitly specialized types
-    LOG_ERROR_SYSTEM("Invalid message type received at {}", connId_);
-  }
+  SessionBus(ConnectionId id, BusT &&bus) : connId_{id}, bus_{std::move(bus)} {}
 
   inline void authenticate(ClientId clientId) { clientId_ = clientId; }
 
   inline auto isAuthenticated() const -> bool { return clientId_.has_value(); }
 
-  inline auto clientId() const -> Optional<ClientId> { return clientId_; }
+  template <typename MessageType>
+  inline void post(CRef<MessageType> message) {
+    if constexpr (std::is_same_v<MessageType, LoginRequest>) {
+      if (isAuthenticated()) {
+        LOG_ERROR_SYSTEM("Already authenticated on session {}", connId_);
+        bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
+        return;
+      }
+      bus_.post(ServerLoginRequest{connId_, message});
+    } else if constexpr (std::is_same_v<MessageType, TokenBindRequest>) {
+      if (isAuthenticated()) {
+        LOG_ERROR_SYSTEM("Already authenticated on session {}", connId_);
+        bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
+        return;
+      }
+      bus_.post(ServerTokenBindRequest{connId_, message});
+    } else if constexpr (std::is_same_v<MessageType, Order>) {
+      if (!isAuthenticated()) {
+        LOG_ERROR_SYSTEM("Not authenticated: session {}", connId_);
+        bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
+        return;
+      }
+      bus_.post(ServerOrder{clientId_.value(), message});
+    } else if constexpr (std::is_same_v<MessageType, ConnectionStatusEvent>) {
+      bus_.post(ChannelStatusEvent{clientId_, message});
+    } else {
+      LOG_ERROR_SYSTEM("Invalid message type received at {}", connId_);
+    }
+  }
 
 private:
   ConnectionId connId_;
   Optional<ClientId> clientId_;
 
-  ServerBus &bus_;
+  BusT bus_;
 };
-
-template <>
-inline void SessionBus::post<LoginRequest>(CRef<LoginRequest> message) {
-  if (isAuthenticated()) {
-    LOG_ERROR_SYSTEM("Invalid login request: SessionBus for {} is already authenticated", connId_);
-    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
-    return;
-  }
-  bus_.post(ServerLoginRequest{connId_, message});
-}
-
-template <>
-inline void SessionBus::post<TokenBindRequest>(CRef<TokenBindRequest> message) {
-  if (isAuthenticated()) {
-    LOG_ERROR_SYSTEM("Invalid token bind request: channel {} is already authenticated", connId_);
-    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
-    return;
-  }
-  bus_.post(ServerTokenBindRequest{connId_, message});
-}
-
-template <>
-inline void SessionBus::post<ConnectionStatusEvent>(CRef<ConnectionStatusEvent> event) {
-  bus_.post(ChannelStatusEvent{clientId_, event});
-}
-
-template <>
-inline void SessionBus::post<Order>(CRef<Order> message) {
-  if (!isAuthenticated()) [[unlikely]] {
-    LOG_ERROR_SYSTEM("Channel {} is not authenticated", connId_);
-    bus_.post(ChannelStatusEvent{clientId_, {connId_, ConnectionStatus::Error}});
-    return;
-  }
-  bus_.post(ServerOrder{clientId_.value(), message});
-}
 
 } // namespace hft::server
 

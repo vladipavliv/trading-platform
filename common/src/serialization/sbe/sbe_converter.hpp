@@ -10,8 +10,8 @@
 #include "logging.hpp"
 #include "types.hpp"
 
-#include "gen/sbe/cpp/hft_serialization_gen_sbe_domain/OrderAction.h"
-#include "gen/sbe/cpp/hft_serialization_gen_sbe_domain/OrderState.h"
+#include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderAction.h"
+#include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderState.h"
 
 namespace hft::serialization::sbe {
 

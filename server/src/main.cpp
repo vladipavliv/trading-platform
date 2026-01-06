@@ -11,6 +11,7 @@
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
+#include "bus/bus_restrictor.hpp"
 #include "network/shm/shm_server.hpp"
 
 #include "config/server_config.hpp"

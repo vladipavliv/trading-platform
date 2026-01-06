@@ -4,6 +4,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG BUILD_TYPE=Release
 ARG CXX=/usr/bin/g++
 
+ARG GITHUB_ACTIONS
+ENV GITHUB_ACTIONS=${GITHUB_ACTIONS}
+
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config \
     libboost-all-dev libspdlog-dev librdkafka-dev \
@@ -27,10 +30,8 @@ RUN git clone --depth 1 --branch 7.9.1 https://github.com/jtv/libpqxx.git /tmp/l
     cmake --build /tmp/libpqxx/build -j$(nproc) --target install && \
     rm -rf /tmp/libpqxx
 
-RUN git clone --depth 1 https://github.com/real-logic/simple-binary-encoding.git /tmp/sbe && \
-    cd /tmp/sbe && ./gradlew jar && \
-    mv ./sbe-all/build/libs/sbe-all-*-SNAPSHOT.jar /usr/local/bin/sbe-tool.jar && \
-    rm -rf /tmp/sbe
+ADD https://repo1.maven.org/maven2/uk/co/real-logic/sbe-all/1.34.0/sbe-all-1.34.0.jar /usr/local/bin/sbe-tool.jar
+RUN chmod +x /usr/local/bin/sbe-tool.jar
 
 WORKDIR /app
 
@@ -49,15 +50,21 @@ RUN rm -rf build && \
         -DTELEMETRY_ENABLED=ON && \
     cmake --build build -j$(nproc)
 
+RUN find /app -name "__init__.py" -o -name "*.py" | grep hft
+
 FROM ubuntu:24.04
 
 COPY --from=builder /usr/local/lib /usr/local/lib
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/build /app/build
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/build/gen/fbs/python/hft /app/hft
+
+COPY scripts /app/scripts
+COPY tests /app/tests
 
 RUN apt-get update && apt-get install -y \
-    cmake \
+    cmake python3 \
     libgoogle-glog0v6 libdouble-conversion3 libspdlog1.12 \
     librdkafka1 libpq5 openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/* && ldconfig

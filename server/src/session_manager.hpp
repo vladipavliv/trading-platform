@@ -25,6 +25,9 @@ namespace hft::server {
  * @brief Manages sessions, generates tokens, authenticates channels
  */
 class SessionManager {
+  using UpstreamChan = SessionChannel<UpstreamBus>;
+  using DownstreamChan = SessionChannel<DownstreamBus>;
+
   /**
    * @brief Client session info
    * @todo Make rate limiting counter
@@ -32,8 +35,8 @@ class SessionManager {
   struct Session {
     ClientId clientId;
     Token token;
-    SPtr<SessionChannel> upstreamChannel;
-    SPtr<SessionChannel> downstreamChannel;
+    SPtr<UpstreamChan> upstreamChannel;
+    SPtr<DownstreamChan> downstreamChannel;
   };
 
 public:
@@ -59,7 +62,7 @@ public:
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<SessionChannel>(std::move(transport), id, bus_);
+    auto chan = std::make_shared<UpstreamChan>(std::move(transport), id, UpstreamBus{bus_});
     chan->read();
     unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
@@ -71,7 +74,7 @@ public:
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<SessionChannel>(std::move(transport), id, bus_);
+    auto chan = std::make_shared<DownstreamChan>(std::move(transport), id, DownstreamBus{bus_});
     chan->read();
     unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
@@ -247,8 +250,8 @@ private:
 private:
   ServerBus &bus_;
 
-  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedUpstreamMap_;
-  boost::unordered_flat_map<ConnectionId, SPtr<SessionChannel>> unauthorizedDownstreamMap_;
+  boost::unordered_flat_map<ConnectionId, SPtr<UpstreamChan>> unauthorizedUpstreamMap_;
+  boost::unordered_flat_map<ConnectionId, SPtr<DownstreamChan>> unauthorizedDownstreamMap_;
 
   boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
 

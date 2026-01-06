@@ -7,6 +7,7 @@
 #define HFT_CLIENT_CONNECTIONMANAGER_HPP
 
 #include "bus/bus_hub.hpp"
+#include "bus/bus_restrictor.hpp"
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "events.hpp"
@@ -19,8 +20,9 @@
 namespace hft::client {
 
 class ConnectionManager {
-  using StreamChannel = Channel<StreamTransport, ClientBus>;
-  using DatagramChannel = Channel<DatagramTransport, ClientBus>;
+  using UpStreamChannel = Channel<StreamTransport, UpstreamBus>;
+  using DownStreamChannel = Channel<StreamTransport, DownstreamBus>;
+  using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
   ConnectionManager(ClientBus &bus, NetworkClient &networkClient)
@@ -52,7 +54,8 @@ private:
       return;
     }
     const size_t id = utils::generateConnectionId();
-    upstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
+    upstreamChannel_ =
+        std::make_shared<UpStreamChannel>(std::move(transport), id, UpstreamBus{bus_});
     upstreamChannel_->read();
     tryAuthenticate();
   }
@@ -63,14 +66,16 @@ private:
       return;
     }
     const size_t id = utils::generateConnectionId();
-    downstreamChannel_ = std::make_unique<StreamChannel>(std::move(transport), id, bus_);
+    downstreamChannel_ =
+        std::make_shared<DownStreamChannel>(std::move(transport), id, DownstreamBus{bus_});
     downstreamChannel_->read();
     tryAuthenticate();
   }
 
   void onDatagramConnected(DatagramTransport &&transport) {
     const size_t id = utils::generateConnectionId();
-    pricesChannel_ = std::make_unique<DatagramChannel>(std::move(transport), id, bus_);
+    pricesChannel_ = std::make_shared<DatagramChannel>(std::move(transport), id, DatagramBus{bus_});
+    pricesChannel_->read();
   }
 
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
@@ -130,9 +135,9 @@ private:
 
   NetworkClient &networkClient_;
 
-  UPtr<StreamChannel> upstreamChannel_;
-  UPtr<StreamChannel> downstreamChannel_;
-  UPtr<DatagramChannel> pricesChannel_;
+  SPtr<UpStreamChannel> upstreamChannel_;
+  SPtr<DownStreamChannel> downstreamChannel_;
+  SPtr<DatagramChannel> pricesChannel_;
 
   Optional<Token> token_;
   ConnectionState state_{ConnectionState::Disconnected};

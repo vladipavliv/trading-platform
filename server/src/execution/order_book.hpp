@@ -73,7 +73,7 @@ public:
     return *this;
   };
 
-  bool add(CRef<ServerOrder> order, Busable auto &consumer) {
+  bool add(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
     if (bids_.size() + asks_.size() >= ServerConfig::cfg.orderBookLimit) {
       LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_);
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
@@ -91,7 +91,7 @@ public:
     return true;
   }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-  void sendAck(CRef<ServerOrder> order, Busable auto &consumer) {
+  void sendAck(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
     consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
   }
 
@@ -102,7 +102,7 @@ public:
   }
 #endif
 
-  void match(Busable auto &consumer) {
+  void match(BusableFor<ServerOrderStatus> auto &consumer) {
     while (!bids_.empty() && !asks_.empty()) {
       InternalOrder &bestBid = bids_.front();
       InternalOrder &bestAsk = asks_.front();

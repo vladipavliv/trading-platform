@@ -16,6 +16,12 @@ class MessageBus;
 template <size_t Capacity, typename... Events>
 class StreamBus;
 
+template <typename BusT, typename... MessageTs>
+struct BusLimiter;
+
+template <typename BusT, typename... MessageTs>
+struct BusRestrictor;
+
 template <typename MarketBusT = MessageBus<>, typename StreamBusT = StreamBus<LFQ_CAPACITY>>
 struct BusHub;
 
@@ -40,6 +46,14 @@ class FbsDomainSerializer;
 namespace sbe {
 class SbeDomainSerializer;
 }
+
+#ifdef SERIALIZATION_SBE
+using DomainSerializer = serialization::sbe::SbeDomainSerializer;
+using Framer = DummyFramer<DomainSerializer>;
+#else
+using DomainSerializer = serialization::fbs::FbsDomainSerializer;
+using Framer = FixedSizeFramer<DomainSerializer>;
+#endif
 } // namespace serialization
 
 namespace adapters {
@@ -51,6 +65,9 @@ template <typename BusType>
 class DummyKafkaAdapter;
 class PostgresAdapter;
 } // namespace adapters
+
+struct ChannelStatusEvent;
+struct ConnectionStatusEvent;
 } // namespace hft
 
 namespace hft::server {
@@ -70,20 +87,18 @@ using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ServerStreamBus = StreamBus<LFQ_CAPACITY>;
 #endif
 
-#ifdef SERIALIZATION_SBE
-using DomainSerializer = serialization::sbe::SbeDomainSerializer;
-using Framer = DummyFramer<DomainSerializer>;
-#else
-using DomainSerializer = serialization::fbs::FbsDomainSerializer;
-using Framer = FixedSizeFramer<DomainSerializer>;
-#endif
-
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkServer = ShmServer;
 
 using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>;
 using ServerBus = BusHub<ServerMessageBus, ServerStreamBus>;
+using UpstreamBus =
+    BusRestrictor<ServerBus, LoginRequest, ServerOrder, ChannelStatusEvent, ConnectionStatusEvent>;
+using DownstreamBus =
+    BusRestrictor<ServerBus, TokenBindRequest, ChannelStatusEvent, ConnectionStatusEvent>;
+using DatagramBus =
+    BusRestrictor<ServerBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ServerConsoleReader = ConsoleReader<CommandParser>;
 

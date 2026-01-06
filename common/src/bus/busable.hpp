@@ -9,10 +9,13 @@
 #include <concepts>
 #include <utility>
 
+#include "domain_types.hpp"
+
 namespace hft {
 
 /**
- * @brief Defines a concept for a bus with templated ::post
+ * @brief Concept for a Bus that accepts any types to be posted
+ * Checks if ::post works for local type, which would mean it works for any type
  */
 template <typename Bus>
 concept Busable = [] {
@@ -21,6 +24,14 @@ concept Busable = [] {
     { bus.template post<ProbeType>(std::declval<const ProbeType &>()) };
   };
 }();
+
+template <typename Bus, typename... Types>
+concept BusableFor =
+    (requires(Bus &bus) { bus.template post<Types>(std::declval<Types>()); } && ...);
+
+template <typename Bus, typename... Types>
+concept BusableForAny =
+    (requires(Bus &bus) { bus.template post<Types>(std::declval<Types>()); } || ...);
 
 } // namespace hft
 

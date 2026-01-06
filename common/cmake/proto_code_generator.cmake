@@ -4,7 +4,7 @@ message(STATUS "--- [PROTO] Configuring generator ---")
 
 set(PROTO_METADATA_SCHEMA ${CMAKE_SOURCE_DIR}/schema/proto/metadata_messages.proto)
 
-set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
+set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
 set(GEN_DIR_PROTO_CPP ${GEN_DIR}/proto/cpp)
 
 file(MAKE_DIRECTORY ${GEN_DIR_PROTO_CPP})

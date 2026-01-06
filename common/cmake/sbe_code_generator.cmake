@@ -6,7 +6,7 @@ set(SBE_TOOL_JAR /usr/local/bin/sbe-tool.jar)
 
 set(SBE_DOMAIN_SCHEMA ${CMAKE_SOURCE_DIR}/schema/sbe/domain_messages.xml)
 
-set(GEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gen)
+set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
 set(GEN_DIR_SBE_CPP ${GEN_DIR}/sbe/cpp)
 
 file(MAKE_DIRECTORY ${GEN_DIR_SBE_CPP})
