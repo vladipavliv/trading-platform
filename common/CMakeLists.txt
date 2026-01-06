@@ -30,7 +30,6 @@ target_include_directories(hft_common PUBLIC
     ${LIBPQXX_INCLUDE_DIRS}
     ${RDKAFKA_INCLUDE_DIRS}
     ${Protobuf_INCLUDE_DIRS}
-    #${spscqueue_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}/gen
 )
 
@@ -42,12 +41,12 @@ target_link_libraries(hft_common PUBLIC
     spdlog::spdlog 
     pthread
     pq 
-    #atomic
-    #iberty 
-    #folly
-    #glog
-    #dl 
-    # bfd
+    atomic
+    iberty 
+    folly
+    glog
+    dl 
+    bfd
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
 

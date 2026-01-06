@@ -42,7 +42,7 @@ public:
   void read() {
     using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
-      LOG_ERROR_SYSTEM("read called on disconnected socket");
+      LOG_ERROR("read called on disconnected socket");
       return;
     }
     transport_.asyncRx( // format
@@ -61,27 +61,29 @@ public:
   void write(CRef<Type> msg) {
     using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
-      LOG_ERROR_SYSTEM("write called on disconnected socket");
+      LOG_ERROR("write called on disconnected socket");
       return;
     }
 
     NetworkBuffer netBuff{BufferPool<>::instance().acquire()};
     if (!netBuff) {
-      LOG_ERROR_SYSTEM("Failed to acquire network buffer, message dropped");
+      LOG_ERROR("Failed to acquire network buffer, message dropped");
       return;
     }
     netBuff.setSize(Framer::frame(msg, netBuff.data()));
-    transport_.asyncTx(
-        netBuff.dataSpan(),
-        [self = this->weak_from_this(), buff = std::move(netBuff)](IoResult code, size_t bytes) {
-          BufferPool<>::instance().release(buff.index());
-          auto sharedSelf = self.lock();
-          if (!sharedSelf) {
-            LOG_ERROR("Channel vanished");
-            return;
-          }
-          sharedSelf->writeHandler(code, bytes);
-        });
+    auto dataSpan = netBuff.dataSpan();
+    LOG_DEBUG("sending {} bytes", dataSpan.size());
+
+    transport_.asyncTx(dataSpan, [self = this->weak_from_this(),
+                                  buff = std::move(netBuff)](IoResult code, size_t bytes) {
+      BufferPool<>::instance().release(buff.index());
+      auto sharedSelf = self.lock();
+      if (!sharedSelf) {
+        LOG_ERROR("Channel vanished");
+        return;
+      }
+      sharedSelf->writeHandler(code, bytes);
+    });
   }
 
   inline ConnectionId id() const { return id_; }

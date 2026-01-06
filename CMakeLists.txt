@@ -72,7 +72,7 @@ find_library(RDKAFKAXX_LIB rdkafka++)
 find_package(PostgreSQL REQUIRED)
 find_package(libpqxx REQUIRED)
 find_package(benchmark REQUIRED)
-#find_package(folly REQUIRED)
+find_package(folly REQUIRED)
 find_package(Glog REQUIRED)
 find_package(Protobuf REQUIRED)
 
@@ -83,15 +83,6 @@ if(BUILD_BENCHMARKS)
 endif()
 
 include(FetchContent)
-
-#[[
-FetchContent_Declare(
-  SPSCQueue
-  GIT_REPOSITORY https://github.com/rigtorp/SPSCQueue.git
-  GIT_TAG master
-)
-FetchContent_MakeAvailable(SPSCQueue)
-]]
 
 add_subdirectory(common)
 add_subdirectory(server)

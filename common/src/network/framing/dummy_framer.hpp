@@ -33,13 +33,15 @@ public:
 
   static auto unframe(ByteSpan buff, Busable auto &bus) -> Expected<size_t> {
     size_t processedSize{0};
-    size_t msgSize{0};
-    do {
+    while (processedSize < buff.size()) {
       const auto msgPtr = buff.data() + processedSize;
       const auto remainSize = buff.size() - processedSize;
-      msgSize = Serializer::deserialize(msgPtr, remainSize, bus);
-      processedSize += msgSize;
-    } while (msgSize != 0);
+      auto msgSize = Serializer::deserialize(msgPtr, remainSize, bus);
+      if (!msgSize) {
+        return msgSize;
+      }
+      processedSize += *msgSize;
+    }
     return processedSize;
   }
 };

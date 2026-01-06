@@ -138,5 +138,5 @@ Manual shared memory tests:
 Server:
 15:32:09.204617 [I] Orders: [opn|ttl] 11065605|51178954 | Rps: 3248902
 Client:
-15:32:08.457118 [I] Rtt: SizeTotal: 37813872 [<1us|>1us] 53.00% avg:628ns 47.00% avg:1us
+15:32:08.457118 [I] Rtt: [<1us|>1us] 53.00% avg:628ns 47.00% avg:1us
 ```

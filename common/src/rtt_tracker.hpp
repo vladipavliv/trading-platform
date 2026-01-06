@@ -102,7 +102,6 @@ public:
 
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2);
-    ss << "SizeTotal: " << totalCount << " ";
 
     ss << "[";
     for (size_t i = 0; i < RangeCount; ++i) {

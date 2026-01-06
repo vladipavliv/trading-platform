@@ -1,11 +1,11 @@
 FROM ubuntu:24.04 AS builder
 
+ARG GITHUB_ACTIONS
+ENV GITHUB_ACTIONS=${GITHUB_ACTIONS}
+
 ENV DEBIAN_FRONTEND=noninteractive
 ARG BUILD_TYPE=Release
 ARG CXX=/usr/bin/g++
-
-ARG GITHUB_ACTIONS
-ENV GITHUB_ACTIONS=${GITHUB_ACTIONS}
 
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config \
@@ -15,13 +15,24 @@ RUN apt-get update && apt-get install -y \
     flatbuffers-compiler libflatbuffers-dev \
     protobuf-compiler openjdk-17-jdk \
     python3 python3-venv python3-pip \
+    libevent-dev libgflags-dev libssl-dev zlib1g-dev libunwind-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# fast_float (Required by Folly)
 RUN git clone --depth 1 https://github.com/fastfloat/fast_float.git /tmp/fast_float && \
     cmake -S /tmp/fast_float -B /tmp/fast_float/build -DCMAKE_BUILD_TYPE=${BUILD_TYPE} && \
     cmake --build /tmp/fast_float/build --target install && \
     rm -rf /tmp/fast_float
 
+# Folly
+RUN git clone --depth 1 --branch v2024.01.01.00 https://github.com/facebook/folly.git /tmp/folly && \
+    cmake -S /tmp/folly -B /tmp/folly/build \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+    -DBUILD_TESTS=OFF && \
+    cmake --build /tmp/folly/build -j$(nproc) --target install && \
+    rm -rf /tmp/folly
+
+# libpqxx
 RUN git clone --depth 1 --branch 7.9.1 https://github.com/jtv/libpqxx.git /tmp/libpqxx && \
     cmake -S /tmp/libpqxx -B /tmp/libpqxx/build \
     -DCMAKE_CXX_STANDARD=23 \
@@ -42,15 +53,13 @@ RUN python3 -m venv /opt/venv && \
 
 COPY . .
 
-RUN rm -rf build && \
-    cmake -S . -B build \
+RUN cmake -S . -B build \
         -DCMAKE_CXX_COMPILER=${CXX} \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DSERIALIZATION=SBE \
+        -DSERIALIZATION=FBS \
+        -DCOMM_TYPE_SHM=OFF \
         -DTELEMETRY_ENABLED=ON && \
     cmake --build build -j$(nproc)
-
-RUN find /app -name "__init__.py" -o -name "*.py" | grep hft
 
 FROM ubuntu:24.04
 
@@ -67,6 +76,10 @@ RUN apt-get update && apt-get install -y \
     cmake python3 \
     libgoogle-glog0v6 libdouble-conversion3 libspdlog1.12 \
     librdkafka1 libpq5 openjdk-17-jre-headless \
+    libevent-2.1-7 libgflags2.2 libunwind8 libssl3 \
+    libboost-program-options1.83.0 \
+    libboost-system1.83.0 \
+    libboost-thread1.83.0 \
     && rm -rf /var/lib/apt/lists/* && ldconfig
 
 ENV PATH="/opt/venv/bin:$PATH"

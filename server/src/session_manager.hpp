@@ -7,6 +7,8 @@
 #define HFT_SERVER_SESSIONMANAGER_HPP
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <folly/AtomicHashMap.h>
+#include <folly/container/F14Map.h>
 
 #include "boost_types.hpp"
 #include "constants.hpp"
@@ -28,6 +30,8 @@ class SessionManager {
   using UpstreamChan = SessionChannel<UpstreamBus>;
   using DownstreamChan = SessionChannel<DownstreamBus>;
 
+  static constexpr size_t DRAIN_CHUNK = 128 * 128;
+
   /**
    * @brief Client session info
    * @todo Make rate limiting counter
@@ -42,7 +46,9 @@ class SessionManager {
 public:
   using DrainHook = std::function<void(Callback &&)>;
 
-  explicit SessionManager(ServerBus &bus) : bus_{bus} {
+  explicit SessionManager(ServerBus &bus)
+      : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
+        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     bus_.subscribe<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
     bus_.subscribe<ServerLoginResponse>(
@@ -107,6 +113,8 @@ public:
 
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
+    processStatus(status);
+    return;
     size_t iterations = 0;
     while (!statusQueue_.push(status)) {
       asm volatile("pause" ::: "memory");
@@ -183,7 +191,6 @@ private:
       session->downstreamChannel = std::move(downstreamChannel);
       session->downstreamChannel->authenticate(session->clientId);
       session->downstreamChannel->write(LoginResponse{request.request.token, true});
-      session->upstreamChannel->read();
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
     } else {
       LOG_ERROR_SYSTEM("Downstream channel {} is already connected", request.connectionId);
@@ -194,7 +201,7 @@ private:
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
-    LOG_TRACE_SYSTEM("{}", utils::toString(event));
+    LOG_DEBUG("{}", utils::toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:
       // Nothing to do here for now
@@ -204,13 +211,18 @@ private:
       LOG_DEBUG("Channel {} disconnected", event.event.connectionId);
       // No info about whether it was upstream or downstream event, but all ids are unique
       // so erase both unauthorized containers, and cleanup session if it was started
+      if (event.clientId.has_value()) {
+        const auto sessionIter = sessionsMap_.find(event.clientId.value());
+        if (sessionIter != sessionsMap_.end()) [[unlikely]] {
+          const auto session = sessionIter->second;
+          session->downstreamChannel->close();
+          session->upstreamChannel->close();
+          sessionsMap_.erase(event.clientId.value());
+          LOG_DEBUG("Client {} disconnected", event.clientId.value());
+        }
+      }
       unauthorizedUpstreamMap_.erase(event.event.connectionId);
       unauthorizedDownstreamMap_.erase(event.event.connectionId);
-      if (event.clientId.has_value() && sessionsMap_.count(event.clientId.value()) > 0) {
-        sessionsMap_.erase(event.clientId.value());
-        LOG_INFO_SYSTEM("Client {} disconnected", event.clientId.value());
-        printStats();
-      }
       break;
     default:
       break;
@@ -219,7 +231,8 @@ private:
 
   inline void drainStatusQueue() {
     ServerOrderStatus status;
-    while (statusQueue_.pop(status)) {
+    size_t processed = 0;
+    while (statusQueue_.pop(status) && ++processed < DRAIN_CHUNK) {
       processStatus(status);
     }
     drainScheduled_.store(false, std::memory_order_release);
@@ -250,14 +263,14 @@ private:
 private:
   ServerBus &bus_;
 
-  boost::unordered_flat_map<ConnectionId, SPtr<UpstreamChan>> unauthorizedUpstreamMap_;
-  boost::unordered_flat_map<ConnectionId, SPtr<DownstreamChan>> unauthorizedDownstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<UpstreamChan>> unauthorizedUpstreamMap_;
+  folly::AtomicHashMap<ConnectionId, SPtr<DownstreamChan>> unauthorizedDownstreamMap_;
 
-  boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
+  folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
 
   DrainHook drainHook_;
   std::atomic_bool drainScheduled_{false};
-  VyukovQueue<ServerOrderStatus> statusQueue_;
+  VyukovQueue<ServerOrderStatus, 8> statusQueue_;
 };
 
 } // namespace hft::server

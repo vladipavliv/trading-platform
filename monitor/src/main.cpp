@@ -16,6 +16,7 @@
 #include "config/monitor_config.hpp"
 #include "control_center.hpp"
 #include "logging.hpp"
+#include "network_traits.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;

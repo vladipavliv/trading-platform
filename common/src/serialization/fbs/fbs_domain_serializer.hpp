@@ -31,15 +31,16 @@ public:
   template <typename EventType>
   static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
 
-  static size_t deserialize(const uint8_t *data, size_t size, Busable auto &consumer) {
+  static auto deserialize(const uint8_t *data, size_t size,
+                          Busable auto &consumer) -> Expected<size_t> {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<Message>()) {
       LOG_ERROR("Failed to verify Buffer {}", size);
-      return 0;
+      return std::unexpected(StatusCode::Error);
     }
     const auto message = flatbuffers::GetRoot<Message>(data);
     if (message == nullptr) {
       LOG_ERROR("Failed to extract Message {}", size);
-      return 0;
+      return std::unexpected(StatusCode::Error);
     }
     const auto type = message->message_type();
     switch (type) {
@@ -47,7 +48,7 @@ public:
       const auto msg = message->message_as_LoginRequest();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract LoginRequest");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const LoginRequest request{fbStringToString(msg->name()), fbStringToString(msg->password())};
       consumer.post(request);
@@ -57,7 +58,7 @@ public:
       const auto msg = message->message_as_TokenBindRequest();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract TokenBindRequest");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const TokenBindRequest response{msg->token()};
       consumer.post(response);
@@ -67,7 +68,7 @@ public:
       const auto msg = message->message_as_LoginResponse();
       if (msg == nullptr) {
         LOG_ERROR("Failed to extract LoginResponse");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const LoginResponse response{msg->token(), msg->ok(), fbStringToString(msg->error())};
       consumer.post(response);
@@ -77,7 +78,7 @@ public:
       const auto orderMsg = message->message_as_Order();
       if (orderMsg == nullptr) {
         LOG_ERROR("Failed to extract Order");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const Order order{
           orderMsg->id(),       orderMsg->created(), fbStringToTicker(orderMsg->ticker()),
@@ -89,7 +90,7 @@ public:
       const auto statusMsg = message->message_as_OrderStatus();
       if (statusMsg == nullptr) {
         LOG_ERROR("Failed to extract OrderStatus");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const OrderStatus status{statusMsg->order_id(), statusMsg->timestamp(), statusMsg->quantity(),
                                statusMsg->fill_price(), convert(statusMsg->state())};
@@ -100,7 +101,7 @@ public:
       const auto priceMsg = message->message_as_TickerPrice();
       if (priceMsg == nullptr) {
         LOG_ERROR("Failed to extract TickerPrice");
-        return 0;
+        return std::unexpected(StatusCode::Error);
       }
       const TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
       consumer.post(price);
@@ -108,7 +109,7 @@ public:
     }
     default:
       LOG_ERROR("Unknown message type {}", static_cast<uint8_t>(type));
-      return 0;
+      return std::unexpected(StatusCode::Error);
     }
     return size;
   }
