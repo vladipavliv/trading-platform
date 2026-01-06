@@ -11,10 +11,13 @@
 #include <concepts>
 #include <cstdint>
 #include <cxxabi.h>
+#include <linux/futex.h>
 #include <pthread.h>
 #include <sched.h>
+#include <sys/syscall.h>
 #include <thread>
 #include <typeinfo>
+#include <unistd.h>
 #include <x86intrin.h>
 
 #include "boost_types.hpp"
@@ -79,7 +82,7 @@ inline auto generateConnectionId() -> ConnectionId {
 
 inline auto generateToken() -> Token {
   static std::atomic<Token> counter{0};
-  return getTimestamp() + counter.fetch_add(1);
+  return counter.fetch_add(1);
 }
 
 inline auto createUdpSocket(IoCtx &ctx, bool broadcast = true, Port port = 0) -> UdpSocket {
@@ -121,11 +124,20 @@ constexpr bool is_ascending() {
   }
 }
 
-template <typename ValueType>
-bool hasIntersection(const std::vector<ValueType> &left, const std::vector<ValueType> &right) {
-  return std::any_of(left.begin(), left.end(), [&](const ValueType &value) {
-    return std::find(right.begin(), right.end(), value) != right.end();
-  });
+inline void futexWait(std::atomic<uint32_t> &futex, uint32_t val, uint32_t timeout_ms = 0) {
+  if (timeout_ms == 0) {
+    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, val, nullptr, nullptr, 0);
+  } else {
+    struct timespec ts {
+      .tv_sec = static_cast<time_t>(timeout_ms / 1000),
+      .tv_nsec = static_cast<long>((timeout_ms % 1000) * 1000000)
+    };
+    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, val, &ts, nullptr, 0);
+  }
+}
+
+inline void futexWake(std::atomic<uint32_t> &futex) {
+  syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE, 1, nullptr, nullptr, 0);
 }
 
 template <typename T>

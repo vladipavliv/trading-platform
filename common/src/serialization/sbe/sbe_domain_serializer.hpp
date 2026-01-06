@@ -102,7 +102,7 @@ public:
       return domain::TickerPrice::sbeBlockAndHeaderLength();
     }
     default:
-      LOG_ERROR("Unknown sbe message type");
+      LOG_ERROR("Unknown sbe message type {}", header.templateId());
       return 0;
     }
   }

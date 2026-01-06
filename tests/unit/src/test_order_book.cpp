@@ -18,7 +18,7 @@ using namespace utils;
 namespace {
 ClientId cId() { return generateConnectionId(); }
 OrderId oId() { return generateOrderId(); }
-Timestamp ts() { return getTimestamp(); }
+Timestamp ts() { return getTimestampNs(); }
 
 const OrderAction BUY = OrderAction::Buy;
 const OrderAction SELL = OrderAction::Sell;

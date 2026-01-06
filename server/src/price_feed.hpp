@@ -34,7 +34,7 @@ class PriceFeed {
     Fluctuation(TickerPrice base)
         : base{base}, price{static_cast<double>(base.price)},
           drift{utils::RNG::generate<double>(-MAX_RATE_US / 365, MAX_RATE_US / 365)} {
-      randomize(utils::getTimestamp());
+      randomize(utils::getTimestampNs());
     };
 
     void randomize(Timestamp now) {
@@ -126,7 +126,7 @@ private:
 
   void updatePrices() {
     using namespace utils;
-    const auto timeStamp = getTimestamp();
+    const auto timeStamp = getTimestampNs();
     for (auto &item : fluctuations_) {
       if (item.update(timeStamp)) {
         LOG_TRACE("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());

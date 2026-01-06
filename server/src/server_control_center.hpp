@@ -15,6 +15,7 @@
 #include "domain_types.hpp"
 #include "execution/coordinator.hpp"
 #include "network/boost/boost_network_server.hpp"
+#include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "server_events.hpp"
 #include "server_types.hpp"
@@ -27,7 +28,7 @@ namespace hft::server {
  * @brief Creates all the components and controls the flow
  */
 class ServerControlCenter {
-  using NetworkServer = BoostNetworkServer;
+  using NetworkServer = BoostNetworkServer; // ShmServer;
   using StreamTransport = NetworkServer::StreamTransport;
   using DatagramTransport = NetworkServer::DatagramTransport;
 
@@ -40,16 +41,16 @@ class ServerControlCenter {
 
 public:
   ServerControlCenter()
-      : storage_{dbAdapter_}, sessionMgr_{bus_}, authenticator_{bus_.systemBus, dbAdapter_},
-        coordinator_{bus_, storage_.marketData()}, consoleRdr_{bus_.systemBus},
-        priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
+      : storage_{dbAdapter_}, sessionMgr_{bus_}, networkServer_{bus_},
+        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
+        consoleRdr_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
     // System bus subscriptions
     bus_.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
       switch (event.state) {
       case ServerState::Operational:
         // start the network server only after internal components are fully operational
         LOG_INFO_SYSTEM("Server is ready");
-        startNetwork();
+        networkServer_.start();
         break;
       default:
         break;
@@ -76,10 +77,11 @@ public:
 
     // commands
     bus_.systemBus.subscribe(ServerCommand::Shutdown, [this] { stop(); });
+
+    sessionMgr_.setDrainHook(networkServer_.getHook());
   }
 
   void start() {
-    running_ = true;
     storage_.load();
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
@@ -96,8 +98,6 @@ public:
 
   void stop() {
     LOG_INFO_SYSTEM("stonk");
-
-    running_ = false;
 
     networkServer_.stop();
     sessionMgr_.close();
@@ -116,37 +116,6 @@ private:
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
-  void startNetwork() {
-    workerThreads_.emplace_back([this]() {
-      try {
-        utils::setTheadRealTime();
-        if (ServerConfig::cfg.coreNetwork.has_value()) {
-          const size_t coreId = *ServerConfig::cfg.coreNetwork;
-          utils::pinThreadToCore(coreId);
-          LOG_DEBUG("Started network thread on the core {}", coreId);
-        } else {
-          LOG_DEBUG("Started network thread");
-        }
-        networkServer_.start();
-        networkLoop();
-      } catch (const std::exception &e) {
-        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
-        bus_.post(InternalError(StatusCode::Error, e.what()));
-      }
-    });
-  }
-
-  void networkLoop() {
-    while (running_) {
-      size_t processed = 0;
-      processed += networkServer_.poll();
-      processed += sessionMgr_.poll();
-      if (processed == 0) {
-        __builtin_ia32_pause();
-      }
-    }
-  }
-
 private:
   ServerBus bus_;
 
@@ -162,9 +131,6 @@ private:
   StreamAdapter streamAdapter_;
 
   UPtr<PricesChannel> pricesChannel_;
-
-  std::atomic_bool running_{false};
-  std::vector<Thread> workerThreads_;
 };
 
 } // namespace hft::server

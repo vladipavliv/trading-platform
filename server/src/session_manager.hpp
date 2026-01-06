@@ -26,8 +26,6 @@ namespace hft::server {
  */
 template <AsyncTransport T>
 class SessionManager {
-  static constexpr size_t STATUS_CHUNK = 16;
-
   using Chan = SessionChannel<T>;
 
   /**
@@ -43,6 +41,7 @@ class SessionManager {
 
 public:
   using Transport = T;
+  using DrainHook = std::function<void(Callback &&)>;
 
   explicit SessionManager(ServerBus &bus) : bus_{bus} {
     bus_.subscribe<ServerOrderStatus>(
@@ -55,6 +54,8 @@ public:
         [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
 
+  void setDrainHook(DrainHook &&drainHook) { drainHook_ = std::move(drainHook); }
+
   void acceptUpstream(Transport &&transport) {
     const auto id = utils::generateConnectionId();
     LOG_INFO_SYSTEM("New upstream connection id: {}", id);
@@ -62,8 +63,9 @@ public:
       LOG_ERROR("Connection limit reached");
       return;
     }
-    unauthorizedUpstreamMap_.insert(
-        std::make_pair(id, std::make_shared<Chan>(std::move(transport), id, bus_)));
+    auto chan = std::make_shared<Chan>(std::move(transport), id, bus_);
+    chan->read();
+    unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
 
   void acceptDownstream(Transport &&transport) {
@@ -73,8 +75,9 @@ public:
       LOG_ERROR("Connection limit reached");
       return;
     }
-    unauthorizedDownstreamMap_.insert(
-        std::make_pair(id, std::make_shared<Chan>(std::move(transport), id, bus_)));
+    auto chan = std::make_shared<Chan>(std::move(transport), id, bus_);
+    chan->read();
+    unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
 
   void close() {
@@ -103,29 +106,6 @@ public:
     unauthorizedDownstreamMap_.clear();
   }
 
-  inline size_t poll() {
-    size_t processed = 0;
-    ServerOrderStatus status;
-    while (statusQueue_.pop(status)) {
-      LOG_DEBUG("{}", utils::toString(status));
-      const auto sessionIter = sessionsMap_.find(status.clientId);
-      if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-        LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
-        continue;
-      }
-      const auto session = sessionIter->second;
-      if (session->downstreamChannel != nullptr) [[likely]] {
-        session->downstreamChannel->write(status.orderStatus);
-      } else {
-        LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
-      }
-      if (++processed > STATUS_CHUNK) {
-        return processed;
-      }
-    }
-    return processed;
-  }
-
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     size_t iterations = 0;
@@ -135,24 +115,27 @@ private:
         throw std::runtime_error("Status queue is full");
       }
     }
+    if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
+      drainHook_([this]() { drainStatusQueue(); });
+    }
   }
 
   void onLoginResponse(CRef<ServerLoginResponse> loginResult) {
     LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
     const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
     if (channelIter == unauthorizedUpstreamMap_.end()) [[unlikely]] {
-      LOG_ERROR("Connection not found {}", loginResult.connectionId);
+      LOG_ERROR_SYSTEM("Connection not found {}", loginResult.connectionId);
       return;
     }
     const auto channel = channelIter->second;
     unauthorizedUpstreamMap_.erase(channelIter->first);
 
     if (channel == nullptr) [[unlikely]] {
-      LOG_ERROR("Connection not initialized {}", loginResult.connectionId);
+      LOG_ERROR_SYSTEM("Connection not initialized {}", loginResult.connectionId);
       return;
     }
     if (!loginResult.ok) {
-      LOG_ERROR("Authentication failed for {}, closing channel", loginResult.connectionId);
+      LOG_ERROR_SYSTEM("Authentication failed for {}, closing channel", loginResult.connectionId);
       channel->write(LoginResponse{0, false, loginResult.error});
     } else {
       const auto token = utils::generateToken();
@@ -163,9 +146,10 @@ private:
       newSession->upstreamChannel = channel;
 
       if (!sessionsMap_.insert(std::make_pair(loginResult.clientId, newSession)).second) {
-        LOG_ERROR("{} already authorized", loginResult.clientId);
+        LOG_ERROR_SYSTEM("{} already authorized", loginResult.clientId);
         channel->write(LoginResponse{0, false, "Already authorized"});
       } else {
+        LOG_INFO_SYSTEM("{} authenticated", loginResult.clientId);
         newSession->upstreamChannel->write(LoginResponse{token, true});
         newSession->upstreamChannel->authenticate(loginResult.clientId);
       }
@@ -176,7 +160,7 @@ private:
     LOG_INFO_SYSTEM("Token bind request {} {}", request.connectionId, request.request.token);
     const auto channelIter = unauthorizedDownstreamMap_.find(request.connectionId);
     if (channelIter == unauthorizedDownstreamMap_.end()) {
-      LOG_WARN("Client already disconnected");
+      LOG_INFO_SYSTEM("Client already disconnected");
       return;
     }
     const auto downstreamChannel = channelIter->second;
@@ -200,6 +184,7 @@ private:
       session->downstreamChannel = std::move(downstreamChannel);
       session->downstreamChannel->authenticate(session->clientId);
       session->downstreamChannel->write(LoginResponse{request.request.token, true});
+      session->upstreamChannel->read();
       LOG_INFO_SYSTEM("New Session {} {}", sessionIter->first, request.request.token);
     } else {
       LOG_ERROR_SYSTEM("Downstream channel {} is already connected", request.connectionId);
@@ -233,6 +218,34 @@ private:
     }
   }
 
+  inline void drainStatusQueue() {
+    ServerOrderStatus status;
+    while (statusQueue_.pop(status)) {
+      processStatus(status);
+    }
+    drainScheduled_.store(false, std::memory_order_release);
+    if (!statusQueue_.empty()) {
+      if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
+        drainHook_([this]() { drainStatusQueue(); });
+      }
+    }
+  }
+
+  inline void processStatus(CRef<ServerOrderStatus> status) {
+    LOG_DEBUG("{}", utils::toString(status));
+    const auto sessionIter = sessionsMap_.find(status.clientId);
+    if (sessionIter == sessionsMap_.end()) [[unlikely]] {
+      LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
+      return;
+    }
+    const auto session = sessionIter->second;
+    if (session->downstreamChannel != nullptr) [[likely]] {
+      session->downstreamChannel->write(status.orderStatus);
+    } else {
+      LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
+    }
+  }
+
   inline void printStats() const { LOG_INFO_SYSTEM("Active sessions: {}", sessionsMap_.size()); }
 
 private:
@@ -243,6 +256,8 @@ private:
 
   boost::unordered_flat_map<ClientId, SPtr<Session>> sessionsMap_;
 
+  DrainHook drainHook_;
+  std::atomic_bool drainScheduled_{false};
   VyukovQueue<ServerOrderStatus> statusQueue_;
 };
 
