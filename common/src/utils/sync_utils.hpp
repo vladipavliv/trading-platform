@@ -25,10 +25,10 @@ inline void futexWake(Futex &futex, int count = 1) {
 
 inline void futexWait(Futex &futex, uint32_t curr, uint32_t timeout = 0) {
   if (timeout == 0) {
-    LOG_DEBUG("futexWait");
+    LOG_TRACE("futexWait {}", curr);
     syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, curr, nullptr, nullptr, 0);
   } else {
-    LOG_DEBUG("futexWait timed {}", timeout);
+    LOG_TRACE("futexWait timed {} {}", curr, timeout);
     struct timespec ts {
       .tv_sec = static_cast<time_t>(timeout / 1000),
       .tv_nsec = static_cast<long>((timeout % 1000) * 1000000)
@@ -38,7 +38,7 @@ inline void futexWait(Futex &futex, uint32_t curr, uint32_t timeout = 0) {
 }
 
 inline void hybridWait(Futex &futex, uint32_t curr, uint64_t spinCount = 10'000) {
-  LOG_DEBUG("hybridWait");
+  LOG_TRACE("hybridWait {}", curr);
   for (uint64_t i = 0; i < spinCount; ++i) {
     if (futex.load(std::memory_order_acquire) != curr)
       return;
