@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+#include "primitive_types.hpp"
+
 namespace hft {
 /**
  * @todo Extend error codes

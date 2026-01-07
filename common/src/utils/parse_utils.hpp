@@ -24,7 +24,7 @@ inline auto split(const std::string &input) -> std::vector<T> {
     if constexpr (std::is_same_v<T, String>) {
       res.push_back(std::move(token));
     } else {
-      res.push_back(std::stoi("123"));
+      res.push_back(std::stoi(token));
     }
   }
   return res;

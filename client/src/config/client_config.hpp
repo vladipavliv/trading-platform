@@ -38,7 +38,7 @@ struct ClientConfig {
   // Logging
   String logOutput;
 
-  static void load(CRef<String> fileName);
+  static void load(const String &fileName);
   static void log();
 };
 

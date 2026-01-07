@@ -9,6 +9,7 @@
 #include "config/config.hpp"
 #include "functional_types.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft::monitor {
 

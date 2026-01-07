@@ -5,6 +5,7 @@
 
 #include "client_config.hpp"
 #include "logging.hpp"
+#include "ptr_types.hpp"
 #include "utils/parse_utils.hpp"
 #include "utils/string_utils.hpp"
 

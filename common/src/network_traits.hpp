@@ -31,6 +31,7 @@ using Framer = FixedSizeFramer<DomainSerializer>;
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 #endif
 
+// TODO(self): remove this
 } // namespace hft
 
 #endif // HFT_COMMON_NETWORKTRAITS_HPP

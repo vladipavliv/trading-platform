@@ -17,6 +17,7 @@
 #include "domain_types.hpp"
 #include "functional_types.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "table_reader.hpp"
 #include "table_writer.hpp"
 
