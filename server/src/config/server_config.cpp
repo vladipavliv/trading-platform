@@ -5,6 +5,7 @@
 
 #include "server_config.hpp"
 #include "logging.hpp"
+#include "ptr_types.hpp"
 #include "utils/parse_utils.hpp"
 #include "utils/string_utils.hpp"
 
@@ -20,13 +21,13 @@ void ServerConfig::load(CRef<String> fileName) {
   cfg.portUdp = Config::get<size_t>("network.port_udp");
 
   // Cores
-  if (const auto core = Config::get_optional<size_t>("cpu.core_system")) {
+  if (const auto core = Config::get_optional<uint16_t>("cpu.core_system")) {
     cfg.coreSystem = *core;
     if (*core == 0) {
       throw std::runtime_error("Invalid cores configuration");
     }
   }
-  if (const auto core = Config::get_optional<size_t>("cpu.core_network")) {
+  if (const auto core = Config::get_optional<uint16_t>("cpu.core_network")) {
     cfg.coreNetwork = *core;
     if (cfg.coreSystem.has_value() && cfg.coreSystem == *core) {
       throw std::runtime_error("Invalid cores configuration");

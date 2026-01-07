@@ -76,6 +76,8 @@ namespace hft::server {
 class ShmServer;
 class CommandParser;
 class BoostNetworkServer;
+class NetworkSessionManager;
+class TrustedSessionManager;
 
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
@@ -94,10 +96,12 @@ using ServerStreamBus = StreamBus<LFQ_CAPACITY>;
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkServer = ShmServer;
+using SessionManager = TrustedSessionManager;
 #else
 using StreamTransport = BoostTcpTransport;
 using DatagramTransport = BoostUdpTransport;
 using NetworkServer = BoostNetworkServer;
+using SessionManager = NetworkSessionManager;
 #endif
 
 using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>;

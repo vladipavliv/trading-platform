@@ -38,8 +38,8 @@ public:
       : bus_{bus}, broker_{Config::get<String>("kafka.broker")},
         consumerGroup_{Config::get<String>("kafka.consumer_group")},
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
-        consumeTopics_{Config::get<Vector<String>>("kafka.consume_topics")},
-        produceTopics_{Config::get<Vector<String>>("kafka.produce_topics")},
+        consumeTopics_{Config::get_vector<String>("kafka.consume_topics")},
+        produceTopics_{Config::get_vector<String>("kafka.produce_topics")},
         timer_{bus_.streamIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };

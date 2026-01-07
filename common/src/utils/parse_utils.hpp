@@ -7,40 +7,27 @@
 #define HFT_COMMON_PARSEUTILS_HPP
 
 #include <charconv>
-#include <chrono>
 #include <cstdlib>
 #include <string>
-#include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace hft::utils {
 
 template <typename T>
-inline auto split(std::string_view input) -> std::vector<T> {
-  std::vector<T> result;
+inline auto split(const std::string &input) -> std::vector<T> {
+  std::vector<T> res;
+  std::stringstream ss(input);
+  std::string token;
 
-  size_t start = 0;
-  while (start < input.size()) {
-    size_t end = input.find(',', start);
-    if (end == std::string_view::npos) {
-      end = input.size();
+  while (std::getline(ss, token, ',')) {
+    if constexpr (std::is_same_v<T, std::string>) {
+      res.push_back(std::move(token));
+    } else {
+      res.push_back(std::stoi(token));
     }
-    std::string_view token = input.substr(start, end - start);
-    const size_t first = token.find_first_not_of(" \t");
-    if (first != std::string_view::npos) {
-      const size_t last = token.find_last_not_of(" \t");
-      token = token.substr(first, (last - first + 1));
-
-      T value{};
-      auto [ptr, ec] = std::from_chars(token.data(), token.data() + token.size(), value);
-
-      if (ec == std::errc{}) {
-        result.push_back(value);
-      }
-    }
-    start = end + 1;
   }
-  return result;
+  return res;
 }
 
 inline std::string getEnvVar(const std::string &varName) {

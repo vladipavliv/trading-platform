@@ -3,8 +3,8 @@
  * @date 2025-03-29
  */
 
-#ifndef HFT_SERVER_SESSIONMANAGER_HPP
-#define HFT_SERVER_SESSIONMANAGER_HPP
+#ifndef HFT_SERVER_NETWORKSESSIONMANAGER_HPP
+#define HFT_SERVER_NETWORKSESSIONMANAGER_HPP
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <folly/AtomicHashMap.h>
@@ -25,7 +25,7 @@ namespace hft::server {
 /**
  * @brief Manages sessions, generates tokens, authenticates channels
  */
-class SessionManager {
+class NetworkSessionManager {
   using UpstreamChan = SessionChannel<UpstreamBus>;
   using DownstreamChan = SessionChannel<DownstreamBus>;
 
@@ -44,9 +44,11 @@ class SessionManager {
 public:
   using DrainHook = std::function<void(Callback &&)>;
 
-  explicit SessionManager(ServerBus &bus)
+  explicit NetworkSessionManager(ServerBus &bus)
       : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
-        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
+        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS},
+        statusQueue_{std::make_unique<VyukovQueue<ServerOrderStatus>>()} {
+    LOG_INFO_SYSTEM("NetworkSessionManager initialized");
     bus_.subscribe<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
     bus_.subscribe<ServerLoginResponse>(
@@ -115,7 +117,7 @@ private:
       processStatus(status);
     } else {
       size_t iterations = 0;
-      while (!statusQueue_.push(status)) {
+      while (!statusQueue_->push(status)) {
         asm volatile("pause" ::: "memory");
         if (++iterations > BUSY_WAIT_CYCLES) {
           throw std::runtime_error("Status queue is full");
@@ -232,11 +234,11 @@ private:
   inline void drainStatusQueue() {
     ServerOrderStatus status;
     size_t processed = 0;
-    while (statusQueue_.pop(status) && ++processed < DRAIN_CHUNK) {
+    while (statusQueue_->pop(status) && ++processed < DRAIN_CHUNK) {
       processStatus(status);
     }
     drainScheduled_.store(false, std::memory_order_release);
-    if (!statusQueue_.empty()) {
+    if (!statusQueue_->empty()) {
       if (!drainScheduled_.exchange(true, std::memory_order_acquire)) {
         drainHook_([this]() { drainStatusQueue(); });
       }
@@ -272,9 +274,9 @@ private:
   const bool drainLocal_{true};
   DrainHook drainHook_;
   std::atomic_bool drainScheduled_{false};
-  VyukovQueue<ServerOrderStatus, 8> statusQueue_;
+  UPtr<VyukovQueue<ServerOrderStatus>> statusQueue_;
 };
 
 } // namespace hft::server
 
-#endif // HFT_SERVER_SESSIONMANAGER_HPP
+#endif // HFT_SERVER_NETWORKSESSIONMANAGER_HPP

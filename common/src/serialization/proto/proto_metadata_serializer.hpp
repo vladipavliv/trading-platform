@@ -11,6 +11,7 @@
 #include "primitive_types.hpp"
 #include "proto/cpp/metadata_messages.pb.h"
 #include "proto_converter.hpp"
+#include "utils/time_utils.hpp"
 #include "utils/trait_utils.hpp"
 
 namespace hft::serialization::proto {

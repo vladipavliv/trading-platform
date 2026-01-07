@@ -17,17 +17,6 @@
 
 namespace hft::utils {
 
-inline auto split(CRef<String> input) -> ByteBuffer {
-  ByteBuffer result;
-  std::stringstream ss(input);
-  std::string token;
-
-  while (std::getline(ss, token, ',')) {
-    result.push_back(static_cast<uint8_t>(std::stoi(token)));
-  }
-  return result;
-}
-
 inline Ticker generateTicker() {
   Ticker result;
   for (size_t i = 0; i < 4; ++i) {

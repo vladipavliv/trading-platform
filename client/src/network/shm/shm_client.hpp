@@ -10,12 +10,15 @@
 #include <memory>
 #include <string>
 
+#include "bus/bus_hub.hpp"
 #include "config/client_config.hpp"
+#include "internal_error.hpp"
 #include "network/transport/shm/shm_layout.hpp"
 #include "network/transport/shm/shm_reactor.hpp"
 #include "network/transport/shm/shm_transport.hpp"
 #include "traits.hpp"
 #include "utils/memory_utils.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft::client {
 
@@ -37,11 +40,13 @@ public:
 
   void setDownstreamClb(StreamClb &&streamClb) { downstreamClb_ = std::move(streamClb); }
 
-  void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
+  void setDatagramClb(DatagramClb &&datagramClb) {}
 
   void start() {
     workerThread_ = std::jthread([this]() {
       try {
+        running_ = true;
+
         utils::setThreadRealTime();
         if (ClientConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ClientConfig::cfg.coreNetwork;
@@ -51,36 +56,41 @@ public:
           LOG_DEBUG("Network thread started");
         }
         notifyConnected();
-
-        bus_.post(LoginResponse{0, true, ""});
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        bus_.post(LoginResponse{0, true, ""});
-
-        running_ = true;
         reactor_.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        stop();
         bus_.post(InternalError(StatusCode::Error, e.what()));
+      } catch (...) {
+        LOG_ERROR_SYSTEM("unknown exception in CtxRunner");
+        stop();
+        bus_.post(InternalError(StatusCode::Error, "unknown exception in ShmClient"));
       }
     });
   }
 
   void stop() {
-    if (!running_) {
-      return;
-    }
-    running_ = false;
-    reactor_.stop();
+    LOG_INFO("ShmClient stop");
+    try {
+      if (!running_) {
+        return;
+      }
+      running_ = false;
+      reactor_.stop();
 
-    if (workerThread_.joinable()) {
-      workerThread_.join();
-    }
+      if (workerThread_.joinable()) {
+        workerThread_.join();
+      }
 
-    if (layout_) {
-      munmap(layout_, size_);
-      layout_ = nullptr;
+      if (layout_) {
+        munmap(layout_, size_);
+        layout_ = nullptr;
+      }
+    } catch (const std::exception &e) {
+      bus_.post(InternalError(StatusCode::Error, e.what()));
+    } catch (...) {
+      bus_.post(InternalError(StatusCode::Error, "unknown exception in ShmClient"));
     }
-    LOG_INFO_SYSTEM("ShmClient shutdown");
   }
 
 private:
@@ -111,10 +121,6 @@ private:
     if (downstreamClb_) {
       LOG_INFO_SYSTEM("Connected downstream");
       downstreamClb_(ShmTransport(ShmTransportType::Downstream, layout_->downstream, reactor_));
-    }
-    if (datagramClb_) {
-      LOG_INFO_SYSTEM("Connected datagram");
-      datagramClb_(ShmTransport(ShmTransportType::Datagram, layout_->broadcast, reactor_));
     }
   }
 

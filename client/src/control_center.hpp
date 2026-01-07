@@ -9,7 +9,6 @@
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/client_config.hpp"
-#include "connection_manager.hpp"
 #include "console_reader.hpp"
 #include "events.hpp"
 #include "internal_error.hpp"

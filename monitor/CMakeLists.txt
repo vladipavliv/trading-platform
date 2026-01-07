@@ -9,9 +9,9 @@ target_link_libraries(hft_monitor PRIVATE
     ${Boost_LIBRARIES} 
     ${LIBPQXX_LIBRARIES} 
     spdlog::spdlog 
-    #atomic
-    #iberty
-    # bfd
+    atomic
+    iberty
+    bfd
 )
 
 target_include_directories(hft_monitor PRIVATE 

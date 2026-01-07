@@ -18,6 +18,7 @@
 #include "constants.hpp"
 #include "container_types.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "server_domain_types.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/time_utils.hpp"

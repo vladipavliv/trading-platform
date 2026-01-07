@@ -19,6 +19,7 @@
 #include "traits.hpp"
 #include "utils/rng.hpp"
 #include "utils/test_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::client {
 
@@ -81,11 +82,16 @@ private:
   void startWorkers() {
     LOG_INFO_SYSTEM("Starting trade worker");
     worker_ = std::jthread{[this]() {
-      utils::setThreadRealTime();
-      if (!ClientConfig::cfg.coresApp.empty()) {
-        utils::pinThreadToCore(ClientConfig::cfg.coresApp[0]);
+      try {
+        utils::setThreadRealTime();
+        if (!ClientConfig::cfg.coresApp.empty()) {
+          utils::pinThreadToCore(ClientConfig::cfg.coresApp[0]);
+        }
+        tradeLoop();
+      } catch (const std::exception &ex) {
+        LOG_ERROR("Exception in trade engine loop {}", ex.what());
+        bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
-      tradeLoop();
     }};
   }
 
@@ -143,7 +149,7 @@ private:
       Tracker::logRtt(s.orderId);
 #ifdef TELEMETRY_ENABLED
       if (telemetry_) {
-        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, getTimestampNs()});
+        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestampNs()});
       }
 #endif
       break;

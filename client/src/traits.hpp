@@ -78,6 +78,8 @@ namespace hft::client {
 class CommandParser;
 class ShmClient;
 class BoostNetworkClient;
+class NetworkConnectionManager;
+class TrustedConnectionManager;
 
 using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
 
@@ -96,10 +98,12 @@ using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
 using NetworkClient = ShmClient;
+using ConnectionManager = TrustedConnectionManager;
 #else
 using StreamTransport = BoostTcpTransport;
 using DatagramTransport = BoostUdpTransport;
 using NetworkClient = BoostNetworkClient;
+using ConnectionManager = NetworkConnectionManager;
 #endif
 
 using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice>;

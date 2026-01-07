@@ -43,8 +43,14 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
+    if (running_) {
+      LOG_ERROR("ShmServer is already running");
+      return;
+    }
     workerThread_ = std::jthread([this]() {
       try {
+        running_ = true;
+
         utils::setThreadRealTime();
         if (ServerConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ServerConfig::cfg.coreNetwork;
@@ -55,38 +61,43 @@ public:
         }
 
         waitForConnection();
+        if (!running_) {
+          return;
+        }
         notifyClientConnected();
 
-        bus_.post(ServerLoginRequest{0, {"client0", "password0"}});
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        bus_.post(ServerTokenBindRequest{1, {0}});
-
-        running_ = true;
         reactor_.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
+        stop();
         bus_.post(InternalError(StatusCode::Error, e.what()));
       }
     });
   }
 
   void stop() {
-    if (!running_) {
-      return;
-    }
-    running_ = false;
-    reactor_.stop();
+    try {
+      if (!running_) {
+        return;
+      }
+      LOG_INFO_SYSTEM("ShmServer shutdown");
 
-    if (workerThread_.joinable()) {
-      workerThread_.join();
-    }
+      running_ = false;
+      utils::futexWake(layout_->upstreamFtx);
+      reactor_.stop();
 
-    if (layout_) {
-      munmap(layout_, size_);
-      unlink(name_.c_str());
-      layout_ = nullptr;
+      if (workerThread_.joinable()) {
+        workerThread_.join();
+      }
+
+      if (layout_) {
+        munmap(layout_, size_);
+        unlink(name_.c_str());
+        layout_ = nullptr;
+      }
+    } catch (const std::exception &ex) {
+      bus_.post(InternalError(StatusCode::Error, ex.what()));
     }
-    LOG_INFO_SYSTEM("ShmServer shutdown");
   }
 
   auto getHook() -> std::function<void(Callback &&clb)> {
@@ -98,7 +109,6 @@ private:
   void waitForConnection() {
     LOG_INFO_SYSTEM("Waiting for client connection");
     utils::hybridWait(layout_->upstreamFtx, 0);
-    LOG_INFO_SYSTEM("Client connected");
   }
 
 private:
