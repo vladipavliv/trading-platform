@@ -15,8 +15,10 @@
 
 #ifdef COMM_SHM
 #include "network/shm/shm_server.hpp"
+#include "trusted_session_manager.hpp"
 #else
 #include "network/boost/boost_network_server.hpp"
+#include "network_session_manager.hpp"
 #endif
 
 #include "config/server_config.hpp"

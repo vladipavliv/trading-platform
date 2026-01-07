@@ -16,7 +16,6 @@
 #include "execution/coordinator.hpp"
 #include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
-#include "session_manager.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
 #include "utils/id_utils.hpp"

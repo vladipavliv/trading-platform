@@ -14,8 +14,10 @@
 
 #ifdef COMM_SHM
 #include "network/shm/shm_client.hpp"
+#include "trusted_connection_manager.hpp"
 #else
 #include "network/boost/boost_network_client.hpp"
+#include "network_connection_manager.hpp"
 #endif
 
 #include "config/client_config.hpp"

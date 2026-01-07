@@ -3,8 +3,8 @@
  * @date 2025-04-06
  */
 
-#ifndef HFT_CLIENT_CONNECTIONMANAGER_HPP
-#define HFT_CLIENT_CONNECTIONMANAGER_HPP
+#ifndef HFT_CLIENT_NETWORKCONNECTIONMANAGER_HPP
+#define HFT_CLIENT_NETWORKCONNECTIONMANAGER_HPP
 
 #include "bus/bus_hub.hpp"
 #include "bus/bus_restrictor.hpp"
@@ -20,14 +20,15 @@
 
 namespace hft::client {
 
-class ConnectionManager {
+class NetworkConnectionManager {
   using UpStreamChannel = Channel<StreamTransport, UpstreamBus>;
   using DownStreamChannel = Channel<StreamTransport, DownstreamBus>;
   using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
-  ConnectionManager(ClientBus &bus, NetworkClient &networkClient)
+  NetworkConnectionManager(ClientBus &bus, NetworkClient &networkClient)
       : bus_{bus}, networkClient_{networkClient} {
+    LOG_INFO_SYSTEM("NetworkConnectionManager initialized");
     networkClient_.setUpstreamClb(
         [this](StreamTransport &&transport) { onUpstreamConnected(std::move(transport)); });
     networkClient_.setDownstreamClb(
@@ -54,6 +55,7 @@ private:
       LOG_ERROR_SYSTEM("Already connected upstream");
       return;
     }
+    LOG_INFO_SYSTEM("Connected upstream");
     const size_t id = utils::generateConnectionId();
     upstreamChannel_ =
         std::make_shared<UpStreamChannel>(std::move(transport), id, UpstreamBus{bus_});
@@ -66,6 +68,7 @@ private:
       LOG_ERROR_SYSTEM("Already connected downstream");
       return;
     }
+    LOG_INFO_SYSTEM("Connected downstream");
     const size_t id = utils::generateConnectionId();
     downstreamChannel_ =
         std::make_shared<DownStreamChannel>(std::move(transport), id, DownstreamBus{bus_});
@@ -145,4 +148,4 @@ private:
 };
 } // namespace hft::client
 
-#endif // HFT_CLIENT_CONNECTIONMANAGER_HPP
+#endif // HFT_CLIENT_NETWORKCONNECTIONMANAGER_HPP
