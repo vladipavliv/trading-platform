@@ -69,7 +69,7 @@ public:
     }
     netBuff.setSize(Framer::frame(msg, netBuff.data()));
     auto dataSpan = netBuff.dataSpan();
-    LOG_DEBUG("sending {} bytes", dataSpan.size());
+    LOG_TRACE("sending {} bytes", dataSpan.size());
 
     transport_.asyncTx(dataSpan, [self = this->weak_from_this(),
                                   buff = std::move(netBuff)](IoResult code, size_t bytes) {

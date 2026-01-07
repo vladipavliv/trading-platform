@@ -11,6 +11,7 @@
 #include "logging.hpp"
 #include "network/channel.hpp"
 #include "network/connection_status.hpp"
+#include "network/session_channel.hpp"
 #include "traits.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
@@ -26,8 +27,8 @@ class TrustedSessionManager {
   using TrustedDownstreamBus = BusRestrictor< // format
       ServerBus, ChannelStatusEvent, ConnectionStatusEvent>;
 
-  using UpstreamChan = Channel<ShmTransport, TrustedUpstreamBus>;
-  using DownstreamChan = Channel<ShmTransport, TrustedDownstreamBus>;
+  using UpstreamChan = SessionChannel<TrustedUpstreamBus>;
+  using DownstreamChan = SessionChannel<TrustedDownstreamBus>;
 
 public:
   using DrainHook = std::function<void(Callback &&)>;
@@ -46,12 +47,16 @@ public:
     const auto id = utils::generateConnectionId();
     LOG_INFO_SYSTEM("New upstream connection id: {}", id);
     upChannel_ = std::make_shared<UpstreamChan>(std::move(t), id, TrustedUpstreamBus{bus_});
+    upChannel_->authenticate(0);
+    upChannel_->read();
   }
 
   void acceptDownstream(StreamTransport &&t) {
     const auto id = utils::generateConnectionId();
     LOG_INFO_SYSTEM("New downstream connection Id: {}", id);
     downChannel_ = std::make_shared<DownstreamChan>(std::move(t), id, TrustedDownstreamBus{bus_});
+    downChannel_->authenticate(0);
+    downChannel_->read();
   }
 
   void close() {

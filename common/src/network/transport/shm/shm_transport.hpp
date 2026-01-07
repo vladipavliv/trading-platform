@@ -80,6 +80,7 @@ public:
       }
     }
     if (closed_) {
+      LOG_DEBUG("already closed");
       return;
     }
     reactor_.notifyRemote();
@@ -110,7 +111,7 @@ public:
   }
 
   inline size_t tryDrain() noexcept {
-    LOG_DEBUG("ShmTransport tryDrain");
+    LOG_TRACE("ShmTransport tryDrain");
     if (closed_) {
       LOG_ERROR("Transport is already closed");
       if (rxArmed_.exchange(false, std::memory_order_acq_rel)) {
@@ -123,11 +124,13 @@ public:
     }
 
     if (!rxArmed_.load(std::memory_order_acquire)) {
+      LOG_WARN("unarmed");
       return 0;
     }
 
     const size_t bytes = buffer_.read(rxBuf_.data(), rxBuf_.size());
     if (bytes == 0) {
+      LOG_TRACE("no data");
       return 0;
     }
 

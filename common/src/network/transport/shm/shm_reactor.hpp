@@ -34,7 +34,7 @@ public:
   }
 
   void run() {
-    LOG_DEBUG_SYSTEM("ShmReactor run");
+    LOG_DEBUG("ShmReactor run");
     if (transport_ == nullptr) {
       throw std::runtime_error("Unable to start, transport is not initialized");
     }
@@ -43,7 +43,6 @@ public:
     auto &waitFlag = localWaitingFlag();
 
     while (running_) {
-      LOG_DEBUG("Reactor cycle");
       if (transportClosed()) {
         break;
       }
@@ -52,8 +51,8 @@ public:
         continue;
       }
 
-      waitFlag.store(true, std::memory_order_seq_cst);
       uint32_t ftxVal = ftx.load(std::memory_order_acquire);
+      waitFlag.store(true, std::memory_order_seq_cst);
 
       if (transport_->tryDrain() > 0) {
         waitFlag.store(false, std::memory_order_relaxed);
@@ -94,9 +93,9 @@ public:
 
   void notifyRemote() {
     if (isRemoteWaiting()) {
-      LOG_DEBUG("notify remote");
       auto &ftx = remoteFtx();
-      ftx.fetch_add(1, std::memory_order_release);
+      auto val = ftx.fetch_add(1, std::memory_order_release);
+      LOG_TRACE("notify remote {}", val);
       utils::futexWake(ftx);
     }
   }
@@ -105,7 +104,7 @@ public:
 
 private:
   inline bool transportClosed() {
-    LOG_DEBUG("transportClosed {} {}", static_cast<void *>(transport_), transport_->isClosed());
+    LOG_TRACE("transportClosed {} {}", static_cast<void *>(transport_), transport_->isClosed());
     if (transport_ != nullptr && transport_->isClosed()) {
       transport_->acknowledgeClosure();
       transport_ = nullptr;
