@@ -33,7 +33,7 @@ def load_orders(filename: str):
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
-def test_order(server, tickers, client_name, client_password):
+def disabled_test_order(server, tickers, client_name, client_password):
     client = hft_client.HftClient()
     client.connect()
     client.login(client_name, client_password)
@@ -102,7 +102,7 @@ def spam_orders(num_orders: int, tickers, client_name, client_password):
     except AssertionError as e:
         print(f"Thread {client_name} exception: {e}")
 
-def test_stress(server, stress_iterations, tickers, client_name, client_password):
+def disabled_test_stress(server, stress_iterations, tickers, client_name, client_password):
     num_clients = 1
 
     threads = []

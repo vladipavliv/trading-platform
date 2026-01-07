@@ -13,7 +13,7 @@
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "order_book.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::server {
 

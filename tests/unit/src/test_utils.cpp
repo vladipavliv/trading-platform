@@ -9,6 +9,6 @@
 
 namespace hft::tests {
 
-TEST(UtilsTest, toStringTest) { EXPECT_EQ("42", utils::toString(42)); }
+TEST(UtilsTest, toStringTest) { EXPECT_EQ("42", toString(42)); }
 
 } // namespace hft::tests

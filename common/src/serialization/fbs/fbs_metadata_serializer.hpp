@@ -10,6 +10,7 @@
 #include "fbs/cpp/metadata_messages_generated.h"
 #include "fbs_converter.hpp"
 #include "metadata_types.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft::serialization::fbs {
 
@@ -20,7 +21,7 @@ public:
   using RootMessage = gen::fbs::metadata::OrderTimestamp;
 
   template <typename EventType>
-  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+  static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
 
   static bool deserialize(const uint8_t *data, size_t size, Busable auto &consumer) {
     if (!flatbuffers::Verifier(data, size).VerifyBuffer<RootMessage>()) {
@@ -38,7 +39,7 @@ public:
   }
 
   static BufferType serialize(CRef<OrderTimestamp> e) {
-    LOG_DEBUG("Serializing {}", utils::toString(e));
+    LOG_DEBUG("Serializing {}", toString(e));
     using namespace gen::fbs::metadata;
     flatbuffers::FlatBufferBuilder builder;
     const auto msg = CreateOrderTimestamp(builder, e.orderId, e.created, e.fulfilled, e.notified);

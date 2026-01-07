@@ -23,7 +23,6 @@ public:
 
   void SetUp() override {
     std::call_once(initFlag, []() {
-      // Config could be also loaded in other benches
       ServerConfig::load("utest_server_config.ini");
       LOG_INIT(ServerConfig::cfg.logOutput);
     });
@@ -41,7 +40,12 @@ TEST_F(StreamBusFixture, Post) {
   const size_t eventsCount{1000000};
 
   bus.subscribe<size_t>([&eventsPopped](const size_t &event) { eventsPopped.fetch_add(1); });
+  systemBus.subscribe<InternalError>([](const InternalError &error) {
+    std::cerr << error.what;
+    assert(false);
+  });
   bus.run();
+  std::jthread sbusThrd{[&systemBus]() { systemBus.run(); }};
 
   for (size_t idx = 0; idx < eventsCount; ++idx) {
     bus.post(idx);
@@ -49,10 +53,11 @@ TEST_F(StreamBusFixture, Post) {
     std::this_thread::yield();
   }
   size_t waitCounter{0};
-  while (++waitCounter < 10000 && eventsPushed != eventsPopped.load()) {
+  while (++waitCounter < 100 && eventsPushed != eventsPopped.load()) {
     std::this_thread::sleep_for(Microseconds(10));
   }
   bus.stop();
+  systemBus.stop();
   ASSERT_EQ(eventsPushed, eventsPopped.load());
 }
 

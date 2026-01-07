@@ -11,8 +11,11 @@
 #include "domain_types.hpp"
 #include "fbs/cpp/domain_messages_generated.h"
 #include "fbs_converter.hpp"
-#include "types.hpp"
+#include "functional_types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft::serialization::fbs {
 
@@ -29,7 +32,7 @@ public:
       std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
 
   template <typename EventType>
-  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+  static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
 
   static auto deserialize(const uint8_t *data, size_t size,
                           Busable auto &consumer) -> Expected<size_t> {

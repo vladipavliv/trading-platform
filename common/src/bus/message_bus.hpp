@@ -7,12 +7,12 @@
 #define HFT_COMMON_MESSAGEBUS_HPP
 
 #include <functional>
-#include <map>
-#include <typeinfo>
+#include <tuple>
+#include <type_traits>
 
 #include "logging.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft {
 
@@ -27,27 +27,20 @@ public:
   MessageBus() : handlers_{} {}
 
   template <typename Event>
-  static constexpr bool Routed = utils::contains<Event, Events...>;
+  static constexpr bool Routed = (std::is_same_v<Event, Events> || ...);
 
   template <typename Event>
     requires Routed<Event>
   void subscribe(CRefHandler<Event> &&handler) {
     auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
-    // if (handlerRef) {
-    //   LOG_ERROR("Handler is already registered for the type {}", typeid(Event).name());
-    // } else {
     handlerRef = std::move(handler);
-    //}
   }
 
   template <typename Event>
     requires Routed<Event>
   inline void post(CRef<Event> event) {
     auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
-    if (!handlerRef) {
-      LOG_ERROR("Handler not registered for event type");
-      return;
-    }
+    assert(handlerRef);
     handlerRef(event);
   }
 

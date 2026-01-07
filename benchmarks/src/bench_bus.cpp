@@ -9,10 +9,9 @@
 #include "config/config.hpp"
 #include "domain_types.hpp"
 #include "lfq_runner.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/bench_utils.hpp"
 #include "utils/test_data.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::benchmarks {
 
@@ -40,7 +39,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
     consumer.processed = 0;
-    consumer.signal.clear();
+    consumer.clear();
 
     for (auto &order : orData.orders) {
       auto tid = (uint32_t)order.order.ticker[0];
@@ -51,7 +50,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
       }
     }
 
-    while (!consumer.signal.test(std::memory_order_acquire)) {
+    while (consumer.signal.load(std::memory_order_acquire) == 0) {
       asm volatile("pause" ::: "memory");
     }
     benchmark::DoNotOptimize(consumer.processed);
@@ -79,7 +78,7 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
     consumer.processed = 0;
-    consumer.signal.clear();
+    consumer.clear();
 
     size_t cycle = 0;
     for (auto &order : orData.orders) {
@@ -92,7 +91,7 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
       tscLogs[cycle++] = __rdtsc() - start;
     }
 
-    while (!consumer.signal.test(std::memory_order_acquire)) {
+    while (consumer.signal.load(std::memory_order_acquire) == 0) {
       asm volatile("pause" ::: "memory");
     }
   }
@@ -176,7 +175,7 @@ static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
 
   size_t counter = 0;
   SystemBus bus;
-  Thread t{[&bus]() {
+  std::jthread t{[&bus]() {
     pinThreadToCore(getCore(1));
     bus.run();
   }};

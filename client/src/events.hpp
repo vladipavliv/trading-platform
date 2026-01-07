@@ -17,10 +17,7 @@ namespace client {
  */
 enum class ClientState : uint8_t { Connected, Disconnected, InternalError };
 } // namespace client
-
-namespace utils {
-template <>
-inline String toString<client::ClientState>(const client::ClientState &event) {
+inline String toString(const client::ClientState &event) {
   using namespace client;
   switch (event) {
   case ClientState::Connected:
@@ -33,7 +30,6 @@ inline String toString<client::ClientState>(const client::ClientState &event) {
     return std::format("unknown event {}", static_cast<uint8_t>(event));
   }
 }
-} // namespace utils
 } // namespace hft
 
 #endif // HFT_SERVER_CLIENTEVENTS_HPP

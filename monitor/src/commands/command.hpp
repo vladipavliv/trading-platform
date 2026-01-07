@@ -8,26 +8,25 @@
 
 #include <stdint.h>
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::monitor {
+namespace hft {
+namespace monitor {
 /**
  * @brief Native monitor command
  */
 enum class Command : uint8_t { Shutdown };
-} // namespace hft::monitor
-
-namespace hft::utils {
+} // namespace monitor
 inline String toString(const monitor::Command &command) {
   using namespace monitor;
   switch (command) {
-  case Command::Shutdown:
+  case monitor::Command::Shutdown:
     return "shutdown";
   default:
     return std::format("unknown command {}", static_cast<uint8_t>(command));
   }
 }
-} // namespace hft::utils
+} // namespace hft
 
 #endif // HFT_SERVER_COMMAND_HPP

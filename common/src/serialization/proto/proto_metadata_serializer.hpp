@@ -8,10 +8,10 @@
 
 #include "bus/busable.hpp"
 #include "metadata_types.hpp"
+#include "primitive_types.hpp"
 #include "proto/cpp/metadata_messages.pb.h"
 #include "proto_converter.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft::serialization::proto {
 
@@ -30,7 +30,7 @@ public:
   using SupportedTypes = std::tuple<OrderTimestamp, RuntimeMetrics>;
 
   template <typename EventType>
-  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+  static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
 
   static String serialize(CRef<OrderTimestamp> msg) {
     using namespace google::protobuf::io;
@@ -113,7 +113,7 @@ public:
       stamp.fulfilled = protoMsg.fulfilled();
       stamp.notified = protoMsg.notified();
 
-      LOG_TRACE("{}", utils::toString(stamp));
+      LOG_TRACE("{}", toString(stamp));
 
       consumer.post(stamp);
       break;
@@ -127,7 +127,7 @@ public:
       metrics.timeStamp = protoMsg.timestamp_us();
       metrics.avgLatencyUs = protoMsg.avg_latency_us();
 
-      LOG_TRACE("{}", utils::toString(metrics));
+      LOG_TRACE("{}", toString(metrics));
 
       consumer.post(metrics);
       break;
@@ -140,7 +140,7 @@ public:
       entry.message = protoMsg.message();
       entry.level = protoMsg.level();
 
-      LOG_TRACE("{}", utils::toString(entry));
+      LOG_TRACE("{}", toString(entry));
 
       consumer.post(entry);
       break;

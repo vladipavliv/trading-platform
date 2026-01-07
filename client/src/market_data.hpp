@@ -12,7 +12,7 @@
 
 #include "constants.hpp"
 #include "domain_types.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::client {
 

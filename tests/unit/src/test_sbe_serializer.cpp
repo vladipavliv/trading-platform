@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include "container_types.hpp"
 #include "domain_types.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
 #include "spies/consumer_spy.hpp"

@@ -9,7 +9,7 @@
 #include "domain_types.hpp"
 #include "fbs/cpp/domain_messages_generated.h"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::serialization::fbs {
 

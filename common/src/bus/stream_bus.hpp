@@ -10,9 +10,10 @@
 #include <boost/asio/thread_pool.hpp>
 
 #include "config/config.hpp"
+#include "constants.hpp"
 #include "ctx_runner.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "execution.hpp"
+#include "primitive_types.hpp"
 #include "vyukov_queue.hpp"
 
 namespace hft {
@@ -41,12 +42,12 @@ public:
   static constexpr bool Routed = utils::contains<Event, Events...>;
 
   explicit StreamBus(SystemBus &bus)
-      : rate_{Config::get<size_t>("rates.telemetry_ms")},
+      : rate_{Milliseconds(Config::get<size_t>("rates.telemetry_ms"))},
         queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
         runner_{ErrorBus{bus}}, timer_{runner_.ioCtx} {}
 
   explicit StreamBus(CoreId coreId, SystemBus &bus)
-      : rate_{Config::get<size_t>("rates.telemetry_ms")},
+      : rate_{Milliseconds(Config::get<size_t>("rates.telemetry_ms"))},
         queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
         runner_{0, coreId, ErrorBus{bus}}, timer_{runner_.ioCtx} {}
 
@@ -84,7 +85,7 @@ public:
     size_t pushRetry{0};
     while (!queue->push(event)) {
       if (++pushRetry > BUSY_WAIT_CYCLES) {
-        LOG_ERROR_SYSTEM("StreamBus event queue is full for {}", typeid(Event).name());
+        LOG_ERROR("StreamBus event queue is full for {}", typeid(Event).name());
         return false;
       }
       asm volatile("pause" ::: "memory");
@@ -119,8 +120,8 @@ private:
     timer_.expires_after(rate_);
     timer_.async_wait([this](BoostErrorCode code) {
       if (code) {
-        if (code != ASIO_ERR_ABORTED) {
-          LOG_ERROR_SYSTEM("{}", code.message());
+        if (code != ERR_ABORTED) {
+          LOG_ERROR("{}", code.message());
         }
         return;
       }

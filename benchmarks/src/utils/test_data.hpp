@@ -6,10 +6,12 @@
 #ifndef HFT_BENCH_TESTDATA_HPP
 #define HFT_BENCH_TESTDATA_HPP
 
+#include "container_types.hpp"
 #include "execution/market_data.hpp"
+#include "primitive_types.hpp"
 #include "ticker.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "utils/id_utils.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 

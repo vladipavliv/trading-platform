@@ -7,7 +7,8 @@
 #define HFT_COMMON_NETWORKBUFFER_HPP
 
 #include "buffer_pool.hpp"
-#include "utils/utils.hpp"
+#include "container_types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 

@@ -10,10 +10,12 @@
 
 #include "busable.hpp"
 #include "domain_types.hpp"
+#include "execution.hpp"
 #include "message_bus.hpp"
+#include "primitive_types.hpp"
 #include "stream_bus.hpp"
 #include "system_bus.hpp"
-#include "types.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft {
 
@@ -78,7 +80,7 @@ public:
     systemBus.template subscribe<Message>(std::move(handler));
   }
 
-  template <UnorderedMapKey EventType>
+  template <utils::UnorderedMapKey EventType>
   void subscribe(EventType event, Callback &&callback) {
     systemBus.subscribe(event, std::move(callback));
   }

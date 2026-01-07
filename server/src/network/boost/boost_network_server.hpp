@@ -9,16 +9,15 @@
 #include <format>
 #include <memory>
 
-#include "boost_types.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "events.hpp"
 #include "internal_error.hpp"
+#include "network/transport/boost/boost_network_types.hpp"
 #include "network/transport/boost/boost_tcp_transport.hpp"
 #include "network/transport/boost/boost_udp_transport.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::server {
 
@@ -44,9 +43,9 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    workerThread_ = Thread([this]() {
+    workerThread_ = std::jthread([this]() {
       try {
-        utils::setTheadRealTime();
+        utils::setThreadRealTime();
         if (ServerConfig::cfg.coreNetwork.has_value()) {
           const CoreId id = ServerConfig::cfg.coreNetwork.value();
           utils::pinThreadToCore(id);
@@ -156,7 +155,7 @@ private:
 
 private:
   IoCtx ioCtx_;
-  ContextGuard guard_;
+  IoCtxGuard guard_;
 
   ServerBus &bus_;
 
@@ -167,7 +166,7 @@ private:
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;
 
-  Thread workerThread_;
+  std::jthread workerThread_;
 };
 
 } // namespace hft::server

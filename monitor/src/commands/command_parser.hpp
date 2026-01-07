@@ -8,15 +8,15 @@
 
 #include <map>
 
-#include "boost_types.hpp"
 #include "bus/busable.hpp"
 #include "client/src/commands/command.hpp"
 #include "client/src/commands/command_parser.hpp"
 #include "command.hpp"
+#include "container_types.hpp"
 #include "logging.hpp"
+#include "primitive_types.hpp"
 #include "server/src/commands/command.hpp"
 #include "server/src/commands/command_parser.hpp"
-#include "types.hpp"
 
 namespace hft::monitor {
 
@@ -49,7 +49,7 @@ public:
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {
-      LOG_ERROR("Unknown command {}", utils::toString(cmd));
+      LOG_ERROR("Unknown command {}", toString(cmd));
       return ByteBuffer{};
     }
     return ByteBuffer{it->first.begin(), it->first.end()};

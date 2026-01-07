@@ -10,10 +10,9 @@
 #include <iostream>
 #include <unistd.h>
 
-#include "boost_types.hpp"
 #include "bus/system_bus.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 
@@ -37,7 +36,7 @@ public:
   void printCommands() const {
     LOG_INFO_SYSTEM("Commands:");
     for (auto &command : Parser::commands) {
-      LOG_INFO_SYSTEM("> {:3} => {}", command.first, utils::toString(command.second));
+      LOG_INFO_SYSTEM("> {:3} => {}", command.first, toString(command.second));
     }
   }
 

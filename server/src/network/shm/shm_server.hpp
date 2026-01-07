@@ -10,11 +10,6 @@
 #include <memory>
 #include <string>
 
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
 #include "network/async_transport.hpp"
@@ -22,7 +17,8 @@
 #include "network/transport/shm/shm_reactor.hpp"
 #include "network/transport/shm/shm_transport.hpp"
 #include "traits.hpp"
-#include "utils/utils.hpp"
+#include "utils/memory_utils.hpp"
+#include "utils/sync_utils.hpp"
 
 namespace hft::server {
 
@@ -47,9 +43,9 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    workerThread_ = Thread([this]() {
+    workerThread_ = std::jthread([this]() {
       try {
-        utils::setTheadRealTime();
+        utils::setThreadRealTime();
         if (ServerConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ServerConfig::cfg.coreNetwork;
           utils::pinThreadToCore(coreId);
@@ -101,43 +97,20 @@ public:
 private:
   void waitForConnection() {
     LOG_INFO_SYSTEM("Waiting for client connection");
-    size_t clientConnected = layout_->upstreamFtx.load(std::memory_order_acquire);
-    while (clientConnected == 0) {
-      utils::futexWait(layout_->upstreamFtx, clientConnected);
-      clientConnected = layout_->upstreamFtx.load(std::memory_order_acquire);
-    }
+    utils::hybridWait(layout_->upstreamFtx, 0);
     LOG_INFO_SYSTEM("Client connected");
   }
 
 private:
   ShmLayout *init() {
-    // manual mm open for huge pages
     unlink(name_.c_str());
 
-    int fd = open(name_.c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
-    if (ftruncate(fd, size_) == -1) {
-      close(fd);
-      throw std::runtime_error("Failed to ftruncate SHM file: " + std::string(strerror(errno)));
-    }
+    void *addr = utils::mapSharedMemory(name_, size_, true);
 
-    void *addr = mmap(NULL, size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    close(fd);
-    if (addr == MAP_FAILED) {
-      throw std::runtime_error("Hugepage mmap failed");
-    }
-    volatile uint8_t *p = static_cast<volatile uint8_t *>(addr);
-    for (size_t i = 0; i < size_; i += 4096) {
-      p[i] = 0;
-    }
-
+    utils::warmMemory(addr, size_, true);
     layout_ = new (addr) ShmLayout();
-    if (!layout_) {
-      throw std::runtime_error("Failed to construct shared memory layout");
-    }
 
-    if (mlock(addr, size_) != 0) {
-      LOG_ERROR_SYSTEM("mlock failed: {} (errno: {})", strerror(errno), errno);
-    }
+    utils::lockMemory(addr, size_);
 
     layout_->downstreamFtx.store(1, std::memory_order_release);
     utils::futexWake(layout_->downstreamFtx);
@@ -173,7 +146,7 @@ private:
   DatagramClb datagramClb_;
 
   std::atomic_bool running_{false};
-  Thread workerThread_;
+  std::jthread workerThread_;
 };
 } // namespace hft::server
 

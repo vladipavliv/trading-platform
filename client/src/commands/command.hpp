@@ -10,17 +10,15 @@
 
 #include "utils/string_utils.hpp"
 
-namespace hft::client {
+namespace hft {
+namespace client {
 /**
  * @brief Command for console management
  */
 enum class Command : uint8_t { Start, Stop, Telemetry_Start, Telemetry_Stop, Shutdown };
-} // namespace hft::client
+} // namespace client
 
-namespace hft::utils {
-
-template <>
-inline String toString<client::Command>(const client::Command &command) {
+inline String toString(const client::Command &command) {
   using namespace client;
   switch (command) {
   case Command::Start:
@@ -37,7 +35,6 @@ inline String toString<client::Command>(const client::Command &command) {
     return std::format("unknown command {}", static_cast<uint8_t>(command));
   }
 }
-
-} // namespace hft::utils
+} // namespace hft
 
 #endif // HFT_CLIENT_COMMAND_HPP

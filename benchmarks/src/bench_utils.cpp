@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/rng.hpp"
 
 namespace hft::benchmarks {

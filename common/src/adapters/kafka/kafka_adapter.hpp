@@ -7,16 +7,18 @@
 #define HFT_COMMON_ADAPTERS_KAFKAADAPTER_HPP
 
 #include <librdkafka/rdkafkacpp.h>
-#include <sstream>
+#include <map>
+#include <vector>
 
-#include "boost_types.hpp"
 #include "bus/busable.hpp"
 #include "config/config.hpp"
+#include "container_types.hpp"
+#include "execution.hpp"
 #include "kafka_callbacks.hpp"
 #include "kafka_event.hpp"
 #include "logging.hpp"
 #include "metadata_types.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::adapters {
@@ -92,7 +94,7 @@ public:
   template <typename EventType>
   void produce(CRef<EventType> event, CRef<String> topic) {
     using namespace RdKafka;
-    LOG_DEBUG("Producing message: {} to topic: {}", utils::toString(event), topic);
+    LOG_DEBUG("Producing message: {} to topic: {}", toString(event), topic);
     const auto topicIt = produceTopicMap_.find(topic);
     if (topicIt == produceTopicMap_.end()) {
       LOG_ERROR("Not connected to the topic {}", topic);
@@ -213,7 +215,7 @@ private:
     timer_.expires_after(pollRate_);
     timer_.async_wait([this](BoostErrorCode code) {
       if (code) {
-        if (code != ASIO_ERR_ABORTED) {
+        if (code != ERR_ABORTED) {
           onFatalError(code.message());
         }
         return;
@@ -260,7 +262,7 @@ private:
   UPtr<RdKafka::Producer> producer_;
   UPtr<RdKafka::KafkaConsumer> consumer_;
 
-  HashMap<String, UPtr<RdKafka::Topic>> produceTopicMap_;
+  std::unordered_map<String, UPtr<RdKafka::Topic>> produceTopicMap_;
 
   SteadyTimer timer_;
 

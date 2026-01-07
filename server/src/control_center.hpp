@@ -19,6 +19,7 @@
 #include "session_manager.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
+#include "utils/id_utils.hpp"
 
 namespace hft::server {
 
@@ -46,7 +47,7 @@ public:
       }
     });
     bus_.subscribe<InternalError>([this](CRef<InternalError> error) {
-      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, utils::toString(error.code));
+      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, toString(error.code));
       stop();
     });
 

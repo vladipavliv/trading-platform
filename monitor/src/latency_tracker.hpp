@@ -9,8 +9,9 @@
 #include "bus/system_bus.hpp"
 #include "config/monitor_config.hpp"
 #include "domain_types.hpp"
+#include "execution.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 
 namespace hft::monitor {
 /**
@@ -27,7 +28,8 @@ class LatencyTracker {
 public:
   explicit LatencyTracker(MonitorBus &bus)
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
-        monitorRate_{Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000)} {
+        monitorRate_{
+            Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
     bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> msg) { onOrderTimestamp(msg); });
     bus_.subscribe<RuntimeMetrics>([this](CRef<RuntimeMetrics> msg) { onRuntimeMetrics(msg); });
     scheduleStatsTimer();
@@ -35,13 +37,13 @@ public:
 
 private:
   void onOrderTimestamp(CRef<OrderTimestamp> msg) {
-    LOG_DEBUG("onOrderTimestamp {}", utils::toString(msg));
+    LOG_DEBUG("onOrderTimestamp {}", toString(msg));
     rtt_.sum += msg.notified - msg.created;
     rtt_.size++;
   }
 
   void onRuntimeMetrics(CRef<RuntimeMetrics> msg) {
-    LOG_DEBUG("onRuntimeMetrics {}", utils::toString(msg));
+    LOG_DEBUG("onRuntimeMetrics {}", toString(msg));
     rps_ = msg.rps;
   }
 
@@ -50,7 +52,7 @@ private:
     statsTimer_.expires_after(monitorRate_);
     statsTimer_.async_wait([this](BoostErrorCode code) {
       if (code) {
-        if (code != ASIO_ERR_ABORTED) {
+        if (code != ERR_ABORTED) {
           LOG_ERROR_SYSTEM("{}", code.message());
         }
         return;

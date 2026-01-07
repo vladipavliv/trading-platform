@@ -11,12 +11,16 @@
 #include <string>
 #include <vector>
 
+#include "logging.hpp"
+
 #include "bus/busable.hpp"
 #include "config/server_config.hpp"
 #include "constants.hpp"
+#include "container_types.hpp"
+#include "primitive_types.hpp"
 #include "server_domain_types.hpp"
-#include "types.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::server {
 
@@ -75,7 +79,7 @@ public:
 
   bool add(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
     if (bids_.size() + asks_.size() >= ServerConfig::cfg.orderBookLimit) {
-      LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_);
+      LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_.load());
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }

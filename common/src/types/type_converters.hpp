@@ -9,7 +9,8 @@
 #include "adapters/postgres/table_reader.hpp"
 #include "adapters/postgres/table_writer.hpp"
 #include "domain_types.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
@@ -46,7 +47,7 @@ inline adapters::TableReader &operator>>(adapters::TableReader &reader, TokenBin
 }
 
 inline adapters::TableWriter &operator<<(adapters::TableWriter &writer, CRef<Order> msg) {
-  return writer << std::make_tuple(msg.id, msg.created, utils::toString(msg.ticker), msg.quantity,
+  return writer << std::make_tuple(msg.id, msg.created, toString(msg.ticker), msg.quantity,
                                    msg.price, static_cast<uint16_t>(msg.action));
 }
 inline adapters::TableReader &operator>>(adapters::TableReader &reader, Order &msg) {

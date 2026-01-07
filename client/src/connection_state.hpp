@@ -15,7 +15,7 @@ namespace client {
  */
 enum class ConnectionState : uint8_t { Disconnected, Connected, TokenReceived, Authenticated };
 } // namespace client
-namespace utils {
+
 inline String toString(const client::ConnectionState &event) {
   using namespace client;
   switch (event) {
@@ -28,10 +28,9 @@ inline String toString(const client::ConnectionState &event) {
   case ConnectionState::Authenticated:
     return "authenticated";
   default:
-    return std::format("unknown event {}", static_cast<uint8_t>(event));
+    return std::format("unknown {}", static_cast<uint8_t>(event));
   }
 }
-} // namespace utils
 } // namespace hft
 
 #endif // HFT_CLIENT_CONNECTIONSTATE_HPP

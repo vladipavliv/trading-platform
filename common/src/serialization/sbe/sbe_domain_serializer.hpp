@@ -21,9 +21,12 @@
 
 #include "bus/busable.hpp"
 #include "domain_types.hpp"
+#include "functional_types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "sbe_converter.hpp"
 #include "ticker.hpp"
-#include "types.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft::serialization::sbe {
 
@@ -33,7 +36,7 @@ public:
       std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
 
   template <typename EventType>
-  static constexpr bool Serializable = IsTypeInTuple<EventType, SupportedTypes>;
+  static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
 
   static auto deserialize(const uint8_t *buffer, size_t size,
                           Busable auto &consumer) -> Expected<size_t> {

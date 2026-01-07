@@ -6,8 +6,8 @@
 #ifndef HFT_COMMON_INTERNALERROR_HPP
 #define HFT_COMMON_INTERNALERROR_HPP
 
+#include "primitive_types.hpp"
 #include "status_code.hpp"
-#include "types.hpp"
 
 namespace hft {
 

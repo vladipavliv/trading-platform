@@ -25,7 +25,7 @@ public:
       case RdKafka::Event::Severity::EVENT_SEVERITY_EMERG:
       case RdKafka::Event::Severity::EVENT_SEVERITY_ALERT:
       case RdKafka::Event::Severity::EVENT_SEVERITY_CRITICAL:
-        LOG_CRITICAL_SYSTEM("{}", event.str());
+        LOG_ERROR_SYSTEM("{}", event.str());
         break;
       case RdKafka::Event::Severity::EVENT_SEVERITY_ERROR:
         LOG_ERROR_SYSTEM("{}", event.str());

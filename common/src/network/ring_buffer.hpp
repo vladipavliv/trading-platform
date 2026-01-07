@@ -8,9 +8,9 @@
 
 #include <memory>
 
-#include "boost_types.hpp"
 #include "constants.hpp"
-#include "types.hpp"
+#include "container_types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 
@@ -21,7 +21,7 @@ class RingBuffer {
   static constexpr size_t MIN_READ_CAPACITY = 512;
 
 public:
-  explicit RingBuffer(size_t capacity = BUFFER_SIZE) : capacity_{capacity} {
+  explicit RingBuffer(size_t capacity = 1024 * 128) : capacity_{capacity} {
     if (capacity < MIN_READ_CAPACITY) {
       throw std::runtime_error("Invalid ring buffer capacity");
     }

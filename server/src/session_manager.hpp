@@ -10,7 +10,6 @@
 #include <folly/AtomicHashMap.h>
 #include <folly/container/F14Map.h>
 
-#include "boost_types.hpp"
 #include "constants.hpp"
 #include "events.hpp"
 #include "logging.hpp"
@@ -18,8 +17,8 @@
 #include "network/connection_status.hpp"
 #include "network/session_channel.hpp"
 #include "traits.hpp"
+#include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::server {
 
@@ -202,7 +201,7 @@ private:
   }
 
   void onChannelStatus(CRef<ChannelStatusEvent> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_DEBUG("{}", toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:
       // Nothing to do here for now
@@ -245,7 +244,7 @@ private:
   }
 
   inline void processStatus(CRef<ServerOrderStatus> status) {
-    LOG_DEBUG("{}", utils::toString(status));
+    LOG_DEBUG("{}", toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end()) [[unlikely]] {
       LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);

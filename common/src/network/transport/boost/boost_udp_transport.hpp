@@ -6,11 +6,14 @@
 #ifndef HFT_COMMON_BOOSTUDPTRANSPORT_HPP
 #define HFT_COMMON_BOOSTUDPTRANSPORT_HPP
 
-#include "boost_types.hpp"
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/ip/udp.hpp>
+
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/network_buffer.hpp"
-#include "types.hpp"
+#include "network/transport/boost/boost_network_types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 
@@ -37,7 +40,7 @@ public:
   }
 
   void close() noexcept {
-    boost::system::error_code ec;
+    BoostErrorCode ec;
     socket_.close(ec);
   }
 

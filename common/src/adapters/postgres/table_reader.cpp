@@ -7,8 +7,8 @@
 
 #include <pqxx/pqxx>
 
+#include "primitive_types.hpp"
 #include "table_reader.hpp"
-#include "types.hpp"
 
 namespace hft::adapters {
 

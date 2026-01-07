@@ -30,6 +30,8 @@ struct TickerHash {
   }
 };
 
+inline String toString(const Ticker &ticker) { return String(ticker.data(), TICKER_SIZE); }
+
 } // namespace hft
 
 #endif // HFT_COMMON_TICKER_HPP
