@@ -6,11 +6,10 @@
 #ifndef HFT_COMMON_DUMMYFRAMER_HPP
 #define HFT_COMMON_DUMMYFRAMER_HPP
 
-#include "boost_types.hpp"
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {

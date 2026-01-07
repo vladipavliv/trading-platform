@@ -13,11 +13,10 @@
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "execution/coordinator.hpp"
+#include "primitive_types.hpp"
 #include "storage/storage.hpp"
-#include "types.hpp"
 #include "types/constants.hpp"
 #include "utils/test_data.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::benchmarks {
 

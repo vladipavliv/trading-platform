@@ -7,7 +7,7 @@
 #define HFT_COMMON_ASYNCTRANSPORT_HPP
 
 #include "network/network_buffer.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 

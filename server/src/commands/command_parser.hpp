@@ -10,8 +10,10 @@
 
 #include "bus/busable.hpp"
 #include "command.hpp"
+#include "container_types.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft::server {
 
@@ -41,7 +43,7 @@ public:
     const auto it = std::find_if(commands.begin(), commands.end(),
                                  [cmd](const auto &element) { return element.second == cmd; });
     if (it == commands.end()) {
-      LOG_ERROR("Unknown command {}", utils::toString(cmd));
+      LOG_ERROR("Unknown command {}", toString(cmd));
       return ByteBuffer{};
     }
     return ByteBuffer{it->first.begin(), it->first.end()};

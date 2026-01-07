@@ -11,7 +11,7 @@
 
 #include <pqxx/pqxx>
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::adapters {
 class TableReader {

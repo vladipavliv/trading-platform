@@ -6,76 +6,65 @@
 #ifndef HFT_COMMON_CONFIG_HPP
 #define HFT_COMMON_CONFIG_HPP
 
-#include <filesystem>
-#include <sstream>
+#include <boost/property_tree/ptree_fwd.hpp>
+#include <optional>
+#include <vector>
 
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-
-#include "boost_types.hpp"
-#include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
+#include "utils/parse_utils.hpp"
 
 namespace hft {
 
 struct Config {
-  static void load(CRef<String> fileName) {
-    if (fileName.empty() || !std::filesystem::exists(fileName)) {
-      throw std::runtime_error(std::format("Config file not found {} {}",
-                                           std::filesystem::current_path().c_str(), fileName));
-    }
-    file = fileName;
-    boost::property_tree::read_ini(fileName, data);
-  }
+  static void load(CRef<String> fileName);
 
   template <typename Type>
   static Type get(CRef<String> name) {
-    if (data.empty()) {
-      throw std::runtime_error(std::format("Failed to get {}: config has not been loaded", name));
-    }
-
     if constexpr (requires { typename Type::value_type; } && !std::is_same_v<Type, String>) {
-      Type items;
-      std::stringstream ss(data.get<String>(name));
-      using ValueType = typename Type::value_type;
-
-      if constexpr (std::is_arithmetic_v<ValueType>) {
-
-        using ParseType = std::conditional_t<(sizeof(ValueType) <= 1), int, ValueType>;
-        ParseType tempVal;
-
-        while (ss >> tempVal) {
-          items.push_back(static_cast<ValueType>(tempVal));
-          while (ss.peek() == ',' || ss.peek() == ' ')
-            ss.ignore();
-        }
-      } else {
-        String item;
-        while (std::getline(ss, item, ',')) {
-          items.push_back(item);
-        }
-      }
-      return items;
+      using VType = typename Type::value_type;
+      return utils::split<VType>(getString(name));
     } else {
-      return data.get<Type>(name);
+      return getImpl<Type>(name);
     }
   }
 
   template <typename Type>
-  static auto get_optional(CRef<String> name) {
-    if (data.empty()) {
-      throw std::runtime_error("Config has not been loaded");
-    }
-    try {
-      return data.get_optional<Type>(name);
-    } catch (const std::exception &e) {
-      throw std::runtime_error(std::format("std::exception {} {}", file, e.what()));
-    }
+  static std::optional<Type> get_optional(CRef<String> name) {
+    if (!data)
+      return std::nullopt;
+    return getOptImpl<Type>(name);
   }
 
+private:
+  static String getString(CRef<String> name);
+
+  template <typename Type>
+  static Type getImpl(CRef<String> name);
+
+  template <typename Type>
+  static std::optional<Type> getOptImpl(CRef<String> name);
+
   inline static String file;
-  inline static boost::property_tree::ptree data;
+  inline static boost::property_tree::ptree *data{nullptr};
 };
+
+template <>
+int Config::getImpl<int>(CRef<String> name);
+template <>
+uint32_t Config::getImpl<uint32_t>(CRef<String> name);
+template <>
+uint64_t Config::getImpl<uint64_t>(CRef<String> name);
+template <>
+String Config::getImpl<String>(CRef<String> name);
+template <>
+bool Config::getImpl<bool>(CRef<String> name);
+template <>
+uint64_t Config::getImpl<uint64_t>(CRef<String> name);
+template <>
+std::optional<uint64_t> Config::getOptImpl<uint64_t>(CRef<String> name);
+template <>
+std::optional<bool> Config::getOptImpl<bool>(CRef<String> name);
 
 } // namespace hft
 

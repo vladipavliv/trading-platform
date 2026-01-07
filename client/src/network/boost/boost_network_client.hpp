@@ -10,17 +10,16 @@
 #include <memory>
 #include <vector>
 
-#include "boost_types.hpp"
 #include "config/client_config.hpp"
 #include "events.hpp"
 #include "logging.hpp"
 #include "network/connection_status.hpp"
+#include "network/transport/boost/boost_network_types.hpp"
 #include "network/transport/boost/boost_tcp_transport.hpp"
 #include "network/transport/boost/boost_udp_transport.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::client {
 
@@ -44,9 +43,9 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    workerThread_ = Thread([this]() {
+    workerThread_ = std::jthread([this]() {
       try {
-        utils::setTheadRealTime();
+        utils::setThreadRealTime();
         if (ClientConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ClientConfig::cfg.coreNetwork;
           utils::pinThreadToCore(coreId);
@@ -124,7 +123,7 @@ private:
 
 private:
   IoCtx ioCtx_;
-  ContextGuard guard_;
+  IoCtxGuard guard_;
 
   ClientBus &bus_;
 
@@ -132,7 +131,7 @@ private:
   StreamClb downStreamClb_;
   DatagramClb datagramClb_;
 
-  Thread workerThread_;
+  std::jthread workerThread_;
 };
 
 } // namespace hft::client

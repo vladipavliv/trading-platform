@@ -14,9 +14,8 @@
 #include "network/connection_status.hpp"
 #include "network/ring_buffer.hpp"
 #include "network_traits.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
 namespace hft {
 
@@ -115,7 +114,7 @@ private:
     if (res) {
       buffer_.commitRead(*res);
     } else {
-      LOG_ERROR("Failed to unframe message {}", utils::toString(res.error()));
+      LOG_ERROR("Failed to unframe message {}", toString(res.error()));
       buffer_.reset();
       onStatus(ConnectionStatus::Error);
       return;

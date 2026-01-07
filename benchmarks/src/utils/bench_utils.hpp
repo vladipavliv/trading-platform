@@ -7,8 +7,8 @@
 #define HFT_BENCH_BENCHUTILS_HPP
 
 #include "config/config.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "container_types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::benchmarks {
 

@@ -28,7 +28,7 @@ private:
       response.clientId = *result;
       response.ok = true;
     } else {
-      response.error = utils::toString(result.error());
+      response.error = toString(result.error());
       LOG_ERROR_SYSTEM("Authentication failed {} {}", r.request.name, response.error);
     }
     bus_.post(response);

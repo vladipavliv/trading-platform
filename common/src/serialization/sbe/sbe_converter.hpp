@@ -8,7 +8,7 @@
 
 #include "domain_types.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderAction.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderState.h"

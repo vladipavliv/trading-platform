@@ -9,6 +9,7 @@
 
 #include "config/server_config.hpp"
 #include "execution/order_book.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::tests {
 

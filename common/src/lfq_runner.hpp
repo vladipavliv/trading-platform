@@ -14,12 +14,10 @@
 // #include <rigtorp/SPSCQueue.h>
 #include <thread>
 
-#include "boost_types.hpp"
 #include "bus/system_bus.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "primitive_types.hpp"
 #include "vyukov_queue.hpp"
 
 namespace hft {
@@ -35,30 +33,35 @@ class LfqRunner {
   // using Queue = folly::ProducerConsumerQueue<MessageType>; // <= 38.3 ns
 
 public:
-  LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer} {}
+  LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer}, bus_{std::move(bus)} {}
 
-  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus) : coreId_{id}, consumer_{consumer} {}
+  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus)
+      : coreId_{id}, consumer_{consumer}, bus_{std::move(bus)} {}
 
   ~LfqRunner() {}
 
   void run() {
-    thread_ = Thread([this]() {
-      if (coreId_.has_value()) {
-        utils::pinThreadToCore(coreId_.value());
-      }
-
-      running_.store(true);
-      running_.notify_all();
-
-      MessageType message;
-      while (running_.load(std::memory_order_acquire)) {
-        if (queue_.pop(message)) {
-          do {
-            consumer_.post(message);
-          } while (queue_.pop(message));
-        } else {
-          asm volatile("pause" ::: "memory");
+    thread_ = std::jthread([this]() {
+      try {
+        if (coreId_.has_value()) {
+          utils::pinThreadToCore(coreId_.value());
         }
+
+        running_.store(true);
+        running_.notify_all();
+
+        MessageType message;
+        while (running_.load(std::memory_order_acquire)) {
+          if (queue_.pop(message)) {
+            do {
+              consumer_.post(message);
+            } while (queue_.pop(message));
+          } else {
+            asm volatile("pause" ::: "memory");
+          }
+        }
+      } catch (const std::exception &ex) {
+        bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
     });
     running_.wait(false);
@@ -84,7 +87,8 @@ private:
   std::atomic_bool running_{false};
 
   Consumer &consumer_;
-  Thread thread_;
+  ErrorBus bus_;
+  std::jthread thread_;
 };
 
 } // namespace hft

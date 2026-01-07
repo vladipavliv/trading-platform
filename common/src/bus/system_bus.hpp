@@ -6,12 +6,16 @@
 #ifndef HFT_COMMON_SYSTEMBUS_HPP
 #define HFT_COMMON_SYSTEMBUS_HPP
 
-#include "boost_types.hpp"
+#include <map>
+
 #include "bus_limiter.hpp"
 #include "config/config.hpp"
+#include "execution.hpp"
+#include "functional_types.hpp"
 #include "internal_error.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "primitive_types.hpp"
+#include "utils/thread_utils.hpp"
+#include "utils/trait_utils.hpp"
 
 namespace hft {
 
@@ -33,7 +37,7 @@ public:
     });
   }
 
-  template <UnorderedMapKey EventType>
+  template <utils::UnorderedMapKey EventType>
   void subscribe(EventType event, Callback &&callback) {
     ioCtx_.post([event, callback = std::move(callback)]() mutable {
       getValueSubscribers<EventType>()[event].emplace_back(std::move(callback));
@@ -46,7 +50,7 @@ public:
   }
 
   void run() {
-    utils::setTheadRealTime();
+    utils::setThreadRealTime();
     const auto coreId = Config::get_optional<size_t>("cpu.core_system");
     if (coreId.has_value()) {
       utils::pinThreadToCore(coreId.value());
@@ -69,7 +73,7 @@ private:
       handler(event);
     }
     // Now try to notify value subscribers if possible
-    if constexpr (UnorderedMapKey<EventType>) {
+    if constexpr (utils::UnorderedMapKey<EventType>) {
       auto &valueSubscribers = getValueSubscribers<EventType>();
       if (valueSubscribers.count(event) > 0) {
         for (auto &callback : valueSubscribers[event]) {
@@ -83,7 +87,7 @@ private:
   using EventSubscribers = std::vector<CRefHandler<EventType>>;
 
   template <typename EventType>
-  using ValueSubscribers = HashMap<EventType, std::vector<Callback>>;
+  using ValueSubscribers = std::unordered_map<EventType, std::vector<Callback>>;
 
   template <typename EventType>
   static EventSubscribers<EventType> &getEventSubscribers() {
@@ -101,7 +105,7 @@ private:
 
 private:
   IoCtx ioCtx_;
-  ContextGuard ioCtxGuard_;
+  IoCtxGuard ioCtxGuard_;
 };
 
 using ErrorBus = BusLimiter<SystemBus, InternalError>;

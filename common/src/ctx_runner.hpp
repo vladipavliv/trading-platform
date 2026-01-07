@@ -8,12 +8,10 @@
 
 #include <memory>
 
-#include "boost_types.hpp"
 #include "bus/system_bus.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 
@@ -41,9 +39,9 @@ public:
       return;
     }
     running_ = true;
-    thread_ = Thread{[this]() {
+    thread_ = std::jthread{[this]() {
       try {
-        utils::setTheadRealTime();
+        utils::setThreadRealTime();
         String idStr = threadId_.has_value() ? std::to_string(threadId_.value()) : "";
         if (coreId_.has_value()) {
           utils::pinThreadToCore(coreId_.value());
@@ -61,6 +59,7 @@ public:
         stop();
         bus_.post(InternalError(StatusCode::Error, "unknown exception in CtxRunner"));
       }
+      LOG_INFO_SYSTEM("CtxRunner stopped");
     }};
   }
 
@@ -76,8 +75,8 @@ private:
   std::atomic_bool running_{false};
 
   ErrorBus bus_;
-  ContextGuard guard_;
-  Thread thread_;
+  IoCtxGuard guard_;
+  std::jthread thread_;
 };
 
 } // namespace hft

@@ -1,20 +1,14 @@
 /**
  * @author Vladimir Pavliv
- * @date 2025-04-06
+ * @date 2026-01-04
  */
 
 #ifndef HFT_COMMON_SPDLOGGER_HPP
 #define HFT_COMMON_SPDLOGGER_HPP
 
 #include <memory>
-
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/rotating_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
-
-#include "constants.hpp"
+#include <string>
 
 namespace hft {
 
@@ -27,56 +21,105 @@ class SpdLogger {
   static constexpr auto LOG_PATTERN = "%H:%M:%S.%f [%^%L%$] %v";
 
 public:
-  using LogLevel = spdlog::level::level_enum;
   using SPtrSpdLogger = std::shared_ptr<spdlog::logger>;
 
   static SPtrSpdLogger consoleLogger;
   static SPtrSpdLogger fileLogger;
 
-  static void initialize(const std::string &fileName = "") {
-    if (consoleLogger != nullptr || fileLogger != nullptr) {
-      return;
+  static void initialize(const std::string &fileName = "");
+
+  static constexpr const char *simpleFileName(const char *path) {
+    const char *file = path;
+    while (*path) {
+      if (*path == '/')
+        file = path + 1;
+      path++;
     }
-
-    initConsoleLogger();
-    initFileLogger(fileName);
-
-    spdlog::set_level(spdlog::level::trace);
-    spdlog::flush_on(spdlog::level::trace);
-  }
-
-private:
-  static void initConsoleLogger() {
-    auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    consoleLogger = std::make_shared<spdlog::logger>("console_logger", consoleSink);
-    consoleLogger->set_pattern(LOG_PATTERN);
-  }
-
-  static void initFileLogger(const std::string &filename) {
-    using namespace spdlog;
-    if (filename.empty()) {
-      fileLogger = consoleLogger;
-      consoleLogger.reset();
-      register_logger(fileLogger);
-      set_default_logger(fileLogger);
-      return;
-    }
-    init_thread_pool(8192, 1);
-    auto rotatingSink = std::make_shared<sinks::rotating_file_sink_mt>(filename, LOG_FILE_SIZE, 10);
-    fileLogger = std::make_shared<async_logger>( // format
-        "async_file_logger", rotatingSink, thread_pool(), async_overflow_policy::overrun_oldest);
-
-    fileLogger->set_pattern(LOG_PATTERN);
-    fileLogger->set_level(spdlog::level::trace);
-    fileLogger->flush_on(spdlog::level::trace);
-
-    spdlog::register_logger(fileLogger);
-    spdlog::set_default_logger(fileLogger);
+    return file;
   }
 };
 
-inline SpdLogger::SPtrSpdLogger SpdLogger::consoleLogger;
-inline SpdLogger::SPtrSpdLogger SpdLogger::fileLogger;
+#define LOG_INIT(filename) SpdLogger::initialize(filename);
+
+#define LOG_BASE(level, msg, ...)                                                                  \
+  spdlog::default_logger_raw()->log(                                                               \
+      spdlog::source_loc{hft::SpdLogger::simpleFileName(__FILE__), __LINE__, __FUNCTION__}, level, \
+      msg, ##__VA_ARGS__)
+
+// --- TRACE ---
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE
+#define LOG_TRACE(msg, ...) LOG_BASE(spdlog::level::trace, msg, ##__VA_ARGS__)
+#else
+#define LOG_TRACE(msg, ...) (void)0
+#endif
+
+// --- DEBUG ---
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
+#define LOG_DEBUG(msg, ...) LOG_BASE(spdlog::level::debug, msg, ##__VA_ARGS__)
+#else
+#define LOG_DEBUG(msg, ...) (void)0
+#endif
+
+// --- INFO ---
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_INFO
+#define LOG_INFO(msg, ...) LOG_BASE(spdlog::level::info, msg, ##__VA_ARGS__)
+#else
+#define LOG_INFO(msg, ...) (void)0
+#endif
+
+// --- WARN ---
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_WARN
+#define LOG_WARN(msg, ...) LOG_BASE(spdlog::level::warn, msg, ##__VA_ARGS__)
+#else
+#define LOG_WARN(msg, ...) (void)0
+#endif
+
+// --- ERROR ---
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_ERROR
+#define LOG_ERROR(msg, ...) LOG_BASE(spdlog::level::err, msg, ##__VA_ARGS__)
+#else
+#define LOG_ERROR(msg, ...) (void)0
+#endif
+
+// --- TRACE SYSTEM ---
+#define LOG_TRACE_SYSTEM(msg, ...)                                                                 \
+  do {                                                                                             \
+    LOG_TRACE(msg, ##__VA_ARGS__);                                                                 \
+    if (hft::SpdLogger::consoleLogger)                                                             \
+      hft::SpdLogger::consoleLogger->trace(msg, ##__VA_ARGS__);                                    \
+  } while (0)
+
+// --- DEBUG SYSTEM ---
+#define LOG_DEBUG_SYSTEM(msg, ...)                                                                 \
+  do {                                                                                             \
+    LOG_DEBUG(msg, ##__VA_ARGS__);                                                                 \
+    if (hft::SpdLogger::consoleLogger)                                                             \
+      hft::SpdLogger::consoleLogger->debug(msg, ##__VA_ARGS__);                                    \
+  } while (0)
+
+// --- INFO SYSTEM ---
+#define LOG_INFO_SYSTEM(msg, ...)                                                                  \
+  do {                                                                                             \
+    LOG_INFO(msg, ##__VA_ARGS__);                                                                  \
+    if (hft::SpdLogger::consoleLogger)                                                             \
+      hft::SpdLogger::consoleLogger->info(msg, ##__VA_ARGS__);                                     \
+  } while (0)
+
+// --- WARN SYSTEM ---
+#define LOG_WARN_SYSTEM(msg, ...)                                                                  \
+  do {                                                                                             \
+    LOG_WARN(msg, ##__VA_ARGS__);                                                                  \
+    if (hft::SpdLogger::consoleLogger)                                                             \
+      hft::SpdLogger::consoleLogger->warn(msg, ##__VA_ARGS__);                                     \
+  } while (0)
+
+// --- ERROR SYSTEM ---
+#define LOG_ERROR_SYSTEM(msg, ...)                                                                 \
+  do {                                                                                             \
+    LOG_ERROR(msg, ##__VA_ARGS__);                                                                 \
+    if (hft::SpdLogger::consoleLogger)                                                             \
+      hft::SpdLogger::consoleLogger->error(msg, ##__VA_ARGS__);                                    \
+  } while (0)
 
 } // namespace hft
 

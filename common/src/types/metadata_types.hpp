@@ -7,9 +7,11 @@
 #define HFT_COMMON_METADATATYPES_HPP
 
 #include "domain_types.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
+
+enum MetadataSource : uint8_t { Unknown, Client, Server };
 
 struct OrderTimestamp {
   OrderId orderId;
@@ -17,8 +19,6 @@ struct OrderTimestamp {
   Timestamp fulfilled;
   Timestamp notified;
 };
-
-enum MetadataSource : uint8_t { Unknown, Client, Server };
 
 struct RuntimeMetrics {
   MetadataSource source;
@@ -32,6 +32,32 @@ struct LogEntry {
   String message;
   String level;
 };
+
+inline String toString(const MetadataSource &event) {
+  switch (event) {
+  case MetadataSource::Client:
+    return "Client";
+  case MetadataSource::Server:
+    return "Server";
+  default:
+    return "Unknown";
+  }
+}
+
+inline String toString(const OrderTimestamp &event) {
+  return std::format("OrderTimestamp: id={} created={} fulfilled={} notified={}", event.orderId,
+                     event.created, event.fulfilled, event.notified);
+}
+
+inline String toString(const RuntimeMetrics &event) {
+  return std::format("RuntimeMetrics: source={} ts={} rps={} avg_lat={}us", toString(event.source),
+                     event.timeStamp, event.rps, event.avgLatencyUs);
+}
+
+inline String toString(const LogEntry &event) {
+  return std::format("LogEntry: source={} msg='{}' level={}", toString(event.source), event.message,
+                     event.level);
+}
 
 } // namespace hft
 

@@ -9,6 +9,7 @@
 #include "bus/bus_hub.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
+#include "container_types.hpp"
 #include "ctx_runner.hpp"
 #include "domain_types.hpp"
 #include "events.hpp"
@@ -18,7 +19,7 @@
 #include "server_domain_types.hpp"
 #include "traits.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::server {
 
@@ -76,10 +77,10 @@ class Coordinator {
 public:
   Coordinator(ServerBus &bus, CRef<MarketData> data)
       : bus_{bus}, timer_{bus_.systemIoCtx()},
-        monitorRate_{utils::toSeconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
+        monitorRate_{Milliseconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
     bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
       if (matcher_.data.count(order.order.ticker) == 0) {
-        LOG_ERROR_SYSTEM("{} is not found in the data {}", utils::toString(order.order.ticker),
+        LOG_ERROR_SYSTEM("{} is not found in the data {}", toString(order.order.ticker),
                          matcher_.data.size());
         return;
       }
@@ -130,14 +131,15 @@ private:
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
-        if (ec != ASIO_ERR_ABORTED) {
+        if (ec != ERR_ABORTED) {
           LOG_ERROR_SYSTEM("Error {}", ec.message());
         }
         return;
       }
       static std::atomic_uint64_t lastTtl = 0;
       const uint64_t currentTtl = matcher_.ordersTotal.load(std::memory_order_relaxed);
-      const uint64_t rps = (currentTtl - lastTtl) / monitorRate_.count();
+      const uint64_t ttlDelta = currentTtl - lastTtl;
+      const uint64_t rps = (ttlDelta * 1000) / monitorRate_.count();
 
       if (rps != 0) {
         LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
@@ -163,7 +165,7 @@ private:
   ServerBus &bus_;
 
   SteadyTimer timer_;
-  const Seconds monitorRate_;
+  const Milliseconds monitorRate_;
 
   Matcher matcher_;
   bool telemetry_{false};

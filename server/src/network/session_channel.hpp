@@ -6,14 +6,13 @@
 #ifndef HFT_SERVER_SESSIONCHANNEL_HPP
 #define HFT_SERVER_SESSIONCHANNEL_HPP
 
-#include "boost_types.hpp"
 #include "bus/bus_restrictor.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/channel.hpp"
+#include "primitive_types.hpp"
 #include "session_bus.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 
 namespace hft::server {
 

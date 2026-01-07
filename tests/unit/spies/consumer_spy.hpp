@@ -11,8 +11,9 @@
 
 #include <gtest/gtest.h>
 
+#include "functional_types.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::tests {
@@ -24,9 +25,8 @@ struct ConsumerSpy {
   template <typename EventType>
   void post(CRef<EventType> event) {
     data.push_back(event);
-    printers.push_back([event]() {
-      std::cout << typeid(event).name() << " " << utils::toString(event) << std::endl;
-    });
+    printers.push_back(
+        [event]() { std::cout << typeid(event).name() << " " << toString(event) << std::endl; });
   }
 
   template <typename EventType>

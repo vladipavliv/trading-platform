@@ -6,11 +6,10 @@
 #ifndef HFT_SERVER_SESSIONBUS_HPP
 #define HFT_SERVER_SESSIONBUS_HPP
 
-#include "boost_types.hpp"
 #include "events.hpp"
 #include "logging.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 
 namespace hft::server {
 

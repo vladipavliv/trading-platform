@@ -13,9 +13,10 @@
 #include "events.hpp"
 #include "network/channel.hpp"
 #include "network/connection_status.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "utils/id_utils.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::client {
 
@@ -79,7 +80,7 @@ private:
   }
 
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
-    LOG_DEBUG("{}", utils::toString(event));
+    LOG_DEBUG("{}", toString(event));
     if (event.status != ConnectionStatus::Connected) {
       reset();
     }
@@ -94,7 +95,7 @@ private:
   }
 
   void onLoginResponse(CRef<LoginResponse> event) {
-    LOG_INFO_SYSTEM("{}", utils::toString(event));
+    LOG_INFO_SYSTEM("{}", toString(event));
     if (event.ok) {
       token_ = event.token;
     } else {

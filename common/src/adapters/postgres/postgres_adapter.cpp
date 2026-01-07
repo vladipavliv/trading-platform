@@ -7,10 +7,14 @@
 #include <pqxx/pqxx>
 
 #include "config/config.hpp"
+#include "container_types.hpp"
+#include "domain_types.hpp"
+#include "functional_types.hpp"
 #include "logging.hpp"
 #include "postgres_adapter.hpp"
+#include "ptr_types.hpp"
+#include "utils/parse_utils.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"

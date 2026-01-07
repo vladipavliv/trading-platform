@@ -8,16 +8,18 @@
 
 #include "adapters/postgres/table_reader.hpp"
 #include "adapters/postgres/table_writer.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "server_domain_types.hpp"
-#include "types.hpp"
+#include "ticker.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
 
 inline adapters::TableWriter &operator<<(adapters::TableWriter &writer, CRef<ServerOrder> msg) {
   return writer << std::make_tuple(msg.clientId, msg.order.id, msg.order.created,
-                                   utils::toString(msg.order.ticker), msg.order.quantity,
-                                   msg.order.price, static_cast<uint16_t>(msg.order.action));
+                                   toString(msg.order.ticker), msg.order.quantity, msg.order.price,
+                                   static_cast<uint16_t>(msg.order.action));
 }
 
 inline adapters::TableReader &operator>>(adapters::TableReader &reader, ServerOrder &msg) {

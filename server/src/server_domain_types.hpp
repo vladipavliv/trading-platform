@@ -8,11 +8,11 @@
 
 #include "domain_types.hpp"
 #include "metadata_types.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
-namespace hft::server {
-
+namespace hft {
+namespace server {
 struct ServerLoginRequest {
   ConnectionId connectionId;
   LoginRequest request;
@@ -39,29 +39,23 @@ struct ServerOrderStatus {
   ClientId clientId;
   OrderStatus orderStatus;
 };
-} // namespace hft::server
+} // namespace server
 
-namespace hft::utils {
-template <>
-inline String toString<server::ServerLoginRequest>(const server::ServerLoginRequest &msg) {
-  return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
+inline String toString(const server::ServerLoginRequest &msg) {
+  return std::format("{} {}", msg.connectionId, toString(msg.request));
 }
-template <>
-inline String toString<server::ServerTokenBindRequest>(const server::ServerTokenBindRequest &msg) {
-  return std::format("{} {}", msg.connectionId, utils::toString(msg.request));
+inline String toString(const server::ServerTokenBindRequest &msg) {
+  return std::format("{} {}", msg.connectionId, toString(msg.request));
 }
-template <>
-inline String toString<server::ServerLoginResponse>(const server::ServerLoginResponse &msg) {
+inline String toString(const server::ServerLoginResponse &msg) {
   return std::format("{} {} {} {}", msg.connectionId, msg.clientId, msg.ok, msg.error);
 }
-template <>
-inline String toString<server::ServerOrder>(const server::ServerOrder &msg) {
-  return std::format("{} {}", msg.clientId, utils::toString(msg.order));
+inline String toString(const server::ServerOrder &msg) {
+  return std::format("{} {}", msg.clientId, toString(msg.order));
 }
-template <>
-inline String toString<server::ServerOrderStatus>(const server::ServerOrderStatus &msg) {
-  return std::format("{} {}", msg.clientId, utils::toString(msg.orderStatus));
+inline String toString(const server::ServerOrderStatus &msg) {
+  return std::format("{} {}", msg.clientId, toString(msg.orderStatus));
 }
-} // namespace hft::utils
+} // namespace hft
 
 #endif // HFT_SERVER_SERVERDOMAINTYPES_HPP

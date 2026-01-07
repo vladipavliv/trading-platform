@@ -6,7 +6,6 @@
 #ifndef HFT_SERVER_CONTROLCENTER_HPP
 #define HFT_SERVER_CONTROLCENTER_HPP
 
-#include "boost_types.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/client_config.hpp"
@@ -15,9 +14,9 @@
 #include "events.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
+#include "primitive_types.hpp"
 #include "trade_engine.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 
 namespace hft::client {
 
@@ -31,7 +30,7 @@ public:
         streamAdapter_{bus_}, consoleReader_{bus_.systemBus} {
 
     bus_.systemBus.subscribe<ClientState>([this](CRef<ClientState> event) {
-      LOG_INFO_SYSTEM("{}", utils::toString(event));
+      LOG_INFO_SYSTEM("{}", toString(event));
       state_ = event;
       switch (event) {
       case ClientState::Connected:
@@ -57,7 +56,7 @@ public:
     bus_.systemBus.subscribe(Command::Stop, [this] { engine_.tradeStop(); });
 
     bus_.systemBus.subscribe<InternalError>([this](CRef<InternalError> error) {
-      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, utils::toString(error.code));
+      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, toString(error.code));
       stop();
     });
 

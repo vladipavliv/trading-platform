@@ -6,10 +6,9 @@
 #ifndef HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 #define HFT_COMMON_ADAPTERS_DUMMYKAFKAADAPTER_HPP
 
-#include "bus/busable.hpp"
-#include "domain_types.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft::adapters {
 

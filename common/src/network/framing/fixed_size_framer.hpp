@@ -6,11 +6,11 @@
 #ifndef HFT_COMMON_FIXEDSIZEFRAMER_HPP
 #define HFT_COMMON_FIXEDSIZEFRAMER_HPP
 
-#include "boost_types.hpp"
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "logging.hpp"
-#include "types.hpp"
+#include "primitive_types.hpp"
+#include "utils/binary_utils.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
@@ -32,7 +32,7 @@ public:
   static size_t frame(CRef<Type> message, uint8_t *buffer) {
     const auto msgSize = Serializer::serialize(message, buffer + HEADER_SIZE);
 
-    const LittleEndianUInt16 bodySize = static_cast<MessageSize>(msgSize);
+    const utils::LittleEndianUInt16 bodySize = static_cast<MessageSize>(msgSize);
     std::memcpy(buffer, &bodySize, sizeof(bodySize));
     return HEADER_SIZE + msgSize;
   }
@@ -44,7 +44,8 @@ public:
     size_t cursor{0};
 
     while (cursor + HEADER_SIZE < dataBuffer.size()) {
-      const auto lilBodySize = *reinterpret_cast<const LittleEndianUInt16 *>(dataPtr + cursor);
+      const auto lilBodySize =
+          *reinterpret_cast<const utils::LittleEndianUInt16 *>(dataPtr + cursor);
       const MessageSize bodySize = lilBodySize.value();
       LOG_DEBUG("Trying to parse {} bytes", bodySize);
       // Check if there is enough data to deserialize message

@@ -12,7 +12,7 @@
 #include <pqxx/pqxx>
 #include <pqxx/stream_to>
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft::adapters {
 

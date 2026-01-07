@@ -6,7 +6,7 @@
 #ifndef HFT_COMMON_SHMTYPES_HPP
 #define HFT_COMMON_SHMTYPES_HPP
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 

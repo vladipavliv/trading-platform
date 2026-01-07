@@ -13,12 +13,12 @@
 #include <pqxx/stream_to>
 
 #include "config/config.hpp"
-#include "logging.hpp"
+#include "container_types.hpp"
+#include "domain_types.hpp"
+#include "functional_types.hpp"
+#include "primitive_types.hpp"
 #include "table_reader.hpp"
 #include "table_writer.hpp"
-#include "types.hpp"
-#include "utils/string_utils.hpp"
-#include "utils/utils.hpp"
 
 namespace hft::adapters {
 

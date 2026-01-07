@@ -12,7 +12,6 @@
 
 namespace hft {
 namespace adapters {
-
 enum class KafkaStatus : uint8_t { Error };
 
 struct KafkaEvent {
@@ -21,7 +20,6 @@ struct KafkaEvent {
 };
 } // namespace adapters
 
-namespace utils {
 inline String toString(const adapters::KafkaStatus &status) {
   switch (status) {
   case adapters::KafkaStatus::Error:
@@ -31,9 +29,8 @@ inline String toString(const adapters::KafkaStatus &status) {
   }
 }
 inline String toString(const adapters::KafkaEvent &event) {
-  return std::format("KafkaEvent {} {}", utils::toString(event.status), event.details);
+  return std::format("KafkaEvent {} {}", toString(event.status), event.details);
 }
-} // namespace utils
 
 } // namespace hft
 

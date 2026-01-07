@@ -6,11 +6,11 @@
 #ifndef HFT_COMMON_SHMREACTOR_HPP
 #define HFT_COMMON_SHMREACTOR_HPP
 
-#include <atomic>
-
+#include "primitive_types.hpp"
 #include "shm_drainable.hpp"
 #include "shm_layout.hpp"
 #include "shm_types.hpp"
+#include "utils/sync_utils.hpp"
 
 namespace hft {
 
@@ -34,35 +34,65 @@ public:
   }
 
   void run() {
-    LOG_INFO_SYSTEM("ShmReactor run");
-    running_ = true;
+    LOG_DEBUG("ShmReactor run");
+    if (transport_ == nullptr) {
+      throw std::runtime_error("Unable to start, transport is not initialized");
+    }
+    running_.store(true, std::memory_order_release);
+    auto &ftx = localFtx();
+    auto &waitFlag = localWaitingFlag();
+
     while (running_) {
-      transport_->tryDrain();
+      if (transport_->tryDrain() > 0) {
+        continue;
+      }
+
+      waitFlag.store(true, std::memory_order_seq_cst);
+      uint32_t ftxVal = ftx.load(std::memory_order_acquire);
+
+      if (transport_->tryDrain() > 0) {
+        waitFlag.store(false, std::memory_order_relaxed);
+        continue;
+      }
+
+      utils::hybridWait(ftx, ftxVal);
+      waitFlag.store(false, std::memory_order_relaxed);
     }
   }
 
   void stop() {
-    running_ = false;
+    running_.store(false, std::memory_order_release);
     utils::futexWake(localFtx());
     utils::futexWake(remoteFtx());
   }
 
   void notify() {
-    LOG_DEBUG("notify");
-    auto &ftx = remoteFtx();
-    ftx.fetch_add(1, std::memory_order_release);
-    utils::futexWake(ftx);
+    if (isRemoteWaiting()) {
+      LOG_DEBUG("notify");
+      auto &ftx = remoteFtx();
+      ftx.fetch_add(1, std::memory_order_release);
+      utils::futexWake(ftx);
+    }
   }
 
   inline bool running() const { return running_; }
 
 private:
-  inline auto localFtx() const -> std::atomic<uint32_t> & {
+  inline auto localFtx() const -> Atomic<uint32_t> & {
     return type_ == ReactorType::Server ? layout_->upstreamFtx : layout_->downstreamFtx;
   }
 
-  inline auto remoteFtx() const -> std::atomic<uint32_t> & {
+  inline auto remoteFtx() const -> Atomic<uint32_t> & {
     return type_ != ReactorType::Server ? layout_->upstreamFtx : layout_->downstreamFtx;
+  }
+
+  inline auto localWaitingFlag() const -> Atomic<bool> & {
+    return type_ == ReactorType::Server ? layout_->upstreamWaiting : layout_->downstreamWaiting;
+  }
+
+  inline bool isRemoteWaiting() const {
+    return type_ == ReactorType::Server ? layout_->downstreamWaiting.load(std::memory_order_acquire)
+                                        : layout_->upstreamWaiting.load(std::memory_order_acquire);
   }
 
 private:
@@ -71,7 +101,7 @@ private:
   ShmLayout *layout_{nullptr};
 
   Transport *transport_{nullptr};
-  std::atomic<bool> running_{false};
+  Atomic<bool> running_{false};
 };
 
 } // namespace hft

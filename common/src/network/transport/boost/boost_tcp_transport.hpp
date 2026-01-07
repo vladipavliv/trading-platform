@@ -6,11 +6,15 @@
 #ifndef HFT_COMMON_BOOSTTCPTRANSPORT_HPP
 #define HFT_COMMON_BOOSTTCPTRANSPORT_HPP
 
-#include "boost_types.hpp"
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/write.hpp>
+
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "network/network_buffer.hpp"
-#include "types.hpp"
+#include "network/transport/boost/boost_network_types.hpp"
+#include "primitive_types.hpp"
 
 namespace hft {
 
@@ -23,6 +27,9 @@ public:
     socket_.async_read_some(
         boost::asio::buffer(buf.data(), buf.size()),
         [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
+          if (ec) {
+            LOG_ERROR("asyncRx {}", ec.message());
+          }
           clb(ec ? IoResult::Error : IoResult::Ok, bytes);
         });
   }
@@ -32,12 +39,15 @@ public:
     boost::asio::async_write(
         socket_, boost::asio::buffer(buf.data(), buf.size()),
         [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
+          if (ec) {
+            LOG_ERROR("asyncRx {}", ec.message());
+          }
           clb(ec ? IoResult::Error : IoResult::Ok, bytes);
         });
   }
 
   void close() noexcept {
-    boost::system::error_code ec;
+    BoostErrorCode ec;
     socket_.close(ec);
   }
 

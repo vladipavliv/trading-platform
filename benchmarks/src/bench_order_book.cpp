@@ -7,11 +7,14 @@
 
 #include "bus/busable.hpp"
 #include "config/server_config.hpp"
+#include "container_types.hpp"
 #include "execution/order_book.hpp"
+#include "logging.hpp"
+#include "primitive_types.hpp"
 #include "server_domain_types.hpp"
-#include "types.hpp"
+#include "utils/id_utils.hpp"
 #include "utils/rng.hpp"
-#include "utils/utils.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
@@ -22,21 +25,18 @@ public:
   uint64_t counter;
 
   inline static Vector<ServerOrder> orders;
-  inline static std::once_flag initFlag;
 
   BM_Sys_OrderBookFix() {
-    std::call_once(initFlag, []() {
-      ServerConfig::load("bench_server_config.ini");
-      LOG_INIT(ServerConfig::cfg.logOutput);
+    ServerConfig::load("bench_server_config.ini");
+    LOG_INIT(ServerConfig::cfg.logOutput);
 
-      // const size_t ordersCount = ServerConfig::cfg.orderBookLimit - 1;
-      const size_t ordersCount = 16384;
+    // const size_t ordersCount = ServerConfig::cfg.orderBookLimit - 1;
+    const size_t ordersCount = 16384;
 
-      orders.reserve(ordersCount);
-      for (size_t i = 0; i < ordersCount; ++i) {
-        orders.emplace_back(ServerOrder{0, utils::generateOrder()});
-      }
-    });
+    orders.reserve(ordersCount);
+    for (size_t i = 0; i < ordersCount; ++i) {
+      orders.emplace_back(ServerOrder{0, utils::generateOrder()});
+    }
   }
 
   template <typename EventType>

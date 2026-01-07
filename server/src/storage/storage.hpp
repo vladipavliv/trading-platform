@@ -6,10 +6,13 @@
 #ifndef HFT_SERVER_STORAGE_HPP
 #define HFT_SERVER_STORAGE_HPP
 
+#include "container_types.hpp"
 #include "execution/market_data.hpp"
 #include "logging.hpp"
+#include "primitive_types.hpp"
+#include "ticker.hpp"
+#include "traits.hpp"
 #include "type_converters.hpp"
-#include "types.hpp"
 
 namespace hft::server {
 
@@ -46,7 +49,7 @@ public:
 
       ordersSaved += orders.size();
       const auto now = utils::getTimestamp();
-      if (Microseconds(now - lastLog) > ServerConfig::cfg.monitorRate) {
+      if (now - lastLog > ServerConfig::cfg.monitorRate) {
         LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
         lastLog = now;
       }
@@ -82,7 +85,7 @@ public:
       orders.push_back(order);
 
       const auto now = utils::getTimestamp();
-      if (Microseconds(now - lastLog) > ServerConfig::cfg.monitorRate) {
+      if (now - lastLog > ServerConfig::cfg.monitorRate) {
         LOG_INFO_SYSTEM("Loaded {} orders", orders.size());
         lastLog = now;
       }

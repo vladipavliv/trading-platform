@@ -11,8 +11,8 @@
 #include <iomanip>
 #include <sstream>
 
-#include "types.hpp"
-#include "utils/utils.hpp"
+#include "primitive_types.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft {
 

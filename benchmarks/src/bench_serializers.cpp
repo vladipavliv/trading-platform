@@ -7,18 +7,20 @@
 
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
+#include "container_types.hpp"
 #include "domain_types.hpp"
 #include "execution/order_book.hpp"
 #include "metadata_types.hpp"
+#include "primitive_types.hpp"
 #include "serialization/fbs/fbs_domain_serializer.hpp"
 #include "serialization/fbs/fbs_metadata_serializer.hpp"
 #include "serialization/proto/proto_metadata_serializer.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
 #include "server_domain_types.hpp"
 #include "traits.hpp"
-#include "types.hpp"
+#include "utils/id_utils.hpp"
 #include "utils/rng.hpp"
-#include "utils/utils.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
@@ -89,7 +91,9 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   auto size = fbs::FbsDomainSerializer::serialize(utils::generateOrder(), buffer.data());
 
   for (auto _ : state) {
-    size = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
+    auto res = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
+    assert(res);
+    size = *res;
   }
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);
@@ -123,7 +127,9 @@ static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   size_t size = sbe::SbeDomainSerializer::serialize(order, buffer.data());
 
   for (auto _ : state) {
-    size = sbe::SbeDomainSerializer::deserialize(buffer.data(), buffer.size(), bus);
+    auto res = sbe::SbeDomainSerializer::deserialize(buffer.data(), buffer.size(), bus);
+    assert(res);
+    size = *res;
   }
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);

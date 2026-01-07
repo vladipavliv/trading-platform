@@ -6,9 +6,10 @@
 #ifndef HFT_SERVER_SERVEREVENTS_HPP
 #define HFT_SERVER_SERVEREVENTS_HPP
 
+#include "functional_types.hpp"
 #include "network/connection_status.hpp"
+#include "primitive_types.hpp"
 #include "status_code.hpp"
-#include "types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
@@ -23,35 +24,32 @@ struct ServerEvent {
   StatusCode code;
 };
 
+// TODO
 struct ChannelStatusEvent {
   Optional<ClientId> clientId;
   ConnectionStatusEvent event;
 };
 } // namespace server
 
-namespace utils {
 inline String toString(const server::ServerState &event) {
   using namespace server;
   switch (event) {
-  case ServerState::Operational:
+  case server::ServerState::Operational:
     return "server is fully operational";
-  case ServerState::InternalError:
+  case server::ServerState::InternalError:
     return "internal error";
   default:
     return std::format("unknown server event {}", static_cast<uint8_t>(event));
   }
 }
-inline String toString(CRef<server::ServerEvent> event) {
+inline String toString(const server::ServerEvent &event) {
   using namespace server;
-  return std::format("ServerEvent {} {}", utils::toString(event.state),
-                     utils::toString(event.code));
+  return std::format("ServerEvent {} {}", toString(event.state), toString(event.code));
 }
-inline String toString(CRef<server::ChannelStatusEvent> event) {
+inline String toString(const server::ChannelStatusEvent &event) {
   using namespace server;
-  return std::format("ChannelStatusEvent {} {}", event.clientId.value_or(0),
-                     utils::toString(event.event));
+  return std::format("ChannelStatusEvent {} {}", event.clientId.value_or(0), toString(event.event));
 }
-} // namespace utils
 } // namespace hft
 
 #endif // HFT_SERVER_SERVEREVENTS_HPP

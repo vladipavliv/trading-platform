@@ -7,7 +7,7 @@
 #include <boost/lockfree/queue.hpp>
 // #include <folly/MPMCQueue.h>
 
-#include "types.hpp"
+#include "primitive_types.hpp"
 #include "vyukov_queue.hpp"
 
 namespace hft::benchmarks {

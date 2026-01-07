@@ -14,11 +14,11 @@
 #include "ctx_runner.hpp"
 #include "market_data.hpp"
 #include "metadata_types.hpp"
+#include "primitive_types.hpp"
 #include "rtt_tracker.hpp"
 #include "traits.hpp"
-#include "types.hpp"
 #include "utils/rng.hpp"
-#include "utils/utils.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::client {
 
@@ -80,8 +80,8 @@ public:
 private:
   void startWorkers() {
     LOG_INFO_SYSTEM("Starting trade worker");
-    worker_ = Thread{[this]() {
-      utils::setTheadRealTime();
+    worker_ = std::jthread{[this]() {
+      utils::setThreadRealTime();
       if (!ClientConfig::cfg.coresApp.empty()) {
         utils::pinThreadToCore(ClientConfig::cfg.coresApp[0]);
       }
@@ -94,7 +94,7 @@ private:
     const auto result = dbAdapter_.readTickers();
     if (!result || result.value().empty()) {
       LOG_ERROR("Failed to load market data");
-      throw std::runtime_error(utils::toString(result.error()));
+      throw std::runtime_error(toString(result.error()));
     }
     MarketData data;
     const auto &prices = result.value();
@@ -118,23 +118,22 @@ private:
         cursor = marketData_.begin();
       }
       auto &p = *cursor++;
-      const auto newPrice = fluctuateThePrice(p.second.getPrice());
+      const auto newPrice = utils::fluctuateThePrice(p.second.getPrice());
       const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
       const auto quantity = RNG::generate<Quantity>(0, 100);
       const auto id = getTimestampNs(); // TODO(self)
       Order order{id, id, p.first, quantity, newPrice, action};
-      LOG_TRACE("Placing order {}", utils::toString(order));
+      LOG_TRACE("Placing order {}", toString(order));
       bus_.marketBus.post(order);
 
-      for (int i = 0; i < ClientConfig::cfg.tradeRate.count(); ++i) {
+      for (int i = 0; i < ClientConfig::cfg.tradeRate; ++i) {
         std::this_thread::yield();
       }
     }
   }
 
   void onOrderStatus(CRef<OrderStatus> s) {
-    using namespace utils;
-    LOG_DEBUG("{}", utils::toString(s));
+    LOG_DEBUG("{}", toString(s));
     switch (s.state) {
     case OrderState::Rejected:
       LOG_ERROR_SYSTEM("Order {} was rejected", s.orderId);
@@ -154,11 +153,11 @@ private:
   void onTickerPrice(CRef<TickerPrice> price) {
     const auto dataIt = marketData_.find(price.ticker);
     if (dataIt == marketData_.end()) {
-      LOG_ERROR("Ticker {} not found", utils::toString(price.ticker));
+      LOG_ERROR("Ticker {} not found", toString(price.ticker));
       return;
     }
     const Price oldPrice = dataIt->second.getPrice();
-    LOG_DEBUG("Price change {}: {} => {}", utils::toString(price.ticker), oldPrice, price.price);
+    LOG_DEBUG("Price change {}: {} => {}", toString(price.ticker), oldPrice, price.price);
     dataIt->second.setPrice(price.price);
   }
 
@@ -166,10 +165,10 @@ private:
     if (!trading_) {
       return;
     }
-    statsTimer_.expires_after(ClientConfig::cfg.monitorRate);
+    statsTimer_.expires_after(Milliseconds(ClientConfig::cfg.monitorRate));
     statsTimer_.async_wait([this](BoostErrorCode code) {
       if (code) {
-        if (code != ASIO_ERR_ABORTED) {
+        if (code != ERR_ABORTED) {
           LOG_ERROR_SYSTEM("{}", code.message());
         }
         return;
@@ -184,7 +183,7 @@ private:
   const MarketData marketData_;
 
   ClientBus &bus_;
-  Thread worker_;
+  std::jthread worker_;
 
   SteadyTimer statsTimer_;
 

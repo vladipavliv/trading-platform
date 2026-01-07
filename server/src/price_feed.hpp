@@ -6,7 +6,6 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
-#include "boost_types.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "execution/market_data.hpp"
