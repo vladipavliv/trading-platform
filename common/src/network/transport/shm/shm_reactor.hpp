@@ -34,7 +34,7 @@ public:
   }
 
   void run() {
-    LOG_DEBUG("ShmReactor run");
+    LOG_DEBUG_SYSTEM("ShmReactor run");
     if (transport_ == nullptr) {
       throw std::runtime_error("Unable to start, transport is not initialized");
     }
@@ -43,6 +43,11 @@ public:
     auto &waitFlag = localWaitingFlag();
 
     while (running_) {
+      LOG_DEBUG("Reactor cycle");
+      if (transportClosed()) {
+        break;
+      }
+
       if (transport_->tryDrain() > 0) {
         continue;
       }
@@ -55,29 +60,60 @@ public:
         continue;
       }
 
+      if (transportClosed()) {
+        break;
+      }
+
       utils::hybridWait(ftx, ftxVal);
       waitFlag.store(false, std::memory_order_relaxed);
     }
+    LOG_DEBUG("ShmReactor stopped");
   }
 
   void stop() {
+    LOG_DEBUG("Stopping ShmReactor");
     running_.store(false, std::memory_order_release);
-    utils::futexWake(localFtx());
-    utils::futexWake(remoteFtx());
+    notifyLocal();
+    notifyRemote();
   }
 
-  void notify() {
+  void notifyLocal() {
+    LOG_DEBUG("notify local");
+    auto &ftx = localFtx();
+    ftx.fetch_add(1, std::memory_order_release);
+    utils::futexWake(ftx);
+  }
+
+  void notifyClosed(Transport *t) {
+    if (transport_ != t) {
+      t->acknowledgeClosure();
+    } else {
+      notifyLocal();
+    }
+  }
+
+  void notifyRemote() {
     if (isRemoteWaiting()) {
-      LOG_DEBUG("notify");
+      LOG_DEBUG("notify remote");
       auto &ftx = remoteFtx();
       ftx.fetch_add(1, std::memory_order_release);
       utils::futexWake(ftx);
     }
   }
 
-  inline bool running() const { return running_; }
+  inline bool isRunning() const { return running_; }
 
 private:
+  inline bool transportClosed() {
+    LOG_DEBUG("transportClosed {} {}", static_cast<void *>(transport_), transport_->isClosed());
+    if (transport_ != nullptr && transport_->isClosed()) {
+      transport_->acknowledgeClosure();
+      transport_ = nullptr;
+      return true;
+    }
+    return transport_ == nullptr;
+  }
+
   inline auto localFtx() const -> Atomic<uint32_t> & {
     return type_ == ReactorType::Server ? layout_->upstreamFtx : layout_->downstreamFtx;
   }

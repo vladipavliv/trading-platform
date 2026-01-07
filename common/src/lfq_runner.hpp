@@ -43,12 +43,12 @@ public:
   void run() {
     thread_ = std::jthread([this]() {
       try {
+        running_.store(true);
+        running_.notify_all();
+
         if (coreId_.has_value()) {
           utils::pinThreadToCore(coreId_.value());
         }
-
-        running_.store(true);
-        running_.notify_all();
 
         MessageType message;
         while (running_.load(std::memory_order_acquire)) {

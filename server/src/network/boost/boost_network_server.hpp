@@ -43,8 +43,13 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
+    if (running_) {
+      LOG_ERROR("BoostNetworkServer is already running");
+      return;
+    }
     workerThread_ = std::jthread([this]() {
       try {
+        running_ = true;
         utils::setThreadRealTime();
         if (ServerConfig::cfg.coreNetwork.has_value()) {
           const CoreId id = ServerConfig::cfg.coreNetwork.value();
@@ -53,6 +58,11 @@ public:
         } else {
           LOG_DEBUG("Network thread started");
         }
+        ioCtx_.post([this]() {
+          startUpstream();
+          startDownstream();
+          createDatagram();
+        });
         ioCtx_.run();
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
@@ -60,14 +70,17 @@ public:
         bus_.post(InternalError(StatusCode::Error, e.what()));
       }
     });
-    ioCtx_.post([this]() {
-      startUpstream();
-      startDownstream();
-      createDatagram();
-    });
   }
 
-  void stop() { ioCtx_.stop(); }
+  void stop() {
+    if (!running_.exchange(false)) {
+      return;
+    }
+    ioCtx_.stop();
+    if (workerThread_.joinable()) {
+      workerThread_.join();
+    }
+  }
 
   auto getHook() -> std::function<void(Callback &&clb)> {
     return [this](Callback &&clb) { ioCtx_.post(std::move(clb)); };
@@ -166,6 +179,7 @@ private:
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;
 
+  AtomicBool running_{false};
   std::jthread workerThread_;
 };
 
