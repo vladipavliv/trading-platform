@@ -6,12 +6,14 @@
 #ifndef HFT_COMMON_CONFIG_HPP
 #define HFT_COMMON_CONFIG_HPP
 
-#include "logging.hpp"
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <filesystem>
 #include <memory>
 #include <optional>
+
+#include "logging.hpp"
+#include "utils/parse_utils.hpp"
 
 namespace hft {
 
@@ -33,6 +35,20 @@ struct Config {
     } catch (const std::exception &e) {
       LOG_ERROR("Config key '{}' error: {}", name, e.what());
       throw;
+    }
+  }
+
+  template <typename T>
+  static std::vector<T> get_vector(const std::string &name) {
+    try {
+      auto raw = get<std::string>(name);
+      if (raw.empty()) {
+        return {};
+      }
+      return utils::split<T>(raw);
+    } catch (const std::exception &e) {
+      LOG_ERROR("Config vector key '{}' error: {}", name, e.what());
+      return {};
     }
   }
 

@@ -13,7 +13,7 @@
 namespace hft::benchmarks {
 
 inline CoreId getCore(CoreId idx) {
-  static const auto cores = Config::get<Vector<CoreId>>("bench.bench_cores");
+  static const auto cores = Config::get_vector<CoreId>("bench.bench_cores");
   return cores.at(idx);
 }
 

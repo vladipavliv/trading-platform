@@ -21,7 +21,7 @@ inline auto split(const std::string &input) -> std::vector<T> {
   std::string token;
 
   while (std::getline(ss, token, ',')) {
-    if constexpr (std::is_same_v<T, String>) {
+    if constexpr (std::is_same_v<T, std::string>) {
       res.push_back(std::move(token));
     } else {
       res.push_back(std::stoi(token));
