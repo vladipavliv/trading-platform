@@ -41,7 +41,6 @@ public:
   void read() {
     using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
-      LOG_ERROR("read called on disconnected socket");
       return;
     }
     transport_.asyncRx( // format
@@ -60,7 +59,6 @@ public:
   void write(CRef<Type> msg) {
     using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
-      LOG_ERROR("write called on disconnected socket");
       return;
     }
 

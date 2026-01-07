@@ -52,7 +52,7 @@ public:
   }
 
   void asyncRx(ByteSpan buf, RxHandler clb) {
-    LOG_DEBUG("asyncRx");
+    LOG_TRACE("asyncRx {}", buf.size());
     if (closed_) {
       LOG_ERROR("Transport is already closed");
       clb(IoResult::Closed, 0);
@@ -64,7 +64,7 @@ public:
   }
 
   void asyncTx(ByteSpan buffer, auto &&clb) {
-    LOG_DEBUG("asyncTx {}", buffer.size());
+    LOG_TRACE("asyncTx {}", buffer.size());
     if (closed_) {
       LOG_ERROR("Transport is already closed");
       clb(IoResult::Closed, 0);
@@ -74,6 +74,7 @@ public:
     while (!closed_ && !buffer_.write(buffer.data(), buffer.size())) {
       asm volatile("pause" ::: "memory");
       if (++cycles > BUSY_WAIT_CYCLES) {
+        LOG_ERROR("would block");
         clb(IoResult::WouldBlock, 0);
         return;
       }
