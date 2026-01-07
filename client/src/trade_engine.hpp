@@ -19,6 +19,7 @@
 #include "traits.hpp"
 #include "utils/rng.hpp"
 #include "utils/test_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::client {
 
@@ -143,7 +144,7 @@ private:
       Tracker::logRtt(s.orderId);
 #ifdef TELEMETRY_ENABLED
       if (telemetry_) {
-        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, getTimestampNs()});
+        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestampNs()});
       }
 #endif
       break;
