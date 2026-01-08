@@ -14,10 +14,12 @@
 #include "domain_types.hpp"
 #include "events.hpp"
 #include "execution/coordinator.hpp"
+#include "network/channel.hpp"
 #include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
+#include "types/metadata_types.hpp"
 #include "utils/id_utils.hpp"
 
 namespace hft::server {
@@ -62,6 +64,12 @@ public:
       LOG_INFO_SYSTEM("UDP prices channel created {}", id);
       pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
       bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
+    });
+
+    bus_.subscribe<ThreadCounters>([this](CRef<ThreadCounters> c) {
+      LOG_INFO_SYSTEM("Id: {} CtxSwt: inv {} vol {} Pause: {} FtxWait: {} FtxWake: {} MaxDrain: {}",
+                      c.id, c.ctxSwitches.inv, c.ctxSwitches.vol, c.pause, c.futexWait, c.futexWake,
+                      c.maxDrain);
     });
 
     // commands

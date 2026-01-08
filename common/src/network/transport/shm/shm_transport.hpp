@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "constants.hpp"
+#include "container_types.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "primitive_types.hpp"
@@ -16,6 +17,7 @@
 #include "shm_ring_buffer.hpp"
 #include "shm_types.hpp"
 #include "utils/sync_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft {
 
@@ -95,17 +97,18 @@ public:
     }
     LOG_DEBUG("Notify reactor {} {}", static_cast<void *>(this), closed_.load());
     reactor_.notifyClosed(this);
-    const auto start = std::chrono::steady_clock::now();
+    const auto start = utils::getTimestampNs();
     size_t cycles = 0;
     while (!deleted_.load(std::memory_order_acquire)) {
       asm volatile("pause" ::: "memory");
       if (++cycles > BUSY_WAIT_CYCLES) {
         LOG_WARN("Trying to close ShmTransport {}", cycles);
+        if (utils::getTimestampNs() - start > BUSY_WAIT_WALL_MS) {
+          LOG_ERROR_SYSTEM("Failed to properly close ShmTransport");
+          return;
+        }
         std::this_thread::yield();
-      }
-      if (std::chrono::steady_clock::now() - start > Milliseconds(BUSY_WAIT_WALL_MS)) {
-        LOG_ERROR_SYSTEM("Failed to properly close ShmTransport");
-        break;
+        cycles = 0;
       }
     }
   }

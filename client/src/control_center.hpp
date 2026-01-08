@@ -59,6 +59,12 @@ public:
       stop();
     });
 
+    bus_.subscribe<ThreadCounters>([this](CRef<ThreadCounters> c) {
+      LOG_INFO_SYSTEM("Id: {} CtxSwt: inv {} vol {} Pause: {} FtxWait: {} FtxWake: {} MaxDrain: {}",
+                      c.id, c.ctxSwitches.inv, c.ctxSwitches.vol, c.pause, c.futexWait, c.futexWake,
+                      c.maxDrain);
+    });
+
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this]() { stop(); });
   }

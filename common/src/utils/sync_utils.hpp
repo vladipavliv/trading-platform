@@ -37,16 +37,17 @@ inline void futexWait(Futex &futex, uint32_t curr, uint32_t timeout = 0) {
   }
 }
 
-inline void hybridWait(Futex &futex, uint32_t curr, uint64_t spinCount = 10'000) {
+inline uint32_t hybridWait(Futex &futex, uint32_t curr, uint32_t spinCount = 10'000) {
   LOG_TRACE("hybridWait {}", curr);
-  for (uint64_t i = 0; i < spinCount; ++i) {
+  for (uint32_t i = 0; i < spinCount; ++i) {
     if (futex.load(std::memory_order_acquire) != curr)
-      return;
+      return i;
     __builtin_ia32_pause();
   }
   if (futex.load(std::memory_order_acquire) == curr) {
     futexWait(futex, curr);
   }
+  return spinCount;
 }
 
 } // namespace hft::utils

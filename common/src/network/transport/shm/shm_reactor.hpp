@@ -10,16 +10,19 @@
 #include "shm_drainable.hpp"
 #include "shm_layout.hpp"
 #include "shm_types.hpp"
+#include "types/metadata_types.hpp"
 #include "utils/sync_utils.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft {
 
-template <typename Transport>
+template <typename TransportT>
 class ShmReactor {
 public:
-  explicit ShmReactor(ShmLayout *layout, ReactorType type) : type_{type}, layout_{layout} {}
+  explicit ShmReactor(ShmLayout *layout, ReactorType type, SystemBus &bus)
+      : type_{type}, layout_{layout}, bus_{bus} {}
 
-  void add(Transport *t) {
+  void add(TransportT *t) {
     if (type_ == ReactorType::Server && t->type() == ShmTransportType::Upstream) {
       transport_ = t;
     } else if (type_ == ReactorType::Client && t->type() == ShmTransportType::Downstream) {
@@ -27,7 +30,7 @@ public:
     }
   }
 
-  void remove(Transport *t) {
+  void remove(TransportT *t) {
     if (t == transport_) {
       transport_ = nullptr;
     }
@@ -38,24 +41,42 @@ public:
     if (transport_ == nullptr) {
       throw std::runtime_error("Unable to start, transport is not initialized");
     }
+    counters_.id = utils::getCoreId();
+
     running_.store(true, std::memory_order_release);
     auto &ftx = localFtx();
     auto &waitFlag = localWaitingFlag();
 
+    uint64_t cycles = 0;
     while (running_) {
+      if (++cycles > 3000000) {
+        counters_.ctxSwitches = utils::checkSwitches();
+        bus_.post(counters_);
+        cycles = 0;
+      }
+
       if (transportClosed()) {
         break;
       }
 
-      if (transport_->tryDrain() > 0) {
+      uint64_t drainStart = __rdtsc();
+      auto drained = transport_->tryDrain();
+      auto delta = __rdtsc() - drainStart;
+      counters_.maxDrain = std::max(counters_.maxDrain, (uint64_t)delta);
+
+      if (drained > 0) {
         continue;
       }
 
       uint32_t ftxVal = ftx.load(std::memory_order_acquire);
-      waitFlag.store(true, std::memory_order_seq_cst);
+      waitFlag.store(true, std::memory_order_release);
 
-      if (transport_->tryDrain() > 0) {
-        waitFlag.store(false, std::memory_order_relaxed);
+      drainStart = __rdtsc();
+      drained = transport_->tryDrain();
+      delta = __rdtsc() - drainStart;
+      counters_.maxDrain = std::max(counters_.maxDrain, (uint64_t)delta);
+
+      if (drained > 0) {
         continue;
       }
 
@@ -63,7 +84,12 @@ public:
         break;
       }
 
-      utils::hybridWait(ftx, ftxVal);
+      auto waitRes = utils::hybridWait(ftx, ftxVal);
+      if (waitRes == 10'000) {
+        counters_.futexWait++;
+      } else {
+        counters_.pause += waitRes;
+      }
       waitFlag.store(false, std::memory_order_relaxed);
     }
     LOG_DEBUG("ShmReactor stopped");
@@ -83,7 +109,7 @@ public:
     utils::futexWake(ftx);
   }
 
-  void notifyClosed(Transport *t) {
+  void notifyClosed(TransportT *t) {
     if (transport_ != t) {
       t->acknowledgeClosure();
     } else {
@@ -92,7 +118,9 @@ public:
   }
 
   void notifyRemote() {
-    if (isRemoteWaiting()) {
+    auto &w = getRemoteWaiting();
+    if (w.load(std::memory_order_acquire)) {
+      counters_.futexWake++;
       auto &ftx = remoteFtx();
       auto val = ftx.fetch_add(1, std::memory_order_release);
       LOG_TRACE("notify remote {}", val);
@@ -125,18 +153,22 @@ private:
     return type_ == ReactorType::Server ? layout_->upstreamWaiting : layout_->downstreamWaiting;
   }
 
-  inline bool isRemoteWaiting() const {
-    return type_ == ReactorType::Server ? layout_->downstreamWaiting.load(std::memory_order_acquire)
-                                        : layout_->upstreamWaiting.load(std::memory_order_acquire);
+  inline AtomicBool &getRemoteWaiting() {
+    return type_ == ReactorType::Server ? layout_->downstreamWaiting : layout_->upstreamWaiting;
   }
+
+  inline bool isRemoteWaiting() const { return getRemoteWaiting().load(std::memory_order_acquire); }
 
 private:
   const ReactorType type_;
+  SystemBus &bus_;
 
   ShmLayout *layout_{nullptr};
 
-  Transport *transport_{nullptr};
+  TransportT *transport_{nullptr};
   Atomic<bool> running_{false};
+
+  ThreadCounters counters_;
 };
 
 } // namespace hft

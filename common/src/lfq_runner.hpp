@@ -46,6 +46,7 @@ public:
         running_.store(true);
         running_.notify_all();
 
+        utils::setThreadRealTime();
         if (coreId_.has_value()) {
           utils::pinThreadToCore(coreId_.value());
         }

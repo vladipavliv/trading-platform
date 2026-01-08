@@ -30,7 +30,7 @@ namespace hft::client {
  */
 class TradeEngine {
 public:
-  using Tracker = RttTracker<1000>;
+  using Tracker = RttTracker<1000, 100000>;
 
   explicit TradeEngine(ClientBus &bus)
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
@@ -146,10 +146,11 @@ private:
       tradeStop();
       break;
     default:
-      Tracker::logRtt(s.orderId);
+      const Timestamp now = utils::getTimestampNs();
+      Tracker::logRtt(s.orderId, now);
 #ifdef TELEMETRY_ENABLED
       if (telemetry_) {
-        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, utils::getTimestampNs()});
+        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, now});
       }
 #endif
       break;

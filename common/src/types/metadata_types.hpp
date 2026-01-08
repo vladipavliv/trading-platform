@@ -33,6 +33,20 @@ struct LogEntry {
   String level;
 };
 
+struct CtxSwitches {
+  uint32_t inv{0};
+  uint32_t vol{0};
+};
+
+struct ThreadCounters {
+  CoreId id{};
+  CtxSwitches ctxSwitches;
+  uint64_t pause{0};
+  uint64_t futexWait{0};
+  uint64_t futexWake{0};
+  uint64_t maxDrain{0};
+};
+
 inline String toString(const MetadataSource &event) {
   switch (event) {
   case MetadataSource::Client:

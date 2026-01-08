@@ -36,7 +36,7 @@ template <typename T>
 using Atomic = std::atomic<T>;
 
 using AtomicBool = std::atomic<bool>;
-using AtomicInt = std::atomic<int>;
+using AtomicUInt32 = std::atomic<uint32_t>;
 using AtomicUint64 = std::atomic<uint64_t>;
 using AtomicFlag = std::atomic_flag;
 
