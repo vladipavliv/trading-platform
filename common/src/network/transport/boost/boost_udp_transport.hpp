@@ -9,9 +9,9 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/udp.hpp>
 
+#include "container_types.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
-#include "network/network_buffer.hpp"
 #include "network/transport/boost/boost_network_types.hpp"
 #include "primitive_types.hpp"
 
@@ -21,27 +21,35 @@ class BoostUdpTransport {
 public:
   explicit BoostUdpTransport(UdpSocket &&socket) : socket_{std::move(socket)} {}
 
+  BoostUdpTransport(BoostUdpTransport &&) = default;
+  BoostUdpTransport &operator=(BoostUdpTransport &&) = default;
+
   template <typename Callback>
   void asyncRx(ByteSpan buf, Callback &&clb) {
-    socket_.async_receive(
-        boost::asio::buffer(buf.data(), buf.size()),
-        [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
-          clb(ec ? IoResult::Error : IoResult::Ok, bytes);
-        });
+    using namespace boost::asio;
+    auto handler = [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
+      clb(toIoResult(ec), bytes);
+    };
+    static_assert(sizeof(handler) <= MAX_HANDLER_SIZE, "async handler is too large");
+    socket_.async_receive(buffer(buf.data(), buf.size()), std::move(handler));
   }
 
   template <typename Callback>
   void asyncTx(ByteSpan buf, Callback &&clb) {
-    socket_.async_send(
-        boost::asio::buffer(buf.data(), buf.size()),
-        [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
-          clb(ec ? IoResult::Error : IoResult::Ok, bytes);
-        });
+    using namespace boost::asio;
+    auto handler = [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
+      clb(toIoResult(ec), bytes);
+    };
+    static_assert(sizeof(handler) <= MAX_HANDLER_SIZE, "async handler is too large");
+    socket_.async_send(buffer(buf.data(), buf.size()), std::move(handler));
   }
 
-  void close() noexcept {
+  void close() {
     BoostErrorCode ec;
     socket_.close(ec);
+    if (ec) {
+      LOG_ERROR("{}", ec.message());
+    }
   }
 
 private:
