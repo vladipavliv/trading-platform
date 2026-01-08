@@ -39,7 +39,6 @@ public:
   }
 
   void read() {
-    using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
       return;
     }
@@ -57,23 +56,25 @@ public:
   template <typename Type>
     requires(Framer::template Framable<Type>)
   void write(CRef<Type> msg) {
-    using namespace utils;
     if (status_ != ConnectionStatus::Connected) {
       return;
     }
 
-    NetworkBuffer netBuff{BufferPool<>::instance().acquire()};
+    BufferLease netBuff{BufferPool<>::instance().acquire()};
     if (!netBuff) {
       LOG_ERROR("Failed to acquire network buffer, message dropped");
       return;
     }
-    netBuff.setSize(Framer::frame(msg, netBuff.data()));
-    auto dataSpan = netBuff.dataSpan();
+    netBuff.size = Framer::frame(msg, netBuff.data);
+    if (netBuff.size > netBuff.capacity) {
+      throw std::logic_error(
+          std::format("Buffer overflow available: {} needed: {}", netBuff.capacity, netBuff.size));
+    }
+    const auto dataSpan = ByteSpan{netBuff.data, netBuff.size};
     LOG_TRACE("sending {} bytes", dataSpan.size());
-
     transport_.asyncTx(dataSpan, [self = this->weak_from_this(),
-                                  buff = std::move(netBuff)](IoResult code, size_t bytes) {
-      BufferPool<>::instance().release(buff.index());
+                                  idx = netBuff.index](IoResult code, size_t bytes) {
+      BufferPool<>::instance().release(idx);
       auto sharedSelf = self.lock();
       if (!sharedSelf) {
         LOG_ERROR("Channel vanished");
@@ -83,17 +84,19 @@ public:
     });
   }
 
-  inline ConnectionId id() const { return id_; }
+  inline ConnectionId id() const noexcept { return id_; }
 
-  inline BusT &bus() { return bus_; }
+  inline BusT &bus() noexcept { return bus_; }
 
-  inline auto status() const -> ConnectionStatus { return status_; }
+  inline auto status() const noexcept -> ConnectionStatus { return status_; }
 
-  inline auto isConnected() const -> bool { return status_ == ConnectionStatus::Connected; }
+  inline auto isConnected() const noexcept -> bool {
+    return status_ == ConnectionStatus::Connected;
+  }
 
-  inline auto isError() const -> bool { return status_ == ConnectionStatus::Error; }
+  inline auto isError() const noexcept -> bool { return status_ == ConnectionStatus::Error; }
 
-  inline void close() noexcept {
+  inline void close() {
     LOG_DEBUG("Channel close");
     transport_.close();
     status_ = ConnectionStatus::Disconnected;
@@ -121,8 +124,7 @@ private:
   }
 
   void writeHandler(IoResult code, size_t bytes) {
-    if (code != IoResult::Ok) {
-      LOG_ERROR("writeHandler error");
+    if (code != IoResult::Ok && code != IoResult::Closed) {
       onStatus(ConnectionStatus::Error);
     }
   }

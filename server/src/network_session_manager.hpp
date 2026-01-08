@@ -249,14 +249,14 @@ private:
     LOG_DEBUG("{}", toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end()) [[unlikely]] {
-      LOG_ERROR_SYSTEM("Client {} is offline", status.clientId);
+      LOG_TRACE("Client {} is offline", status.clientId);
       return;
     }
     const auto session = sessionIter->second;
     if (session->downstreamChannel != nullptr) [[likely]] {
       session->downstreamChannel->write(status.orderStatus);
     } else {
-      LOG_ERROR_SYSTEM("No downstream connection for {}", status.clientId);
+      LOG_ERROR("No downstream connection for {}", status.clientId);
     }
   }
 

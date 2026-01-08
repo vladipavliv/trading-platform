@@ -5,10 +5,11 @@ ENV GITHUB_ACTIONS=${GITHUB_ACTIONS}
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG BUILD_TYPE=Release
-ARG CXX=/usr/bin/g++
+ARG CXX=/usr/bin/g++-13
 
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config \
+    g++-13 \
     libboost-all-dev libspdlog-dev librdkafka-dev \
     libdouble-conversion-dev libiberty-dev binutils-dev \
     libgoogle-glog-dev libpq-dev libbenchmark-dev \
@@ -56,6 +57,8 @@ COPY . .
 RUN cmake -S . -B build \
         -DCMAKE_CXX_COMPILER=${CXX} \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DTARGET_ARCH=x86-64-v3 \
+        -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG \
         -DSERIALIZATION=FBS \
         -DCOMM_TYPE_SHM=OFF \
         -DTELEMETRY_ENABLED=ON && \
@@ -74,9 +77,16 @@ COPY tests /app/tests
 
 RUN apt-get update && apt-get install -y \
     cmake python3 \
-    libgoogle-glog0v6 libdouble-conversion3 libspdlog1.12 \
-    librdkafka1 libpq5 openjdk-17-jre-headless \
-    libevent-2.1-7 libgflags2.2 libunwind8 libssl3 \
+    libgoogle-glog0v6 \
+    libdouble-conversion3 \
+    libspdlog1.12 \
+    librdkafka1 \
+    libpq5 \
+    openjdk-17-jre-headless \
+    libevent-2.1-7 \
+    libgflags2.2 \
+    libunwind8 \
+    libssl3 \
     libboost-program-options1.83.0 \
     libboost-system1.83.0 \
     libboost-thread1.83.0 \

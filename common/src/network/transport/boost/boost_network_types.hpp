@@ -23,6 +23,8 @@ using TcpResolver = boost::asio::ip::tcp::resolver;
 using Udp = boost::asio::ip::udp;
 using UdpSocket = boost::asio::ip::udp::socket;
 using UdpEndpoint = boost::asio::ip::udp::endpoint;
+
+static constexpr size_t MAX_HANDLER_SIZE = 64;
 } // namespace hft
 
 #endif // HFT_COMMON_BOOSTNETWORKTYPES_HPP

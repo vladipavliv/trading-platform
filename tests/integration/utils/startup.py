@@ -101,6 +101,28 @@ def running_process(name, log_to_console=True):
         if stderr_thread is not None:
             stderr_thread.join()
 
+    # Display the logs
+    if name == "server":
+        log_file = pathlib.Path("server_log.txt") 
+        
+        print("\n" + "="*20 + " SERVER LOGS " + "="*20)
+        if log_file.exists():
+            with open(log_file, "r") as f:
+                print(f.read())
+        else:
+            bin_log = BINARIES["server"][0].parent / "server_log.txt"
+            if bin_log.exists():
+                with open(bin_log, "r") as f:
+                    print(f.read())
+            else:
+                print("Could not find server_log.txt")
+        print("="*53 + "\n")
+
+    if stdout_thread is not None:
+        stdout_thread.join()
+    if stderr_thread is not None:
+        stderr_thread.join()
+
 running_server = lambda: running_process("server")
 running_client = lambda: running_process("client")
 running_monitor = lambda: running_process("monitor", log_to_console=False)
