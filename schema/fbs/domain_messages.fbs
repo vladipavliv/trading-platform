@@ -2,7 +2,8 @@ namespace hft.serialization.gen.fbs.domain;
 
 enum OrderAction: byte {
     BUY = 0,
-    SELL = 1
+    SELL = 1,
+    DUMMY = 2,
 }
 
 enum OrderState: int {

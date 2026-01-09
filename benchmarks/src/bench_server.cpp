@@ -5,6 +5,8 @@
 
 #include "bench_server.hpp"
 #include "config/config.hpp"
+#include "internal_error.hpp"
+#include "logging.hpp"
 #include "utils/bench_utils.hpp"
 
 namespace hft::benchmarks {
@@ -35,7 +37,7 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
 
   ServerConfig::cfg.coresApp.clear();
 
-  ServerConfig::cfg.coreSystem = Config::get<size_t>("bench.bench_e_core");
+  // ServerConfig::cfg.coreSystem = Config::get<size_t>("bench.bench_e_core");
   ServerConfig::cfg.coreNetwork = getCore(0);
 
   for (size_t i = 1; i <= workerCount; ++i) {
@@ -88,38 +90,49 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, AsyncProcess)(benchmark::State &state) {
 
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
-  if (ServerConfig::cfg.coreNetwork) {
-    utils::pinThreadToCore(ServerConfig::cfg.coreNetwork.value());
-  }
-
   const uint64_t ordersCount = orders.orders.size();
 
   alignas(64) std::atomic<uint64_t> processed;
-  alignas(64) std::atomic_flag signal;
+  alignas(64) AtomicUInt32 signal;
 
-  bus->subscribe<ServerOrderStatus>([&processed, &signal, ordersCount](CRef<ServerOrderStatus> s) {
-    if (s.orderStatus.state == OrderState::Accepted &&
-        processed.fetch_add(1, std::memory_order_relaxed) + 1 == ordersCount) {
-      signal.test_and_set(std::memory_order_release);
-    } else if (s.orderStatus.state == OrderState::Rejected) {
-      throw std::runtime_error("Increase OrderBook limit");
-    }
-  });
+  bus->subscribe<ServerOrderStatus>(
+      [this, &processed, &signal, ordersCount](CRef<ServerOrderStatus> s) {
+        if (s.orderStatus.state == OrderState::Accepted &&
+            processed.fetch_add(1, std::memory_order_release) + 1 == ordersCount) {
+          signal.fetch_add(1, std::memory_order_release);
+          utils::futexWake(signal);
+        } else if (s.orderStatus.state == OrderState::Rejected) {
+          error_.store(true, std::memory_order_release);
+          LOG_ERROR_SYSTEM("Increase OrderBook limit");
+        }
+      });
 
   while (state.KeepRunningBatch(ordersCount)) {
-    processed = 0;
-    signal.clear();
+    if (error_.load(std::memory_order_acquire)) {
+      throw std::runtime_error("error");
+    }
+    processed.store(0, std::memory_order_release);
 
     for (const auto &order : orders.orders) {
       bus->post(order);
     }
 
-    while (!signal.test(std::memory_order_acquire)) {
-      asm volatile("pause" ::: "memory");
+    auto ftxVal = signal.load(std::memory_order_acquire);
+    if (ftxVal < ordersCount) {
+      utils::futexWait(signal, ftxVal, 100000000);
     }
+
+    auto res = processed.load(std::memory_order_acquire);
+    if (res < ordersCount) {
+      throw std::runtime_error(std::format("Benchmark failed"));
+    }
+    marketData.cleanup();
+
     benchmark::DoNotOptimize(processed);
     benchmark::DoNotOptimize(signal);
   }
+  coordinator->stop();
+  coordinator.reset();
 }
 
 BENCHMARK_REGISTER_F(BM_Sys_ServerFix, AsyncProcess)

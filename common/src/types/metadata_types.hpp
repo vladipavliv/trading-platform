@@ -8,6 +8,7 @@
 
 #include "domain_types.hpp"
 #include "primitive_types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft {
 
@@ -33,6 +34,30 @@ struct LogEntry {
   String level;
 };
 
+struct RUsageSnapshot {
+  // CPU time spent executing user code
+  uint64_t userTimeNs{};
+  // CPU time spent executing kernel code (system calls)
+  uint64_t systemTimeNs{};
+  // local context switches
+  uint64_t volSwitches{};
+  // forced context switches
+  uint64_t involSwitches{};
+  // Number of page faults that did not require disk access
+  uint64_t softPageFaults{};
+  // Number of page faults that required reading from disk (major page faults)
+  uint64_t hardPageFaults{};
+};
+
+struct ProfilingData {
+  CoreId coreId{};
+  RUsageSnapshot ruSnapshot;
+  uint64_t waitSpins{};
+  uint64_t ftxWait{};
+  uint64_t ftxWake{};
+  uint64_t maxCall{};
+};
+
 inline String toString(const MetadataSource &event) {
   switch (event) {
   case MetadataSource::Client:
@@ -45,18 +70,30 @@ inline String toString(const MetadataSource &event) {
 }
 
 inline String toString(const OrderTimestamp &event) {
-  return std::format("OrderTimestamp: id={} created={} fulfilled={} notified={}", event.orderId,
+  return std::format("OrderTimestamp: id:{} Created:{} Fulfilled:{} Notified:{}", event.orderId,
                      event.created, event.fulfilled, event.notified);
 }
 
 inline String toString(const RuntimeMetrics &event) {
-  return std::format("RuntimeMetrics: source={} ts={} rps={} avg_lat={}us", toString(event.source),
-                     event.timeStamp, event.rps, event.avgLatencyUs);
+  return std::format("RuntimeMetrics: Source:{} Ts:{} Rps:{} AngLat:{}", toString(event.source),
+                     event.timeStamp, event.rps, utils::formatNs(event.avgLatencyUs));
 }
 
 inline String toString(const LogEntry &event) {
-  return std::format("LogEntry: source={} msg='{}' level={}", toString(event.source), event.message,
+  return std::format("LogEntry: source:{} msg='{}' level:{}", toString(event.source), event.message,
                      event.level);
+}
+
+inline std::string toString(const RUsageSnapshot &ru) {
+  return std::format("Rusg Usr:{} Sys:{} VolSw:{} InvolSw:{} SoftPgFlt:{} HardPgFlt:{}",
+                     utils::formatNs(ru.userTimeNs), utils::formatNs(ru.systemTimeNs),
+                     ru.volSwitches, ru.involSwitches, ru.softPageFaults, ru.hardPageFaults);
+}
+
+inline std::string toString(const ProfilingData &pd) {
+  return std::format("Core:{} WaitSpins:{} FtxWait:{} FtxWake:{} MaxCall:{} {}", pd.coreId,
+                     pd.waitSpins, pd.ftxWait, pd.ftxWake, utils::formatNs(pd.maxCall),
+                     toString(pd.ruSnapshot));
 }
 
 } // namespace hft

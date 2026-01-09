@@ -14,10 +14,12 @@
 #include "domain_types.hpp"
 #include "events.hpp"
 #include "execution/coordinator.hpp"
+#include "network/channel.hpp"
 #include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
+#include "types/metadata_types.hpp"
 #include "utils/id_utils.hpp"
 
 namespace hft::server {
@@ -63,6 +65,9 @@ public:
       pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
       bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
     });
+
+    bus_.subscribe<ProfilingData>(
+        [this](CRef<ProfilingData> data) { LOG_INFO_SYSTEM("{}", toString(data)); });
 
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });

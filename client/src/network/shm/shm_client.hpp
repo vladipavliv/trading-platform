@@ -32,7 +32,8 @@ public:
 
   explicit ShmClient(ClientBus &bus)
       : bus_{bus}, name_{Config::get<String>("shm.shm_name")},
-        size_{Config::get<size_t>("shm.shm_size")}, reactor_{init(), ReactorType::Client} {}
+        size_{Config::get<size_t>("shm.shm_size")},
+        reactor_{init(), ReactorType::Client, bus_.systemBus} {}
 
   ~ShmClient() { stop(); }
 
@@ -51,9 +52,9 @@ public:
         if (ClientConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ClientConfig::cfg.coreNetwork;
           utils::pinThreadToCore(coreId);
-          LOG_DEBUG("Network thread started on the core {}", coreId);
+          LOG_INFO_SYSTEM("Communication thread started on the core {}", coreId);
         } else {
-          LOG_DEBUG("Network thread started");
+          LOG_INFO_SYSTEM("Communication thread started");
         }
         notifyConnected();
         reactor_.run();

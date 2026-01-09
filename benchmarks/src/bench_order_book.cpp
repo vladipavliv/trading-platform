@@ -30,7 +30,6 @@ public:
     ServerConfig::load("bench_server_config.ini");
     LOG_INIT(ServerConfig::cfg.logOutput);
 
-    // const size_t ordersCount = ServerConfig::cfg.orderBookLimit - 1;
     const size_t ordersCount = 16384;
 
     orders.reserve(ordersCount);

@@ -24,11 +24,13 @@
 #include "config/server_config.hpp"
 #include "control_center.hpp"
 #include "logging.hpp"
+#include "utils/time_utils.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace server;
   using namespace boost;
+  using namespace utils;
 
   std::string configPath;
 
@@ -49,6 +51,7 @@ int main(int argc, char *argv[]) {
   try {
     ServerConfig::load(configPath);
     LOG_INIT(ServerConfig::cfg.logOutput);
+    ServerConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
     ServerControlCenter serverCc;
     serverCc.start();

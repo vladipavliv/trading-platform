@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "constants.hpp"
+#include "container_types.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
 #include "primitive_types.hpp"
@@ -16,6 +17,7 @@
 #include "shm_ring_buffer.hpp"
 #include "shm_types.hpp"
 #include "utils/sync_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft {
 
@@ -64,14 +66,19 @@ public:
   }
 
   void asyncTx(ByteSpan buffer, auto &&clb) {
+    using namespace utils;
     LOG_TRACE("asyncTx {}", buffer.size());
-    if (closed_) {
+    if (closed_.load(std::memory_order_acquire)) {
       LOG_ERROR("Transport is already closed");
       clb(IoResult::Closed, 0);
       return;
     }
+#ifdef PROFILING
+    auto t1 = getCycles();
+#endif
     size_t cycles = 0;
-    while (!closed_ && !buffer_.write(buffer.data(), buffer.size())) {
+    while (!buffer_.write(buffer.data(), buffer.size()) &&
+           !closed_.load(std::memory_order_acquire)) {
       asm volatile("pause" ::: "memory");
       if (++cycles > BUSY_WAIT_CYCLES) {
         LOG_ERROR("would block");
@@ -79,10 +86,12 @@ public:
         return;
       }
     }
-    if (closed_) {
-      LOG_DEBUG("already closed");
-      return;
+#ifdef PROFILING
+    auto lt = getCycles() - t1;
+    if (lt > 100000) {
+      LOG_WARN_SYSTEM("Slow write {}", lt);
     }
+#endif
     reactor_.notifyRemote();
     clb(IoResult::Ok, buffer.size());
   }
@@ -93,19 +102,20 @@ public:
       LOG_DEBUG("already closed");
       return;
     }
-    LOG_DEBUG("Notify reactor {} {}", static_cast<void *>(this), closed_.load());
-    reactor_.notifyClosed(this);
-    const auto start = std::chrono::steady_clock::now();
+    reactor_.stop();
+
+    const auto start = utils::getCycles();
     size_t cycles = 0;
     while (!deleted_.load(std::memory_order_acquire)) {
       asm volatile("pause" ::: "memory");
       if (++cycles > BUSY_WAIT_CYCLES) {
         LOG_WARN("Trying to close ShmTransport {}", cycles);
-        std::this_thread::yield();
-      }
-      if (std::chrono::steady_clock::now() - start > Milliseconds(BUSY_WAIT_WALL_MS)) {
-        LOG_ERROR_SYSTEM("Failed to properly close ShmTransport");
-        break;
+        if (utils::getCycles() - start > BUSY_WAIT_CYCLES) {
+          LOG_ERROR_SYSTEM("Failed to properly close ShmTransport");
+          return;
+        }
+        asm volatile("pause" ::: "memory");
+        cycles = 0;
       }
     }
   }

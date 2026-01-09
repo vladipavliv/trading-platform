@@ -11,18 +11,18 @@
 namespace hft::utils {
 
 inline auto generateOrderId() -> uint64_t {
-  static std::atomic<uint64_t> counter{0};
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  static uint64_t counter{0};
+  return counter++;
 }
 
 inline auto generateConnectionId() -> uint64_t {
-  static std::atomic<uint64_t> counter{0};
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  static uint64_t counter{0};
+  return counter++;
 }
 
 inline auto generateToken() -> uint64_t {
-  static std::atomic<uint64_t> counter{0};
-  return counter.fetch_add(1, std::memory_order_relaxed);
+  static uint64_t counter{0};
+  return counter++;
 }
 
 } // namespace hft::utils

@@ -54,9 +54,15 @@ namespace hft::server {
  */
 class Coordinator {
   struct Matcher {
+    static constexpr size_t FLUSH_COUNTER = 1000;
+
     Matcher(ServerBus &bus, const MarketData &data) : bus{bus}, data{data} {}
 
     inline void post(CRef<ServerOrder> so) {
+      thread_local size_t counter = 0;
+      if (so.order.action == OrderAction::Dummy) {
+        return;
+      }
       const auto &oData = data.at(so.order.ticker);
       if (oData.orderBook.add(so, bus)) {
         oData.orderBook.match(bus);
@@ -64,12 +70,15 @@ class Coordinator {
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
       oData.orderBook.sendAck(so, bus);
 #endif
-      ordersTotal.fetch_add(1, std::memory_order_relaxed);
+      if (++counter > FLUSH_COUNTER) {
+        ordersTotal.fetch_add(counter, std::memory_order_relaxed);
+        counter = 0;
+      }
     }
 
     ServerBus &bus;
     const MarketData &data;
-    std::atomic_uint64_t ordersTotal;
+    std::atomic_uint64_t ordersTotal{0};
   };
 
   using Worker = LfqRunner<ServerOrder, Matcher>;
@@ -80,12 +89,21 @@ public:
         monitorRate_{Milliseconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
     bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
       if (matcher_.data.count(order.order.ticker) == 0) {
-        LOG_ERROR_SYSTEM("{} is not found in the data {}", toString(order.order.ticker),
-                         matcher_.data.size());
+        LOG_ERROR_SYSTEM("Ticker not found {}", toString(order.order.ticker));
         return;
       }
       const auto &data = matcher_.data.at(order.order.ticker);
-      workers_[data.getThreadId()]->post(order);
+      auto &worker = workers_[data.getThreadId()];
+
+      uint32_t retries = 0;
+      bool posted = worker->post(order);
+      while (!posted && ++retries < BUSY_WAIT_CYCLES) {
+        posted = worker->post(order);
+        asm volatile("pause" ::: "memory");
+      }
+      if (!posted) {
+        LOG_ERROR_SYSTEM("Failed to post order");
+      }
     });
     bus_.subscribe(Command::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
@@ -128,6 +146,10 @@ private:
   }
 
   void scheduleStatsTimer() {
+    using namespace utils;
+    if (monitorRate_.count() == 0) {
+      return;
+    }
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {
@@ -141,8 +163,12 @@ private:
       const uint64_t ttlDelta = currentTtl - lastTtl;
       const uint64_t rps = (ttlDelta * 1000) / monitorRate_.count();
 
+      const auto opnStr = thousandify(openedOrders());
+      const auto ttlStr = thousandify(currentTtl);
+      const auto rpsStr = thousandify(rps);
+
       if (rps != 0) {
-        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", openedOrders(), currentTtl, rps);
+        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
 
         if (telemetry_) {
           bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestampNs(), rps, 0});

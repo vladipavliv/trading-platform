@@ -27,16 +27,16 @@ struct ShmRingBuffer {
   alignas(64) std::atomic<Index> tail{0};
   alignas(64) uint8_t data[BUFFER_SIZE];
 
-  Index cached_head{0};
-  Index cached_tail{0};
+  alignas(64) Index cachedHead{0};
+  alignas(64) Index cachedTail{0};
 
   bool write(const uint8_t *buf, uint32_t len) noexcept {
     const Index t = tail.load(std::memory_order_relaxed);
-    const Index h = cached_head;
+    const Index h = cachedHead;
 
     if (len > BUFFER_SIZE - (t - h) - 1) [[unlikely]] {
-      cached_head = head.load(std::memory_order_acquire);
-      if (len > BUFFER_SIZE - (t - cached_head) - 1) {
+      cachedHead = head.load(std::memory_order_acquire);
+      if (len > BUFFER_SIZE - (t - cachedHead) - 1) {
         return false;
       }
     }
@@ -55,12 +55,12 @@ struct ShmRingBuffer {
 
   uint32_t read(uint8_t *buf, Index maxLen) noexcept {
     const Index h = head.load(std::memory_order_relaxed);
-    Index t = cached_tail;
+    Index t = cachedTail;
 
     Index avail = t - h;
     if (avail == 0) [[unlikely]] {
       t = tail.load(std::memory_order_acquire);
-      cached_tail = t;
+      cachedTail = t;
       avail = t - h;
       if (avail == 0)
         return 0;

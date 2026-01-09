@@ -62,7 +62,7 @@ public:
 
     BufferLease netBuff{BufferPool<>::instance().acquire()};
     if (!netBuff) {
-      LOG_ERROR("Failed to acquire network buffer, message dropped");
+      LOG_ERROR_SYSTEM("Failed to acquire network buffer, message dropped");
       return;
     }
     netBuff.size = Framer::frame(msg, netBuff.data);

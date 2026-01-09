@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <ctime>
+#include <utility>
 #include <x86intrin.h>
 
 namespace hft::utils {
@@ -24,9 +25,31 @@ namespace hft::utils {
   return static_cast<uint64_t>(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
 }
 
-[[nodiscard]] inline __attribute__((always_inline)) auto getCycles() -> uint64_t {
-  _mm_lfence();
-  return __rdtsc();
+inline __attribute__((always_inline)) auto getCycles() -> uint64_t {
+  unsigned aux;
+  return __rdtscp(&aux);
+}
+
+/**
+ * @brief Returns multiplier to convert cpu cycles to ns
+ */
+[[nodiscard]] inline auto getNsPerCycle() -> double {
+  for (int i = 0; i < 10; ++i) {
+    getCycles();
+    __asm__ volatile("" : : : "memory");
+  }
+
+  auto t1 = std::chrono::high_resolution_clock::now();
+  uint64_t c1 = getCycles();
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  uint64_t c2 = getCycles();
+  auto t2 = std::chrono::high_resolution_clock::now();
+
+  auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+
+  return static_cast<double>(ns) / static_cast<double>(c2 - c1);
 }
 
 } // namespace hft::utils

@@ -23,7 +23,7 @@ struct BufferLease {
   constexpr bool operator!() const noexcept { return data == nullptr; }
 };
 
-template <uint32_t BufferSize = 128, uint32_t PoolSize = 1024 * 1024>
+template <uint32_t BufferSize = 128, uint32_t PoolSize = 32 * 1024>
 class BufferPool {
 public:
   static constexpr uint32_t BUFFER_SIZE = BufferSize;

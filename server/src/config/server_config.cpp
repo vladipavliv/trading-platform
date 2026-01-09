@@ -65,7 +65,7 @@ void ServerConfig::load(CRef<String> fileName) {
 void ServerConfig::log() {
   LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                   cfg.portUdp);
-  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} PriceFeedRate:{}us",
+  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} PriceFeedRate:{}µs",
                   cfg.coreSystem.value_or(0), cfg.coreNetwork.value_or(0), toString(cfg.coresApp),
                   cfg.priceFeedRate);
   LOG_INFO_SYSTEM("OrderBookLimit: {} OrderBookPersist: {}", cfg.orderBookLimit,

@@ -59,6 +59,9 @@ public:
       stop();
     });
 
+    bus_.subscribe<ProfilingData>(
+        [this](CRef<ProfilingData> data) { LOG_INFO_SYSTEM("{}", toString(data)); });
+
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this]() { stop(); });
   }

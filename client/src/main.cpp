@@ -23,6 +23,7 @@
 #include "config/client_config.hpp"
 #include "control_center.hpp"
 #include "logging.hpp"
+#include "utils/time_utils.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;
@@ -48,6 +49,7 @@ int main(int argc, char *argv[]) {
   try {
     ClientConfig::load(configPath);
     LOG_INIT(ClientConfig::cfg.logOutput);
+    ClientConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
     ClientControlCenter clientCc;
     clientCc.start();

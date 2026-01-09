@@ -52,13 +52,11 @@ class OrderBook {
   }
   static inline ServerOrderStatus getStatus( // format
       CRef<InternalOrder> o, Quantity quantity, Price price, OrderState state) {
-    return ServerOrderStatus( // format
-        o.clientId, {o.id, utils::getTimestampNs(), quantity, price, state});
+    return ServerOrderStatus(o.clientId, {o.id, 0, quantity, price, state});
   }
   static inline ServerOrderStatus getStatus( // format
       CRef<ServerOrder> o, Quantity quantity, Price price, OrderState state) {
-    return ServerOrderStatus( // format
-        o.clientId, {o.order.id, utils::getTimestampNs(), quantity, price, state});
+    return ServerOrderStatus(o.clientId, {o.order.id, 0, quantity, price, state});
   }
 
 public:
@@ -69,12 +67,15 @@ public:
 
   OrderBook(OrderBook &&other) noexcept
       : bids_{std::move(other.bids_)}, asks_{std::move(other.asks_)},
-        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {};
+        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {
+    other.openedOrders_.store(0);
+  };
 
   OrderBook &operator=(OrderBook &&other) noexcept {
     bids_ = std::move(other.bids_);
     asks_ = std::move(other.asks_);
     openedOrders_ = other.openedOrders_.load(std::memory_order_acquire);
+    other.openedOrders_.store(0);
     return *this;
   };
 

@@ -6,14 +6,18 @@
 #ifndef HFT_COMMON_THREADUTILS_HPP
 #define HFT_COMMON_THREADUTILS_HPP
 
+#include <cstdint>
+#include <format>
 #include <pthread.h>
 #include <sched.h>
-#include <stdexcept>
 #include <system_error>
+#include <x86intrin.h>
 
 #include "logging.hpp"
 
 namespace hft::utils {
+
+constexpr uint32_t CORE_ID_MASK = 0xFFF;
 
 inline void pinThreadToCore(int coreId) {
   cpu_set_t cpuset;
@@ -33,12 +37,18 @@ inline void setThreadRealTime(int priority = 99) {
   const int result = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (result != 0) {
     if (result == EPERM) {
-      LOG_ERROR("Insufficient permissions for Real-Time priority (99)");
+      LOG_ERROR_SYSTEM("Insufficient permissions for Real-Time priority (99)");
       return;
     }
-    LOG_ERROR("Failed to set real-time priority: {}, error: {}", priority, result);
+    LOG_ERROR_SYSTEM("Failed to set real-time priority: {}, error: {}", priority, result);
     throw std::system_error(result, std::generic_category(), "pthread_setschedparam");
   }
+}
+
+[[nodiscard]] inline __attribute__((always_inline)) auto getCoreId() -> uint32_t {
+  unsigned aux;
+  uint64_t tsc = __rdtscp(&aux);
+  return aux & CORE_ID_MASK;
 }
 
 } // namespace hft::utils

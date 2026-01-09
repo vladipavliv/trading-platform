@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "logging.hpp"
+
 namespace hft {
 
 /**
@@ -76,6 +78,7 @@ public:
           break;
         }
       } else if (diff < 0) {
+        LOG_ERROR_SYSTEM("VyukovQueue push failed");
         return false;
       } else {
         tail = tail_.load(std::memory_order_relaxed);

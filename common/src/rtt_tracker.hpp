@@ -21,72 +21,53 @@ namespace hft {
  */
 template <size_t... Ranges>
 class RttTracker {
-  static_assert(sizeof...(Ranges) > 0, "Need at least one range");
-  static_assert(sizeof...(Ranges) < 2 || utils::is_ascending<Ranges...>(),
-                "Ranges must be ascending");
-
   static constexpr std::array<size_t, sizeof...(Ranges)> rangeValues{Ranges...};
   static constexpr size_t RangeCount = sizeof...(Ranges) + 1;
-  static constexpr uint64_t FlushTimeoutNs = 1'000'000'000ULL;
 
-  struct alignas(64) AtomicRttSample {
-    std::atomic<uint64_t> sum{0};
-    std::atomic<uint64_t> size{0};
-  };
-  static_assert(sizeof(AtomicRttSample) == 64);
-
-  struct AtomicRttStats {
-    std::array<AtomicRttSample, RangeCount> samples{};
-  };
-
-public:
   struct RttSample {
     uint64_t sum{0};
     uint64_t size{0};
   };
-  struct RttStats {
+
+  struct alignas(64) RttStats {
     std::array<RttSample, RangeCount> samples{};
+    alignas(64) uint64_t globalMax{0};
   };
 
-  static Timestamp logRtt(Timestamp first, bool multiThreaded = true) {
-    return logRtt(first, utils::getTimestampNs(), multiThreaded);
-  }
+public:
+  struct Snapshot {
+    struct Sample {
+      uint64_t sum;
+      uint64_t size;
+    };
+    std::array<Sample, RangeCount> samples;
+    uint64_t globalMax;
+  };
 
-  static Timestamp logRtt(Timestamp first, Timestamp second, bool multiThreaded = true) {
-    if (first > second) {
-      std::swap(first, second);
-    }
-
-    const uint64_t rttNs = second - first;
+  static uint64_t logRtt(Timestamp rttNs) {
     const uint8_t bucket = getRange(rttNs);
 
-    if (multiThreaded) {
-      thread_local RttStats local{};
-      thread_local Timestamp lastFlush = utils::getTimestampNs();
+    auto &s = sGlobalStats.samples[bucket];
+    s.sum += rttNs;
+    s.size += 1;
 
-      local.samples[bucket].sum += rttNs;
-      local.samples[bucket].size++;
-
-      if (second - lastFlush >= FlushTimeoutNs) {
-        flushLocal(local);
-        lastFlush = second;
-      }
-    } else {
-      auto &s = sGlobalStats.samples[bucket];
-      s.sum.fetch_add(rttNs, std::memory_order_relaxed);
-      s.size.fetch_add(1, std::memory_order_relaxed);
+    if (rttNs > sGlobalStats.globalMax) [[unlikely]] {
+      sGlobalStats.globalMax = rttNs;
     }
 
     return rttNs;
   }
 
-  static RttStats getStats() {
-    RttStats stats{};
+  static Snapshot getStats() {
+    std::atomic_thread_fence(std::memory_order_acquire);
+
+    Snapshot snap;
     for (size_t i = 0; i < RangeCount; ++i) {
-      stats.samples[i].sum = sGlobalStats.samples[i].sum.load(std::memory_order_relaxed);
-      stats.samples[i].size = sGlobalStats.samples[i].size.load(std::memory_order_relaxed);
+      snap.samples[i].sum = sGlobalStats.samples[i].sum;
+      snap.samples[i].size = sGlobalStats.samples[i].size;
     }
-    return stats;
+    snap.globalMax = sGlobalStats.globalMax;
+    return snap;
   }
 
   static String getStatsString() {
@@ -120,54 +101,61 @@ public:
       } else {
         const double pct = (double(s.size) / totalCount) * 100.0;
         const double avgNs = double(s.sum) / s.size;
-        ss << pct << "% avg:" << toScaleNs(avgNs);
+        ss << pct << "%(" << toShortCount(s.size) << ") avg:" << toScaleNs(avgNs);
       }
-      if (i + 1 < RangeCount) {
-        ss << " ";
-      }
+      ss << " | ";
     }
 
+    ss << "Max:" << toScale(stats.globalMax);
     return ss.str();
+  }
+
+  static void reset() {
+    for (size_t i = 0; i < RangeCount; ++i) {
+      sGlobalStats.samples[i].sum = 0;
+      sGlobalStats.samples[i].size = 0;
+    }
+
+    sGlobalStats.globalMax = 0;
+    std::atomic_thread_fence(std::memory_order_release);
   }
 
 private:
   static constexpr uint8_t getRange(uint64_t ns) {
-    for (size_t i = 0; i < RangeCount - 1; ++i) {
-      if (ns < rangeValues[i]) {
-        return i;
-      }
-    }
-    return RangeCount - 1;
-  }
-
-  static void flushLocal(RttStats &local) {
-    for (size_t i = 0; i < RangeCount; ++i) {
-      if (local.samples[i].size != 0) {
-        sGlobalStats.samples[i].sum.fetch_add(local.samples[i].sum, std::memory_order_relaxed);
-        sGlobalStats.samples[i].size.fetch_add(local.samples[i].size, std::memory_order_relaxed);
-        local.samples[i] = {};
-      }
-    }
+    uint8_t bucket = 0;
+    ((bucket += (ns >= Ranges)), ...);
+    return bucket;
   }
 
   static String toScale(uint64_t ns) {
     if (ns < 1'000)
       return std::to_string(ns) + "ns";
     if (ns < 1'000'000)
-      return std::to_string(ns / 1'000) + "us";
+      return std::to_string(ns / 1'000) + "µs";
     if (ns < 1'000'000'000)
       return std::to_string(ns / 1'000'000) + "ms";
     return std::to_string(ns / 1'000'000'000) + "s";
   }
 
+  static String toShortCount(uint64_t count) {
+    if (count < 1'000) {
+      return std::to_string(count);
+    }
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(1);
+    if (count < 1'000'000) {
+      ss << (count / 1000.0) << "K";
+      return ss.str();
+    }
+    ss << (count / 1000000.0) << "M";
+    return ss.str();
+  }
+
   static String toScaleNs(double ns) { return toScale(static_cast<uint64_t>(ns)); }
 
 private:
-  static AtomicRttStats sGlobalStats;
+  inline static RttStats sGlobalStats;
 };
-
-template <size_t... Ranges>
-typename RttTracker<Ranges...>::AtomicRttStats RttTracker<Ranges...>::sGlobalStats{};
 
 } // namespace hft
 
