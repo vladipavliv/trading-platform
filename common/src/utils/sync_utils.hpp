@@ -25,17 +25,15 @@ inline void futexWake(Futex &futex, int count = 1) {
   syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE, count, nullptr, nullptr, 0);
 }
 
-inline void futexWait(Futex &futex, uint32_t curr, uint32_t timeout = 0) {
-  if (timeout == 0) {
-    LOG_TRACE("futexWait {}", curr);
-    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, curr, nullptr, nullptr, 0);
+inline void futexWait(Futex &futex, uint32_t curr, uint64_t timeoutNs = 0) {
+  if (timeoutNs == 0) {
+    syscall(SYS_futex, reinterpret_cast<int32_t *>(&futex), FUTEX_WAIT, curr, nullptr, nullptr, 0);
   } else {
-    LOG_TRACE("futexWait timed {} {}", curr, timeout);
-    struct timespec ts {
-      .tv_sec = static_cast<time_t>(timeout / 1000),
-      .tv_nsec = static_cast<long>((timeout % 1000) * 1000000)
-    };
-    syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAIT, curr, &ts, nullptr, 0);
+    struct timespec ts;
+    ts.tv_sec = static_cast<time_t>(timeoutNs / 1000000000ULL);
+    ts.tv_nsec = static_cast<long>(timeoutNs % 1000000000ULL);
+
+    syscall(SYS_futex, reinterpret_cast<int32_t *>(&futex), FUTEX_WAIT, curr, &ts, nullptr, 0);
   }
 }
 

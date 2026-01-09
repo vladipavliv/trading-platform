@@ -37,6 +37,7 @@ public:
 
   UPtr<server::Coordinator> coordinator;
 
+  AtomicBool error_;
   std::atomic_flag flag{ATOMIC_FLAG_INIT};
   std::jthread systemThread;
 

@@ -76,6 +76,12 @@ struct TestMarketData {
     }
   }
 
+  void cleanup() {
+    for (auto &td : marketData) {
+      td.second.orderBook.clear();
+    }
+  }
+
   TestTickerData &tickers;
   server::MarketData marketData;
 };

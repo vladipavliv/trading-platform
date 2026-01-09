@@ -49,7 +49,10 @@ public:
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
+          LOG_INFO("LfqRunner started on core {}", coreId_.value());
           utils::pinThreadToCore(coreId_.value());
+        } else {
+          LOG_INFO("LfqRunner started");
         }
 
         uint64_t cycles = 0;
@@ -62,12 +65,13 @@ public:
             } while (queue_.pop(message));
           } else {
             asm volatile("pause" ::: "memory");
+            continue;
             if (++cycles > BUSY_WAIT_CYCLES && running_.load(std::memory_order_acquire)) {
               const auto ftxVal = ftx_.load(std::memory_order_acquire);
               sleeping_.store(true, std::memory_order_release);
 
               if (queue_.pop(message)) {
-                sleeping_.store(false, std::memory_order_relaxed);
+                sleeping_.store(false, std::memory_order_release);
                 consumer_.post(message);
                 cycles = 0;
                 continue;
@@ -80,6 +84,7 @@ public:
           }
         }
       } catch (const std::exception &ex) {
+        LOG_ERROR_SYSTEM("{}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
     });

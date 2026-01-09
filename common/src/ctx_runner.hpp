@@ -35,7 +35,7 @@ public:
 
   void run() {
     if (running_) {
-      LOG_ERROR("Worker is already running");
+      LOG_ERROR("CtxRunner is already running");
       return;
     }
     running_ = true;
@@ -45,9 +45,9 @@ public:
         String idStr = threadId_.has_value() ? std::to_string(threadId_.value()) : "";
         if (coreId_.has_value()) {
           utils::pinThreadToCore(coreId_.value());
-          LOG_INFO_SYSTEM("Starting worker thread {} on the core {}", idStr, coreId_.value());
+          LOG_INFO("Starting CtxRunner thread {} on the core {}", idStr, coreId_.value());
         } else {
-          LOG_INFO_SYSTEM("Starting worker thread {}", idStr);
+          LOG_INFO("Starting CtxRunner thread {}", idStr);
         }
         ioCtx.run();
       } catch (CRef<std::exception> e) {

@@ -78,7 +78,7 @@ class Coordinator {
 
     ServerBus &bus;
     const MarketData &data;
-    std::atomic_uint64_t ordersTotal;
+    std::atomic_uint64_t ordersTotal{0};
   };
 
   using Worker = LfqRunner<ServerOrder, Matcher>;
@@ -93,7 +93,17 @@ public:
         return;
       }
       const auto &data = matcher_.data.at(order.order.ticker);
-      workers_[data.getThreadId()]->post(order);
+      auto &worker = workers_[data.getThreadId()];
+
+      uint32_t retries = 0;
+      bool posted = worker->post(order);
+      while (!posted && ++retries < BUSY_WAIT_CYCLES) {
+        posted = worker->post(order);
+        asm volatile("pause" ::: "memory");
+      }
+      if (!posted) {
+        LOG_ERROR_SYSTEM("Failed to post order");
+      }
     });
     bus_.subscribe(Command::Telemetry_Start, [this] {
       LOG_INFO_SYSTEM("Start telemetry stream");
@@ -137,6 +147,9 @@ private:
 
   void scheduleStatsTimer() {
     using namespace utils;
+    if (monitorRate_.count() == 0) {
+      return;
+    }
     timer_.expires_after(monitorRate_);
     timer_.async_wait([this](BoostErrorCode ec) {
       if (ec) {

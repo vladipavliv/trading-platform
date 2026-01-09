@@ -67,12 +67,15 @@ public:
 
   OrderBook(OrderBook &&other) noexcept
       : bids_{std::move(other.bids_)}, asks_{std::move(other.asks_)},
-        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {};
+        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {
+    other.openedOrders_.store(0);
+  };
 
   OrderBook &operator=(OrderBook &&other) noexcept {
     bids_ = std::move(other.bids_);
     asks_ = std::move(other.asks_);
     openedOrders_ = other.openedOrders_.load(std::memory_order_acquire);
+    other.openedOrders_.store(0);
     return *this;
   };
 

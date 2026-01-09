@@ -95,7 +95,7 @@ Monitor:
 
 Benchmarks:
 ```bash
-2026-01-04T01:07:52+01:00
+2026-01-09T20:49:52+01:00
 Running ./run_benchmarks
 Run on (16 X 5271 MHz CPU s)
 CPU Caches:
@@ -103,16 +103,16 @@ CPU Caches:
   L1 Instruction 32 KiB (x8)
   L2 Unified 1024 KiB (x8)
   L3 Unified 98304 KiB (x1)
-Load Average: 0.66, 0.86, 0.62
+Load Average: 1.01, 0.63, 0.65
 ***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 ***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
 --------------------------------------------------------------------------
 Benchmark                                Time             CPU   Iterations
 --------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1        104 ns          104 ns      6291456 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2       64.7 ns         64.7 ns     12582912 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3       51.6 ns         51.6 ns     14680064 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4       46.6 ns         46.6 ns     16777216 4 worker(s)
+BM_Sys_ServerFix/AsyncProcess/1       70.1 ns         67.9 ns     10485760 1 worker(s)
+BM_Sys_ServerFix/AsyncProcess/2       38.9 ns         36.7 ns     20971520 2 worker(s)
+BM_Sys_ServerFix/AsyncProcess/3       26.6 ns         24.3 ns     29360128 3 worker(s)
+BM_Sys_ServerFix/AsyncProcess/4       20.6 ns         18.2 ns     39845888 4 worker(s)
 BM_Sys_OrderBookFix/AddOrder          43.1 ns         43.1 ns     15990784
 BM_Op_LfqRunnerThroughput             16.7 ns         16.7 ns     41943040
 BM_Op_LfqRunnerTailSpy                20.4 ns         20.4 ns     35651584 Max_ns=216.923 Min_ns=0 P50_ns=9.03846 P99.9_ns=72.1154 P99_ns=54.2308
