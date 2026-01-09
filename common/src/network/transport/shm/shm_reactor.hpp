@@ -11,10 +11,13 @@
 #include "shm_layout.hpp"
 #include "shm_types.hpp"
 #include "types/metadata_types.hpp"
+#include "utils/profiling_utils.hpp"
 #include "utils/sync_utils.hpp"
 #include "utils/thread_utils.hpp"
 
 namespace hft {
+
+constexpr size_t COLLECT_STATS_CYCLES = 10000000;
 
 template <typename TransportT>
 class ShmReactor {
@@ -23,6 +26,7 @@ public:
       : type_{type}, layout_{layout}, bus_{bus} {}
 
   void add(TransportT *t) {
+    transports_.push_back(t);
     if (type_ == ReactorType::Server && t->type() == ShmTransportType::Upstream) {
       transport_ = t;
     } else if (type_ == ReactorType::Client && t->type() == ShmTransportType::Downstream) {
@@ -31,99 +35,77 @@ public:
   }
 
   void remove(TransportT *t) {
+    transports_.erase(std::remove(transports_.begin(), transports_.end(), t), transports_.end());
     if (t == transport_) {
       transport_ = nullptr;
     }
   }
 
   void run() {
+    using namespace utils;
     LOG_DEBUG("ShmReactor run");
     if (transport_ == nullptr) {
       throw std::runtime_error("Unable to start, transport is not initialized");
     }
-    counters_.id = utils::getCoreId();
+    pfData_.coreId = getCoreId();
 
     running_.store(true, std::memory_order_release);
     auto &ftx = localFtx();
-    auto &waitFlag = localWaitingFlag();
+    auto &flag = localFlag();
 
-    uint64_t cycles = 0;
-    while (running_) {
-      if (++cycles > 3000000) {
-        counters_.ctxSwitches = utils::checkSwitches();
-        bus_.post(counters_);
-        cycles = 0;
+    uint64_t statCycles = 0;
+    uint64_t emptyCycles = 0;
+    while (running_.load(std::memory_order_acquire)) {
+#ifdef PROFILING
+      if (++statCycles > COLLECT_STATS_CYCLES) {
+        pfData_.ruSnapshot = GET_RUSAGE();
+        bus_.post(pfData_);
+        statCycles = 0;
       }
+#endif
 
-      if (transportClosed()) {
-        break;
-      }
-
-      uint64_t drainStart = __rdtsc();
-      auto drained = transport_->tryDrain();
-      auto delta = __rdtsc() - drainStart;
-      counters_.maxDrain = std::max(counters_.maxDrain, (uint64_t)delta);
-
+      const size_t drained = PROFILE_EXEC(transport_->tryDrain(), pfData_.maxCall);
       if (drained > 0) {
+        pfData_.waitSpins += emptyCycles;
+        emptyCycles = 0;
         continue;
       }
 
-      uint32_t ftxVal = ftx.load(std::memory_order_acquire);
-      waitFlag.store(true, std::memory_order_release);
-
-      drainStart = __rdtsc();
-      drained = transport_->tryDrain();
-      delta = __rdtsc() - drainStart;
-      counters_.maxDrain = std::max(counters_.maxDrain, (uint64_t)delta);
-
-      if (drained > 0) {
+      if (++emptyCycles < BUSY_WAIT_CYCLES) {
+        asm volatile("pause" ::: "memory");
         continue;
       }
 
-      if (transportClosed()) {
-        break;
+      if (!running_.load(std::memory_order_acquire)) {
+        continue;
       }
 
-      auto waitRes = utils::hybridWait(ftx, ftxVal);
-      if (waitRes == 10'000) {
-        counters_.futexWait++;
-      } else {
-        counters_.pause += waitRes;
-      }
-      waitFlag.store(false, std::memory_order_relaxed);
+      pfData_.waitSpins += emptyCycles;
+      emptyCycles = 0;
+      const auto ftxVal = ftx.load(std::memory_order_acquire);
+      flag.store(true, std::memory_order_release);
+      futexWait(ftx, ftxVal);
+      flag.store(false, std::memory_order_release);
+      pfData_.ftxWait++;
     }
-    LOG_DEBUG("ShmReactor stopped");
+    std::for_each(transports_.begin(), transports_.end(),
+                  [](TransportT *t) { t->acknowledgeClosure(); });
+    LOG_INFO_SYSTEM("ShmReactor stopped");
   }
 
   void stop() {
     LOG_DEBUG("Stopping ShmReactor");
     running_.store(false, std::memory_order_release);
-    notifyLocal();
-    notifyRemote();
-  }
-
-  void notifyLocal() {
-    LOG_DEBUG("notify local");
-    auto &ftx = localFtx();
-    ftx.fetch_add(1, std::memory_order_release);
-    utils::futexWake(ftx);
-  }
-
-  void notifyClosed(TransportT *t) {
-    if (transport_ != t) {
-      t->acknowledgeClosure();
-    } else {
-      notifyLocal();
-    }
+    utils::futexWake(localFtx());
   }
 
   void notifyRemote() {
-    auto &w = getRemoteWaiting();
-    if (w.load(std::memory_order_acquire)) {
-      counters_.futexWake++;
-      auto &ftx = remoteFtx();
-      auto val = ftx.fetch_add(1, std::memory_order_release);
-      LOG_TRACE("notify remote {}", val);
+    auto &flag = remoteFlag();
+    auto &ftx = remoteFtx();
+
+    if (flag.load(std::memory_order_acquire)) {
+      ftx.store(++pfData_.ftxWake, std::memory_order_release);
+      flag.store(false, std::memory_order_release);
       utils::futexWake(ftx);
     }
   }
@@ -131,16 +113,6 @@ public:
   inline bool isRunning() const { return running_; }
 
 private:
-  inline bool transportClosed() {
-    LOG_TRACE("transportClosed {} {}", static_cast<void *>(transport_), transport_->isClosed());
-    if (transport_ != nullptr && transport_->isClosed()) {
-      transport_->acknowledgeClosure();
-      transport_ = nullptr;
-      return true;
-    }
-    return transport_ == nullptr;
-  }
-
   inline auto localFtx() const -> Atomic<uint32_t> & {
     return type_ == ReactorType::Server ? layout_->upstreamFtx : layout_->downstreamFtx;
   }
@@ -149,15 +121,13 @@ private:
     return type_ != ReactorType::Server ? layout_->upstreamFtx : layout_->downstreamFtx;
   }
 
-  inline auto localWaitingFlag() const -> Atomic<bool> & {
+  inline auto localFlag() const -> Atomic<bool> & {
     return type_ == ReactorType::Server ? layout_->upstreamWaiting : layout_->downstreamWaiting;
   }
 
-  inline AtomicBool &getRemoteWaiting() {
-    return type_ == ReactorType::Server ? layout_->downstreamWaiting : layout_->upstreamWaiting;
+  inline auto remoteFlag() const -> Atomic<bool> & {
+    return type_ != ReactorType::Server ? layout_->upstreamWaiting : layout_->downstreamWaiting;
   }
-
-  inline bool isRemoteWaiting() const { return getRemoteWaiting().load(std::memory_order_acquire); }
 
 private:
   const ReactorType type_;
@@ -166,9 +136,11 @@ private:
   ShmLayout *layout_{nullptr};
 
   TransportT *transport_{nullptr};
-  Atomic<bool> running_{false};
+  Vector<TransportT *> transports_;
 
-  ThreadCounters counters_;
+  AtomicBool running_{false};
+
+  ProfilingData pfData_;
 };
 
 } // namespace hft

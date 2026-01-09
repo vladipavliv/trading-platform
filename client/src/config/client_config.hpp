@@ -25,6 +25,7 @@ struct ClientConfig {
   Optional<CoreId> coreSystem;
   Optional<CoreId> coreNetwork;
   std::vector<CoreId> coresApp;
+  double nsPerCycle;
 
   // Rates
   uint32_t tradeRate;

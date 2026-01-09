@@ -50,7 +50,7 @@ TEST_F(StreamBusFixture, Post) {
   for (size_t idx = 0; idx < eventsCount; ++idx) {
     bus.post(idx);
     ++eventsPushed;
-    std::this_thread::yield();
+    asm volatile("pause" ::: "memory");
   }
   size_t waitCounter{0};
   while (++waitCounter < 100 && eventsPushed != eventsPopped.load()) {

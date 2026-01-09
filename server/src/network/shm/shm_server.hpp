@@ -56,9 +56,9 @@ public:
         if (ServerConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ServerConfig::cfg.coreNetwork;
           utils::pinThreadToCore(coreId);
-          LOG_INFO_SYSTEM("Network thread started on the core {}", coreId);
+          LOG_INFO_SYSTEM("Communication thread started on the core {}", coreId);
         } else {
-          LOG_INFO_SYSTEM("Network thread started");
+          LOG_INFO_SYSTEM("Communication thread started");
         }
 
         waitForConnection();
@@ -78,12 +78,12 @@ public:
 
   void stop() {
     try {
-      if (!running_) {
+      if (!running_.load(std::memory_order_acquire)) {
         return;
       }
       LOG_INFO_SYSTEM("ShmServer shutdown");
 
-      running_ = false;
+      running_.store(false, std::memory_order_release);
       utils::futexWake(layout_->upstreamFtx);
       reactor_.stop();
 
@@ -109,7 +109,8 @@ public:
 private:
   void waitForConnection() {
     LOG_INFO_SYSTEM("Waiting for client connection");
-    utils::hybridWait(layout_->upstreamFtx, 0);
+    AtomicBool flag;
+    utils::hybridWait(layout_->upstreamFtx, 0, flag, running_);
   }
 
 private:
@@ -156,7 +157,7 @@ private:
   StreamClb downstreamClb_;
   DatagramClb datagramClb_;
 
-  std::atomic_bool running_{false};
+  AtomicBool running_{false};
   std::jthread workerThread_;
 };
 } // namespace hft::server

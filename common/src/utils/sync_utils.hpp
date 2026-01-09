@@ -13,11 +13,13 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "constants.hpp"
 #include "logging.hpp"
 
 namespace hft::utils {
 
 using Futex = std::atomic<uint32_t>;
+using FutexFlag = std::atomic<bool>;
 
 inline void futexWake(Futex &futex, int count = 1) {
   syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE, count, nullptr, nullptr, 0);
@@ -37,17 +39,17 @@ inline void futexWait(Futex &futex, uint32_t curr, uint32_t timeout = 0) {
   }
 }
 
-inline uint32_t hybridWait(Futex &futex, uint32_t curr, uint32_t spinCount = 10'000) {
-  LOG_TRACE("hybridWait {}", curr);
-  for (uint32_t i = 0; i < spinCount; ++i) {
-    if (futex.load(std::memory_order_acquire) != curr)
+inline uint32_t hybridWait(Futex &ftx, uint32_t val, FutexFlag &waitFlag, FutexFlag &stopFlag) {
+  LOG_TRACE("hybridWait {}", val);
+  for (uint32_t i = 0; i < BUSY_WAIT_CYCLES; ++i) {
+    if (ftx.load(std::memory_order_acquire) != val || !stopFlag.load(std::memory_order_acquire))
       return i;
     __builtin_ia32_pause();
   }
-  if (futex.load(std::memory_order_acquire) == curr) {
-    futexWait(futex, curr);
-  }
-  return spinCount;
+  waitFlag.store(true, std::memory_order_release);
+  futexWait(ftx, val);
+  waitFlag.store(false, std::memory_order_release);
+  return BUSY_WAIT_CYCLES;
 }
 
 } // namespace hft::utils

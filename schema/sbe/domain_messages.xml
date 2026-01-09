@@ -27,6 +27,7 @@
     <enum name="OrderAction" encodingType="int8">
       <validValue name="BUY" value="0">0</validValue>
       <validValue name="SELL" value="1">1</validValue>
+      <validValue name="DUMMY" value="2">2</validValue>
     </enum>
 
     <enum name="OrderState" encodingType="int32">

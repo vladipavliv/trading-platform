@@ -119,24 +119,18 @@ BM_Op_LfqRunnerTailSpy                20.4 ns         20.4 ns     35651584 Max_n
 BM_Op_StreamBusThroughput             20.1 ns         20.1 ns     35651584
 ```
 
-Stress test (Server + Python tester with 5m pregenerated orders):
-```bash
-02:16:10.878183 [I] Orders: [opn|ttl] 1815149|8323623 | Rps: 3195897
-Sent 10000000 orders in 3.16s (3160574.80 orders/sec)
-```
-
 Manual localhost tests:
 ```bash
 Server:
-19:53:01.167132 [I] Orders: [opn|ttl] 3061144|14178017 | Rps: 471696
+16:30:07.122596 [I] Orders: [opn|ttl] 4,928,088|22,803,781 | Rps: 529,529
 Client:
-19:53:01.093317 [I] Rtt: [<50us|>50us] 99.99% avg:11us 0.01% avg:83us
+16:30:07.845325 [I] Rtt: [<10µs|>10µs] 18.39%(75.8K) avg:8µs | 81.61%(336.2K) avg:25µs | Max:136µs
 ```
 
 Manual shared memory tests:
 ```bash
 Server:
-23:22:04.253590 [I] Orders: [opn|ttl] 9098932|42028517 | Rps: 4952156
+15:59:10.350354 [I] Orders: [opn|ttl] 60,540,877|280,107,828 | Rps: 5,981,976
 Client:
-23:22:04.770930 [I] Rtt: [<1us|>1us] 96.35% avg:482ns 3.65% avg:1us
+15:59:10.535558 [I] Rtt: [<1µs|<10µs|>10µs] 82.79%(3.8M) avg:525ns | 17.15%(795.9K) avg:1µs | 0.06%(2.8K) avg:20µs | Max:36µs
 ```

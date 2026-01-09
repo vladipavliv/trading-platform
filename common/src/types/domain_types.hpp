@@ -16,7 +16,7 @@ using ClientId = uint64_t;
 using Quantity = uint32_t;
 using Price = uint32_t; // 1cent precision
 
-enum class OrderAction : uint8_t { Buy, Sell };
+enum class OrderAction : uint8_t { Buy, Sell, Dummy };
 
 enum class OrderState : uint8_t { Accepted, Rejected, Partial, Full };
 

@@ -52,9 +52,9 @@ public:
         if (ClientConfig::cfg.coreNetwork.has_value()) {
           const auto coreId = *ClientConfig::cfg.coreNetwork;
           utils::pinThreadToCore(coreId);
-          LOG_INFO_SYSTEM("Network thread started on the core {}", coreId);
+          LOG_INFO_SYSTEM("Communication thread started on the core {}", coreId);
         } else {
-          LOG_INFO_SYSTEM("Network thread started");
+          LOG_INFO_SYSTEM("Communication thread started");
         }
         notifyConnected();
         reactor_.run();

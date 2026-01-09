@@ -31,14 +31,11 @@ inline void lockMemory(void *addr, size_t size) {
  * @brief "Warms up" memory by touching every page.
  */
 inline void warmMemory(void *addr, size_t size, bool write = false) {
-  volatile uint8_t *p = static_cast<volatile uint8_t *>(addr);
-  for (size_t i = 0; i < size; i += 4096) {
-    if (write) {
-      p[i] = 0;
-    } else {
-      uint8_t dummy = p[i];
-      (void)dummy;
-    }
+  volatile uint64_t *p = static_cast<volatile uint64_t *>(addr);
+  size_t iterations = size / sizeof(uint64_t);
+
+  for (size_t i = 0; i < iterations; i += 8) {
+    __sync_fetch_and_add(&p[i], 0);
   }
 }
 

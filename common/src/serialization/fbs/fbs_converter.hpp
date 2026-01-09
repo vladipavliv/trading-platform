@@ -30,6 +30,8 @@ inline OrderAction convert(gen::fbs::domain::OrderAction action) {
     return OrderAction::Buy;
   case gen::fbs::domain::OrderAction::OrderAction_SELL:
     return OrderAction::Sell;
+  case gen::fbs::domain::OrderAction::OrderAction_DUMMY:
+    return OrderAction::Dummy;
   default:
     throw std::runtime_error(
         std::format("Unknown gen::fbs::domain::OrderAction {}", (uint8_t)action));
@@ -41,6 +43,8 @@ inline gen::fbs::domain::OrderAction convert(OrderAction action) {
     return gen::fbs::domain::OrderAction::OrderAction_BUY;
   case OrderAction::Sell:
     return gen::fbs::domain::OrderAction::OrderAction_SELL;
+  case OrderAction::Dummy:
+    return gen::fbs::domain::OrderAction::OrderAction_DUMMY;
   default:
     throw std::runtime_error(std::format("Unknown OrderAction {}", (uint8_t)action));
   }

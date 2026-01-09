@@ -52,6 +52,30 @@ inline bool isEmpty(const Ticker &ticker) {
       return false;
   return true;
 }
+
+inline String formatNs(uint64_t ns) {
+  if (ns < 1'000) {
+    return std::format("{}ns", ns);
+  } else if (ns < 1'000'000) {
+    double us = ns / 1'000.0;
+    return std::format("{:.2f}µs", us);
+  } else {
+    double ms = ns / 1'000'000.0;
+    return std::format("{:.2f}ms", ms);
+  }
+}
+
+template <std::integral T>
+std::string thousandify(T value) {
+  std::string s = std::to_string(value);
+  int n = s.length() - 3;
+  while (n > 0) {
+    s.insert(n, ",");
+    n -= 3;
+  }
+  return s;
+}
+
 } // namespace utils
 
 using utils::toString;

@@ -66,11 +66,8 @@ public:
       bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
     });
 
-    bus_.subscribe<ThreadCounters>([this](CRef<ThreadCounters> c) {
-      LOG_INFO_SYSTEM("Id: {} CtxSwt: inv {} vol {} Pause: {} FtxWait: {} FtxWake: {} MaxDrain: {}",
-                      c.id, c.ctxSwitches.inv, c.ctxSwitches.vol, c.pause, c.futexWait, c.futexWake,
-                      c.maxDrain);
-    });
+    bus_.subscribe<ProfilingData>(
+        [this](CRef<ProfilingData> data) { LOG_INFO_SYSTEM("{}", toString(data)); });
 
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });

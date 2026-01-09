@@ -21,6 +21,8 @@ OrderAction convert(gen::sbe::domain::OrderAction::Value action) {
     return OrderAction::Buy;
   case gen::sbe::domain::OrderAction::Value::SELL:
     return OrderAction::Sell;
+  case gen::sbe::domain::OrderAction::Value::DUMMY:
+    return OrderAction::Dummy;
   default:
     throw std::runtime_error("Unknown gen::sbe::domain::OrderAction::Value type");
   }
@@ -32,6 +34,8 @@ gen::sbe::domain::OrderAction::Value convert(OrderAction action) {
     return gen::sbe::domain::OrderAction::Value::BUY;
   case OrderAction::Sell:
     return gen::sbe::domain::OrderAction::Value::SELL;
+  case OrderAction::Dummy:
+    return gen::sbe::domain::OrderAction::Value::DUMMY;
   default:
     throw std::runtime_error("OrderAction type");
   }

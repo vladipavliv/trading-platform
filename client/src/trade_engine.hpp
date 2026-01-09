@@ -11,6 +11,7 @@
 #include "bus/bus_hub.hpp"
 #include "commands/command.hpp"
 #include "config/client_config.hpp"
+#include "config/config.hpp"
 #include "ctx_runner.hpp"
 #include "market_data.hpp"
 #include "metadata_types.hpp"
@@ -30,7 +31,7 @@ namespace hft::client {
  */
 class TradeEngine {
 public:
-  using Tracker = RttTracker<1000, 100000>;
+  using Tracker = RttTracker<10000>;
 
   explicit TradeEngine(ClientBus &bus)
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
@@ -48,17 +49,17 @@ public:
   }
 
   void start() {
-    if (started_) {
+    if (running_) {
       return;
     }
     LOG_DEBUG("Starting trade engine");
-    started_ = true;
+    running_ = true;
     startWorkers();
   }
 
   void stop() {
     LOG_DEBUG("Stopping trade engine");
-    started_ = false;
+    running_ = false;
   }
 
   void tradeStart() {
@@ -113,7 +114,9 @@ private:
   }
 
   void tradeLoop() {
-    while (started_) {
+    uint64_t warmupCount = Config::get<uint64_t>("rates.warmup");
+    uint64_t counter = 0;
+    while (running_) {
       if (!trading_) {
         asm volatile("pause" ::: "memory");
         continue;
@@ -127,18 +130,24 @@ private:
       const auto newPrice = utils::fluctuateThePrice(p.second.getPrice());
       const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
       const auto quantity = RNG::generate<Quantity>(0, 100);
-      const auto id = getTimestampNs(); // TODO(self)
+      const auto id = getCycles();
       Order order{id, id, p.first, quantity, newPrice, action};
+
+      if (counter < warmupCount) {
+        ++counter;
+        order.action = OrderAction::Dummy;
+      }
       LOG_TRACE("Placing order {}", toString(order));
       bus_.marketBus.post(order);
 
       for (int i = 0; i < ClientConfig::cfg.tradeRate; ++i) {
-        std::this_thread::yield();
+        asm volatile("pause" ::: "memory");
       }
     }
   }
 
   void onOrderStatus(CRef<OrderStatus> s) {
+    using namespace utils;
     LOG_DEBUG("{}", toString(s));
     switch (s.state) {
     case OrderState::Rejected:
@@ -146,8 +155,8 @@ private:
       tradeStop();
       break;
     default:
-      const Timestamp now = utils::getTimestampNs();
-      Tracker::logRtt(s.orderId, now);
+      const auto rtt = (getCycles() - s.orderId) * ClientConfig::cfg.nsPerCycle;
+      Tracker::logRtt(rtt);
 #ifdef TELEMETRY_ENABLED
       if (telemetry_) {
         bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, now});
@@ -181,6 +190,7 @@ private:
         return;
       }
       LOG_INFO_SYSTEM("Rtt: {}", Tracker::getStatsString());
+      Tracker::reset();
       scheduleStatsTimer();
     });
   }
@@ -194,7 +204,7 @@ private:
 
   SteadyTimer statsTimer_;
 
-  std::atomic_bool started_{false};
+  std::atomic_bool running_{false};
   std::atomic_bool trading_{false};
   std::atomic_bool telemetry_{false};
 };

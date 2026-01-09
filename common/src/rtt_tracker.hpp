@@ -21,21 +21,17 @@ namespace hft {
  */
 template <size_t... Ranges>
 class RttTracker {
-  static_assert(sizeof...(Ranges) > 0, "Need at least one range");
-  static_assert(sizeof...(Ranges) < 2 || utils::is_ascending<Ranges...>(),
-                "Ranges must be ascending");
-
   static constexpr std::array<size_t, sizeof...(Ranges)> rangeValues{Ranges...};
   static constexpr size_t RangeCount = sizeof...(Ranges) + 1;
 
-  struct alignas(64) RttSample {
-    AtomicUint64 sum{0};
-    AtomicUint64 size{0};
+  struct RttSample {
+    uint64_t sum{0};
+    uint64_t size{0};
   };
 
-  struct RttStats {
+  struct alignas(64) RttStats {
     std::array<RttSample, RangeCount> samples{};
-    alignas(64) AtomicUint64 globalMax{0};
+    alignas(64) uint64_t globalMax{0};
   };
 
 public:
@@ -48,32 +44,29 @@ public:
     uint64_t globalMax;
   };
 
-  static uint64_t logRtt(Timestamp start, Timestamp end) {
-    if (start > end) [[unlikely]]
-      std::swap(start, end);
-
-    const uint64_t rttNs = end - start;
+  static uint64_t logRtt(Timestamp rttNs) {
     const uint8_t bucket = getRange(rttNs);
 
     auto &s = sGlobalStats.samples[bucket];
-    s.sum.fetch_add(rttNs, std::memory_order_relaxed);
-    s.size.fetch_add(1, std::memory_order_relaxed);
+    s.sum += rttNs;
+    s.size += 1;
 
-    if (rttNs > sGlobalStats.globalMax.load(std::memory_order_relaxed)) {
-      sGlobalStats.globalMax.store(rttNs, std::memory_order_relaxed);
+    if (rttNs > sGlobalStats.globalMax) [[unlikely]] {
+      sGlobalStats.globalMax = rttNs;
     }
 
     return rttNs;
   }
 
   static Snapshot getStats() {
+    std::atomic_thread_fence(std::memory_order_acquire);
+
     Snapshot snap;
     for (size_t i = 0; i < RangeCount; ++i) {
-      auto &s = sGlobalStats.samples[i];
-      snap.samples[i].sum = s.sum.load(std::memory_order_relaxed);
-      snap.samples[i].size = s.size.load(std::memory_order_relaxed);
+      snap.samples[i].sum = sGlobalStats.samples[i].sum;
+      snap.samples[i].size = sGlobalStats.samples[i].size;
     }
-    snap.globalMax = sGlobalStats.globalMax.load(std::memory_order_relaxed);
+    snap.globalMax = sGlobalStats.globalMax;
     return snap;
   }
 
@@ -110,30 +103,35 @@ public:
         const double avgNs = double(s.sum) / s.size;
         ss << pct << "%(" << toShortCount(s.size) << ") avg:" << toScaleNs(avgNs);
       }
-      if (i + 1 < RangeCount) {
-        ss << " ";
-      }
+      ss << " | ";
     }
 
-    ss << " max:" << toScale(stats.globalMax);
+    ss << "Max:" << toScale(stats.globalMax);
     return ss.str();
+  }
+
+  static void reset() {
+    for (size_t i = 0; i < RangeCount; ++i) {
+      sGlobalStats.samples[i].sum = 0;
+      sGlobalStats.samples[i].size = 0;
+    }
+
+    sGlobalStats.globalMax = 0;
+    std::atomic_thread_fence(std::memory_order_release);
   }
 
 private:
   static constexpr uint8_t getRange(uint64_t ns) {
-    for (size_t i = 0; i < RangeCount - 1; ++i) {
-      if (ns < rangeValues[i]) {
-        return i;
-      }
-    }
-    return RangeCount - 1;
+    uint8_t bucket = 0;
+    ((bucket += (ns >= Ranges)), ...);
+    return bucket;
   }
 
   static String toScale(uint64_t ns) {
     if (ns < 1'000)
       return std::to_string(ns) + "ns";
     if (ns < 1'000'000)
-      return std::to_string(ns / 1'000) + "us";
+      return std::to_string(ns / 1'000) + "µs";
     if (ns < 1'000'000'000)
       return std::to_string(ns / 1'000'000) + "ms";
     return std::to_string(ns / 1'000'000'000) + "s";
