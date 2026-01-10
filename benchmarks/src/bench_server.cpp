@@ -5,14 +5,18 @@
 
 #include "bench_server.hpp"
 #include "config/config.hpp"
+#include "config/server_config.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "utils/bench_utils.hpp"
 
 namespace hft::benchmarks {
 
+using namespace server;
+
 BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
-  server::ServerConfig::load("bench_server_config.ini");
+  ServerConfig::load("bench_server_config.ini");
+  LOG_INIT(ServerConfig::cfg.logOutput);
 
   tickerCount = Config::get<size_t>("bench.ticker_count");
   orderLimit = Config::get<size_t>("bench.order_count");
@@ -24,10 +28,14 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   setupBus();
 }
 
-BM_Sys_ServerFix::~BM_Sys_ServerFix() { bus->stop(); }
+BM_Sys_ServerFix::~BM_Sys_ServerFix() {
+  if (bus) {
+    bus->stop();
+    bus.reset();
+  }
+}
 
 void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
-  using namespace server;
 
   workerCount = state.range(0);
 
@@ -37,7 +45,6 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
 
   ServerConfig::cfg.coresApp.clear();
 
-  // ServerConfig::cfg.coreSystem = Config::get<size_t>("bench.bench_e_core");
   ServerConfig::cfg.coreNetwork = getCore(0);
 
   for (size_t i = 1; i <= workerCount; ++i) {

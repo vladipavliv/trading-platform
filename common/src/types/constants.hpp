@@ -8,7 +8,7 @@
 
 namespace hft {
 
-constexpr size_t BUSY_WAIT_CYCLES = 1000;
+constexpr size_t BUSY_WAIT_CYCLES = 1000 * 100;
 constexpr size_t LFQ_CAPACITY = 65536;
 constexpr size_t ORDER_BOOK_LIMIT = 10000;
 constexpr size_t CACHE_LINE_SIZE = 64;

@@ -55,34 +55,7 @@ public:
           LOG_INFO("LfqRunner started");
         }
 
-        uint64_t cycles = 0;
-        MessageType message;
-        while (running_.load(std::memory_order_acquire)) {
-          if (queue_.pop(message)) {
-            cycles = 0;
-            do {
-              consumer_.post(message);
-            } while (queue_.pop(message));
-          } else {
-            asm volatile("pause" ::: "memory");
-            continue;
-            if (++cycles > BUSY_WAIT_CYCLES && running_.load(std::memory_order_acquire)) {
-              const auto ftxVal = ftx_.load(std::memory_order_acquire);
-              sleeping_.store(true, std::memory_order_release);
-
-              if (queue_.pop(message)) {
-                sleeping_.store(false, std::memory_order_release);
-                consumer_.post(message);
-                cycles = 0;
-                continue;
-              }
-
-              utils::futexWait(ftx_, ftxVal);
-              sleeping_.store(false, std::memory_order_release);
-              cycles = 0;
-            }
-          }
-        }
+        lfqLoop();
       } catch (const std::exception &ex) {
         LOG_ERROR_SYSTEM("{}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
@@ -101,16 +74,48 @@ public:
     size_t waitCycles = 0;
     while (!queue_.push(message)) {
       if (++waitCycles > BUSY_WAIT_CYCLES) {
+        LOG_ERROR_SYSTEM("Failed to push to LfqRunner");
         return false;
       }
       asm volatile("pause" ::: "memory");
     }
-    if (sleeping_.load(std::memory_order_acquire)) [[unlikely]] {
-      ftx_.fetch_add(1, std::memory_order_release);
+    if (sleeping_.load(std::memory_order_seq_cst)) [[unlikely]] {
+      ftx_.store(++wakeCounter_, std::memory_order_release);
       utils::futexWake(ftx_);
-      sleeping_.store(false, std::memory_order_release);
     }
     return true;
+  }
+
+private:
+  void lfqLoop() {
+    uint64_t cycles = 0;
+    MessageType message;
+    while (running_.load(std::memory_order_acquire)) {
+      if (queue_.pop(message)) {
+        cycles = 0;
+        do {
+          consumer_.post(message);
+        } while (queue_.pop(message));
+        continue;
+      }
+      asm volatile("pause" ::: "memory");
+      if (++cycles < BUSY_WAIT_CYCLES) {
+        continue;
+      }
+      const auto ftxVal = ftx_.load(std::memory_order_acquire);
+      sleeping_.store(true, std::memory_order_seq_cst);
+
+      if (queue_.pop(message)) {
+        sleeping_.store(false, std::memory_order_release);
+        consumer_.post(message);
+        cycles = 0;
+        continue;
+      }
+
+      utils::futexWait(ftx_, ftxVal);
+      sleeping_.store(false, std::memory_order_release);
+      cycles = 0;
+    }
   }
 
 private:
@@ -119,7 +124,8 @@ private:
   alignas(64) Queue queue_;
   alignas(64) AtomicBool running_{false};
   alignas(64) AtomicBool sleeping_{false};
-  alignas(64) AtomicUInt32 ftx_;
+  alignas(64) AtomicUInt32 ftx_{0};
+  alignas(64) uint64_t wakeCounter_{0};
 
   alignas(64) Consumer &consumer_;
   ErrorBus bus_;
@@ -128,4 +134,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_CTXRUNNER_HPP
+#endif // HFT_COMMON_LFQRUNNER_HPP

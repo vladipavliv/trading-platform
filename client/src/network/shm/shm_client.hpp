@@ -63,7 +63,7 @@ public:
         stop();
         bus_.post(InternalError(StatusCode::Error, e.what()));
       } catch (...) {
-        LOG_ERROR_SYSTEM("unknown exception in CtxRunner");
+        LOG_ERROR_SYSTEM("unknown exception in ShmClient");
         stop();
         bus_.post(InternalError(StatusCode::Error, "unknown exception in ShmClient"));
       }

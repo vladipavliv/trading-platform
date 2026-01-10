@@ -27,7 +27,6 @@ inline void pinThreadToCore(int coreId) {
   const int result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   if (result != 0) {
     LOG_ERROR_SYSTEM("Failed to pin thread to core: {}, error: {}", coreId, result);
-    throw std::system_error(result, std::generic_category(), std::format("pthread_setaffinity_np"));
   }
 }
 
@@ -41,7 +40,6 @@ inline void setThreadRealTime(int priority = 99) {
       return;
     }
     LOG_ERROR_SYSTEM("Failed to set real-time priority: {}, error: {}", priority, result);
-    throw std::system_error(result, std::generic_category(), "pthread_setschedparam");
   }
 }
 
