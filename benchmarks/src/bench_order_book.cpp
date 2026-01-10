@@ -26,10 +26,12 @@ public:
 
   inline static Vector<ServerOrder> orders;
 
-  BM_Sys_OrderBookFix() {
-    ServerConfig::load("bench_server_config.ini");
-    LOG_INIT(ServerConfig::cfg.logOutput);
+  BM_Sys_OrderBookFix() { ServerConfig::load("bench_server_config.ini"); }
 
+  template <typename EventType>
+  void post(CRef<EventType>) {}
+
+  void SetUp(const ::benchmark::State &) override {
     const size_t ordersCount = 16384;
 
     orders.reserve(ordersCount);
@@ -38,12 +40,7 @@ public:
     }
   }
 
-  template <typename EventType>
-  void post(CRef<EventType>) {}
-
-  void SetUp(const ::benchmark::State &) override {}
-
-  void TearDown(const ::benchmark::State &) override {}
+  void TearDown(const ::benchmark::State &) override { orders.clear(); }
 };
 
 template <>

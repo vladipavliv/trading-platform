@@ -37,7 +37,7 @@ using Atomic = std::atomic<T>;
 
 using AtomicBool = std::atomic<bool>;
 using AtomicUInt32 = std::atomic<uint32_t>;
-using AtomicUint64 = std::atomic<uint64_t>;
+using AtomicUInt64 = std::atomic<uint64_t>;
 using AtomicFlag = std::atomic_flag;
 
 enum class State : uint8_t { On, Off, Error };

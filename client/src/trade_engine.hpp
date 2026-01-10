@@ -31,7 +31,7 @@ namespace hft::client {
  */
 class TradeEngine {
 public:
-  using Tracker = RttTracker<10000>;
+  using Tracker = RttTracker<1000, 10000>;
 
   explicit TradeEngine(ClientBus &bus)
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
