@@ -28,7 +28,7 @@ class ShmTransport {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  ShmTransport(ShmTransportType type, ShmRingBuffer &buffer, ShmReactor<ShmTransport> &reactor)
+  ShmTransport(ShmTransportType type, SlotBuffer &buffer, ShmReactor<ShmTransport> &reactor)
       : type_{type}, buffer_{buffer}, reactor_{reactor} {
     reactor_.add(this);
   }
@@ -163,7 +163,7 @@ public:
 private:
   const ShmTransportType type_;
 
-  ShmRingBuffer &buffer_;
+  SlotBuffer &buffer_;
   ShmReactor<ShmTransport> &reactor_;
   ByteSpan rxBuf_;
 

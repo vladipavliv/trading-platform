@@ -59,7 +59,7 @@ public:
         stop();
         bus_.post(InternalError(StatusCode::Error, "unknown exception in CtxRunner"));
       }
-      LOG_INFO_SYSTEM("CtxRunner stopped");
+      LOG_INFO("CtxRunner stopped");
     }};
   }
 

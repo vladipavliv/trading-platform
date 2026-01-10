@@ -42,9 +42,14 @@ public:
 #define LOG_INIT(filename) SpdLogger::initialize(filename);
 
 #define LOG_BASE(level, msg, ...)                                                                  \
-  spdlog::default_logger_raw()->log(                                                               \
-      spdlog::source_loc{hft::SpdLogger::simpleFileName(__FILE__), __LINE__, __FUNCTION__}, level, \
-      msg, ##__VA_ARGS__)
+  do {                                                                                             \
+    auto *logger_ptr = spdlog::default_logger_raw();                                               \
+    if (logger_ptr != nullptr) [[likely]] {                                                        \
+      logger_ptr->log(                                                                             \
+          spdlog::source_loc{hft::SpdLogger::simpleFileName(__FILE__), __LINE__, __FUNCTION__},    \
+          level, msg, ##__VA_ARGS__);                                                              \
+    }                                                                                              \
+  } while (0)
 
 // --- TRACE ---
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE
