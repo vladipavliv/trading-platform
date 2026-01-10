@@ -9,31 +9,38 @@
 #include "primitive_types.hpp"
 
 #include <array>
+#include <cassert>
 #include <stdexcept>
 
 namespace hft {
 
-struct BufferLease {
+struct BufferPtr {
   uint8_t *data{nullptr};
-  uint32_t size{0};
   uint32_t index{0};
-  uint32_t capacity{0};
+
+  BufferPtr() = default;
+
+  BufferPtr(uint8_t *data, uint32_t index) : data{data}, index{index} {};
+
+  BufferPtr(const BufferPtr &) = delete;
+  BufferPtr &operator=(const BufferPtr &) = delete;
+
+  BufferPtr(BufferPtr &&) = default;
 
   constexpr explicit operator bool() const noexcept { return data != nullptr; }
   constexpr bool operator!() const noexcept { return data == nullptr; }
 };
 
-template <uint32_t BufferSize = 128, uint32_t PoolSize = 32 * 1024>
+template <uint32_t BufferCapacity = 128, uint32_t PoolSize = 32 * 1024>
 class BufferPool {
 public:
-  static constexpr uint32_t BUFFER_SIZE = BufferSize;
+  static_assert(BufferCapacity % 64 == 0);
+
+  static constexpr uint32_t BUFFER_CAPACITY = BufferCapacity;
   static constexpr uint32_t POOL_SIZE = PoolSize;
 
-  inline static auto instance() -> BufferPool<BufferSize, PoolSize> & {
-    static UPtr<BufferPool<BufferSize, PoolSize>> instance = nullptr;
-    if (instance == nullptr) {
-      instance = std::make_unique<BufferPool<BufferSize, PoolSize>>();
-    }
+  inline static auto instance() -> BufferPool<BufferCapacity, PoolSize> & {
+    static BufferPool *instance = new BufferPool<BufferCapacity, PoolSize>();
     return *instance;
   }
 
@@ -43,21 +50,22 @@ public:
     }
   }
 
-  inline auto acquire() -> BufferLease {
+  inline auto acquire() -> BufferPtr {
     if (freePtr_ == 0) [[unlikely]] {
-      return BufferLease{};
+      return BufferPtr{};
     }
     uint32_t idx = freeIndices_[--freePtr_];
-    return {&storage_[idx * BufferSize], BufferSize, idx, BufferSize};
+    return {&storage_[idx * BufferCapacity], idx};
   }
 
   inline void release(uint32_t index) noexcept {
-    assert(index < PoolSize && "Invalid BufferPool index");
+    assert(index < PoolSize);
+    assert(freePtr_ < PoolSize);
     freeIndices_[freePtr_++] = index;
   }
 
 private:
-  alignas(64) std::array<uint8_t, BufferSize * PoolSize> storage_;
+  std::array<uint8_t, BufferCapacity * PoolSize> storage_;
   std::array<uint32_t, PoolSize> freeIndices_;
   uint32_t freePtr_;
 };

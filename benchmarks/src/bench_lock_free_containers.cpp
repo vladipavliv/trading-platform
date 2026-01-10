@@ -7,15 +7,15 @@
 #include <boost/lockfree/queue.hpp>
 // #include <folly/MPMCQueue.h>
 
+#include "containers/vyukov_mpmc.hpp"
 #include "primitive_types.hpp"
-#include "vyukov_queue.hpp"
 
 namespace hft::benchmarks {
 
 constexpr size_t capacity{1ULL << 15};
 
 static void DISABLED_BM_Op_VykovMpmcQueue(benchmark::State &state) {
-  auto queue = std::make_unique<VyukovQueue<size_t, capacity>>();
+  auto queue = std::make_unique<VyukovMPMC<size_t, capacity>>();
 
   size_t value{0};
   bool write{true};

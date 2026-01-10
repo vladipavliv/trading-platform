@@ -15,11 +15,11 @@
 #include <thread>
 
 #include "bus/system_bus.hpp"
+#include "containers/vyukov_mpmc.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "utils/sync_utils.hpp"
-#include "vyukov_queue.hpp"
 
 namespace hft {
 
@@ -28,7 +28,7 @@ namespace hft {
  */
 template <typename MessageType, typename Consumer, size_t Capacity = 65536>
 class LfqRunner {
-  using Queue = VyukovQueue<MessageType, Capacity>; // <= 10.2 ns
+  using Queue = VyukovMPMC<MessageType, Capacity>; // <= 10.2 ns
   // using Queue = rigtorp::SPSCQueue<MessageType>; // <= 15.6 ns
   // using Queue = boost::lockfree::spsc_queue<MessageType>; // <= 36.9 ns
   // using Queue = folly::ProducerConsumerQueue<MessageType>; // <= 38.3 ns

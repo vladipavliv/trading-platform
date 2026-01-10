@@ -21,7 +21,7 @@ namespace hft {
  * @details https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
  */
 template <typename Value, size_t Capacity = 65536>
-class VyukovQueue {
+class VyukovMPMC {
   static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
   static_assert(Capacity <= (1ULL << 20), "Capacity is too large");
 
@@ -31,7 +31,7 @@ class VyukovQueue {
   };
 
 public:
-  VyukovQueue() {
+  VyukovMPMC() {
     for (size_t i = 0; i < Capacity; ++i) {
       slots_[i].sequence.store(i, std::memory_order_relaxed);
     }
@@ -78,7 +78,7 @@ public:
           break;
         }
       } else if (diff < 0) {
-        LOG_ERROR_SYSTEM("VyukovQueue push failed");
+        LOG_ERROR_SYSTEM("VyukovMPMC push failed");
         return false;
       } else {
         tail = tail_.load(std::memory_order_relaxed);

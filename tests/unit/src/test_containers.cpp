@@ -8,16 +8,16 @@
 
 #include <gtest/gtest.h>
 
+#include "containers/sequenced_spsc.hpp"
 #include "ptr_types.hpp"
-#include "sloth_buffer.hpp"
 #include "utils/test_utils.hpp"
 
 namespace hft::tests {
 
 using namespace utils;
 
-TEST(SlothBufferTest, Basic) {
-  UPtr<SlothBuffer> buf = std::make_unique<SlothBuffer>();
+TEST(SequencedSPSCTest, Basic) {
+  UPtr<SequencedSPSC> buf = std::make_unique<SequencedSPSC>();
 
   std::vector<Order> orders;
   orders.reserve(1000);

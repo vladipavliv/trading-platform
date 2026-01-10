@@ -14,7 +14,6 @@
 #include "network/async_transport.hpp"
 #include "primitive_types.hpp"
 #include "shm_reactor.hpp"
-#include "shm_ring_buffer.hpp"
 #include "shm_types.hpp"
 #include "utils/sync_utils.hpp"
 #include "utils/time_utils.hpp"
@@ -28,7 +27,7 @@ class ShmTransport {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  ShmTransport(ShmTransportType type, SlothBuffer &buffer, ShmReactor<ShmTransport> &reactor)
+  ShmTransport(ShmTransportType type, SequencedSPSC &buffer, ShmReactor<ShmTransport> &reactor)
       : type_{type}, buffer_{buffer}, reactor_{reactor} {
     reactor_.add(this);
   }
@@ -163,7 +162,7 @@ public:
 private:
   const ShmTransportType type_;
 
-  SlothBuffer &buffer_;
+  SequencedSPSC &buffer_;
   ShmReactor<ShmTransport> &reactor_;
   ByteSpan rxBuf_;
 

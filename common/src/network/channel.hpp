@@ -7,15 +7,16 @@
 #define HFT_COMMON_CHANNEL_HPP
 
 #include "bus/busable.hpp"
+#include "containers/buffer_pool.hpp"
+#include "containers/sliding_buffer.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
 #include "network/async_transport.hpp"
-#include "network/buffer_pool.hpp"
 #include "network/connection_status.hpp"
-#include "network/ring_buffer.hpp"
 #include "network_traits.hpp"
 #include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
+#include <cassert>
 
 namespace hft {
 
@@ -60,18 +61,16 @@ public:
       return;
     }
 
-    BufferLease netBuff{BufferPool<>::instance().acquire()};
+    BufferPtr netBuff{BufferPool<>::instance().acquire()};
     if (!netBuff) {
       LOG_ERROR_SYSTEM("Failed to acquire network buffer, message dropped");
       return;
     }
-    netBuff.size = Framer::frame(msg, netBuff.data);
-    if (netBuff.size > netBuff.capacity) {
-      throw std::logic_error(
-          std::format("Buffer overflow available: {} needed: {}", netBuff.capacity, netBuff.size));
-    }
-    const auto dataSpan = ByteSpan{netBuff.data, netBuff.size};
-    LOG_TRACE("sending {} bytes", dataSpan.size());
+    const auto size = Framer::frame(msg, netBuff.data);
+    assert(size < BufferPool<>::instance()::BUFFER_CAPACITY);
+
+    const auto dataSpan = ByteSpan{netBuff.data, size};
+    LOG_TRACE("sending {} bytes", size);
     transport_.asyncTx(dataSpan, [self = this->weak_from_this(),
                                   idx = netBuff.index](IoResult code, size_t bytes) {
       BufferPool<>::instance().release(idx);
@@ -139,7 +138,7 @@ private:
 
   BusT bus_;
   TransportT transport_;
-  RingBuffer buffer_;
+  SlidingBuffer buffer_;
 
   Atomic<ConnectionStatus> status_{ConnectionStatus::Connected};
 };
