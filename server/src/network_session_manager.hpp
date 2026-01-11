@@ -47,7 +47,7 @@ public:
   explicit NetworkSessionManager(ServerBus &bus)
       : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
         unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS},
-        statusQueue_{std::make_unique<VyukovQueue<ServerOrderStatus>>()} {
+        statusQueue_{std::make_unique<VyukovMPMC<ServerOrderStatus>>()} {
     LOG_INFO_SYSTEM("NetworkSessionManager initialized");
     bus_.subscribe<ServerOrderStatus>(
         [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
@@ -274,7 +274,7 @@ private:
   const bool drainLocal_{true};
   DrainHook drainHook_;
   std::atomic_bool drainScheduled_{false};
-  UPtr<VyukovQueue<ServerOrderStatus>> statusQueue_;
+  UPtr<VyukovMPMC<ServerOrderStatus>> statusQueue_;
 };
 
 } // namespace hft::server

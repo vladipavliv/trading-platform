@@ -3,13 +3,17 @@
  * @date 2025-03-22
  */
 
-#ifndef HFT_COMMON_RINGBUFFER_HPP
-#define HFT_COMMON_RINGBUFFER_HPP
+#ifndef HFT_COMMON_READBUFFER_HPP
+#define HFT_COMMON_READBUFFER_HPP
 
+#include <cassert>
+#include <cstring>
 #include <memory>
+#include <stdexcept>
 
 #include "constants.hpp"
 #include "container_types.hpp"
+#include "logging.hpp"
 #include "primitive_types.hpp"
 
 namespace hft {
@@ -17,11 +21,11 @@ namespace hft {
 /**
  * @brief
  */
-class RingBuffer {
+class SlidingBuffer {
   static constexpr size_t MIN_READ_CAPACITY = 512;
 
 public:
-  explicit RingBuffer(size_t capacity = 1024 * 128) : capacity_{capacity} {
+  explicit SlidingBuffer(size_t capacity = 1024 * 128) : capacity_{capacity} {
     if (capacity < MIN_READ_CAPACITY) {
       throw std::runtime_error("Invalid ring buffer capacity");
     }
@@ -32,7 +36,8 @@ public:
     if (capacity_ - head_ < MIN_READ_CAPACITY) {
       rotate();
     }
-    return ByteSpan(buffer_.data() + head_, capacity_ - head_);
+    size_t avail = capacity_ - head_;
+    return ByteSpan(buffer_.data() + head_, avail);
   }
 
   inline auto data() -> ByteSpan {
@@ -40,17 +45,15 @@ public:
     return ByteSpan(buffer_.data() + tail_, head_ - tail_);
   }
 
-  inline void commitWrite(size_t bytes) {
-    LOG_DEBUG("commit write {} {} {}", head_, tail_, bytes);
-    if (head_ + bytes > capacity_) {
-      throw std::runtime_error("RingBuffer overflow");
+  inline bool commitWrite(size_t bytes) noexcept {
+    if (head_ + bytes > capacity_) [[unlikely]] {
+      return false;
     }
-    assert(head_ + bytes <= capacity_);
     head_ += bytes;
+    return true;
   }
 
   inline void commitRead(size_t bytes) {
-    LOG_DEBUG("commit read {} {} {}", head_, tail_, bytes);
     assert(tail_ + bytes <= head_);
     tail_ += bytes;
     if (tail_ == head_) {
@@ -85,4 +88,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_RINGBUFFER_HPP
+#endif // HFT_COMMON_READBUFFER_HPP

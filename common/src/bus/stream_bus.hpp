@@ -11,10 +11,10 @@
 
 #include "config/config.hpp"
 #include "constants.hpp"
+#include "containers/vyukov_mpmc.hpp"
 #include "ctx_runner.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
-#include "vyukov_queue.hpp"
 
 namespace hft {
 
@@ -32,7 +32,7 @@ class StreamBus {
   static constexpr size_t EventCount = sizeof...(Events);
 
   template <typename Event>
-  using Lfq = VyukovQueue<Event, Capacity>;
+  using Lfq = VyukovMPMC<Event, Capacity>;
 
   template <typename Event>
   using UPtrLfq = UPtr<Lfq<Event>>;
