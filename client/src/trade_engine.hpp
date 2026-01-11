@@ -14,7 +14,6 @@
 #include "config/config.hpp"
 #include "ctx_runner.hpp"
 #include "market_data.hpp"
-#include "metadata_types.hpp"
 #include "primitive_types.hpp"
 #include "rtt_tracker.hpp"
 #include "traits.hpp"
@@ -154,7 +153,7 @@ private:
     default:
       const auto now = getCycles();
       const auto rtt = (now - s.orderId) * ClientConfig::cfg.nsPerCycle;
-      bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, now});
+      // TODO bus_.post();
       break;
     }
   }

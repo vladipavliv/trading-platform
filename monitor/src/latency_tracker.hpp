@@ -31,21 +31,12 @@ public:
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
         monitorRate_{
             Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> msg) { onOrderTimestamp(msg); });
-    bus_.subscribe<RuntimeMetrics>([this](CRef<RuntimeMetrics> msg) { onRuntimeMetrics(msg); });
+    bus_.subscribe<Order>([this](CRef<Order> msg) { onOrder(msg); });
     scheduleStatsTimer();
   }
 
 private:
-  void onOrderTimestamp(CRef<OrderTimestamp> msg) {
-    LOG_DEBUG("onOrderTimestamp {}", toString(msg));
-    Tracker::logRtt((msg.notified - msg.created) * MonitorConfig::cfg.nsPerCycle);
-    counter_.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  void onRuntimeMetrics(CRef<RuntimeMetrics> msg) {
-    LOG_DEBUG("onRuntimeMetrics {}", toString(msg));
-  }
+  void onOrder(CRef<Order> msg) {}
 
   void scheduleStatsTimer() {
     using namespace utils;

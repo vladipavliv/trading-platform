@@ -22,59 +22,38 @@ namespace hft {
 /**
  * @brief
  */
-template <typename MarketBusT, typename StreamBusT>
+template <typename MarketBusT>
 struct BusHub {
 public:
-  BusHub() : streamBus{systemBus} {}
-
   SystemBus systemBus;
   MarketBusT marketBus;
-  StreamBusT streamBus;
 
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
 
-  void run() {
-    streamBus.run();
-    systemBus.run();
-  }
+  void run() { systemBus.run(); }
 
-  void stop() {
-    streamBus.stop();
-    systemBus.stop();
-  }
+  void stop() { systemBus.stop(); }
 
   template <typename Message>
-    requires(MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message>)
   inline void post(CRef<Message> message) {
     marketBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
+    requires(MarketBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     marketBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
-    requires(!MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
-  inline void post(CRef<Message> message) {
-    streamBus.template post<Message>(message);
-  }
-
-  template <typename Message>
-    requires(!MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
-  inline void subscribe(CRefHandler<Message> &&handler) {
-    streamBus.template subscribe<Message>(std::move(handler));
-  }
-
-  template <typename Message>
-    requires(!MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message>)
   inline void post(CRef<Message> message) {
     systemBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(!MarketBusT::template Routed<Message> && !StreamBusT::template Routed<Message>)
+    requires(!MarketBusT::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     systemBus.template subscribe<Message>(std::move(handler));
   }
@@ -83,14 +62,6 @@ public:
   void subscribe(EventType event, Callback &&callback) {
     systemBus.subscribe(event, std::move(callback));
   }
-
-  template <typename Message>
-    requires(MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
-  inline void post(CRef<Message>) = delete;
-
-  template <typename Message>
-    requires(MarketBusT::template Routed<Message> && StreamBusT::template Routed<Message>)
-  inline void subscribe(CRefHandler<Message>) = delete;
 };
 } // namespace hft
 

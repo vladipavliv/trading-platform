@@ -11,10 +11,10 @@
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "events.hpp"
-#include "network/channel.hpp"
-#include "network/connection_status.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "transport/channel.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 

@@ -20,7 +20,6 @@ set(CMAKE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
 
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(TELEMETRY_ENABLED "Enable telemetry" OFF)
 option(COMM_TYPE_SHM "Use Shared Memory for IPC instead of Sockets" OFF)
 option(PROFILING "Colect profiling data" OFF)
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR" CACHE STRING "spdlog active level")
@@ -50,9 +49,6 @@ if(IS_CICD_BUILD)
   set(BUILD_TESTS ON CACHE BOOL "Build tests" FORCE)
   set(BUILD_BENCHMARKS OFF CACHE BOOL "Build benchmarks" FORCE)
 else()
-  if(TELEMETRY_ENABLED)
-    add_compile_definitions(TELEMETRY_ENABLED)
-  endif()
   if(BUILD_TESTS)
     set(SERIALIZATION "FBS")
   else()
@@ -116,7 +112,6 @@ set(vars
     SERIALIZATION
     BUILD_TESTS
     BUILD_BENCHMARKS
-    TELEMETRY_ENABLED
     PROFILING
     SPDLOG_ACTIVE_LEVEL
 )

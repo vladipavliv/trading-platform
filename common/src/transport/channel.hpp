@@ -11,10 +11,10 @@
 #include "containers/sliding_buffer.hpp"
 #include "domain_types.hpp"
 #include "logging.hpp"
-#include "network/async_transport.hpp"
-#include "network/connection_status.hpp"
 #include "network_traits.hpp"
 #include "primitive_types.hpp"
+#include "transport/async_transport.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/string_utils.hpp"
 #include <cassert>
 

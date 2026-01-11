@@ -11,9 +11,22 @@
 #include <system_error>
 #include <x86intrin.h>
 
-#include "metadata_types.hpp"
-
 namespace hft::utils {
+
+struct RUsageSnapshot {
+  // CPU time spent executing user code
+  uint64_t userTimeNs{};
+  // CPU time spent executing kernel code (system calls)
+  uint64_t systemTimeNs{};
+  // local context switches
+  uint64_t volSwitches{};
+  // forced context switches
+  uint64_t involSwitches{};
+  // Number of page faults that did not require disk access
+  uint64_t softPageFaults{};
+  // Number of page faults that required reading from disk (major page faults)
+  uint64_t hardPageFaults{};
+};
 
 #ifdef PROFILING
 inline auto getRUsage() -> RUsageSnapshot {

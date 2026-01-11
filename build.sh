@@ -7,9 +7,6 @@ CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_ERROR 
 
 for arg in "$@"; do
   case "$arg" in
-    tel)
-      CMAKE_ARGS="$CMAKE_ARGS -DTELEMETRY_ENABLED=ON"
-      ;;
     c|clean)
       rm -rf "$BUILD_DIR/"
       ;;

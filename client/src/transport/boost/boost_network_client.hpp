@@ -10,31 +10,32 @@
 #include <memory>
 #include <vector>
 
+#include "bus/bus_hub.hpp"
 #include "config/client_config.hpp"
 #include "events.hpp"
 #include "logging.hpp"
-#include "network/connection_status.hpp"
-#include "network/transport/boost/boost_network_types.hpp"
-#include "network/transport/boost/boost_tcp_transport.hpp"
-#include "network/transport/boost/boost_udp_transport.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "transport/boost/boost_network_types.hpp"
+#include "transport/boost/boost_tcp_transport.hpp"
+#include "transport/boost/boost_udp_transport.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft::client {
 
 /**
  * @brief
  */
-class BoostNetworkClient {
+class BoostIpcClient {
 public:
   using StreamClb = std::function<void(BoostTcpTransport &&)>;
   using DatagramClb = std::function<void(BoostUdpTransport &&)>;
 
-  explicit BoostNetworkClient(ClientBus &bus)
-      : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())} {}
+  explicit BoostIpcClient(ClientBus &bus) : bus_{bus}, guard_{MakeGuard(ioCtx_.get_executor())} {}
 
-  ~BoostNetworkClient() { stop(); }
+  ~BoostIpcClient() { stop(); }
 
   void setUpstreamClb(StreamClb &&streamClb) { upStreamClb_ = std::move(streamClb); }
 

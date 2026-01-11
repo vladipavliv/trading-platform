@@ -8,11 +8,11 @@
 
 #include "bus/bus_restrictor.hpp"
 #include "logging.hpp"
-#include "network/async_transport.hpp"
-#include "network/channel.hpp"
 #include "primitive_types.hpp"
 #include "session_bus.hpp"
 #include "traits.hpp"
+#include "transport/async_transport.hpp"
+#include "transport/channel.hpp"
 
 namespace hft::server {
 

@@ -17,7 +17,7 @@ class MessageBus;
 template <size_t Capacity, typename... Events>
 class StreamBus;
 
-template <typename MarketBusT = MessageBus<>, typename StreamBusT = StreamBus<LFQ_CAPACITY>>
+template <typename MarketBusT>
 struct BusHub;
 
 template <typename BusT, typename... MessageTs>
@@ -40,9 +40,6 @@ template <typename SerializerType>
 class FixedSizeFramer;
 
 namespace serialization {
-namespace proto {
-class ProtoMetadataSerializer;
-}
 namespace fbs {
 class FbsDomainSerializer;
 }
@@ -61,10 +58,6 @@ using Framer = FixedSizeFramer<DomainSerializer>;
 } // namespace serialization
 
 namespace adapters {
-template <typename BusT,
-          typename ConsumeSerializerT = serialization::proto::ProtoMetadataSerializer,
-          typename ProduceSerializerT = serialization::proto::ProtoMetadataSerializer>
-class KafkaAdapter;
 template <typename BusType>
 class DummyKafkaAdapter;
 class PostgresAdapter;
@@ -77,37 +70,28 @@ struct ConnectionStatusEvent;
 namespace hft::client {
 class CommandParser;
 class ShmClient;
-class BoostNetworkClient;
+class BoostIpcClient;
 class NetworkConnectionManager;
 class TrustedConnectionManager;
 
-using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
-
-#ifdef TELEMETRY_ENABLED
-template <typename BusT, typename ConsumeSerializerT = MetadataSerializer,
-          typename ProduceSerializerT = MetadataSerializer>
-using MessageQueueAdapter = adapters::KafkaAdapter<BusT, ConsumeSerializerT, ProduceSerializerT>;
-using ClientStreamBus = StreamBus<LFQ_CAPACITY, OrderTimestamp, RuntimeMetrics>;
-#else
-template <typename BusT, typename ConsumeSerializerT = void, typename ProduceSerializerT = void>
+template <typename BusT>
 using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
-#endif
 
 #ifdef COMM_SHM
 using StreamTransport = ShmTransport;
 using DatagramTransport = ShmTransport;
-using NetworkClient = ShmClient;
+using IpcClient = ShmClient;
 using ConnectionManager = TrustedConnectionManager;
 #else
 using StreamTransport = BoostTcpTransport;
 using DatagramTransport = BoostUdpTransport;
-using NetworkClient = BoostNetworkClient;
+using IpcClient = BoostIpcClient;
 using ConnectionManager = NetworkConnectionManager;
 #endif
 
 using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice>;
-using ClientBus = BusHub<ClientMessageBus, ClientStreamBus>;
+using ClientBus = BusHub<ClientMessageBus>;
 using UpstreamBus =
     BusRestrictor<ClientBus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
 using DownstreamBus =
@@ -116,8 +100,6 @@ using DatagramBus =
     BusRestrictor<ClientBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
-
-using StreamAdapter = MessageQueueAdapter<ClientBus, CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;
 
 } // namespace hft::client

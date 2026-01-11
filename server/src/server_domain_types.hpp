@@ -7,7 +7,6 @@
 #define HFT_SERVER_SERVERDOMAINTYPES_HPP
 
 #include "domain_types.hpp"
-#include "metadata_types.hpp"
 #include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 

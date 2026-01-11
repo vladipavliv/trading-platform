@@ -7,19 +7,20 @@
 
 #include <boost/program_options.hpp>
 
+#ifdef COMM_SHM
+#include "transport/shm/shm_server.hpp"
+#include "trusted_session_manager.hpp"
+#else
+#include "network_session_manager.hpp"
+#include "transport/boost/boost_network_server.hpp"
+#endif
+
 #include "adapters/dummies/dummy_kafka_adapter.hpp"
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
 #include "bus/bus_restrictor.hpp"
-
-#ifdef COMM_SHM
-#include "network/shm/shm_server.hpp"
-#include "trusted_session_manager.hpp"
-#else
-#include "network/boost/boost_network_server.hpp"
-#include "network_session_manager.hpp"
-#endif
+#include "transport/shm/shm_manager.hpp"
 
 #include "config/server_config.hpp"
 #include "control_center.hpp"
@@ -53,10 +54,13 @@ int main(int argc, char *argv[]) {
     LOG_INIT(ServerConfig::cfg.logOutput);
     ServerConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
+    ShmManager::initialize(true);
+
     ServerControlCenter serverCc;
     serverCc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   }
+  ShmManager::deinitialize();
   return 0;
 }

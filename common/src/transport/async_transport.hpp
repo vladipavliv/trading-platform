@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_ASYNCTRANSPORT_HPP
 #define HFT_COMMON_ASYNCTRANSPORT_HPP
 
+#include "container_types.hpp"
 #include "io_result.hpp"
 #include "primitive_types.hpp"
 

@@ -20,7 +20,7 @@ namespace hft {
 
 class SequencedSPSC {
   static constexpr uint32_t SlotCount = 128 * 1024;
-  static constexpr uint32_t DataCapacity = 56;
+  static constexpr uint32_t DataCapacity = 52;
 
   static_assert((SlotCount & (SlotCount - 1)) == 0);
 

@@ -13,9 +13,9 @@
 #include "boost_network_utils.hpp"
 #include "container_types.hpp"
 #include "logging.hpp"
-#include "network/async_transport.hpp"
-#include "network/transport/boost/boost_network_types.hpp"
 #include "primitive_types.hpp"
+#include "transport/async_transport.hpp"
+#include "transport/boost/boost_network_types.hpp"
 
 namespace hft {
 

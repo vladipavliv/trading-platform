@@ -13,11 +13,11 @@
 #include "config/server_config.hpp"
 #include "events.hpp"
 #include "internal_error.hpp"
-#include "network/transport/boost/boost_network_types.hpp"
-#include "network/transport/boost/boost_tcp_transport.hpp"
-#include "network/transport/boost/boost_udp_transport.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "transport/boost/boost_network_types.hpp"
+#include "transport/boost/boost_tcp_transport.hpp"
+#include "transport/boost/boost_udp_transport.hpp"
 
 namespace hft::server {
 
@@ -25,16 +25,16 @@ namespace hft::server {
  * @brief Runs network io_context. Starts tcp acceptors and broadcast service
  * Redirects accepted tcp sockets to the gateway
  */
-class BoostNetworkServer {
+class BoostIpcServer {
 public:
   using StreamClb = std::function<void(BoostTcpTransport &&transport)>;
   using DatagramClb = std::function<void(BoostUdpTransport &&transport)>;
 
-  explicit BoostNetworkServer(ServerBus &bus)
+  explicit BoostIpcServer(ServerBus &bus)
       : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, upstreamAcceptor_{ioCtx_},
         downstreamAcceptor_{ioCtx_} {}
 
-  ~BoostNetworkServer() { stop(); }
+  ~BoostIpcServer() { stop(); }
 
   void setUpstreamClb(StreamClb &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
@@ -44,7 +44,7 @@ public:
 
   void start() {
     if (running_) {
-      LOG_ERROR("BoostNetworkServer is already running");
+      LOG_ERROR("BoostIpcServer is already running");
       return;
     }
     workerThread_ = std::jthread([this]() {

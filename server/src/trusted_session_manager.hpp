@@ -9,10 +9,10 @@
 #include "constants.hpp"
 #include "events.hpp"
 #include "logging.hpp"
-#include "network/channel.hpp"
-#include "network/connection_status.hpp"
-#include "network/session_channel.hpp"
 #include "traits.hpp"
+#include "transport/channel.hpp"
+#include "transport/connection_status.hpp"
+#include "transport/session_channel.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 

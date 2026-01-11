@@ -12,14 +12,6 @@ if(SERIALIZATION STREQUAL "FBS" OR BUILD_TESTS OR BUILD_BENCHMARKS)
     )
 endif()
 
-if(TELEMETRY_ENABLED OR BUILD_TESTS OR BUILD_BENCHMARKS)
-    include(cmake/proto_code_generator.cmake)
-    list(APPEND COMMON_SOURCES
-        ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.cc
-        ${GEN_DIR_PROTO_CPP}/metadata_messages.pb.h
-    )
-endif()
-
 add_library(hft_common STATIC ${COMMON_SOURCES})
 
 target_include_directories(hft_common PUBLIC 
@@ -53,19 +45,12 @@ target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE
 if (BUILD_TESTS OR BUILD_BENCHMARKS)
     add_dependencies(hft_common sbe_cpp_domain_code_gen)
     add_dependencies(hft_common fbs_cpp_domain_code_gen)
-    add_dependencies(hft_common fbs_cpp_metadata_code_gen)
     add_dependencies(hft_common fbs_python_domain_code_gen)
-    add_dependencies(hft_common proto_cpp_metadata_code_gen)
 elseif(SERIALIZATION STREQUAL "SBE")
     add_dependencies(hft_common sbe_cpp_domain_code_gen)
 elseif(SERIALIZATION STREQUAL "FBS")
     add_dependencies(hft_common fbs_cpp_domain_code_gen)
-    add_dependencies(hft_common fbs_cpp_metadata_code_gen)
     add_dependencies(hft_common fbs_python_domain_code_gen)
-endif()
-
-if(TELEMETRY_ENABLED)
-    add_dependencies(hft_common proto_cpp_metadata_code_gen)
 endif()
 
 include(CheckIPOSupported)

@@ -3,7 +3,6 @@
 message(STATUS "--- [FBS] Configuring generator ---")
 
 set(FBS_DOMAIN_SCHEMA ${CMAKE_SOURCE_DIR}/schema/fbs/domain_messages.fbs)
-set(FBS_METADATA_SCHEMA ${CMAKE_SOURCE_DIR}/schema/fbs/metadata_messages.fbs)
 
 set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
 set(GEN_DIR_FBS_CPP ${GEN_DIR}/fbs/cpp)
@@ -34,5 +33,4 @@ add_custom_command(
 )
 
 add_custom_target(fbs_cpp_domain_code_gen DEPENDS ${GEN_DIR_FBS_CPP}/domain_messages_generated.h)
-add_custom_target(fbs_cpp_metadata_code_gen DEPENDS ${GEN_DIR_FBS_CPP}/metadata_messages_generated.h)
 add_custom_target(fbs_python_domain_code_gen DEPENDS ${GEN_DIR_FBS_PYTHON}/domain_messages_generated.py)

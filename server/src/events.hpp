@@ -7,9 +7,9 @@
 #define HFT_SERVER_SERVEREVENTS_HPP
 
 #include "functional_types.hpp"
-#include "network/connection_status.hpp"
 #include "primitive_types.hpp"
 #include "status_code.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {

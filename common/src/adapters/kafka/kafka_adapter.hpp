@@ -17,14 +17,13 @@
 #include "kafka_callbacks.hpp"
 #include "kafka_event.hpp"
 #include "logging.hpp"
-#include "metadata_types.hpp"
 #include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::adapters {
 
 /**
- * @brief Reactive adapter, all communication goes through the bus
+ * @brief Reactive adapter, all transport goes through the bus
  */
 template <typename BusT, typename ConsumeSerializerT, typename ProduceSerializerT>
 class KafkaAdapter {

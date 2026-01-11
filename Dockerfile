@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     libdouble-conversion-dev libiberty-dev binutils-dev \
     libgoogle-glog-dev libpq-dev libbenchmark-dev \
     flatbuffers-compiler libflatbuffers-dev \
-    protobuf-compiler openjdk-17-jdk \
+    openjdk-17-jdk \
     python3 python3-venv python3-pip \
     libevent-dev libgflags-dev libssl-dev zlib1g-dev libunwind-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -60,8 +60,7 @@ RUN cmake -S . -B build \
         -DTARGET_ARCH=x86-64-v3 \
         -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG \
         -DSERIALIZATION=FBS \
-        -DCOMM_TYPE_SHM=OFF \
-        -DTELEMETRY_ENABLED=ON && \
+        -DCOMM_TYPE_SHM=OFF && \
     cmake --build build -j$(nproc)
 
 FROM ubuntu:24.04

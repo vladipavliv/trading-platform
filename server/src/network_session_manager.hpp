@@ -10,13 +10,15 @@
 #include <folly/AtomicHashMap.h>
 #include <folly/container/F14Map.h>
 
+#include "bus/bus_hub.hpp"
 #include "constants.hpp"
+#include "containers/vyukov_mpmc.hpp"
 #include "events.hpp"
 #include "logging.hpp"
-#include "network/async_transport.hpp"
-#include "network/connection_status.hpp"
-#include "network/session_channel.hpp"
 #include "traits.hpp"
+#include "transport/async_transport.hpp"
+#include "transport/connection_status.hpp"
+#include "transport/session_channel.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 

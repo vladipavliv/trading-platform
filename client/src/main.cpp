@@ -7,18 +7,20 @@
 
 #include <boost/program_options.hpp>
 
+#ifdef COMM_SHM
+#include "transport/shm/shm_client.hpp"
+#include "trusted_connection_manager.hpp"
+#else
+#include "transport/boost/boost_network_client.hpp"
+
+#include "network_connection_manager.hpp"
+#endif
+
 #include "adapters/dummies/dummy_kafka_adapter.hpp"
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
-
-#ifdef COMM_SHM
-#include "network/shm/shm_client.hpp"
-#include "trusted_connection_manager.hpp"
-#else
-#include "network/boost/boost_network_client.hpp"
-#include "network_connection_manager.hpp"
-#endif
+#include "transport/shm/shm_manager.hpp"
 
 #include "config/client_config.hpp"
 #include "control_center.hpp"
@@ -51,6 +53,8 @@ int main(int argc, char *argv[]) {
     LOG_INIT(ClientConfig::cfg.logOutput);
     ClientConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
+    ShmManager::initialize(false);
+
     ClientControlCenter clientCc;
     clientCc.start();
   } catch (const std::exception &e) {
@@ -58,5 +62,6 @@ int main(int argc, char *argv[]) {
   } catch (...) {
     std::cerr << "Unknown exception caught in main" << std::endl;
   }
+  ShmManager::deinitialize();
   return 0;
 }

@@ -11,10 +11,10 @@
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "events.hpp"
-#include "network/channel.hpp"
-#include "network/connection_status.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "transport/channel.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
@@ -26,14 +26,14 @@ class NetworkConnectionManager {
   using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
-  NetworkConnectionManager(ClientBus &bus, NetworkClient &networkClient)
-      : bus_{bus}, networkClient_{networkClient} {
+  NetworkConnectionManager(ClientBus &bus, IpcClient &ipcClient)
+      : bus_{bus}, ipcClient_{ipcClient} {
     LOG_INFO_SYSTEM("NetworkConnectionManager initialized");
-    networkClient_.setUpstreamClb(
+    ipcClient_.setUpstreamClb(
         [this](StreamTransport &&transport) { onUpstreamConnected(std::move(transport)); });
-    networkClient_.setDownstreamClb(
+    ipcClient_.setDownstreamClb(
         [this](StreamTransport &&transport) { onDownstreamConnected(std::move(transport)); });
-    networkClient_.setDatagramClb(
+    ipcClient_.setDatagramClb(
         [this](DatagramTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
     bus_.subscribe<Order>([this](CRef<Order> order) {
@@ -137,7 +137,7 @@ private:
 private:
   ClientBus &bus_;
 
-  NetworkClient &networkClient_;
+  IpcClient &ipcClient_;
 
   SPtr<UpStreamChannel> upstreamChannel_;
   SPtr<DownStreamChannel> downstreamChannel_;
