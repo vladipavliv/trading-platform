@@ -31,8 +31,6 @@ class TrustedSessionManager {
   using DownstreamChan = SessionChannel<TrustedDownstreamBus>;
 
 public:
-  using DrainHook = std::function<void(Callback &&)>;
-
   explicit TrustedSessionManager(ServerBus &bus) : bus_{bus} {
     LOG_INFO_SYSTEM("TrustedSessionManager initialized");
     bus_.subscribe<ServerOrderStatus>(
@@ -40,8 +38,6 @@ public:
     bus_.subscribe<ChannelStatusEvent>(
         [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
   }
-
-  void setDrainHook(DrainHook &&drainHook) {}
 
   void acceptUpstream(StreamTransport &&t) {
     const auto id = utils::generateConnectionId();

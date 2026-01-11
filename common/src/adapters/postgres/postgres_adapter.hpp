@@ -38,8 +38,6 @@ public:
 
   auto readTickers(bool cache = true) -> Expected<Span<const TickerPrice>>;
   auto checkCredentials(CRef<String> name, CRef<String> password) -> Expected<ClientId>;
-  auto getWriter(StringView table) -> Expected<TableWriter>;
-  auto getReader(StringView table) -> Expected<TableReader>;
   void clean(CRef<String> table);
 
 private:

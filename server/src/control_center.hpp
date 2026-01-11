@@ -71,12 +71,9 @@ public:
 
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });
-
-    sessionMgr_.setDrainHook(networkServer_.getHook());
   }
 
   void start() {
-    storage_.load();
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
     }
@@ -98,7 +95,6 @@ public:
     streamAdapter_.stop();
     coordinator_.stop();
     bus_.stop();
-    storage_.save();
   }
 
 private:

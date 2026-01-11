@@ -89,37 +89,6 @@ auto PostgresAdapter::checkCredentials(CRef<String> name,
   }
 }
 
-auto PostgresAdapter::getWriter(StringView table) -> Expected<TableWriter> {
-  try {
-    return std::expected<TableWriter, StatusCode>{std::in_place, conn_, table};
-  } catch (CRef<std::exception> e) {
-    LOG_ERROR("{}", e.what());
-    return std::unexpected(StatusCode::DbError);
-  }
-}
-
-auto PostgresAdapter::getReader(StringView table) -> Expected<TableReader> {
-  try {
-    return std::expected<TableReader, StatusCode>{std::in_place, conn_, table};
-  } catch (CRef<std::exception> e) {
-    LOG_ERROR("{}", e.what());
-    return std::unexpected(StatusCode::DbError);
-  }
-}
-
-void PostgresAdapter::clean(CRef<String> table) {
-  try {
-    pqxx::work transaction(conn_);
-    const auto query = "DELETE FROM " + table + ";";
-    transaction.exec(query);
-    transaction.commit();
-  } catch (CRef<pqxx::sql_error> e) {
-    LOG_ERROR_SYSTEM("pqxx::sql_error {}", e.what());
-  } catch (CRef<std::exception> e) {
-    LOG_ERROR_SYSTEM("std::exception {}", e.what());
-  }
-}
-
 /**
  * @brief cicd compatibility
  */

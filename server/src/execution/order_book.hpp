@@ -141,44 +141,6 @@ public:
     openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
-  auto extract() const -> Vector<ServerOrder> {
-    Vector<ServerOrder> orders;
-    //    orders.reserve(bids_.size() + asks_.size());
-    //    orders.insert(orders.end(), bids_.begin(), bids_.end());
-    //    orders.insert(orders.end(), asks_.begin(), asks_.end());
-    return orders;
-  }
-
-  auto extract() -> Vector<ServerOrder> {
-    Vector<ServerOrder> orders;
-    // orders.reserve(bids_.size() + asks_.size());
-    // orders.insert(orders.end(), std::make_move_iterator(bids_.begin()),
-    //               std::make_move_iterator(bids_.end()));
-    // orders.insert(orders.end(), std::make_move_iterator(asks_.begin()),
-    //               std::make_move_iterator(asks_.end()));
-    // bids_.clear();
-    // asks_.clear();
-    // openedOrders_ = 0;
-    return orders;
-  }
-
-  void inject(Span<const ServerOrder> orders) {
-    /*for (const auto &order : orders) {
-      if (openedOrders() >= ServerConfig::cfg.orderBookLimit) {
-        LOG_ERROR_SYSTEM("Failed to inject orders: limit reached");
-        break;
-      }
-      if (order.order.action == OrderAction::Buy) {
-        bids_.push_back(order);
-        std::push_heap(bids_.begin(), bids_.end(), compareBids);
-
-      } else {
-        asks_.push_back(order);
-        std::push_heap(asks_.begin(), asks_.end(), compareAsks);
-      }
-    }*/
-  }
-
   inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
 
 private:
