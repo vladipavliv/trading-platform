@@ -18,93 +18,7 @@ namespace hft::server {
 
 class Storage {
 public:
-  explicit Storage(DbAdapter &dbAdapter)
-      : dbAdapter_{dbAdapter}, marketData_{loadMarketData()},
-        persist_{ServerConfig::cfg.orderBookPersist} {}
-
-  void save() {
-    if (!persist_) {
-      return;
-    }
-    using namespace utils;
-
-    auto writerExp = dbAdapter_.getWriter("orders");
-    if (!writerExp) {
-      LOG_ERROR("Failed to save data");
-      return;
-    }
-    LOG_INFO_SYSTEM("Saving orders");
-
-    auto &writer = writerExp.value();
-
-    size_t ordersSaved{0};
-    Timestamp lastLog{getTimestamp()};
-
-    for (const auto &tkrData : marketData_) {
-      const auto orders = tkrData.second.orderBook.extract();
-
-      for (auto &order : orders) {
-        writer << order;
-      }
-
-      ordersSaved += orders.size();
-      const auto now = utils::getTimestamp();
-      if (now - lastLog > ServerConfig::cfg.monitorRate) {
-        LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
-        lastLog = now;
-      }
-    }
-    writer.commit();
-
-    LOG_INFO_SYSTEM("Saved {} orders", ordersSaved);
-    LOG_INFO_SYSTEM("Opened orders have been saved successfully");
-  }
-
-  void load() {
-    if (!persist_) {
-      return;
-    }
-    LOG_INFO_SYSTEM("Loading orders");
-    using namespace utils;
-
-    auto readerExp = dbAdapter_.getReader("orders");
-    if (!readerExp) {
-      LOG_ERROR("Failed to load data");
-      return;
-    }
-    auto &reader = readerExp.value();
-    Vector<ServerOrder> orders;
-    orders.reserve(reader.size());
-
-    size_t ordersSaved{0};
-    Timestamp lastLog{getTimestamp()};
-
-    while (reader.next()) {
-      ServerOrder order;
-      reader >> order;
-      orders.push_back(order);
-
-      const auto now = utils::getTimestamp();
-      if (now - lastLog > ServerConfig::cfg.monitorRate) {
-        LOG_INFO_SYSTEM("Loaded {} orders", orders.size());
-        lastLog = now;
-      }
-    }
-    reader.commit();
-
-    LOG_INFO_SYSTEM("Orders loaded: {}", orders.size());
-
-    for (const auto &order : orders) {
-      auto it = marketData_.find(order.order.ticker);
-      if (it == marketData_.end()) {
-        LOG_ERROR_SYSTEM("Invalid ticker loaded {}", toString(order.order.ticker));
-        continue;
-      }
-      it->second.orderBook.inject({&order, 1});
-    }
-
-    dbAdapter_.clean("orders");
-  }
+  explicit Storage(DbAdapter &dbAdapter) : dbAdapter_{dbAdapter}, marketData_{loadMarketData()} {}
 
   auto marketData() const -> CRef<MarketData> { return marketData_; }
 
@@ -145,7 +59,6 @@ private:
   DbAdapter &dbAdapter_;
 
   const MarketData marketData_;
-  const bool persist_;
 };
 
 } // namespace hft::server

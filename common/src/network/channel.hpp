@@ -67,7 +67,7 @@ public:
       return;
     }
     const auto size = Framer::frame(msg, netBuff.data);
-    assert(size < BufferPool<>::instance()::BUFFER_CAPACITY);
+    assert(size < BufferPool<>::BUFFER_CAPACITY);
 
     const auto dataSpan = ByteSpan{netBuff.data, size};
     LOG_TRACE("sending {} bytes", size);
