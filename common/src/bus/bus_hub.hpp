@@ -32,7 +32,6 @@ public:
   StreamBusT streamBus;
 
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
-  inline IoCtx &streamIoCtx() { return streamBus.streamIoCtx(); }
 
   void run() {
     streamBus.run();

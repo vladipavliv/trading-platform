@@ -48,7 +48,7 @@ private:
       const size_t currWorkerTickers = perWorker + (idx < leftOver ? 1 : 0);
       for (size_t i = 0; i < currWorkerTickers && iter != prices.end(); ++i, ++iter) {
         LOG_TRACE("{}: ${}", toString(iter->ticker), iter->price);
-        data.emplace(iter->ticker, TickerData{idx});
+        data.emplace(iter->ticker, std::make_unique<TickerData>(idx));
       }
     }
     LOG_INFO("Data loaded for {} tickers", prices.size());

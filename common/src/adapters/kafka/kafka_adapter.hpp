@@ -40,7 +40,7 @@ public:
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
         consumeTopics_{Config::get_vector<String>("kafka.consume_topics")},
         produceTopics_{Config::get_vector<String>("kafka.produce_topics")},
-        timer_{bus_.streamIoCtx()} {
+        timer_{bus_.systemIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };
 

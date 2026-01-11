@@ -65,23 +65,9 @@ public:
     asks_.reserve(ServerConfig::cfg.orderBookLimit);
   }
 
-  OrderBook(OrderBook &&other) noexcept
-      : bids_{std::move(other.bids_)}, asks_{std::move(other.asks_)},
-        openedOrders_{other.openedOrders_.load(std::memory_order_acquire)} {
-    other.openedOrders_.store(0);
-  };
-
-  OrderBook &operator=(OrderBook &&other) noexcept {
-    bids_ = std::move(other.bids_);
-    asks_ = std::move(other.asks_);
-    openedOrders_ = other.openedOrders_.load(std::memory_order_acquire);
-    other.openedOrders_.store(0);
-    return *this;
-  };
-
   bool add(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
     if (bids_.size() + asks_.size() >= ServerConfig::cfg.orderBookLimit) {
-      LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", openedOrders_.load());
+      LOG_DEBUG_SYSTEM("OrderBook limit reached: {}", bids_.size() + asks_.size());
       consumer.post(getStatus(order, 0, 0, OrderState::Rejected));
       return false;
     }
@@ -96,17 +82,6 @@ public:
     }
     return true;
   }
-#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-  void sendAck(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
-    consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
-  }
-
-  void clear() {
-    bids_.clear();
-    asks_.clear();
-    openedOrders_ = 0;
-  }
-#endif
 
   void match(BusableFor<ServerOrderStatus> auto &consumer) {
     while (!bids_.empty() && !asks_.empty()) {
@@ -138,10 +113,19 @@ public:
         asks_.pop_back();
       }
     }
-    openedOrders_.store(bids_.size() + asks_.size(), std::memory_order_relaxed);
   }
 
-  inline size_t openedOrders() const { return openedOrders_.load(std::memory_order_relaxed); }
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
+  void sendAck(CRef<ServerOrder> order, BusableFor<ServerOrderStatus> auto &consumer) {
+    consumer.post(ServerOrderStatus{order.clientId, order.order.id, 0, 0, 0, OrderState::Accepted});
+  }
+
+  void clear() {
+    bids_.clear();
+    asks_.clear();
+    openedOrders_ = 0;
+  }
+#endif
 
 private:
   OrderBook(const OrderBook &) = delete;
@@ -150,8 +134,6 @@ private:
 private:
   alignas(64) Vector<InternalOrder> bids_;
   alignas(64) Vector<InternalOrder> asks_;
-
-  alignas(64) std::atomic_size_t openedOrders_{0};
 };
 
 } // namespace hft::server

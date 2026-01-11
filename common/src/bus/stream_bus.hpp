@@ -6,15 +6,14 @@
 #ifndef HFT_COMMON_STREAMBUS_HPP
 #define HFT_COMMON_STREAMBUS_HPP
 
-#include <boost/asio/post.hpp>
-#include <boost/asio/thread_pool.hpp>
-
 #include "config/config.hpp"
 #include "constants.hpp"
+#include "containers/sequenced_spsc.hpp"
 #include "containers/vyukov_mpmc.hpp"
 #include "ctx_runner.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
+#include "utils/sync_utils.hpp"
 
 namespace hft {
 
@@ -32,7 +31,7 @@ class StreamBus {
   static constexpr size_t EventCount = sizeof...(Events);
 
   template <typename Event>
-  using Lfq = VyukovMPMC<Event, Capacity>;
+  using Lfq = VyukovMPMC<Event, LFQ_CAPACITY * 16>;
 
   template <typename Event>
   using UPtrLfq = UPtr<Lfq<Event>>;
@@ -42,16 +41,10 @@ public:
   static constexpr bool Routed = utils::contains<Event, Events...>;
 
   explicit StreamBus(SystemBus &bus)
-      : rate_{Milliseconds(Config::get<size_t>("rates.telemetry_ms"))},
-        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
-        runner_{ErrorBus{bus}}, timer_{runner_.ioCtx} {}
+      : queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{} {}
 
   explicit StreamBus(CoreId coreId, SystemBus &bus)
-      : rate_{Milliseconds(Config::get<size_t>("rates.telemetry_ms"))},
-        queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{},
-        runner_{0, coreId, ErrorBus{bus}}, timer_{runner_.ioCtx} {}
-
-  inline IoCtx &streamIoCtx() { return runner_.ioCtx; }
+      : queues_{std::make_tuple(std::make_unique<Lfq<Events>>()...)}, handlers_{} {}
 
   template <typename Event>
     requires Routed<Event>
@@ -75,74 +68,78 @@ public:
       return false;
     }
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
-    auto &handler = std::get<CRefHandler<Event>>(handlers_);
-
-    if (!handler) {
-      LOG_ERROR("Handler is not set for the type {}", typeid(Event).name());
-      return false;
-    }
 
     size_t pushRetry{0};
     while (!queue->push(event)) {
       if (++pushRetry > BUSY_WAIT_CYCLES) {
-        LOG_ERROR("StreamBus event queue is full for {}", typeid(Event).name());
+        LOG_ERROR_SYSTEM("StreamBus event queue is full for {}", typeid(Event).name());
         return false;
       }
       asm volatile("pause" ::: "memory");
     }
+    notify();
     return true;
   }
 
   void run() {
     if (running_) {
-      LOG_ERROR("StreamBus is already running");
+      LOG_ERROR_SYSTEM("StreamBus is already running");
       return;
     }
-    LOG_DEBUG("Running StreamBus");
-    running_ = true;
-    runner_.run();
-    scheduleStatsTimer();
-  }
-
-  void stop() {
-    if (running_) {
-      running_ = false;
-      timer_.cancel();
-      runner_.stop();
-    }
-  }
-
-private:
-  void scheduleStatsTimer() {
-    if (!running_) {
-      return;
-    }
-    timer_.expires_after(rate_);
-    timer_.async_wait([this](BoostErrorCode code) {
-      if (code) {
-        if (code != ERR_ABORTED) {
-          LOG_ERROR("{}", code.message());
+    LOG_INFO_SYSTEM("Starting StreamBus");
+    runner_ = std::jthread([this]() {
+      running_ = true;
+      size_t emptyCycles = 0;
+      while (running_.load(std::memory_order_acquire)) {
+        if ((process<Events>() | ...)) {
+          emptyCycles = 0;
+          continue;
         }
-        return;
+        asm volatile("pause" ::: "memory");
+        if (++emptyCycles > BUSY_WAIT_CYCLES) {
+          waitForData();
+          emptyCycles = 0;
+        }
       }
-      while (!empty()) {
-        (process<Events>(), ...);
-      }
-      asm volatile("pause" ::: "memory");
-      scheduleStatsTimer();
     });
   }
 
+  void stop() {
+    running_.store(false, std::memory_order_release);
+    futex_.fetch_add(1, std::memory_order_release);
+    utils::futexWake(futex_);
+  }
+
+private:
   template <typename Event>
-  void process() {
+  bool process() {
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
     auto &handler = std::get<CRefHandler<Event>>(handlers_);
     if (!handler) {
-      return;
+      return false;
     }
     Event event;
-    while (queue->pop(event)) {
-      handler(event);
+    if (queue->pop(event)) {
+      do {
+        handler(event);
+      } while (queue->pop(event));
+      return true;
+    }
+    return false;
+  }
+
+  void waitForData() {
+    LOG_DEBUG("Wait for data");
+    uint32_t futexVal = futex_.load(std::memory_order_acquire);
+    sleeping_.store(true, std::memory_order_release);
+    utils::futexWait(futex_, futexVal);
+    sleeping_.store(false, std::memory_order_release);
+  }
+
+  void notify() {
+    if (sleeping_.load(std::memory_order_acquire)) {
+      futex_.fetch_add(1, std::memory_order_release);
+      utils::futexWake(futex_);
     }
   }
 
@@ -154,14 +151,14 @@ private:
   StreamBus &operator=(const StreamBus &&) = delete;
 
 private:
-  std::atomic_bool running_{false};
-  const Milliseconds rate_;
+  alignas(64) AtomicBool running_{false};
+  alignas(64) AtomicBool sleeping_{false};
+  alignas(64) AtomicUInt32 futex_;
 
   std::tuple<UPtrLfq<Events>...> queues_;
   std::tuple<CRefHandler<Events>...> handlers_;
 
-  CtxRunner runner_;
-  SteadyTimer timer_;
+  std::jthread runner_;
 };
 
 template <size_t Capacity>

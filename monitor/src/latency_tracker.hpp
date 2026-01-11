@@ -11,18 +11,19 @@
 #include "domain_types.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
+#include "rtt_tracker.hpp"
 #include "traits.hpp"
 
 namespace hft::monitor {
 /**
- * @brief Tracks the latencies
- * @todo Use HdrHistogram. This tracker is single-threaded, so no
- * histogram-merge complications here for multi-threaded tracking
+ * @brief
  */
 class LatencyTracker {
-  struct Latency {
-    uint64_t sum{0};
-    uint64_t size{0};
+  using Tracker = RttTracker<1000, 10000>;
+
+  struct LatencyStats {
+    AtomicUInt64 sum{0};
+    AtomicUInt64 size{0};
   };
 
 public:
@@ -38,13 +39,12 @@ public:
 private:
   void onOrderTimestamp(CRef<OrderTimestamp> msg) {
     LOG_DEBUG("onOrderTimestamp {}", toString(msg));
-    rtt_.sum += msg.notified - msg.created;
-    rtt_.size++;
+    Tracker::logRtt((msg.notified - msg.created) * MonitorConfig::cfg.nsPerCycle);
+    counter_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void onRuntimeMetrics(CRef<RuntimeMetrics> msg) {
     LOG_DEBUG("onRuntimeMetrics {}", toString(msg));
-    rps_ = msg.rps;
   }
 
   void scheduleStatsTimer() {
@@ -57,11 +57,12 @@ private:
         }
         return;
       }
-      static uint64_t lastSize{0};
-      if (rtt_.size != 0 && rtt_.size != lastSize) {
-        LOG_INFO_SYSTEM("Orders: {} | Rtt: {}us | Rps: {}", rtt_.size, rtt_.sum / rtt_.size, rps_);
+      static uint64_t lastCounter{0};
+      auto counter = counter_.load(std::memory_order_relaxed);
+      if (counter != lastCounter) {
+        LOG_INFO_SYSTEM("{}", Tracker::getStatsString());
       }
-      lastSize = rtt_.size;
+      lastCounter = counter;
       scheduleStatsTimer();
     });
   }
@@ -72,8 +73,7 @@ private:
   const Milliseconds monitorRate_;
   SteadyTimer statsTimer_;
 
-  Latency rtt_;
-  uint64_t rps_{0};
+  AtomicUInt64 counter_;
 };
 } // namespace hft::monitor
 

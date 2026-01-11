@@ -31,8 +31,6 @@ namespace hft::client {
  */
 class TradeEngine {
 public:
-  using Tracker = RttTracker<1000, 10000>;
-
   explicit TradeEngine(ClientBus &bus)
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
@@ -68,7 +66,6 @@ public:
     }
     LOG_INFO_SYSTEM("Trade start");
     trading_ = true;
-    scheduleStatsTimer();
   }
 
   void tradeStop() {
@@ -155,13 +152,9 @@ private:
       tradeStop();
       break;
     default:
-      const auto rtt = (getCycles() - s.orderId) * ClientConfig::cfg.nsPerCycle;
-      Tracker::logRtt(rtt);
-#ifdef TELEMETRY_ENABLED
-      if (telemetry_) {
-        bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, now});
-      }
-#endif
+      const auto now = getCycles();
+      const auto rtt = (now - s.orderId) * ClientConfig::cfg.nsPerCycle;
+      bus_.post(OrderTimestamp{s.orderId, s.orderId, s.timeStamp, now});
       break;
     }
   }
@@ -177,24 +170,6 @@ private:
     dataIt->second.setPrice(price.price);
   }
 
-  void scheduleStatsTimer() {
-    if (!trading_) {
-      return;
-    }
-    statsTimer_.expires_after(Milliseconds(ClientConfig::cfg.monitorRate));
-    statsTimer_.async_wait([this](BoostErrorCode code) {
-      if (code) {
-        if (code != ERR_ABORTED) {
-          LOG_ERROR_SYSTEM("{}", code.message());
-        }
-        return;
-      }
-      LOG_INFO_SYSTEM("Rtt: {}", Tracker::getStatsString());
-      Tracker::reset();
-      scheduleStatsTimer();
-    });
-  }
-
 private:
   DbAdapter dbAdapter_;
   const MarketData marketData_;
@@ -204,9 +179,9 @@ private:
 
   SteadyTimer statsTimer_;
 
-  std::atomic_bool running_{false};
-  std::atomic_bool trading_{false};
-  std::atomic_bool telemetry_{false};
+  alignas(64) AtomicBool running_{false};
+  alignas(64) AtomicBool trading_{false};
+  alignas(64) AtomicBool telemetry_{false};
 };
 } // namespace hft::client
 
