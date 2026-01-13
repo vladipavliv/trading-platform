@@ -15,6 +15,8 @@
 
 namespace hft::benchmarks {
 
+using namespace server;
+
 struct TestTickerData {
   explicit TestTickerData(size_t count = 0) { generate(count); }
 
@@ -69,7 +71,7 @@ struct TestMarketData {
 
     ThreadId workerId{0};
     for (auto &ticker : tickers.tickers) {
-      marketData.emplace(ticker, workerId);
+      marketData.emplace(ticker, std::make_unique<TickerData>(workerId));
       if (++workerId == workerCount) {
         workerId = 0;
       }
@@ -78,12 +80,12 @@ struct TestMarketData {
 
   void cleanup() {
     for (auto &td : marketData) {
-      td.second.orderBook.clear();
+      td.second->orderBook.clear();
     }
   }
 
   TestTickerData &tickers;
-  server::MarketData marketData;
+  MarketData marketData;
 };
 
 } // namespace hft::benchmarks

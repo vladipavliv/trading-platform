@@ -80,7 +80,7 @@ void BM_Sys_ServerFix::setupCoordinator() {
 
   ThreadId id = 0;
   for (auto &tkrData : marketData.marketData) {
-    tkrData.second.setThreadId(id);
+    tkrData.second->setThreadId(id);
     if (++id == workerCount) {
       id = 0;
     }

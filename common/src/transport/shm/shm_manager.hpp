@@ -21,23 +21,27 @@ public:
       LOG_ERROR_SYSTEM("Shared memory is already initialized");
       return;
     }
-    name_ = Config::get<String>("shm.shm_name");
-    size_ = Config::get<size_t>("shm.shm_size");
-    create_ = create;
+    try {
+      name_ = Config::get<String>("shm.shm_name");
+      size_ = Config::get<size_t>("shm.shm_size");
+      create_ = create;
 
-    if (create) {
-      unlink(name_.c_str());
-    }
+      if (create) {
+        unlink(name_.c_str());
+      }
 
-    void *addr = utils::mapSharedMemory(name_, size_, create);
+      void *addr = utils::mapSharedMemory(name_, size_, create);
 
-    utils::warmMemory(addr, size_, create);
-    utils::lockMemory(addr, size_);
+      utils::warmMemory(addr, size_, create);
+      utils::lockMemory(addr, size_);
 
-    if (create_) {
-      layout_ = new (addr) ShmLayout();
-    } else {
-      layout_ = static_cast<ShmLayout *>(addr);
+      if (create_) {
+        layout_ = new (addr) ShmLayout();
+      } else {
+        layout_ = static_cast<ShmLayout *>(addr);
+      }
+    } catch (const std::exception &e) {
+      LOG_ERROR_SYSTEM("Failed to initialize ShmManager {}", e.what());
     }
   }
 

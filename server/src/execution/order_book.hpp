@@ -123,7 +123,6 @@ public:
   void clear() {
     bids_.clear();
     asks_.clear();
-    openedOrders_ = 0;
   }
 #endif
 
