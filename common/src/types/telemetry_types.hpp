@@ -42,6 +42,8 @@ struct TelemetryMsg {
       Timestamp created;
       Timestamp fulfilled;
       Timestamp notified;
+      uint64_t ordersPlaced;
+      uint64_t ordersFulfilled;
     } order;
 
     struct {
@@ -79,9 +81,11 @@ inline std::string toString(const TelemetryMsg &msg) {
                                 msg.data.init.coreId, utils::fromArray(msg.data.init.buildInfo));
 
   case TelemetryType::OrderLatency:
-    return header + std::format("Order: ID:{} Created:{} Fulfilled:{} Notified:{}",
-                                msg.data.order.id, msg.data.order.created, msg.data.order.fulfilled,
-                                msg.data.order.notified);
+    return header +
+           std::format("Order: ID:{} Created:{} Fulfilled:{} Notified:{} Placed:{} Fulfilled:{}",
+                       msg.data.order.id, msg.data.order.created, msg.data.order.fulfilled,
+                       msg.data.order.notified, msg.data.order.ordersPlaced,
+                       msg.data.order.ordersFulfilled);
 
   case TelemetryType::Runtime:
     return header + std::format("Metrics: TS:{} RPS:{} AvgLat:{}ns", msg.data.metrics.ts,

@@ -30,12 +30,15 @@ inline TelemetryMsg createStartupMsg(Source source, uint16_t compId, uint32_t pi
 }
 
 inline TelemetryMsg createOrderLatencyMsg(Source source, uint16_t compId, OrderId id,
-                                          uint64_t start, uint64_t fulfilled, uint64_t notified) {
+                                          uint64_t start, uint64_t fulfilled, uint64_t notified,
+                                          uint64_t ordersPlaced, uint64_t ordersFulfilled) {
   auto msg = createBaseMsg(TelemetryType::OrderLatency, source, compId);
   msg.data.order.id = id;
   msg.data.order.created = start;
   msg.data.order.fulfilled = fulfilled;
   msg.data.order.notified = notified;
+  msg.data.order.ordersPlaced = ordersPlaced;
+  msg.data.order.ordersFulfilled = ordersFulfilled;
   return msg;
 }
 

@@ -125,6 +125,7 @@ private:
         ++counter;
         order.action = OrderAction::Dummy;
       }
+      placed_.fetch_add(1, std::memory_order_relaxed);
       LOG_TRACE("Placing order {}", toString(order));
       bus_.marketBus.post(order);
 
@@ -145,7 +146,10 @@ private:
     default:
       const auto now = getCycles();
       LOG_DEBUG("Post Order telemetry");
-      bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, s.orderId, 0, now));
+      fulfilled_.fetch_add(1, std::memory_order_relaxed);
+      bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, s.orderId, 0, now,
+                                      placed_.load(std::memory_order_relaxed),
+                                      fulfilled_.load(std::memory_order_relaxed)));
       break;
     }
   }
@@ -169,6 +173,9 @@ private:
   std::jthread worker_;
 
   SteadyTimer statsTimer_;
+
+  alignas(64) AtomicUInt64 placed_{0};
+  alignas(64) AtomicUInt64 fulfilled_{0};
 
   alignas(64) AtomicBool running_{false};
   alignas(64) AtomicBool trading_{false};

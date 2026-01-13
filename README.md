@@ -95,7 +95,7 @@ Monitor:
 
 Benchmarks:
 ```bash
-2026-01-09T20:49:52+01:00
+2026-01-13T13:22:35+01:00
 Running ./run_benchmarks
 Run on (16 X 5271 MHz CPU s)
 CPU Caches:
@@ -103,20 +103,23 @@ CPU Caches:
   L1 Instruction 32 KiB (x8)
   L2 Unified 1024 KiB (x8)
   L3 Unified 98304 KiB (x1)
-Load Average: 1.01, 0.63, 0.65
+Load Average: 0.93, 0.52, 0.54
 ***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
 ***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
---------------------------------------------------------------------------
-Benchmark                                Time             CPU   Iterations
---------------------------------------------------------------------------
-BM_Sys_ServerFix/AsyncProcess/1       70.1 ns         67.9 ns     10485760 1 worker(s)
-BM_Sys_ServerFix/AsyncProcess/2       38.9 ns         36.7 ns     20971520 2 worker(s)
-BM_Sys_ServerFix/AsyncProcess/3       26.6 ns         24.3 ns     29360128 3 worker(s)
-BM_Sys_ServerFix/AsyncProcess/4       20.6 ns         18.2 ns     39845888 4 worker(s)
-BM_Sys_OrderBookFix/AddOrder          43.1 ns         43.1 ns     15990784
-BM_Op_LfqRunnerThroughput             16.7 ns         16.7 ns     41943040
-BM_Op_LfqRunnerTailSpy                20.4 ns         20.4 ns     35651584 Max_ns=216.923 Min_ns=0 P50_ns=9.03846 P99.9_ns=72.1154 P99_ns=54.2308
-BM_Op_StreamBusThroughput             20.1 ns         20.1 ns     35651584
+------------------------------------------------------------------------
+Benchmark                              Time             CPU   Iterations
+------------------------------------------------------------------------
+BM_Sys_ServerFix/Throughput/1       62.8 ns         62.8 ns     11272192 1 worker(s)
+BM_Sys_ServerFix/Throughput/2       37.5 ns         37.5 ns     18874368 2 worker(s)
+BM_Sys_ServerFix/Throughput/3       27.4 ns         27.4 ns     25690112 3 worker(s)
+BM_Sys_ServerFix/Throughput/4       22.1 ns         22.1 ns     31719424 4 worker(s)
+BM_Sys_ServerFix/Latency/1           151 ns          151 ns      4408122 1 worker(s)
+BM_Sys_ServerFix/Latency/2           163 ns          163 ns      4190611 2 worker(s)
+BM_Sys_ServerFix/Latency/3           150 ns          150 ns      4552097 3 worker(s)
+BM_Sys_ServerFix/Latency/4           145 ns          145 ns      4755725 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder        42.0 ns         42.0 ns     16433152
+BM_Op_LfqRunnerThroughput           19.9 ns         19.9 ns     35651584
+BM_Op_LfqRunnerTailSpy              17.7 ns         17.7 ns     39845888 Max_ns=912.885 Min_ns=0 P50_ns=9.03846 P99.9_ns=18.0769 P99_ns=18.0769
 ```
 
 Manual localhost tests:
@@ -129,8 +132,5 @@ Client:
 
 Manual shared memory tests:
 ```bash
-Server:
-11:15:32.111610 [I] Orders: [opn|ttl] 52,196,915|241,367,126 | Rps: 5,501,496
-Client:
-11:15:31.843287 [I] Rtt: [<1µs|<10µs|>10µs] 97.76%(4.2M) avg:364ns | 2.20%(93.8K) avg:1µs | 0.04%(1.7K) avg:21µs | Max:35µs
+12:30:06.993808 [I] Orders: 23,249,495|103,300,662 Rtt: [<1µs|>1µs] 99.37%(2.5M) avg:301ns | 0.63%(15.8K) avg:2µs | Max:46µs
 ```

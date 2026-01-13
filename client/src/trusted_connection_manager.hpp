@@ -39,7 +39,7 @@ public:
     bus_.subscribe<Order>([this](CRef<Order> order) {
       LOG_DEBUG("{}", toString(order));
       auto *ptr = reinterpret_cast<const uint8_t *>(&order);
-      CByteSpan span(ptr, sizeof(order));
+      CByteSpan span(ptr, sizeof(Order));
       upstreamChannel_->asyncTx(span, [](IoResult, size_t) {});
     });
   }
@@ -66,7 +66,7 @@ private:
     LOG_INFO_SYSTEM("Connected downstream");
     downstreamChannel_ = std::make_unique<DownStreamChannel>(std::move(transport));
 
-    ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(status_));
+    ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(OrderStatus));
     downstreamChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(status_); });
     notify();
   }

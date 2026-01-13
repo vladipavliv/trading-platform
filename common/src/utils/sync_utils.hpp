@@ -22,10 +22,12 @@ using Futex = std::atomic<uint32_t>;
 using FutexFlag = std::atomic<bool>;
 
 inline void futexWake(Futex &futex, int count = 1) {
+  LOG_DEBUG("futexWake");
   syscall(SYS_futex, reinterpret_cast<uint32_t *>(&futex), FUTEX_WAKE, count, nullptr, nullptr, 0);
 }
 
 inline void futexWait(Futex &futex, uint32_t curr, uint64_t timeoutNs = 0) {
+  LOG_DEBUG("futexWait");
   if (timeoutNs == 0) {
     syscall(SYS_futex, reinterpret_cast<int32_t *>(&futex), FUTEX_WAIT, curr, nullptr, nullptr, 0);
   } else {
@@ -38,7 +40,7 @@ inline void futexWait(Futex &futex, uint32_t curr, uint64_t timeoutNs = 0) {
 }
 
 inline uint32_t hybridWait(Futex &ftx, uint32_t val, FutexFlag &waitFlag, FutexFlag &stopFlag) {
-  LOG_TRACE("hybridWait {}", val);
+  LOG_DEBUG("hybridWait {}", val);
   for (uint32_t i = 0; i < BUSY_WAIT_CYCLES; ++i) {
     if (ftx.load(std::memory_order_acquire) != val || !stopFlag.load(std::memory_order_acquire))
       return i;

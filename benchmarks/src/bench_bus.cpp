@@ -108,7 +108,7 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
 }
 BENCHMARK(BM_Op_LfqRunnerTailSpy);
 
-static void BM_Op_StreamBusThroughput(benchmark::State &state) {
+static void DISABLED_BM_Op_StreamBusThroughput(benchmark::State &state) {
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
 
@@ -149,7 +149,7 @@ static void BM_Op_StreamBusThroughput(benchmark::State &state) {
 
   streamBus.stop();
 }
-BENCHMARK(BM_Op_StreamBusThroughput);
+BENCHMARK(DISABLED_BM_Op_StreamBusThroughput);
 
 static void DISABLED_BM_Op_MessageBusPost(benchmark::State &state) {
   size_t counter{0};
