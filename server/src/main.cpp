@@ -55,6 +55,12 @@ int main(int argc, char *argv[]) {
     LOG_INIT(ServerConfig::cfg.logOutput);
     ServerConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
+#ifdef COMM_SHM
+    if (ServerConfig::cfg.coresApp.size() > 1) {
+      throw std::logic_error("Multi-worker currently not supported for shm");
+    }
+#endif
+
     ShmManager::initialize(true);
 
     ServerControlCenter serverCc;

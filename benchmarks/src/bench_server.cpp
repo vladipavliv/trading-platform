@@ -8,13 +8,12 @@
 #include "config/server_config.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
+#include "spin_wait.hpp"
 #include "utils/bench_utils.hpp"
 
 namespace hft::benchmarks {
 
 using namespace server;
-
-constexpr size_t BUSY_WAIT_WALL = BUSY_WAIT_CYCLES * 1000;
 
 BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   ServerConfig::load("bench_server_config.ini");
@@ -107,7 +106,9 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
     }
   });
 
+  SpinWait waiter;
   while (state.KeepRunningBatch(ordersCount)) {
+    waiter.reset();
     if (error_.load(std::memory_order_acquire)) {
       state.SkipWithError("Increase OrderBook limit");
     }
@@ -117,10 +118,12 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
       bus->post(order);
     }
 
-    uint32_t cycles = 0;
-    while (processed.load(std::memory_order_relaxed) < ordersCount && ++cycles < BUSY_WAIT_WALL) {
-      asm volatile("pause" ::: "memory");
+    while (processed.load(std::memory_order_relaxed) < ordersCount) {
+      if (!++waiter) {
+        break;
+      }
     }
+
     if (processed.load(std::memory_order_relaxed) < ordersCount) {
       state.SkipWithError("Failed to process all orders");
     }
@@ -138,11 +141,9 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
 
 BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
   using namespace server;
-
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   const uint64_t ordersCount = orders.orders.size();
-
   alignas(64) AtomicBool processed;
 
   bus->subscribe<ServerOrderStatus>([this, &processed, ordersCount](CRef<ServerOrderStatus> s) {
@@ -154,8 +155,10 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
     }
   });
 
+  SpinWait waiter;
   auto iter = orders.orders.begin();
   for (auto _ : state) {
+    waiter.reset();
     if (iter == orders.orders.end()) {
       iter = orders.orders.begin();
 
@@ -167,8 +170,10 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
     bus->post(*iter++);
 
     uint32_t cycles = 0;
-    while (!processed.load(std::memory_order_relaxed) && ++cycles < BUSY_WAIT_WALL) {
-      asm volatile("pause" ::: "memory");
+    while (!processed.load(std::memory_order_relaxed)) {
+      if (!++waiter) {
+        break;
+      }
     }
     if (!processed.load(std::memory_order_relaxed)) {
       state.SkipWithError("Failed to process all orders");

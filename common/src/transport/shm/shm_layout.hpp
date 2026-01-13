@@ -18,10 +18,10 @@ namespace hft {
  * @brief Shared memory layout
  */
 struct ShmLayout {
-  alignas(64) ShmQueue upstream;
-  alignas(64) ShmQueue downstream;
-  alignas(64) ShmQueue broadcast;
-  alignas(64) ShmQueue telemetry;
+  alignas(4096) ShmQueue upstream;
+  alignas(4096) ShmQueue downstream;
+  alignas(4096) ShmQueue broadcast;
+  alignas(4096) ShmQueue telemetry;
 };
 
 } // namespace hft

@@ -11,6 +11,7 @@
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "shm_queue.hpp"
+#include "spin_wait.hpp"
 #include "transport/async_transport.hpp"
 #include "utils/sync_utils.hpp"
 #include "utils/time_utils.hpp"
@@ -32,13 +33,12 @@ public:
 
   ~ShmWriter() { close(); }
 
-  void asyncTx(CByteSpan buffer, RxHandler clb, size_t retry = BUSY_WAIT_CYCLES) {
+  void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_HOT) {
     using namespace utils;
-    size_t cycles = 0;
+    SpinWait waiter{retry};
     while (!queue_.queue.write(buffer.data(), buffer.size()) &&
            running_.load(std::memory_order_acquire)) {
-      asm volatile("pause" ::: "memory");
-      if (++cycles > retry) {
+      if (!++waiter) {
         LOG_ERROR("would block");
         clb(IoResult::Error, 0);
         return;
