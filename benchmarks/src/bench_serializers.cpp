@@ -10,11 +10,8 @@
 #include "container_types.hpp"
 #include "domain_types.hpp"
 #include "execution/order_book.hpp"
-#include "metadata_types.hpp"
 #include "primitive_types.hpp"
 #include "serialization/fbs/fbs_domain_serializer.hpp"
-#include "serialization/fbs/fbs_metadata_serializer.hpp"
-#include "serialization/proto/proto_metadata_serializer.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
 #include "server_domain_types.hpp"
 #include "traits.hpp"
@@ -27,44 +24,6 @@ namespace hft::benchmarks {
 using namespace utils;
 using namespace server;
 using namespace serialization;
-
-namespace {
-OrderTimestamp generateOrderTimestamp() {
-  return OrderTimestamp{utils::generateOrderId(), utils::getTimestampNs(), utils::getTimestampNs(),
-                        utils::getTimestampNs()};
-}
-} // namespace
-
-static void DISABLED_BM_Ser_ProtoSerialize(benchmark::State &state) {
-  const OrderTimestamp ot{generateOrderTimestamp()};
-  String data;
-
-  for (auto _ : state) {
-    data = proto::ProtoMetadataSerializer::serialize(ot);
-  }
-
-  benchmark::DoNotOptimize(&data);
-  benchmark::DoNotOptimize(&ot);
-}
-BENCHMARK(DISABLED_BM_Ser_ProtoSerialize);
-
-static void DISABLED_BM_Ser_ProtoDeserialize(benchmark::State &state) {
-  using Bustype = BusHub<MessageBus<OrderTimestamp>>;
-
-  Bustype bus;
-  bus.template subscribe<OrderTimestamp>([](CRef<OrderTimestamp> o) {});
-
-  const auto msg = proto::ProtoMetadataSerializer::serialize(generateOrderTimestamp());
-  bool ok{false};
-
-  for (auto _ : state) {
-    ok = proto::ProtoMetadataSerializer::deserialize<Bustype>(
-        reinterpret_cast<const uint8_t *>(msg.data()), msg.size(), bus);
-  }
-  benchmark::DoNotOptimize(&msg);
-  benchmark::DoNotOptimize(&ok);
-}
-BENCHMARK(DISABLED_BM_Ser_ProtoDeserialize);
 
 static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
   const Order order = utils::generateOrder();

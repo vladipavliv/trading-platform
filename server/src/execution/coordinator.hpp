@@ -54,46 +54,36 @@ namespace hft::server {
  */
 class Coordinator {
   struct Matcher {
-    static constexpr size_t FLUSH_COUNTER = 1000;
-
     Matcher(ServerBus &bus, const MarketData &data) : bus{bus}, data{data} {}
 
     inline void post(CRef<ServerOrder> so) {
-      thread_local size_t counter = 0;
       if (so.order.action == OrderAction::Dummy) {
         return;
       }
       const auto &oData = data.at(so.order.ticker);
-      if (oData.orderBook.add(so, bus)) {
-        oData.orderBook.match(bus);
+      if (oData->orderBook.add(so, bus)) {
+        oData->orderBook.match(bus);
       }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-      oData.orderBook.sendAck(so, bus);
+      oData->orderBook.sendAck(so, bus);
 #endif
-      if (++counter > FLUSH_COUNTER) {
-        ordersTotal.fetch_add(counter, std::memory_order_relaxed);
-        counter = 0;
-      }
     }
 
     ServerBus &bus;
     const MarketData &data;
-    std::atomic_uint64_t ordersTotal{0};
   };
 
   using Worker = LfqRunner<ServerOrder, Matcher>;
 
 public:
-  Coordinator(ServerBus &bus, CRef<MarketData> data)
-      : bus_{bus}, timer_{bus_.systemIoCtx()},
-        monitorRate_{Milliseconds(ServerConfig::cfg.monitorRate)}, matcher_{bus, data} {
+  Coordinator(ServerBus &bus, CRef<MarketData> data) : bus_{bus}, matcher_{bus, data} {
     bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
       if (matcher_.data.count(order.order.ticker) == 0) {
         LOG_ERROR_SYSTEM("Ticker not found {}", toString(order.order.ticker));
         return;
       }
       const auto &data = matcher_.data.at(order.order.ticker);
-      auto &worker = workers_[data.getThreadId()];
+      auto &worker = workers_[data->getThreadId()];
 
       uint32_t retries = 0;
       bool posted = worker->post(order);
@@ -115,10 +105,7 @@ public:
     });
   }
 
-  void start() {
-    startWorkers();
-    scheduleStatsTimer();
-  }
+  void start() { startWorkers(); }
 
   void stop() {
     for (auto &worker : workers_) {
@@ -145,53 +132,8 @@ private:
     bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
-  void scheduleStatsTimer() {
-    using namespace utils;
-    if (monitorRate_.count() == 0) {
-      return;
-    }
-    timer_.expires_after(monitorRate_);
-    timer_.async_wait([this](BoostErrorCode ec) {
-      if (ec) {
-        if (ec != ERR_ABORTED) {
-          LOG_ERROR_SYSTEM("Error {}", ec.message());
-        }
-        return;
-      }
-      static std::atomic_uint64_t lastTtl = 0;
-      const uint64_t currentTtl = matcher_.ordersTotal.load(std::memory_order_relaxed);
-      const uint64_t ttlDelta = currentTtl - lastTtl;
-      const uint64_t rps = (ttlDelta * 1000) / monitorRate_.count();
-
-      const auto opnStr = thousandify(openedOrders());
-      const auto ttlStr = thousandify(currentTtl);
-      const auto rpsStr = thousandify(rps);
-
-      if (rps != 0) {
-        LOG_INFO_SYSTEM("Orders: [opn|ttl] {}|{} | Rps: {}", opnStr, ttlStr, rpsStr);
-
-        if (telemetry_) {
-          bus_.post(RuntimeMetrics{MetadataSource::Server, utils::getTimestampNs(), rps, 0});
-        }
-      }
-      lastTtl = currentTtl;
-      scheduleStatsTimer();
-    });
-  }
-
-  size_t openedOrders() const {
-    size_t orders{0};
-    for (auto &it : matcher_.data) {
-      orders += it.second.orderBook.openedOrders();
-    }
-    return orders;
-  }
-
 private:
   ServerBus &bus_;
-
-  SteadyTimer timer_;
-  const Milliseconds monitorRate_;
 
   Matcher matcher_;
   bool telemetry_{false};

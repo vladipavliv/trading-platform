@@ -18,6 +18,7 @@ struct MonitorConfig {
 
   // cores
   Optional<CoreId> coreSystem;
+  double nsPerCycle;
 
   // Logging
   String logOutput;

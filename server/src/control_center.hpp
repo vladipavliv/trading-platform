@@ -6,6 +6,8 @@
 #ifndef HFT_SERVER_CONTROLCENTER_HPP
 #define HFT_SERVER_CONTROLCENTER_HPP
 
+#include <boost/asio/signal_set.hpp>
+
 #include "authenticator.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
@@ -14,12 +16,11 @@
 #include "domain_types.hpp"
 #include "events.hpp"
 #include "execution/coordinator.hpp"
-#include "network/channel.hpp"
-#include "network/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
-#include "types/metadata_types.hpp"
+#include "transport/channel.hpp"
+#include "transport/shm/shm_server.hpp"
 #include "utils/id_utils.hpp"
 
 namespace hft::server {
@@ -32,16 +33,17 @@ class ServerControlCenter {
 
 public:
   ServerControlCenter()
-      : storage_{dbAdapter_}, sessionMgr_{bus_}, networkServer_{bus_},
+      : storage_{dbAdapter_}, sessionMgr_{bus_}, ipcServer_{bus_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_}, streamAdapter_{bus_} {
+        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
+        signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
     // System bus subscriptions
     bus_.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
       switch (event.state) {
       case ServerState::Operational:
         // start the network server only after internal components are fully operational
         LOG_INFO_SYSTEM("Server is ready");
-        networkServer_.start();
+        ipcServer_.start();
         break;
       default:
         break;
@@ -53,24 +55,26 @@ public:
     });
 
     // network callbacks
-    networkServer_.setUpstreamClb([this](StreamTransport &&transport) { // format
+    ipcServer_.setUpstreamClb([this](StreamTransport &&transport) { // format
       sessionMgr_.acceptUpstream(std::move(transport));
     });
-    networkServer_.setDownstreamClb([this](StreamTransport &&transport) { // format
+    ipcServer_.setDownstreamClb([this](StreamTransport &&transport) { // format
       sessionMgr_.acceptDownstream(std::move(transport));
     });
-    networkServer_.setDatagramClb([this](DatagramTransport &&transport) {
+    ipcServer_.setDatagramClb([this](DatagramTransport &&transport) {
       const auto id = utils::generateConnectionId();
       LOG_INFO_SYSTEM("UDP prices channel created {}", id);
       pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
       bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
     });
 
-    bus_.subscribe<ProfilingData>(
-        [this](CRef<ProfilingData> data) { LOG_INFO_SYSTEM("{}", toString(data)); });
-
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });
+
+    signals_.async_wait([&](BoostErrorCode code, int) {
+      LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
+      stop();
+    });
   }
 
   void start() {
@@ -80,9 +84,6 @@ public:
     greetings();
 
     coordinator_.start();
-    streamAdapter_.start();
-    streamAdapter_.bindProduceTopic<RuntimeMetrics>("runtime-metrics");
-    streamAdapter_.bindProduceTopic<OrderTimestamp>("order-timestamps");
 
     bus_.run();
   }
@@ -90,9 +91,8 @@ public:
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
-    networkServer_.stop();
+    ipcServer_.stop();
     sessionMgr_.close();
-    streamAdapter_.stop();
     coordinator_.stop();
     bus_.stop();
   }
@@ -113,14 +113,15 @@ private:
   Storage storage_;
 
   SessionManager sessionMgr_;
-  NetworkServer networkServer_;
+  IpcServer ipcServer_;
   Authenticator authenticator_;
   Coordinator coordinator_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
-  StreamAdapter streamAdapter_;
 
   UPtr<PricesChannel> pricesChannel_;
+
+  boost::asio::signal_set signals_;
 };
 
 } // namespace hft::server

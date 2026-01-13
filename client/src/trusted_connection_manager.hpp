@@ -11,26 +11,19 @@
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "events.hpp"
-#include "network/channel.hpp"
-#include "network/connection_status.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "transport/channel.hpp"
+#include "transport/connection_status.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::client {
 
 class TrustedConnectionManager {
-  using TrustedUpstreamBus = BusRestrictor< // format
-      ClientBus, ChannelStatusEvent, ConnectionStatusEvent>;
-  using TrustedDownstreamBus = // format
-      BusRestrictor<ClientBus, OrderStatus, ChannelStatusEvent, ConnectionStatusEvent>;
-  using TrustedDatagramBus = // format
-      BusRestrictor<ClientBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
-
-  using UpStreamChannel = Channel<ShmTransport, TrustedUpstreamBus>;
-  using DownStreamChannel = Channel<ShmTransport, TrustedDownstreamBus>;
-  using DatagramChannel = Channel<ShmTransport, TrustedDatagramBus>;
+  using UpStreamChannel = StreamTransport;
+  using DownStreamChannel = StreamTransport;
+  using DatagramChannel = DatagramTransport;
 
 public:
   TrustedConnectionManager(ClientBus &bus, ShmClient &networkClient)
@@ -44,9 +37,10 @@ public:
         [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
     bus_.subscribe<Order>([this](CRef<Order> order) {
-      if (upstreamChannel_) {
-        upstreamChannel_->write(order);
-      }
+      LOG_DEBUG("{}", toString(order));
+      auto *ptr = reinterpret_cast<const uint8_t *>(&order);
+      CByteSpan span(ptr, sizeof(order));
+      upstreamChannel_->asyncTx(span, [](IoResult, size_t) {});
     });
   }
 
@@ -60,9 +54,7 @@ private:
     }
     LOG_INFO_SYSTEM("Connected upstream");
     const size_t id = utils::generateConnectionId();
-    upstreamChannel_ =
-        std::make_shared<UpStreamChannel>(std::move(transport), id, TrustedUpstreamBus{bus_});
-    upstreamChannel_->read();
+    upstreamChannel_ = std::make_unique<UpStreamChannel>(std::move(transport));
     notify();
   }
 
@@ -72,10 +64,10 @@ private:
       return;
     }
     LOG_INFO_SYSTEM("Connected downstream");
-    const size_t id = utils::generateConnectionId();
-    downstreamChannel_ =
-        std::make_shared<DownStreamChannel>(std::move(transport), id, TrustedDownstreamBus{bus_});
-    downstreamChannel_->read();
+    downstreamChannel_ = std::make_unique<DownStreamChannel>(std::move(transport));
+
+    ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(status_));
+    downstreamChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(status_); });
     notify();
   }
 
@@ -86,9 +78,7 @@ private:
     }
     LOG_INFO_SYSTEM("Connected datagram");
     const size_t id = utils::generateConnectionId();
-    pricesChannel_ =
-        std::make_shared<DatagramChannel>(std::move(transport), id, TrustedDatagramBus{bus_});
-    pricesChannel_->read();
+    pricesChannel_ = std::make_unique<DatagramChannel>(std::move(transport));
   }
 
   void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
@@ -106,9 +96,15 @@ private:
 
   void reset() {
     LOG_DEBUG("TrustedConnectionManager reset");
-    upstreamChannel_.reset();
-    downstreamChannel_.reset();
-    pricesChannel_.reset();
+    if (upstreamChannel_) {
+      upstreamChannel_->close();
+    }
+    if (downstreamChannel_) {
+      downstreamChannel_->close();
+    }
+    if (pricesChannel_) {
+      pricesChannel_->close();
+    }
     bus_.post(ClientState::Disconnected);
   }
 
@@ -117,9 +113,11 @@ private:
 
   ShmClient &networkClient_;
 
-  SPtr<UpStreamChannel> upstreamChannel_;
-  SPtr<DownStreamChannel> downstreamChannel_;
-  SPtr<DatagramChannel> pricesChannel_;
+  UPtr<UpStreamChannel> upstreamChannel_;
+  UPtr<DownStreamChannel> downstreamChannel_;
+  UPtr<DatagramChannel> pricesChannel_;
+
+  OrderStatus status_;
 };
 } // namespace hft::client
 

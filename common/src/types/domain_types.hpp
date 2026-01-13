@@ -107,18 +107,17 @@ inline String toString(const OrderAction &state) {
 }
 
 inline String toString(const Order &o) {
-  return std::format("Order: id={} created={} ticker={} qty={} price={} action={}", o.id, o.created,
+  return std::format("Order: Id={} Created={} Ticker={} Qty={} Price={} Action={}", o.id, o.created,
                      std::string_view(o.ticker.data(), TICKER_SIZE), o.quantity, o.price,
                      (o.action == OrderAction::Buy ? "Buy" : "Sell"));
 }
 
 inline String toString(const OrderStatus &status) {
-  return std::format("OrderStatus: id={} ts={} qty={} fill_px={} state={}", status.orderId,
+  return std::format("OrderStatus: Id={} Ts={} Qty={} FillPrice={} State={}", status.orderId,
                      status.timeStamp, status.quantity, status.fillPrice, toString(status.state));
 }
 
 inline String toString(const TickerPrice &price) {
-  // Use string_view to avoid allocation for the ticker data
   return std::format("{}: ${}", StringView(price.ticker.data(), TICKER_SIZE), price.price);
 }
 

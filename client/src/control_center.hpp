@@ -6,6 +6,9 @@
 #ifndef HFT_SERVER_CONTROLCENTER_HPP
 #define HFT_SERVER_CONTROLCENTER_HPP
 
+#include <boost/asio/signal_set.hpp>
+
+#include "adapters/telemetry_adapter.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/client_config.hpp"
@@ -25,8 +28,9 @@ namespace hft::client {
 class ClientControlCenter {
 public:
   ClientControlCenter()
-      : networkClient_{bus_}, connectionManager_{bus_, networkClient_}, engine_{bus_},
-        streamAdapter_{bus_}, consoleReader_{bus_.systemBus} {
+      : ipcClient_{bus_}, connectionManager_{bus_, ipcClient_}, engine_{bus_},
+        consoleReader_{bus_.systemBus}, telemetry_{bus_, true},
+        signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
     bus_.systemBus.subscribe<ClientState>([this](CRef<ClientState> event) {
       LOG_INFO_SYSTEM("{}", toString(event));
@@ -59,21 +63,20 @@ public:
       stop();
     });
 
-    bus_.subscribe<ProfilingData>(
-        [this](CRef<ProfilingData> data) { LOG_INFO_SYSTEM("{}", toString(data)); });
-
     // commands
     bus_.systemBus.subscribe(Command::Shutdown, [this]() { stop(); });
+
+    signals_.async_wait([&](BoostErrorCode code, int) {
+      LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
+      stop();
+    });
   }
 
   void start() {
     greetings();
 
-    networkClient_.start();
+    ipcClient_.start();
     engine_.start();
-    streamAdapter_.start();
-    streamAdapter_.bindProduceTopic<RuntimeMetrics>("runtime-metrics");
-    streamAdapter_.bindProduceTopic<OrderTimestamp>("order-timestamps");
 
     bus_.run();
   }
@@ -81,10 +84,10 @@ public:
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
+    telemetry_.close();
     connectionManager_.close();
     engine_.stop();
-    streamAdapter_.stop();
-    networkClient_.stop();
+    ipcClient_.stop();
     bus_.stop();
   }
 
@@ -99,13 +102,15 @@ private:
 private:
   ClientBus bus_;
 
-  NetworkClient networkClient_;
+  IpcClient ipcClient_;
   ConnectionManager connectionManager_;
   TradeEngine engine_;
-  StreamAdapter streamAdapter_;
   ClientConsoleReader consoleReader_;
+  ClientTelemetry telemetry_;
 
   ClientState state_{ClientState::Disconnected};
+
+  boost::asio::signal_set signals_;
 };
 } // namespace hft::client
 

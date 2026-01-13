@@ -6,18 +6,19 @@
 #ifndef HFT_COMMON_ASYNCTRANSPORT_HPP
 #define HFT_COMMON_ASYNCTRANSPORT_HPP
 
+#include "container_types.hpp"
 #include "io_result.hpp"
 #include "primitive_types.hpp"
 
 namespace hft {
 
 template <typename T>
-concept AsyncTransport = requires(T t, ByteSpan buf) {
+concept AsyncTransport = requires(T t, ByteSpan rxBuf, CByteSpan txBuf) {
   {
-    t.asyncRx(buf, [](IoResult, size_t) {})
+    t.asyncRx(rxBuf, [](IoResult, size_t) {})
   };
   {
-    t.asyncTx(buf, [](IoResult, size_t) {})
+    t.asyncTx(txBuf, [](IoResult, size_t) {})
   };
   { t.close() };
 };

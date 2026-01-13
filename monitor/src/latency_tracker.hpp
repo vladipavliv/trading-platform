@@ -11,18 +11,19 @@
 #include "domain_types.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
+#include "rtt_tracker.hpp"
 #include "traits.hpp"
 
 namespace hft::monitor {
 /**
- * @brief Tracks the latencies
- * @todo Use HdrHistogram. This tracker is single-threaded, so no
- * histogram-merge complications here for multi-threaded tracking
+ * @brief
  */
 class LatencyTracker {
-  struct Latency {
-    uint64_t sum{0};
-    uint64_t size{0};
+  using Tracker = RttTracker<1000, 10000>;
+
+  struct LatencyStats {
+    AtomicUInt64 sum{0};
+    AtomicUInt64 size{0};
   };
 
 public:
@@ -30,21 +31,30 @@ public:
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
         monitorRate_{
             Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    bus_.subscribe<OrderTimestamp>([this](CRef<OrderTimestamp> msg) { onOrderTimestamp(msg); });
-    bus_.subscribe<RuntimeMetrics>([this](CRef<RuntimeMetrics> msg) { onRuntimeMetrics(msg); });
+    bus_.subscribe<TelemetryMsg>([this](CRef<TelemetryMsg> msg) { onMsg(msg); });
     scheduleStatsTimer();
   }
 
 private:
-  void onOrderTimestamp(CRef<OrderTimestamp> msg) {
-    LOG_DEBUG("onOrderTimestamp {}", toString(msg));
-    rtt_.sum += msg.notified - msg.created;
-    rtt_.size++;
-  }
-
-  void onRuntimeMetrics(CRef<RuntimeMetrics> msg) {
-    LOG_DEBUG("onRuntimeMetrics {}", toString(msg));
-    rps_ = msg.rps;
+  void onMsg(CRef<TelemetryMsg> msg) {
+    switch (msg.type) {
+    case TelemetryType::Startup:
+      break;
+    case TelemetryType::OrderLatency: {
+      counter_.fetch_add(1, std::memory_order_relaxed);
+      const auto rtt =
+          (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg.nsPerCycle;
+      Tracker::logRtt(rtt);
+    } break;
+    case TelemetryType::Runtime:
+      break;
+    case TelemetryType::Profiling:
+      break;
+    case TelemetryType::Log:
+      break;
+    default:
+      break;
+    }
   }
 
   void scheduleStatsTimer() {
@@ -57,11 +67,13 @@ private:
         }
         return;
       }
-      static uint64_t lastSize{0};
-      if (rtt_.size != 0 && rtt_.size != lastSize) {
-        LOG_INFO_SYSTEM("Orders: {} | Rtt: {}us | Rps: {}", rtt_.size, rtt_.sum / rtt_.size, rps_);
+      static uint64_t lastCounter{0};
+      auto counter = counter_.load(std::memory_order_relaxed);
+      if (counter != lastCounter) {
+        LOG_INFO_SYSTEM("{}", Tracker::getStatsString());
+        Tracker::reset();
       }
-      lastSize = rtt_.size;
+      lastCounter = counter;
       scheduleStatsTimer();
     });
   }
@@ -72,8 +84,7 @@ private:
   const Milliseconds monitorRate_;
   SteadyTimer statsTimer_;
 
-  Latency rtt_;
-  uint64_t rps_{0};
+  AtomicUInt64 counter_;
 };
 } // namespace hft::monitor
 

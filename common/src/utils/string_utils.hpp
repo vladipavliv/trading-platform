@@ -34,6 +34,13 @@ String toString(const std::vector<T> &vec) {
   return out;
 }
 
+template <size_t N>
+inline String fromArray(const char (&arr)[N]) {
+  std::string_view view(arr, N);
+  auto null_pos = view.find('\0');
+  return String(view.substr(0, null_pos));
+}
+
 inline String toLower(String str) {
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });

@@ -9,6 +9,7 @@
 #include <typeinfo>
 
 #include "bus/busable.hpp"
+#include "ptr_types.hpp"
 
 namespace hft {
 

@@ -17,14 +17,13 @@
 #include "kafka_callbacks.hpp"
 #include "kafka_event.hpp"
 #include "logging.hpp"
-#include "metadata_types.hpp"
 #include "primitive_types.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::adapters {
 
 /**
- * @brief Reactive adapter, all communication goes through the bus
+ * @brief Reactive adapter, all transport goes through the bus
  */
 template <typename BusT, typename ConsumeSerializerT, typename ProduceSerializerT>
 class KafkaAdapter {
@@ -40,7 +39,7 @@ public:
         pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
         consumeTopics_{Config::get_vector<String>("kafka.consume_topics")},
         produceTopics_{Config::get_vector<String>("kafka.produce_topics")},
-        timer_{bus_.streamIoCtx()} {
+        timer_{bus_.systemIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };
 

@@ -9,7 +9,7 @@
 #include "bus/bus_hub.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
-#include "metadata_types.hpp"
+#include "types/telemetry_types.hpp"
 
 namespace hft {
 template <typename... Events>
@@ -18,7 +18,7 @@ class MessageBus;
 template <size_t Capacity, typename... Events>
 class StreamBus;
 
-template <typename MarketBusT = MessageBus<>, typename StreamBusT = StreamBus<LFQ_CAPACITY>>
+template <typename MarketBusT = MessageBus<>>
 struct BusHub;
 
 template <typename Parser>
@@ -27,10 +27,10 @@ class ConsoleReader;
 template <typename Serializer>
 class DummyFramer;
 
+template <typename BusT>
+class TelemetryAdapter;
+
 namespace serialization {
-namespace proto {
-class ProtoMetadataSerializer;
-}
 namespace fbs {
 class FbsDomainSerializer;
 }
@@ -40,19 +40,12 @@ class SbeDomainSerializer;
 } // namespace serialization
 
 namespace adapters {
-template <typename BusT,
-          typename ConsumeSerializerT = serialization::proto::ProtoMetadataSerializer,
-          typename ProduceSerializerT = serialization::proto::ProtoMetadataSerializer>
-class KafkaAdapter;
 template <typename BusType>
 class DummyKafkaAdapter;
 class PostgresAdapter;
 } // namespace adapters
 
 namespace serialization {
-namespace proto {
-class ProtoMetadataSerializer;
-}
 namespace fbs {
 class FbsDomainSerializer;
 }
@@ -65,20 +58,10 @@ class SbeDomainSerializer;
 namespace hft::monitor {
 class CommandParser;
 
-using MetadataSerializer = serialization::proto::ProtoMetadataSerializer;
+using MonitorBus = BusHub<MessageBus<TelemetryMsg>>;
 
-using MonitorBus = BusHub<MessageBus<>, StreamBus<LFQ_CAPACITY, OrderTimestamp, RuntimeMetrics>>;
-
-#ifdef TELEMETRY_ENABLED
-template <typename BusT, typename ConsumeSerializerT, typename ProduceSerializerT>
-using MessageQueueAdapter = adapters::KafkaAdapter<BusT, ConsumeSerializerT, ProduceSerializerT>;
-#else
-template <typename BusT, typename ConsumeSerializerT = void, typename ProduceSerializerT = void>
-using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
-#endif
-
-using StreamAdapter = MessageQueueAdapter<MonitorBus, MetadataSerializer, CommandParser>;
 using MonitorConsoleReader = ConsoleReader<CommandParser>;
+using MonitorTelemetry = TelemetryAdapter<MonitorBus>;
 
 } // namespace hft::monitor
 

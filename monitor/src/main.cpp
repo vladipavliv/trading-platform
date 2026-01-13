@@ -7,6 +7,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "adapters/telemetry_adapter.hpp"
 #include "client/src/commands/command.hpp"
 #include "server/src/commands/command.hpp"
 
@@ -45,6 +46,9 @@ int main(int argc, char *argv[]) {
   try {
     MonitorConfig::load(configPath);
     LOG_INIT(MonitorConfig::cfg.logOutput);
+    MonitorConfig::cfg.nsPerCycle = utils::getNsPerCycle();
+
+    ShmManager::initialize(false);
 
     MonitorControlCenter monitorCc;
     monitorCc.start();
