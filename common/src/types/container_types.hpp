@@ -19,6 +19,7 @@ template <typename T>
 using Span = std::span<T>;
 
 using ByteSpan = Span<uint8_t>;
+using CByteSpan = Span<const uint8_t>;
 using ByteBuffer = std::vector<uint8_t>;
 
 } // namespace hft

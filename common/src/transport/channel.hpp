@@ -40,6 +40,7 @@ public:
   }
 
   void read() {
+    LOG_DEBUG("Channel read");
     if (status_ != ConnectionStatus::Connected) {
       return;
     }

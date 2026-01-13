@@ -22,13 +22,8 @@ namespace hft::server {
  * @brief
  */
 class TrustedSessionManager {
-  using TrustedUpstreamBus = BusRestrictor< // format
-      ServerBus, ServerOrder, ChannelStatusEvent, ConnectionStatusEvent>;
-  using TrustedDownstreamBus = BusRestrictor< // format
-      ServerBus, ChannelStatusEvent, ConnectionStatusEvent>;
-
-  using UpstreamChan = SessionChannel<TrustedUpstreamBus>;
-  using DownstreamChan = SessionChannel<TrustedDownstreamBus>;
+  using UpstreamChan = StreamTransport;
+  using DownstreamChan = StreamTransport;
 
 public:
   explicit TrustedSessionManager(ServerBus &bus) : bus_{bus} {
@@ -40,22 +35,18 @@ public:
   }
 
   void acceptUpstream(StreamTransport &&t) {
-    const auto id = utils::generateConnectionId();
-    LOG_INFO_SYSTEM("New upstream connection id: {}", id);
-    upChannel_ = std::make_shared<UpstreamChan>(std::move(t), id, TrustedUpstreamBus{bus_});
-    upChannel_->authenticate(0);
-    upChannel_->read();
+    upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
+
+    ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(order_));
+    upChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(ServerOrder{0, order_}); });
   }
 
   void acceptDownstream(StreamTransport &&t) {
-    const auto id = utils::generateConnectionId();
-    LOG_INFO_SYSTEM("New downstream connection Id: {}", id);
-    downChannel_ = std::make_shared<DownstreamChan>(std::move(t), id, TrustedDownstreamBus{bus_});
-    downChannel_->authenticate(0);
-    downChannel_->read();
+    downChannel_ = std::make_unique<DownstreamChan>(std::move(t));
   }
 
   void close() {
+    LOG_DEBUG("TrustedSessionManager close");
     if (upChannel_) {
       upChannel_->close();
       upChannel_.reset();
@@ -83,18 +74,19 @@ public:
 
 private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
-    LOG_DEBUG("{}", toString(status));
-    auto chan = downChannel_;
-    if (chan) {
-      chan->write(status.orderStatus);
-    }
+    LOG_DEBUG("{}", toString(status.orderStatus));
+    auto *ptr = reinterpret_cast<const uint8_t *>(&status.orderStatus);
+    CByteSpan span(ptr, sizeof(status.orderStatus));
+    downChannel_->asyncTx(span, [](IoResult, size_t) {});
   }
 
 private:
   ServerBus &bus_;
 
-  SPtr<UpstreamChan> upChannel_;
-  SPtr<DownstreamChan> downChannel_;
+  Order order_;
+
+  UPtr<UpstreamChan> upChannel_;
+  UPtr<DownstreamChan> downChannel_;
 };
 
 } // namespace hft::server

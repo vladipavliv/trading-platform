@@ -1,178 +1,93 @@
 /**
  * @author Vladimir Pavliv
- * @date 2026-01-04
+ * @date 2026-01-13
  */
 
 #ifndef HFT_COMMON_SHMTRANSPORT_HPP
 #define HFT_COMMON_SHMTRANSPORT_HPP
 
-#include <functional>
-
-#include "constants.hpp"
-#include "container_types.hpp"
-#include "logging.hpp"
-#include "primitive_types.hpp"
-#include "shm_reactor.hpp"
-#include "shm_types.hpp"
-#include "transport/async_transport.hpp"
-#include "utils/sync_utils.hpp"
-#include "utils/time_utils.hpp"
+#include "bus/system_bus.hpp"
+#include "shm_queue.hpp"
+#include "shm_reader.hpp"
+#include "shm_writer.hpp"
 
 namespace hft {
 
-/**
- * @brief
- */
 class ShmTransport {
 public:
-  using RxHandler = std::move_only_function<void(IoResult, size_t)>;
+  using RxHandler = std::function<void(IoResult, size_t)>;
 
-  ShmTransport(ShmTransportType type, SequencedSPSC &buffer, ShmReactor<ShmTransport> &reactor)
-      : type_{type}, buffer_{buffer}, reactor_{reactor} {
-    reactor_.add(this);
+  enum class Type : uint8_t { Reader, Writer };
+
+  static ShmTransport makeReader(ShmQueue &q, ErrorBus bus) {
+    ShmTransport t(Type::Reader);
+    new (&t.reader_) ShmReader(q, std::move(bus));
+    return t;
   }
 
-  ShmTransport(ShmTransport &&other) noexcept
-      : type_{other.type_}, buffer_{other.buffer_}, reactor_{other.reactor_},
-        rxArmed_{other.rxArmed_.exchange(false)}, rxBuf_{other.rxBuf_},
-        rxCb_{std::move(other.rxCb_)} {
-    reactor_.remove(&other);
-    reactor_.add(this);
-    other.closed_.store(true, std::memory_order_release);
-    other.deleted_.store(true, std::memory_order_release);
+  static ShmTransport makeWriter(ShmQueue &q) {
+    ShmTransport t(Type::Writer);
+    new (&t.writer_) ShmWriter(q);
+    return t;
   }
 
-  ShmTransport(const ShmTransport &) = delete;
+  ShmTransport(ShmTransport &&other) noexcept : type_(other.type_) {
+    if (type_ == Type::Reader) {
+      new (&reader_) ShmReader(std::move(other.reader_));
+    } else {
+      new (&writer_) ShmWriter(std::move(other.writer_));
+    }
+  }
+
+  ShmTransport &operator=(ShmTransport &&other) noexcept = delete;
 
   ~ShmTransport() {
-    LOG_DEBUG("~ShmTransport");
-    if (!closed_.load(std::memory_order_acquire)) {
-      close();
-    }
-    reactor_.remove(this);
+    close();
+    destroy();
   }
+
+  Type type() const noexcept { return type_; }
 
   void asyncRx(ByteSpan buf, RxHandler clb) {
-    LOG_TRACE("asyncRx {}", buf.size());
-    if (closed_) {
-      LOG_ERROR("Transport is already closed");
-      clb(IoResult::Closed, 0);
-      return;
-    }
-    rxBuf_ = buf;
-    rxCb_ = std::move(clb);
-    rxArmed_.store(true, std::memory_order_release);
-  }
-
-  void asyncTx(ByteSpan buffer, auto &&clb) {
-    using namespace utils;
-    LOG_TRACE("asyncTx {}", buffer.size());
-    if (closed_.load(std::memory_order_acquire)) {
-      LOG_ERROR("Transport is already closed");
-      clb(IoResult::Closed, 0);
-      return;
-    }
-#ifdef PROFILING
-    auto t1 = getCycles();
-#endif
-    size_t cycles = 0;
-    while (!buffer_.write(buffer.data(), buffer.size()) &&
-           !closed_.load(std::memory_order_acquire)) {
-      asm volatile("pause" ::: "memory");
-      if (++cycles > BUSY_WAIT_CYCLES) {
-        LOG_ERROR("would block");
-        clb(IoResult::WouldBlock, 0);
-        return;
-      }
-    }
-#ifdef PROFILING
-    auto lt = getCycles() - t1;
-    if (lt > 100000) {
-      LOG_WARN_SYSTEM("Slow write {}", lt);
-    }
-#endif
-    reactor_.notifyRemote();
-    clb(IoResult::Ok, buffer.size());
-  }
-
-  void close() noexcept {
-    LOG_DEBUG("ShmTransport close");
-    if (closed_.exchange(true, std::memory_order_release) || !reactor_.isRunning()) {
-      LOG_DEBUG("already closed");
-      return;
-    }
-    reactor_.stop();
-
-    const auto start = utils::getCycles();
-    size_t cycles = 0;
-    while (!deleted_.load(std::memory_order_acquire)) {
-      asm volatile("pause" ::: "memory");
-      if (++cycles > BUSY_WAIT_CYCLES) {
-        LOG_WARN("Trying to close ShmTransport {}", cycles);
-        if (utils::getCycles() - start > BUSY_WAIT_CYCLES) {
-          LOG_ERROR_SYSTEM("Failed to properly close ShmTransport");
-          return;
-        }
-        asm volatile("pause" ::: "memory");
-        cycles = 0;
-      }
+    LOG_DEBUG("ShmTransport asyncRx");
+    if (type_ == Type::Reader) {
+      reader_.asyncRx(buf, std::move(clb));
     }
   }
 
-  inline size_t tryDrain() noexcept {
-    LOG_TRACE("ShmTransport tryDrain");
-    if (closed_) {
-      LOG_ERROR("Transport is already closed");
-      if (rxArmed_.exchange(false, std::memory_order_acq_rel)) {
-        if (rxCb_) {
-          auto clb = std::move(rxCb_);
-          clb(IoResult::Closed, 0);
-        }
-      }
-      return 0;
+  void asyncTx(CByteSpan buffer, RxHandler clb, size_t retry = BUSY_WAIT_CYCLES) {
+    LOG_DEBUG("ShmTransport asyncTx");
+    if (type_ == Type::Writer) {
+      writer_.asyncTx(buffer, std::move(clb), retry);
     }
-
-    if (!rxArmed_.load(std::memory_order_acquire)) {
-      LOG_WARN("unarmed");
-      return 0;
-    }
-
-    const size_t bytes = buffer_.read(rxBuf_.data(), rxBuf_.size());
-    if (bytes == 0) {
-      LOG_TRACE("no data");
-      return 0;
-    }
-
-    rxArmed_.store(false, std::memory_order_release);
-
-    auto clb = std::move(rxCb_);
-    clb(IoResult::Ok, bytes);
-    return bytes;
   }
 
-  void acknowledgeClosure() noexcept {
-    LOG_DEBUG("acknowledgeClosure");
-    deleted_.store(true, std::memory_order_release);
+  void close() {
+    if (type_ == Type::Writer) {
+      writer_.close();
+    } else {
+      reader_.close();
+    }
   }
-
-  inline bool isClosed() const { return closed_.load(std::memory_order_acquire); }
-
-  inline ShmTransportType type() const { return type_; }
 
 private:
-  const ShmTransportType type_;
+  explicit ShmTransport(Type t) : type_(t) {}
 
-  SequencedSPSC &buffer_;
-  ShmReactor<ShmTransport> &reactor_;
-  ByteSpan rxBuf_;
+  void destroy() noexcept {
+    if (type_ == Type::Reader) {
+      reader_.~ShmReader();
+    } else {
+      writer_.~ShmWriter();
+    }
+  }
 
-  // hot data
-  alignas(64) RxHandler rxCb_;
-  alignas(64) AtomicBool rxArmed_{false};
+private:
+  Type type_;
 
-  // cold data
-  alignas(64) AtomicBool closed_{false};
-  alignas(64) AtomicBool deleted_{false};
+  union {
+    ShmReader reader_;
+    ShmWriter writer_;
+  };
 };
 
 } // namespace hft

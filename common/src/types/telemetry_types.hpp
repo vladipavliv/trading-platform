@@ -27,7 +27,7 @@ struct TelemetryMsg {
   // --- Header (4 bytes) ---
   TelemetryType type;
   Source source;
-  uint16_t componentId; // Back by popular demand
+  uint16_t componentId;
 
   // --- Payload (48 bytes) ---
   union {

@@ -13,12 +13,12 @@
 namespace hft {
 
 template <typename T>
-concept AsyncTransport = requires(T t, ByteSpan buf) {
+concept AsyncTransport = requires(T t, ByteSpan rxBuf, CByteSpan txBuf) {
   {
-    t.asyncRx(buf, [](IoResult, size_t) {})
+    t.asyncRx(rxBuf, [](IoResult, size_t) {})
   };
   {
-    t.asyncTx(buf, [](IoResult, size_t) {})
+    t.asyncTx(txBuf, [](IoResult, size_t) {})
   };
   { t.close() };
 };

@@ -35,7 +35,7 @@ public:
   }
 
   template <typename Callback>
-  void asyncTx(ByteSpan buf, Callback &&clb) {
+  void asyncTx(CByteSpan buf, Callback &&clb) {
     using namespace boost::asio;
     auto handler = [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
       clb(toIoResult(ec), bytes);

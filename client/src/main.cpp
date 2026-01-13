@@ -7,6 +7,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "adapters/telemetry_adapter.hpp"
 #ifdef COMM_SHM
 #include "transport/shm/shm_client.hpp"
 #include "trusted_connection_manager.hpp"

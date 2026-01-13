@@ -8,8 +8,8 @@
 
 #include <atomic>
 
-#include "containers/sequenced_spsc.hpp"
 #include "primitive_types.hpp"
+#include "shm_queue.hpp"
 #include "transport/async_transport.hpp"
 
 namespace hft {
@@ -18,16 +18,10 @@ namespace hft {
  * @brief Shared memory layout
  */
 struct ShmLayout {
-  alignas(64) AtomicUInt32 upstreamFtx{0};
-  alignas(64) AtomicUInt32 downstreamFtx{0};
-
-  alignas(64) AtomicBool upstreamWaiting{false};
-  alignas(64) AtomicBool downstreamWaiting{false};
-
-  alignas(64) SequencedSPSC upstream;
-  alignas(64) SequencedSPSC downstream;
-  alignas(64) SequencedSPSC broadcast;
-  alignas(64) SequencedSPSC telemetry;
+  alignas(64) ShmQueue upstream;
+  alignas(64) ShmQueue downstream;
+  alignas(64) ShmQueue broadcast;
+  alignas(64) ShmQueue telemetry;
 };
 
 } // namespace hft

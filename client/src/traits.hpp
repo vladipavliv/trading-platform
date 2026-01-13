@@ -8,6 +8,7 @@
 
 #include "constants.hpp"
 #include "domain_types.hpp"
+#include "types/telemetry_types.hpp"
 
 namespace hft {
 
@@ -31,6 +32,9 @@ class ConsoleReader;
 
 template <typename Serializer>
 class DummyFramer;
+
+template <typename BusT>
+class TelemetryAdapter;
 
 class ShmTransport;
 class BoostTcpTransport;
@@ -90,17 +94,18 @@ using IpcClient = BoostIpcClient;
 using ConnectionManager = NetworkConnectionManager;
 #endif
 
-using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice>;
+using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice, TelemetryMsg>;
 using ClientBus = BusHub<ClientMessageBus>;
 using UpstreamBus =
-    BusRestrictor<ClientBus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
+    BusRestrictor<ClientBus, Order, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
 using DownstreamBus =
-    BusRestrictor<ClientBus, LoginResponse, OrderStatus, ChannelStatusEvent, ConnectionStatusEvent>;
+    BusRestrictor<ClientBus, OrderStatus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
 using DatagramBus =
     BusRestrictor<ClientBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;
+using ClientTelemetry = TelemetryAdapter<ClientBus>;
 
 } // namespace hft::client
 

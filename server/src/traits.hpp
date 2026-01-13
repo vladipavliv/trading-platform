@@ -38,6 +38,9 @@ class DummyFramer;
 template <typename SerializerType>
 class FixedSizeFramer;
 
+template <typename BusT>
+class TelemetryAdapter;
+
 namespace serialization {
 namespace fbs {
 class FbsDomainSerializer;
@@ -90,16 +93,17 @@ using SessionManager = NetworkSessionManager;
 
 using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>;
 using ServerBus = BusHub<ServerMessageBus>;
-using UpstreamBus = BusRestrictor<ServerBus, ServerLoginRequest, ServerOrder, ChannelStatusEvent,
+using UpstreamBus = BusRestrictor<ServerBus, ServerOrder, ServerLoginRequest, ChannelStatusEvent,
                                   ConnectionStatusEvent>;
-using DownstreamBus =
-    BusRestrictor<ServerBus, ServerTokenBindRequest, ChannelStatusEvent, ConnectionStatusEvent>;
+using DownstreamBus = BusRestrictor<ServerBus, ServerOrderStatus, ServerTokenBindRequest,
+                                    ChannelStatusEvent, ConnectionStatusEvent>;
 using DatagramBus =
     BusRestrictor<ServerBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ServerConsoleReader = ConsoleReader<CommandParser>;
 
 using DbAdapter = adapters::PostgresAdapter;
+using ServerTelemetryAdapter = TelemetryAdapter<ServerBus>;
 
 } // namespace hft::server
 

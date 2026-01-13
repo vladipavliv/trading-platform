@@ -54,7 +54,10 @@ public:
     channel_->write(message);
   }
 
-  inline void read() { channel_->read(); }
+  inline void read() {
+    LOG_DEBUG("SessionChannel read");
+    channel_->read();
+  }
 
 private:
   SPtr<Chan> channel_;

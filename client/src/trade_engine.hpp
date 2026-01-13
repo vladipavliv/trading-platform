@@ -18,6 +18,7 @@
 #include "rtt_tracker.hpp"
 #include "traits.hpp"
 #include "utils/rng.hpp"
+#include "utils/telemetry_utils.hpp"
 #include "utils/test_utils.hpp"
 #include "utils/time_utils.hpp"
 
@@ -34,15 +35,6 @@ public:
       : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
     bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
     bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
-
-    bus_.systemBus.subscribe<Command>(Command::Telemetry_Start, [this] {
-      LOG_INFO_SYSTEM("Start telemetry stream");
-      telemetry_ = true;
-    });
-    bus_.systemBus.subscribe(Command::Telemetry_Stop, [this] {
-      LOG_INFO_SYSTEM("Stop telemetry stream");
-      telemetry_ = false;
-    });
   }
 
   void start() {
@@ -152,8 +144,8 @@ private:
       break;
     default:
       const auto now = getCycles();
-      const auto rtt = (now - s.orderId) * ClientConfig::cfg.nsPerCycle;
-      // TODO bus_.post();
+      LOG_DEBUG("Post Order telemetry");
+      bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, s.orderId, 0, now));
       break;
     }
   }
@@ -180,7 +172,6 @@ private:
 
   alignas(64) AtomicBool running_{false};
   alignas(64) AtomicBool trading_{false};
-  alignas(64) AtomicBool telemetry_{false};
 };
 } // namespace hft::client
 

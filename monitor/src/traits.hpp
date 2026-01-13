@@ -9,6 +9,7 @@
 #include "bus/bus_hub.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
+#include "types/telemetry_types.hpp"
 
 namespace hft {
 template <typename... Events>
@@ -25,6 +26,9 @@ class ConsoleReader;
 
 template <typename Serializer>
 class DummyFramer;
+
+template <typename BusT>
+class TelemetryAdapter;
 
 namespace serialization {
 namespace fbs {
@@ -54,9 +58,10 @@ class SbeDomainSerializer;
 namespace hft::monitor {
 class CommandParser;
 
-using MonitorBus = BusHub<MessageBus<>>;
+using MonitorBus = BusHub<MessageBus<TelemetryMsg>>;
 
 using MonitorConsoleReader = ConsoleReader<CommandParser>;
+using MonitorTelemetry = TelemetryAdapter<MonitorBus>;
 
 } // namespace hft::monitor
 

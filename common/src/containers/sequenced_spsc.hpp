@@ -44,15 +44,7 @@ public:
       return false;
     }
     Sloth &sloth = slots_[writeIdx_ & MASK];
-
-    uint32_t spins = 0;
-    auto seq = sloth.seq.load(std::memory_order_acquire);
-    while (seq != writeIdx_ && ++spins < BUSY_WAIT_CYCLES) {
-      asm volatile("pause" ::: "memory");
-      seq = sloth.seq.load(std::memory_order_acquire);
-    }
-    if (seq != writeIdx_) {
-      LOG_ERROR("Failed to write message to slot buffer {}", writeIdx_);
+    if (sloth.seq.load(std::memory_order_acquire) != writeIdx_) {
       return false;
     }
     std::memcpy(sloth.data, src, length);

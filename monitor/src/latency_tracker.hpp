@@ -31,12 +31,31 @@ public:
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
         monitorRate_{
             Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    bus_.subscribe<Order>([this](CRef<Order> msg) { onOrder(msg); });
+    bus_.subscribe<TelemetryMsg>([this](CRef<TelemetryMsg> msg) { onMsg(msg); });
     scheduleStatsTimer();
   }
 
 private:
-  void onOrder(CRef<Order> msg) {}
+  void onMsg(CRef<TelemetryMsg> msg) {
+    switch (msg.type) {
+    case TelemetryType::Startup:
+      break;
+    case TelemetryType::OrderLatency: {
+      counter_.fetch_add(1, std::memory_order_relaxed);
+      const auto rtt =
+          (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg.nsPerCycle;
+      Tracker::logRtt(rtt);
+    } break;
+    case TelemetryType::Runtime:
+      break;
+    case TelemetryType::Profiling:
+      break;
+    case TelemetryType::Log:
+      break;
+    default:
+      break;
+    }
+  }
 
   void scheduleStatsTimer() {
     using namespace utils;
@@ -52,6 +71,7 @@ private:
       auto counter = counter_.load(std::memory_order_relaxed);
       if (counter != lastCounter) {
         LOG_INFO_SYSTEM("{}", Tracker::getStatsString());
+        Tracker::reset();
       }
       lastCounter = counter;
       scheduleStatsTimer();

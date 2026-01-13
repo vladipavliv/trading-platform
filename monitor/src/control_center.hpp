@@ -22,17 +22,17 @@ namespace hft::monitor {
  */
 class MonitorControlCenter {
 public:
-  MonitorControlCenter() : consoleReader_{bus_.systemBus}, tracker_{bus_} {
+  MonitorControlCenter() : consoleReader_{bus_.systemBus}, telemetry_{bus_, false}, tracker_{bus_} {
     bus_.subscribe(Command::Shutdown, [this] { stop(); });
   }
 
   void start() {
     greetings();
-
     bus_.run();
   }
 
   void stop() {
+    telemetry_.close();
     bus_.stop();
     LOG_INFO_SYSTEM("stonk");
   }
@@ -49,6 +49,7 @@ private:
   MonitorBus bus_;
 
   MonitorConsoleReader consoleReader_;
+  MonitorTelemetry telemetry_;
   LatencyTracker tracker_;
 };
 } // namespace hft::monitor

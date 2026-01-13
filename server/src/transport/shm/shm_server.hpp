@@ -16,7 +16,6 @@
 #include "transport/async_transport.hpp"
 #include "transport/shm/shm_layout.hpp"
 #include "transport/shm/shm_manager.hpp"
-#include "transport/shm/shm_reactor.hpp"
 #include "transport/shm/shm_transport.hpp"
 #include "utils/memory_utils.hpp"
 #include "utils/sync_utils.hpp"
@@ -31,9 +30,7 @@ public:
   using StreamClb = std::function<void(ShmTransport &&transport)>;
   using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
-  explicit ShmServer(ServerBus &bus)
-      : bus_{bus}, layout_{ShmManager::layout()},
-        reactor_{layout_, ReactorType::Server, bus_.systemBus} {}
+  explicit ShmServer(ServerBus &bus) : bus_{bus}, layout_{ShmManager::layout()} {}
 
   ~ShmServer() { stop(); }
 
@@ -44,76 +41,37 @@ public:
   void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
-    if (running_) {
-      LOG_ERROR("ShmServer is already running");
+    running_.store(true, std::memory_order_release);
+    layout_.downstream.futex.store(1, std::memory_order_release);
+    waitForConnection();
+    if (!running_) {
       return;
     }
-    workerThread_ = std::jthread([this]() {
-      try {
-        running_ = true;
-
-        utils::setThreadRealTime();
-        if (ServerConfig::cfg.coreNetwork.has_value()) {
-          const auto coreId = *ServerConfig::cfg.coreNetwork;
-          utils::pinThreadToCore(coreId);
-          LOG_INFO_SYSTEM("Communication thread started on the core {}", coreId);
-        } else {
-          LOG_INFO_SYSTEM("Communication thread started");
-        }
-
-        layout_.downstreamFtx.store(1, std::memory_order_release);
-        utils::futexWake(layout_.downstreamFtx);
-
-        waitForConnection();
-        if (!running_) {
-          return;
-        }
-        notifyClientConnected();
-
-        reactor_.run();
-      } catch (const std::exception &e) {
-        LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
-        stop();
-        bus_.post(InternalError(StatusCode::Error, e.what()));
-      }
-    });
+    notifyClientConnected();
   }
 
   void stop() {
-    try {
-      if (!running_.load(std::memory_order_acquire)) {
-        return;
-      }
-      LOG_INFO_SYSTEM("ShmServer shutdown");
-
-      running_.store(false, std::memory_order_release);
-      utils::futexWake(layout_.upstreamFtx);
-      reactor_.stop();
-
-      if (workerThread_.joinable()) {
-        workerThread_.join();
-      }
-    } catch (const std::exception &ex) {
-      bus_.post(InternalError(StatusCode::Error, ex.what()));
-    }
+    running_.store(false, std::memory_order_release);
+    layout_.upstream.futex.fetch_add(1, std::memory_order_release);
+    utils::futexWake(layout_.upstream.futex);
   }
 
 private:
   void waitForConnection() {
     LOG_INFO_SYSTEM("Waiting for client connection");
     AtomicBool flag;
-    utils::hybridWait(layout_.upstreamFtx, 0, flag, running_);
+    const auto futexVal = layout_.upstream.futex.load(std::memory_order_acquire);
+    if (futexVal == 0) {
+      utils::futexWait(layout_.upstream.futex, futexVal);
+    }
   }
 
   void notifyClientConnected() {
     if (upstreamClb_) {
-      upstreamClb_(ShmTransport(ShmTransportType::Upstream, layout_.upstream, reactor_));
+      upstreamClb_(ShmTransport::makeReader(layout_.upstream, ErrorBus{bus_.systemBus}));
     }
     if (downstreamClb_) {
-      downstreamClb_(ShmTransport(ShmTransportType::Downstream, layout_.downstream, reactor_));
-    }
-    if (datagramClb_) {
-      datagramClb_(ShmTransport(ShmTransportType::Datagram, layout_.broadcast, reactor_));
+      downstreamClb_(ShmTransport::makeWriter(layout_.downstream));
     }
   }
 
@@ -121,14 +79,11 @@ private:
   ServerBus &bus_;
   ShmLayout &layout_;
 
-  ShmReactor<ShmTransport> reactor_;
-
   StreamClb upstreamClb_;
   StreamClb downstreamClb_;
   DatagramClb datagramClb_;
 
   AtomicBool running_{false};
-  std::jthread workerThread_;
 };
 } // namespace hft::server
 
