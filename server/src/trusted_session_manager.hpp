@@ -37,7 +37,7 @@ public:
   void acceptUpstream(StreamTransport &&t) {
     upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
 
-    ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(order_));
+    ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(Order));
     upChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(ServerOrder{0, order_}); });
   }
 
@@ -76,7 +76,7 @@ private:
   void onOrderStatus(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", toString(status.orderStatus));
     auto *ptr = reinterpret_cast<const uint8_t *>(&status.orderStatus);
-    CByteSpan span(ptr, sizeof(status.orderStatus));
+    CByteSpan span(ptr, sizeof(OrderStatus));
     downChannel_->asyncTx(span, [](IoResult, size_t) {});
   }
 

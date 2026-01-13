@@ -21,11 +21,11 @@ public:
     if (producer_) {
       bus_.template subscribe<TelemetryMsg>([this](CRef<TelemetryMsg> msg) {
         auto *ptr = reinterpret_cast<const uint8_t *>(&msg);
-        CByteSpan span(ptr, sizeof(msg));
+        CByteSpan span(ptr, sizeof(TelemetryMsg));
         transport_.asyncTx(span, [](IoResult, size_t) {}, 0);
       });
     } else {
-      ByteSpan span(reinterpret_cast<uint8_t *>(&msg_), sizeof(msg_));
+      ByteSpan span(reinterpret_cast<uint8_t *>(&msg_), sizeof(TelemetryMsg));
       transport_.asyncRx(span, [this](IoResult res, size_t size) { bus_.post(msg_); });
     }
   }

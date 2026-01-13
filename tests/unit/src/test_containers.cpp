@@ -17,7 +17,7 @@ namespace hft::tests {
 using namespace utils;
 
 TEST(SequencedSPSCTest, Basic) {
-  UPtr<SequencedSPSC> buf = std::make_unique<SequencedSPSC>();
+  auto queue = std::make_unique<SequencedSPSC<>>();
 
   std::vector<Order> orders;
   orders.reserve(1000);
@@ -33,7 +33,7 @@ TEST(SequencedSPSCTest, Basic) {
     std::vector<Order>::iterator iter = orders.begin();
     while (iter != orders.end()) {
       Order o;
-      auto readSize = buf->read(reinterpret_cast<uint8_t *>(&o), orderSize);
+      auto readSize = queue->read(reinterpret_cast<uint8_t *>(&o), orderSize);
       if (readSize == 0) {
         if (++watchdog > 100'000) {
           FAIL() << "Timeout: Consumer stuck waiting for data";
@@ -48,7 +48,7 @@ TEST(SequencedSPSCTest, Basic) {
   }};
 
   for (auto &o : orders) {
-    buf->write(reinterpret_cast<const uint8_t *>(&o), orderSize);
+    queue->write(reinterpret_cast<const uint8_t *>(&o), orderSize);
   }
 }
 

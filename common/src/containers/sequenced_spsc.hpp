@@ -18,8 +18,8 @@
 
 namespace hft {
 
+template <size_t SlotCount = 65536>
 class SequencedSPSC {
-  static constexpr uint32_t SlotCount = 128 * 1024;
   static constexpr uint32_t DataCapacity = 52;
 
   static_assert((SlotCount & (SlotCount - 1)) == 0);

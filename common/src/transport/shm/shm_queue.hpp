@@ -17,7 +17,7 @@ struct ShmQueue {
   alignas(64) AtomicUInt32 futex{0};
   alignas(64) uint64_t futexCounter{0};
   alignas(64) AtomicBool flag{false};
-  alignas(64) SequencedSPSC queue;
+  alignas(64) SequencedSPSC<128 * 1024> queue;
 
   void notify() {
     if (flag.load(std::memory_order_acquire)) {

@@ -69,7 +69,7 @@ private:
       if (counter != lastCounter) {
         auto opnStr = thousandify(ordersPlaced_.load() - ordersFulfilled_.load());
         auto plcStr = thousandify(ordersPlaced_.load());
-        LOG_INFO_SYSTEM("{}|{} {}", opnStr, plcStr, Tracker::getStatsString());
+        LOG_INFO_SYSTEM("Orders: {}|{} Rtt: {}", opnStr, plcStr, Tracker::getStatsString());
         Tracker::reset();
       }
       lastCounter = counter;

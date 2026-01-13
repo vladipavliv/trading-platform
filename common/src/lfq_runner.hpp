@@ -7,14 +7,11 @@
 #define HFT_COMMON_LFQRUNNER_HPP
 
 #include <memory>
-
-#include <atomic>
-// #include <boost/lockfree/spsc_queue.hpp>
-// #include <folly/ProducerConsumerQueue.h>
-// #include <rigtorp/SPSCQueue.h>
 #include <thread>
 
 #include "bus/system_bus.hpp"
+#include "container_types.hpp"
+#include "containers/sequenced_spsc.hpp"
 #include "containers/vyukov_mpmc.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
@@ -28,10 +25,7 @@ namespace hft {
  */
 template <typename MessageType, typename Consumer, size_t Capacity = 65536>
 class LfqRunner {
-  using Queue = VyukovMPMC<MessageType, Capacity>; // <= 10.2 ns
-  // using Queue = rigtorp::SPSCQueue<MessageType>; // <= 15.6 ns
-  // using Queue = boost::lockfree::spsc_queue<MessageType>; // <= 36.9 ns
-  // using Queue = folly::ProducerConsumerQueue<MessageType>; // <= 38.3 ns
+  using Queue = SequencedSPSC<Capacity>;
 
 public:
   LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer}, bus_{std::move(bus)} {}
@@ -71,8 +65,10 @@ public:
   }
 
   inline bool post(CRef<MessageType> message) {
+    auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
+    auto msgSize = sizeof(MessageType);
     size_t waitCycles = 0;
-    while (!queue_.push(message)) {
+    while (!queue_.write(msgPtr, msgSize)) {
       if (++waitCycles > BUSY_WAIT_CYCLES) {
         LOG_ERROR_SYSTEM("Failed to push to LfqRunner");
         return false;
@@ -90,12 +86,14 @@ private:
   void lfqLoop() {
     uint64_t cycles = 0;
     MessageType message;
+    auto msgPtr = reinterpret_cast<uint8_t *>(&message);
+    auto msgSize = sizeof(MessageType);
     while (running_.load(std::memory_order_acquire)) {
-      if (queue_.pop(message)) {
+      if (queue_.read(msgPtr, msgSize)) {
         cycles = 0;
         do {
           consumer_.post(message);
-        } while (queue_.pop(message));
+        } while (queue_.read(msgPtr, msgSize));
         continue;
       }
       asm volatile("pause" ::: "memory");
@@ -105,7 +103,7 @@ private:
       const auto ftxVal = ftx_.load(std::memory_order_acquire);
       sleeping_.store(true, std::memory_order_seq_cst);
 
-      if (queue_.pop(message)) {
+      if (queue_.read(msgPtr, msgSize)) {
         sleeping_.store(false, std::memory_order_release);
         consumer_.post(message);
         cycles = 0;
