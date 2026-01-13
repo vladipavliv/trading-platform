@@ -73,7 +73,6 @@ find_package(libpqxx REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(folly REQUIRED)
 find_package(Glog REQUIRED)
-find_package(Protobuf REQUIRED)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 

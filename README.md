@@ -17,10 +17,10 @@ C++ trading platform built on Boost.Asio, featuring a lock-free, template-based 
 
 ### Main dependencies
 Core libraries: Boost, Folly  
-Serialization: SBE, FlatBuffers, Protobuf  
+Serialization: SBE, FlatBuffers  
 Database: libpqxx  
 Messaging: librdkafka  
-Other: spdlog
+Other: spdlog  
 
 ### Setup repository
 ```bash

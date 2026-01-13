@@ -21,12 +21,10 @@ target_include_directories(hft_common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types 
     ${LIBPQXX_INCLUDE_DIRS}
     ${RDKAFKA_INCLUDE_DIRS}
-    ${Protobuf_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/gen
 )
 
 target_link_libraries(hft_common PUBLIC 
-    ${Protobuf_LIBRARIES}
     ${LIBPQXX_LIBRARIES}
     ${Boost_LIBRARIES}
     ${RDKAFKAXX_LIB}
