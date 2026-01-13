@@ -58,13 +58,7 @@ public:
   inline uint32_t read(uint8_t *__restrict__ dst, uint32_t maxLen) noexcept {
     Sloth &sloth = slots_[readIdx_ & MASK];
 
-    uint32_t spins = 0;
-    uint64_t seq = sloth.seq.load(std::memory_order_acquire);
-    while (seq != readIdx_ + 1 && ++spins < BUSY_WAIT_CYCLES) {
-      asm volatile("pause" ::: "memory");
-      seq = sloth.seq.load(std::memory_order_acquire);
-    }
-    if (seq != readIdx_ + 1) {
+    while (sloth.seq.load(std::memory_order_acquire) != readIdx_ + 1) {
       return 0;
     }
     if (sloth.length > maxLen) {
@@ -80,9 +74,9 @@ public:
   }
 
 private:
-  alignas(64) Sloth slots_[SlotCount];
   alignas(64) uint64_t writeIdx_{0};
   alignas(64) uint64_t readIdx_{0};
+  alignas(4096) Sloth slots_[SlotCount];
 };
 
 } // namespace hft

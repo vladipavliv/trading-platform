@@ -13,6 +13,7 @@
 #include "ctx_runner.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
+#include "spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 
 namespace hft {
@@ -69,13 +70,12 @@ public:
     }
     auto &queue = std::get<UPtrLfq<Event>>(queues_);
 
-    size_t pushRetry{0};
+    SpinWait waiter;
     while (!queue->push(event)) {
-      if (++pushRetry > BUSY_WAIT_CYCLES) {
+      if (!++waiter) {
         LOG_ERROR_SYSTEM("StreamBus event queue is full for {}", typeid(Event).name());
         return false;
       }
-      asm volatile("pause" ::: "memory");
     }
     notify();
     return true;
@@ -89,16 +89,16 @@ public:
     LOG_INFO_SYSTEM("Starting StreamBus");
     runner_ = std::jthread([this]() {
       running_ = true;
-      size_t emptyCycles = 0;
+
+      SpinWait waiter;
       while (running_.load(std::memory_order_acquire)) {
         if ((process<Events>() | ...)) {
-          emptyCycles = 0;
+          waiter.reset();
           continue;
         }
-        asm volatile("pause" ::: "memory");
-        if (++emptyCycles > BUSY_WAIT_CYCLES) {
+        if (!++waiter) {
           waitForData();
-          emptyCycles = 0;
+          waiter.reset();
         }
       }
     });

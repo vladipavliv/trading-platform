@@ -1,0 +1,47 @@
+/**
+ * @author Vladimir Pavliv
+ * @date 2026-01-13
+ */
+
+#ifndef HFT_COMMON_SPINWAIT_HPP
+#define HFT_COMMON_SPINWAIT_HPP
+
+#include <thread>
+
+#include "constants.hpp"
+#include "logging.hpp"
+#include "primitive_types.hpp"
+
+namespace hft {
+
+class SpinWait {
+public:
+  explicit SpinWait(uint32_t cap = INT32_MAX) : cap_{cap} {}
+
+  inline bool operator++() noexcept {
+    if (cycles_ >= cap_) {
+      return false;
+    }
+    ++cycles_;
+
+    if (cycles_ < SPIN_RETRIES_HOT) {
+      return true;
+    } else if (cycles_ < SPIN_RETRIES_WARM) {
+      asm volatile("pause" ::: "memory");
+      return true;
+    }
+    return false;
+  }
+
+  inline void reset() noexcept { cycles_ = 0; }
+
+  inline uint32_t cycles() noexcept { return cycles_; }
+
+private:
+  const uint32_t cap_{0};
+  uint32_t cycles_{0};
+};
+
+} // namespace hft
+
+#endif // HFT_COMMON_SPINWAIT_HPP

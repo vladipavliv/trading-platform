@@ -16,6 +16,7 @@
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 
 namespace hft {
@@ -67,13 +68,12 @@ public:
   inline bool post(CRef<MessageType> message) {
     auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
     auto msgSize = sizeof(MessageType);
-    size_t waitCycles = 0;
+
+    SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {
-      if (++waitCycles > BUSY_WAIT_CYCLES) {
-        LOG_ERROR_SYSTEM("Failed to push to LfqRunner");
-        return false;
+      if (!++waiter) {
+        break;
       }
-      asm volatile("pause" ::: "memory");
     }
     if (sleeping_.load(std::memory_order_seq_cst)) [[unlikely]] {
       ftx_.store(++wakeCounter_, std::memory_order_release);
@@ -84,20 +84,20 @@ public:
 
 private:
   void lfqLoop() {
-    uint64_t cycles = 0;
     MessageType message;
     auto msgPtr = reinterpret_cast<uint8_t *>(&message);
     auto msgSize = sizeof(MessageType);
+
+    SpinWait waiter;
     while (running_.load(std::memory_order_acquire)) {
       if (queue_.read(msgPtr, msgSize)) {
-        cycles = 0;
+        waiter.reset();
         do {
           consumer_.post(message);
         } while (queue_.read(msgPtr, msgSize));
         continue;
       }
-      asm volatile("pause" ::: "memory");
-      if (++cycles < BUSY_WAIT_CYCLES) {
+      if (++waiter) {
         continue;
       }
       const auto ftxVal = ftx_.load(std::memory_order_acquire);
@@ -106,13 +106,13 @@ private:
       if (queue_.read(msgPtr, msgSize)) {
         sleeping_.store(false, std::memory_order_release);
         consumer_.post(message);
-        cycles = 0;
+        waiter.reset();
         continue;
       }
 
       utils::futexWait(ftx_, ftxVal);
       sleeping_.store(false, std::memory_order_release);
-      cycles = 0;
+      waiter.reset();
     }
   }
 

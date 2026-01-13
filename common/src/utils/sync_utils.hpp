@@ -15,6 +15,7 @@
 
 #include "constants.hpp"
 #include "logging.hpp"
+#include "spin_wait.hpp"
 
 namespace hft::utils {
 
@@ -41,15 +42,16 @@ inline void futexWait(Futex &futex, uint32_t curr, uint64_t timeoutNs = 0) {
 
 inline uint32_t hybridWait(Futex &ftx, uint32_t val, FutexFlag &waitFlag, FutexFlag &stopFlag) {
   LOG_DEBUG("hybridWait {}", val);
-  for (uint32_t i = 0; i < BUSY_WAIT_CYCLES; ++i) {
-    if (ftx.load(std::memory_order_acquire) != val || !stopFlag.load(std::memory_order_acquire))
-      return i;
-    __builtin_ia32_pause();
+  SpinWait waiter;
+  while (++waiter) {
+    if (ftx.load(std::memory_order_acquire) != val || !stopFlag.load(std::memory_order_acquire)) {
+      return waiter.cycles();
+    }
   }
   waitFlag.store(true, std::memory_order_release);
   futexWait(ftx, val);
   waitFlag.store(false, std::memory_order_release);
-  return BUSY_WAIT_CYCLES;
+  return waiter.cycles();
 }
 
 } // namespace hft::utils

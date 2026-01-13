@@ -13,6 +13,7 @@
 #include "io_result.hpp"
 #include "primitive_types.hpp"
 #include "shm_queue.hpp"
+#include "spin_wait.hpp"
 #include "utils/thread_utils.hpp"
 
 namespace hft {
@@ -71,21 +72,20 @@ public:
 
 private:
   void readLoop() {
-    uint32_t emptyCycles = 0;
+    SpinWait waiter;
     while (running_.load(std::memory_order_acquire)) {
       const size_t bytes = queue_.queue.read(buf_.data(), buf_.size());
       if (bytes != 0) {
         clb_(IoResult::Ok, bytes);
         continue;
       }
-      if (++emptyCycles < BUSY_WAIT_CYCLES) {
-        asm volatile("pause" ::: "memory");
+      if (++waiter) {
         continue;
       }
       if (!running_.load(std::memory_order_acquire)) {
         break;
       }
-      emptyCycles = 0;
+      waiter.reset();
       queue_.wait();
     }
   }

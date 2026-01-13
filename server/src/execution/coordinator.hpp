@@ -17,6 +17,7 @@
 #include "market_data.hpp"
 #include "order_book.hpp"
 #include "server_domain_types.hpp"
+#include "spin_wait.hpp"
 #include "traits.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/time_utils.hpp"
@@ -85,14 +86,12 @@ public:
       const auto &data = matcher_.data.at(order.order.ticker);
       auto &worker = workers_[data->getThreadId()];
 
-      uint32_t retries = 0;
-      bool posted = worker->post(order);
-      while (!posted && ++retries < BUSY_WAIT_CYCLES) {
-        posted = worker->post(order);
-        asm volatile("pause" ::: "memory");
-      }
-      if (!posted) {
-        LOG_ERROR_SYSTEM("Failed to post order");
+      SpinWait waiter;
+      while (!worker->post(order)) {
+        if (!++waiter) {
+          LOG_ERROR_SYSTEM("Failed to post order");
+          break;
+        }
       }
     });
     bus_.subscribe(Command::Telemetry_Start, [this] {
