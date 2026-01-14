@@ -8,19 +8,19 @@
 
 #include <boost/asio/signal_set.hpp>
 
-#include "authenticator.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/server_config.hpp"
-#include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "events.hpp"
 #include "execution/coordinator.hpp"
 #include "price_feed.hpp"
+#include "session/authenticator.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "transport/shm/shm_server.hpp"
+#include "utils/console_reader.hpp"
 #include "utils/id_utils.hpp"
 
 namespace hft::server {

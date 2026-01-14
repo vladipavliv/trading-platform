@@ -42,6 +42,29 @@ using AtomicFlag = std::atomic_flag;
 
 enum class State : uint8_t { On, Off, Error };
 
+#ifndef CACHELINE_SIZE
+#define CACHELINE_SIZE 64
+#endif
+
+#define ALIGN_CL alignas(CACHELINE_SIZE)
+#define ALIGN_PAGE alignas(4096)
+
+#if defined(__GNUC__) || defined(__clang__)
+#define PREFETCH(addr) __builtin_prefetch(addr)
+#else
+#define PREFETCH(addr)
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define PREFETCH(addr) __builtin_prefetch(addr)
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#define PREFETCH(addr)
+#endif
+
 } // namespace hft
 
 #endif // HFT_COMMON_PRIMITIVETYPES_HPP

@@ -13,7 +13,7 @@
 #include "io_result.hpp"
 #include "primitive_types.hpp"
 #include "shm_queue.hpp"
-#include "spin_wait.hpp"
+#include "utils/spin_wait.hpp"
 #include "utils/thread_utils.hpp"
 
 namespace hft {

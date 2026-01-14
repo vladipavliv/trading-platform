@@ -9,10 +9,10 @@
 
 #include "adapters/telemetry_adapter.hpp"
 #ifdef COMM_SHM
+#include "session/trusted_session_manager.hpp"
 #include "transport/shm/shm_server.hpp"
-#include "trusted_session_manager.hpp"
 #else
-#include "network_session_manager.hpp"
+#include "session/network_session_manager.hpp"
 #include "transport/boost/boost_network_server.hpp"
 #endif
 

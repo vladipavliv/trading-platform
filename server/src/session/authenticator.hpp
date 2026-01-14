@@ -6,8 +6,8 @@
 #ifndef HFT_SERVER_AUTHENTICATOR_HPP
 #define HFT_SERVER_AUTHENTICATOR_HPP
 
+#include "domain/server_order_messages.hpp"
 #include "logging.hpp"
-#include "server_domain_types.hpp"
 
 namespace hft::server {
 

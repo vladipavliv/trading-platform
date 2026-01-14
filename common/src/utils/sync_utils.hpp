@@ -15,7 +15,7 @@
 
 #include "constants.hpp"
 #include "logging.hpp"
-#include "spin_wait.hpp"
+#include "utils/spin_wait.hpp"
 
 namespace hft::utils {
 

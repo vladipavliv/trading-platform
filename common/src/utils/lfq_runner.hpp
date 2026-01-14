@@ -16,7 +16,7 @@
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
-#include "spin_wait.hpp"
+#include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 
 namespace hft {

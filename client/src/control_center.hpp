@@ -12,13 +12,13 @@
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/client_config.hpp"
-#include "console_reader.hpp"
 #include "events.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "trade_engine.hpp"
 #include "traits.hpp"
+#include "utils/console_reader.hpp"
 
 namespace hft::client {
 

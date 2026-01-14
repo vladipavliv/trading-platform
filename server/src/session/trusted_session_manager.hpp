@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_TRUSTEDSESSIONMANAGER_HPP
 #define HFT_SERVER_TRUSTEDSESSIONMANAGER_HPP
 
+#include "bus/bus_hub.hpp"
 #include "constants.hpp"
 #include "events.hpp"
 #include "logging.hpp"

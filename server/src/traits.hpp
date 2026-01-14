@@ -7,7 +7,8 @@
 #define HFT_SERVER_TRAITS_HPP
 
 #include "constants.hpp"
-#include "server_domain_types.hpp"
+#include "domain/server_auth_messages.hpp"
+#include "domain/server_order_messages.hpp"
 
 namespace hft {
 template <typename... Events>

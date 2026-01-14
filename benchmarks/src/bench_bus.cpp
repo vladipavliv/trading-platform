@@ -8,9 +8,9 @@
 #include "bus/bus_hub.hpp"
 #include "config/config.hpp"
 #include "domain_types.hpp"
-#include "lfq_runner.hpp"
 #include "primitive_types.hpp"
 #include "utils/bench_utils.hpp"
+#include "utils/lfq_runner.hpp"
 #include "utils/test_data.hpp"
 
 namespace hft::benchmarks {

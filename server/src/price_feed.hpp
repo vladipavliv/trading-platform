@@ -9,7 +9,6 @@
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "execution/market_data.hpp"
-#include "server_domain_types.hpp"
 #include "utils/rng.hpp"
 
 namespace hft::server {

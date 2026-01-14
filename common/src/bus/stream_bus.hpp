@@ -10,10 +10,10 @@
 #include "constants.hpp"
 #include "containers/sequenced_spsc.hpp"
 #include "containers/vyukov_mpmc.hpp"
-#include "ctx_runner.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
-#include "spin_wait.hpp"
+#include "utils/ctx_runner.hpp"
+#include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 
 namespace hft {

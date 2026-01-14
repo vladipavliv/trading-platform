@@ -76,7 +76,7 @@ public:
 private:
   alignas(64) uint64_t writeIdx_{0};
   alignas(64) uint64_t readIdx_{0};
-  alignas(4096) Sloth slots_[SlotCount];
+  alignas(64) Sloth slots_[SlotCount];
 };
 
 } // namespace hft

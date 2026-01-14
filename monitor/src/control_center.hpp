@@ -10,11 +10,11 @@
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/monitor_config.hpp"
-#include "console_reader.hpp"
 #include "domain_types.hpp"
 #include "latency_tracker.hpp"
 #include "server/src/commands/command.hpp"
 #include "traits.hpp"
+#include "utils/console_reader.hpp"
 
 namespace hft::monitor {
 /**

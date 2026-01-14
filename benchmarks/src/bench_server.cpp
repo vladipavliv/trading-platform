@@ -8,8 +8,8 @@
 #include "config/server_config.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
-#include "spin_wait.hpp"
 #include "utils/bench_utils.hpp"
+#include "utils/spin_wait.hpp"
 
 namespace hft::benchmarks {
 

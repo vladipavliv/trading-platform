@@ -12,7 +12,6 @@
 #include "primitive_types.hpp"
 #include "ticker.hpp"
 #include "traits.hpp"
-#include "type_converters.hpp"
 
 namespace hft::server {
 
