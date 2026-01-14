@@ -65,6 +65,43 @@ inline void *mapSharedMemory(const std::string &name, size_t size, bool create) 
   return addr;
 }
 
+static constexpr size_t HUGE_PAGE_SIZE = 2 * 1024 * 1024;
+
+constexpr size_t alignHuge(size_t size) {
+  return (size + HUGE_PAGE_SIZE - 1) & ~(HUGE_PAGE_SIZE - 1);
+}
+
+template <typename T = void>
+inline T *allocHuge(size_t size, bool lock = true) {
+  const size_t alignedSize = alignHuge(size);
+
+  void *ptr = mmap(nullptr, alignedSize, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1, 0);
+
+  if (ptr == MAP_FAILED) {
+    throw std::system_error(errno, std::generic_category(), "mmap HugePages failed");
+  }
+
+  if (lock && mlock(ptr, alignedSize) != 0) {
+    munmap(ptr, alignedSize);
+    throw std::system_error(errno, std::generic_category(), "mlock failed");
+  }
+
+  std::memset(ptr, 0, alignedSize);
+  return static_cast<T *>(ptr);
+}
+
+inline void freeHuge(void *ptr, size_t size) {
+  if (!ptr) {
+    return;
+  }
+
+  const size_t aligned_size = (size + HUGE_PAGE_SIZE - 1) & ~(HUGE_PAGE_SIZE - 1);
+
+  munlock(ptr, aligned_size);
+  munmap(ptr, aligned_size);
+}
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_MEMORYUTILS_HPP
