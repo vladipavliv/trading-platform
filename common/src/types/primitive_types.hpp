@@ -32,6 +32,16 @@ using Milliseconds = std::chrono::milliseconds;
 using Microseconds = std::chrono::microseconds;
 using Nanoseconds = std::chrono::nanoseconds;
 
+using CompositeKey = uint64_t;
+
+inline CompositeKey composeKey(uint32_t left, uint32_t right) {
+  return (static_cast<uint64_t>(left) << 32) | right;
+}
+
+inline std::pair<uint32_t, uint32_t> decomposeKey(CompositeKey key) {
+  return {static_cast<uint32_t>(key >> 32), static_cast<uint32_t>(key)};
+}
+
 template <typename T>
 using Atomic = std::atomic<T>;
 

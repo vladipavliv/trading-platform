@@ -49,14 +49,21 @@ public:
         unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS},
         statusQueue_{std::make_unique<VyukovMPMC<ServerOrderStatus>>()} {
     LOG_INFO_SYSTEM("NetworkSessionManager initialized");
+
+    using SelfT = NetworkSessionManager;
     bus_.subscribe<ServerOrderStatus>(
-        [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
+        CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ServerLoginResponse>(
-        [this](CRef<ServerLoginResponse> event) { onLoginResponse(event); });
+        CRefHandler<ServerLoginResponse>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ServerTokenBindRequest>(
-        [this](CRef<ServerTokenBindRequest> event) { onTokenBindRequest(event); });
+        CRefHandler<ServerTokenBindRequest>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ChannelStatusEvent>(
-        [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
+        CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+  }
+
+  ~NetworkSessionManager() {
+    LOG_DEBUG_SYSTEM("~NetworkSessionManager");
+    close();
   }
 
   void acceptUpstream(StreamTransport &&transport) {
@@ -84,6 +91,7 @@ public:
   }
 
   void close() {
+    LOG_DEBUG_SYSTEM("close");
     for (auto iter = sessionsMap_.begin(); iter != sessionsMap_.end(); ++iter) {
       if (iter->second->upstreamChannel != nullptr) {
         iter->second->upstreamChannel->close();
@@ -110,7 +118,7 @@ public:
   }
 
 private:
-  void onOrderStatus(CRef<ServerOrderStatus> status) {
+  void post(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end()) [[unlikely]] {
@@ -125,7 +133,7 @@ private:
     }
   }
 
-  void onLoginResponse(CRef<ServerLoginResponse> loginResult) {
+  void post(CRef<ServerLoginResponse> loginResult) {
     LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
     const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
     if (channelIter == unauthorizedUpstreamMap_.end()) [[unlikely]] {
@@ -161,7 +169,7 @@ private:
     }
   }
 
-  void onTokenBindRequest(CRef<ServerTokenBindRequest> request) {
+  void post(CRef<ServerTokenBindRequest> request) {
     LOG_INFO_SYSTEM("Token bind request {} {}", request.connectionId, request.request.token);
     const auto channelIter = unauthorizedDownstreamMap_.find(request.connectionId);
     if (channelIter == unauthorizedDownstreamMap_.end()) {
@@ -198,7 +206,7 @@ private:
     printStats();
   }
 
-  void onChannelStatus(CRef<ChannelStatusEvent> event) {
+  void post(CRef<ChannelStatusEvent> event) {
     LOG_DEBUG("{}", toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:

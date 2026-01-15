@@ -18,13 +18,12 @@ namespace hft::benchmarks {
 using namespace utils;
 using namespace server;
 
-constexpr size_t LFQ_CAPACITY = 65536;
 constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
 constexpr double CPU_FREQ = 5.2;
 
 static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
-  using Runner = LfqRunner<ServerOrder, Consumer, LFQ_CAPACITY>;
+  using Runner = LfqRunner<InternalOrderEvent, Consumer, SystemBus>;
 
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
@@ -34,7 +33,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
   Consumer consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(getCore(1), consumer, ErrorBus{bus});
+  auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));
   lfqRunner->run();
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
@@ -42,12 +41,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
     consumer.clear();
 
     for (auto &order : orData.orders) {
-      auto tid = (uint32_t)order.order.ticker[0];
-      benchmark::DoNotOptimize(tid);
-
-      if (!lfqRunner->post(order)) {
-        asm volatile("pause" ::: "memory");
-      }
+      lfqRunner->post(order);
     }
 
     while (consumer.signal.load(std::memory_order_acquire) == 0) {
@@ -62,7 +56,7 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
 BENCHMARK(BM_Op_LfqRunnerThroughput);
 
 static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
-  using Runner = LfqRunner<ServerOrder, Consumer, LFQ_CAPACITY>;
+  using Runner = LfqRunner<InternalOrderEvent, Consumer, SystemBus>;
 
   TestTickerData tkrData{TICKER_COUNT};
   TestOrderData orData{tkrData, ORDER_COUNT};
@@ -71,7 +65,7 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
   Consumer consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(getCore(1), consumer, ErrorBus{bus});
+  auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));
   lfqRunner->run();
 
   std::vector<uint64_t> tscLogs(ORDER_COUNT + 1);
@@ -84,9 +78,7 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
     for (auto &order : orData.orders) {
       uint64_t start = __rdtsc();
 
-      while (!lfqRunner->post(order)) {
-        asm volatile("pause" ::: "memory");
-      }
+      lfqRunner->post(order);
 
       tscLogs[cycle++] = __rdtsc() - start;
     }
@@ -107,86 +99,5 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
   lfqRunner->stop();
 }
 BENCHMARK(BM_Op_LfqRunnerTailSpy);
-
-static void DISABLED_BM_Op_StreamBusThroughput(benchmark::State &state) {
-  TestTickerData tkrData{TICKER_COUNT};
-  TestOrderData orData{tkrData, ORDER_COUNT};
-
-  pinThreadToCore(getCore(0));
-
-  alignas(64) std::atomic<uint64_t> processed;
-  alignas(64) std::atomic_flag signal;
-
-  SystemBus systemBus;
-  StreamBus<LFQ_CAPACITY, ServerOrder> streamBus{getCore(1), systemBus};
-
-  streamBus.subscribe<ServerOrder>([&processed, &signal](CRef<ServerOrder> o) {
-    if (processed.fetch_add(1, std::memory_order_relaxed) + 1 == ORDER_COUNT) {
-      signal.test_and_set(std::memory_order_release);
-    }
-  });
-  streamBus.run();
-
-  while (state.KeepRunningBatch(ORDER_COUNT)) {
-    processed = 0;
-    signal.clear();
-
-    for (auto &order : orData.orders) {
-      auto tid = (uint32_t)order.order.ticker[0];
-      benchmark::DoNotOptimize(tid);
-
-      while (!streamBus.post(order)) {
-        asm volatile("pause" ::: "memory");
-      }
-    }
-
-    while (!signal.test(std::memory_order_acquire)) {
-      asm volatile("pause" ::: "memory");
-    }
-    benchmark::DoNotOptimize(processed);
-    benchmark::DoNotOptimize(signal);
-  }
-
-  streamBus.stop();
-}
-BENCHMARK(DISABLED_BM_Op_StreamBusThroughput);
-
-static void DISABLED_BM_Op_MessageBusPost(benchmark::State &state) {
-  size_t counter{0};
-  const auto order = generateOrder();
-
-  pinThreadToCore(getCore(0));
-
-  MessageBus<Order> bus;
-  bus.subscribe<Order>([&counter, &state, order](CRef<Order> o) { counter += o.id; });
-
-  for (auto _ : state) {
-    bus.post<Order>(order);
-    benchmark::DoNotOptimize(&order);
-    benchmark::DoNotOptimize(counter);
-  }
-}
-BENCHMARK(DISABLED_BM_Op_MessageBusPost);
-
-static void DISABLED_BM_Op_SystemBusPost(benchmark::State &state) {
-  const auto order = generateOrder();
-
-  pinThreadToCore(getCore(0));
-
-  size_t counter = 0;
-  SystemBus bus;
-  std::jthread t{[&bus]() {
-    pinThreadToCore(getCore(1));
-    bus.run();
-  }};
-  bus.subscribe<Order>([&counter](CRef<Order> o) { counter += o.id; });
-
-  for (auto _ : state) {
-    bus.post(order);
-    benchmark::DoNotOptimize(counter);
-  }
-  bus.stop();
-}
-BENCHMARK(DISABLED_BM_Op_SystemBusPost);
 
 } // namespace hft::benchmarks

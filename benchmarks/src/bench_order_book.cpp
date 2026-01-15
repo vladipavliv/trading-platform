@@ -9,7 +9,8 @@
 #include "config/server_config.hpp"
 #include "container_types.hpp"
 #include "domain/server_order_messages.hpp"
-#include "execution/order_book.hpp"
+#include "execution/flat_order_book.hpp"
+#include "gateway/internal_order.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "utils/id_utils.hpp"
@@ -24,7 +25,7 @@ class BM_Sys_OrderBookFix : public benchmark::Fixture {
 public:
   uint64_t counter;
 
-  inline static Vector<ServerOrder> orders;
+  inline static Vector<InternalOrderEvent> orders;
 
   BM_Sys_OrderBookFix() { ServerConfig::load("bench_server_config.ini"); }
 
@@ -36,7 +37,8 @@ public:
 
     orders.reserve(ordersCount);
     for (size_t i = 0; i < ordersCount; ++i) {
-      orders.emplace_back(ServerOrder{0, utils::generateOrder()});
+      auto io = generateInternalOrder();
+      orders.emplace_back(io);
     }
   }
 
@@ -44,15 +46,15 @@ public:
 };
 
 template <>
-void BM_Sys_OrderBookFix::post<ServerOrderStatus>(CRef<ServerOrderStatus> event) {
-  if (event.orderStatus.state == OrderState::Rejected) {
+void BM_Sys_OrderBookFix::post<InternalOrderStatus>(CRef<InternalOrderStatus> s) {
+  if (s.state == OrderState::Rejected) {
     throw std::runtime_error("Increase OrderBook limit");
   }
   ++counter;
 }
 
 BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
-  OrderBook book;
+  FlatOrderBook book;
   while (state.KeepRunningBatch(orders.size())) {
     book.clear();
 

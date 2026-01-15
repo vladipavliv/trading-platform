@@ -22,38 +22,43 @@ namespace hft {
 /**
  * @brief
  */
-template <typename MarketBusT>
+template <typename MarketBus>
 struct BusHub {
 public:
   SystemBus systemBus;
-  MarketBusT marketBus;
+  MarketBus marketBus;
 
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
 
-  void run() { systemBus.run(); }
+  void run() {
+#if !defined(BENCHMARK_BUILD) && !defined(UNIT_TESTS_BUILD)
+    marketBus.validate();
+#endif
+    systemBus.run();
+  }
 
   void stop() { systemBus.stop(); }
 
   template <typename Message>
-    requires(MarketBusT::template Routed<Message>)
+    requires(MarketBus::template Routed<Message>)
   inline void post(CRef<Message> message) {
     marketBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(MarketBusT::template Routed<Message>)
+    requires(MarketBus::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     marketBus.template subscribe<Message>(std::move(handler));
   }
 
   template <typename Message>
-    requires(!MarketBusT::template Routed<Message>)
+    requires(!MarketBus::template Routed<Message>)
   inline void post(CRef<Message> message) {
     systemBus.template post<Message>(message);
   }
 
   template <typename Message>
-    requires(!MarketBusT::template Routed<Message>)
+    requires(!MarketBus::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     systemBus.template subscribe<Message>(std::move(handler));
   }

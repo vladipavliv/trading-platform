@@ -12,10 +12,12 @@
 #include "commands/command.hpp"
 #include "config/client_config.hpp"
 #include "config/config.hpp"
+#include "id/slot_id_pool.hpp"
 #include "market_data.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
 #include "utils/ctx_runner.hpp"
+#include "utils/huge_array.hpp"
 #include "utils/rng.hpp"
 #include "utils/rtt_tracker.hpp"
 #include "utils/telemetry_utils.hpp"
@@ -30,11 +32,21 @@ namespace hft::client {
  * Later on maybe will add proper algorithms
  */
 class TradeEngine {
+  static constexpr size_t ORDER_LIMIT = 16777216;
+  // static constexpr size_t ORDER_LIMIT = 524288;
+
+  struct ClientOrder {
+    Order order;
+    Timestamp created;
+    SlotIdPool<>::IdType id;
+  };
+
 public:
-  explicit TradeEngine(ClientBus &bus)
-      : bus_{bus}, marketData_{loadMarketData()}, statsTimer_{bus_.systemIoCtx()} {
-    bus_.subscribe<OrderStatus>([this](CRef<OrderStatus> status) { onOrderStatus(status); });
-    bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> price) { onTickerPrice(price); });
+  explicit TradeEngine(ClientBus &bus) : bus_{bus}, marketData_{loadMarketData()} {
+    bus_.subscribe<OrderStatus>(
+        CRefHandler<OrderStatus>::template bind<TradeEngine, &TradeEngine::post>(this));
+    bus_.subscribe<TickerPrice>(
+        CRefHandler<TickerPrice>::template bind<TradeEngine, &TradeEngine::post>(this));
   }
 
   void start() {
@@ -102,8 +114,8 @@ private:
   }
 
   void tradeLoop() {
-    uint64_t warmupCount = Config::get<uint64_t>("rates.warmup");
-    uint64_t counter = 0;
+    uint32_t warmupCount = Config::get<uint64_t>("rates.warmup");
+    uint32_t counter = 0;
     while (running_) {
       if (!trading_) {
         asm volatile("pause" ::: "memory");
@@ -117,14 +129,15 @@ private:
       auto &p = *cursor++;
       const auto newPrice = utils::fluctuateThePrice(p.second.getPrice());
       const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-      const auto quantity = RNG::generate<Quantity>(0, 100);
-      const auto id = getCycles();
-      Order order{id, id, p.first, quantity, newPrice, action};
+      const auto quantity = RNG::generate<Quantity>(1, 100);
 
-      if (counter < warmupCount) {
-        ++counter;
-        order.action = OrderAction::Dummy;
-      }
+      // auto id = idPool_.acquire();
+      auto id = ++counter;
+      const auto now = getCycles();
+      Order order{id, now, p.first, quantity, newPrice, action};
+
+      // orders_[id.index()] = {order, now, id};
+
       placed_.fetch_add(1, std::memory_order_relaxed);
       LOG_TRACE("Placing order {}", toString(order));
       bus_.marketBus.post(order);
@@ -135,26 +148,38 @@ private:
     }
   }
 
-  void onOrderStatus(CRef<OrderStatus> s) {
+  void post(CRef<OrderStatus> s) {
     using namespace utils;
     LOG_DEBUG("{}", toString(s));
     switch (s.state) {
     case OrderState::Rejected:
-      LOG_ERROR_SYSTEM("Order {} was rejected", s.orderId);
+      LOG_ERROR_SYSTEM("Order {} was rejected", toString(s));
       tradeStop();
       break;
     default:
       const auto now = getCycles();
       LOG_DEBUG("Post Order telemetry");
-      fulfilled_.fetch_add(1, std::memory_order_relaxed);
-      bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, s.orderId, 0, now,
+
+      // auto &o = orders_[s.orderId];
+      bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, s.timeStamp, 0, now,
                                       placed_.load(std::memory_order_relaxed),
                                       fulfilled_.load(std::memory_order_relaxed)));
+
+      switch (s.state) {
+      case OrderState::Full:
+        fulfilled_.fetch_add(1, std::memory_order_relaxed);
+        break;
+      case OrderState::Rejected:
+        stop();
+      default:
+        break;
+      }
+
       break;
     }
   }
 
-  void onTickerPrice(CRef<TickerPrice> price) {
+  void post(CRef<TickerPrice> price) {
     const auto dataIt = marketData_.find(price.ticker);
     if (dataIt == marketData_.end()) {
       LOG_ERROR("Ticker {} not found", toString(price.ticker));
@@ -172,7 +197,8 @@ private:
   ClientBus &bus_;
   std::jthread worker_;
 
-  SteadyTimer statsTimer_;
+  // SlotIdPool<> idPool_;
+  // HugeArray<ClientOrder, ORDER_LIMIT> orders_;
 
   alignas(64) AtomicUInt64 placed_{0};
   alignas(64) AtomicUInt64 fulfilled_{0};

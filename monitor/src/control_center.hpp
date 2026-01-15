@@ -23,7 +23,9 @@ namespace hft::monitor {
 class MonitorControlCenter {
 public:
   MonitorControlCenter() : consoleReader_{bus_.systemBus}, telemetry_{bus_, false}, tracker_{bus_} {
-    bus_.subscribe(Command::Shutdown, [this] { stop(); });
+    bus_.subscribe(
+        Command::Shutdown,
+        Callback::template bind<MonitorControlCenter, &MonitorControlCenter::stop>(this));
   }
 
   void start() {

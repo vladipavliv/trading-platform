@@ -23,7 +23,7 @@ class SlotId {
 public:
   using StorageType = ValueType;
 
-  constexpr SlotId() : value_(0) {}
+  SlotId() = default;
   explicit constexpr SlotId(StorageType raw) : value_(raw) {}
 
   static constexpr SlotId make(uint32_t index, uint32_t gen) {
@@ -55,6 +55,7 @@ public:
 
   constexpr bool operator==(const SlotId &other) const noexcept { return value_ == other.value_; }
   constexpr bool operator!=(const SlotId &other) const noexcept { return value_ != other.value_; }
+  explicit constexpr operator bool() const noexcept { return isValid(); }
 
   static constexpr uint32_t maxIndex() { return INDEX_MASK; }
   static constexpr uint32_t maxGen() { return GEN_MASK; }
@@ -62,7 +63,6 @@ public:
 private:
   StorageType value_;
 };
-
 } // namespace hft
 
 #endif // HFT_SERVER_SLOTID_HPP

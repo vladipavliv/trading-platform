@@ -29,17 +29,28 @@ class TrustedSessionManager {
 public:
   explicit TrustedSessionManager(ServerBus &bus) : bus_{bus} {
     LOG_INFO_SYSTEM("TrustedSessionManager initialized");
+    using SelfT = TrustedSessionManager;
     bus_.subscribe<ServerOrderStatus>(
-        [this](CRef<ServerOrderStatus> event) { onOrderStatus(event); });
+        CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ChannelStatusEvent>(
-        [this](CRef<ChannelStatusEvent> event) { onChannelStatus(event); });
+        CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+  }
+
+  ~TrustedSessionManager() {
+    LOG_DEBUG_SYSTEM("~TrustedSessionManager");
+    close();
   }
 
   void acceptUpstream(StreamTransport &&t) {
     upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
-
     ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(Order));
-    upChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(ServerOrder{0, order_}); });
+    upChannel_->asyncRx(span, [this](IoResult res, size_t bytes) {
+      if (res == IoResult::Ok) {
+        bus_.post(ServerOrder{0, order_});
+      } else {
+        LOG_ERROR("Failed to read from shm {}", toString(res));
+      }
+    });
   }
 
   void acceptDownstream(StreamTransport &&t) {
@@ -47,7 +58,7 @@ public:
   }
 
   void close() {
-    LOG_DEBUG("TrustedSessionManager close");
+    LOG_DEBUG_SYSTEM("TrustedSessionManager close");
     if (upChannel_) {
       upChannel_->close();
       upChannel_.reset();
@@ -58,7 +69,8 @@ public:
     }
   }
 
-  void onChannelStatus(CRef<ChannelStatusEvent> event) {
+private:
+  void post(CRef<ChannelStatusEvent> event) {
     LOG_DEBUG("{}", toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:
@@ -73,12 +85,15 @@ public:
     }
   }
 
-private:
-  void onOrderStatus(CRef<ServerOrderStatus> status) {
+  void post(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", toString(status.orderStatus));
     auto *ptr = reinterpret_cast<const uint8_t *>(&status.orderStatus);
     CByteSpan span(ptr, sizeof(OrderStatus));
-    downChannel_->asyncTx(span, [](IoResult, size_t) {});
+    downChannel_->asyncTx(span, [this](IoResult res, size_t bytes) {
+      if (res != IoResult::Ok) {
+        LOG_ERROR("Failed to write to shm {}", toString(res));
+      }
+    });
   }
 
 private:

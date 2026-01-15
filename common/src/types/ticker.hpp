@@ -26,7 +26,7 @@ struct TickerHash {
   std::size_t operator()(const Ticker &t) const noexcept {
     uint32_t val;
     std::memcpy(&val, t.data(), 4);
-    return static_cast<std::size_t>(val);
+    return static_cast<size_t>(val * 2654435761u);
   }
 };
 

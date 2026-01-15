@@ -25,16 +25,19 @@
     </composite>
 
     <enum name="OrderAction" encodingType="int8">
-      <validValue name="BUY" value="0">0</validValue>
-      <validValue name="SELL" value="1">1</validValue>
-      <validValue name="DUMMY" value="2">2</validValue>
+      <validValue name="DUMMY" value="0">0</validValue>
+      <validValue name="BUY" value="1">1</validValue>
+      <validValue name="SELL" value="2">2</validValue>
+      <validValue name="MODIFY" value="3">3</validValue>
+      <validValue name="CANCEL" value="4">4</validValue>
     </enum>
 
     <enum name="OrderState" encodingType="int32">
       <validValue name="Accepted" value="0">0</validValue>
       <validValue name="Rejected" value="1">1</validValue>
-      <validValue name="Partial" value="2">2</validValue>
-      <validValue name="Full" value="3">3</validValue>
+      <validValue name="Cancelled" value="2">2</validValue>
+      <validValue name="Partial" value="3">3</validValue>
+      <validValue name="Full" value="4">4</validValue>
     </enum>
   </types>
 
@@ -46,17 +49,17 @@
   </message>
 
   <message name="LoginResponse" id="2" description="Login response">
-    <field name="token" id="1" type="uint64" />
+    <field name="token" id="1" type="uint32" />
     <field name="ok" id="2" type="uint8" />
     <field name="error_msg" id="3" type="Char32" />
   </message>
 
   <message name="TokenBindRequest" id="3" description="Token bind request">
-    <field name="token" id="1" type="uint64" />
+    <field name="token" id="1" type="uint32" />
   </message>
 
   <message name="Order" id="4" description="Order">
-    <field name="id" id="1" type="uint64" />
+    <field name="id" id="1" type="uint32" />
     <field name="created" id="2" type="uint64" />
     <field name="ticker" id="3" type="Char4" />
     <field name="quantity" id="4" type="uint32" />
@@ -65,7 +68,7 @@
   </message>
 
   <message name="OrderStatus" id="5" description="Order status">
-    <field name="order_id" id="1" type="uint64" />
+    <field name="order_id" id="1" type="uint32" />
     <field name="timestamp" id="2" type="uint64" />
     <field name="quantity" id="3" type="uint32" />
     <field name="fill_price" id="4" type="uint32" />

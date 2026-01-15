@@ -8,6 +8,7 @@
 
 #include "container_types.hpp"
 #include "execution/market_data.hpp"
+#include "gateway/internal_order.hpp"
 #include "primitive_types.hpp"
 #include "ticker.hpp"
 #include "utils/id_utils.hpp"
@@ -24,7 +25,7 @@ struct TestTickerData {
     tickers.clear();
     tickers.reserve(count);
     for (size_t i = 0; i < count; ++i) {
-      tickers.emplace_back(utils::generateTicker());
+      tickers.emplace_back(generateTicker());
     }
   }
   Vector<Ticker> tickers;
@@ -47,14 +48,14 @@ struct TestOrderData {
       if (dataIt == tickers.tickers.end()) {
         dataIt = tickers.tickers.begin();
       }
-      auto order = utils::generateOrder(*dataIt++);
-      order.id = i;
-      orders.push_back(server::ServerOrder{0, order});
+      auto o = generateOrder(*dataIt++);
+      InternalOrder io{SlotId<>(i), o.quantity, o.price};
+      orders.push_back(InternalOrderEvent{io, nullptr, o.ticker, o.action});
     }
   }
 
   TestTickerData &tickers;
-  Vector<server::ServerOrder> orders;
+  Vector<InternalOrderEvent> orders;
 };
 
 struct TestMarketData {
@@ -71,7 +72,7 @@ struct TestMarketData {
 
     ThreadId workerId{0};
     for (auto &ticker : tickers.tickers) {
-      marketData.emplace(ticker, std::make_unique<TickerData>(workerId));
+      marketData.emplace(ticker, workerId);
       if (++workerId == workerCount) {
         workerId = 0;
       }
@@ -80,7 +81,7 @@ struct TestMarketData {
 
   void cleanup() {
     for (auto &td : marketData) {
-      td.second->orderBook.clear();
+      td.second.orderBook.clear();
     }
   }
 

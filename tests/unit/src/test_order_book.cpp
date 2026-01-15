@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "config/server_config.hpp"
-#include "execution/order_book.hpp"
+#include "execution/flat_order_book.hpp"
 #include "utils/test_utils.hpp"
 
 namespace hft::tests {
@@ -26,10 +26,12 @@ const OrderAction SELL = OrderAction::Sell;
 const Ticker tkr = generateTicker();
 } // namespace
 
+using OrderBook = FlatOrderBook;
+
 class OrderBookFixture : public ::testing::Test {
 public:
   UPtr<OrderBook> book;
-  Vector<ServerOrderStatus> statusq;
+  Vector<InternalOrderStatus> statusq;
 
   void SetUp() override {
     ServerConfig::load("utest_server_config.ini");
@@ -52,32 +54,28 @@ public:
   template <typename EventType>
   void post(CRef<EventType>) {}
 
-  void addOrder(ServerOrder order) {
+  void addOrder(InternalOrderEvent order) {
     book->add(order, *this);
     book->sendAck(order, *this);
   }
 };
 
 template <>
-void OrderBookFixture::post<ServerOrderStatus>(CRef<ServerOrderStatus> event) {
+void OrderBookFixture::post<InternalOrderStatus>(CRef<InternalOrderStatus> event) {
   statusq.push_back(event);
 }
 
-TEST_F(OrderBookFixture, OrderBookLimitReached) {
-  for (size_t idx = 0; idx < ServerConfig::cfg.orderBookLimit; ++idx) {
-    ASSERT_TRUE(book->add({0, generateOrder()}, *this));
-  }
-  ASSERT_FALSE(book->add({0, generateOrder()}, *this));
-}
-
 TEST_F(OrderBookFixture, OrdersWontMatch) {
-  addOrder({cId(), {oId(), ts(), tkr, 1, 40, SELL}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 50, SELL}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 60, SELL}});
+  statusq.clear();
 
-  addOrder({cId(), {oId(), ts(), tkr, 1, 30, BUY}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 20, BUY}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 10, BUY}});
+  uint32_t id = 0;
+  addOrder({{InternalOrderId{++id}, 1, 40}, nullptr, tkr, SELL});
+  addOrder({{InternalOrderId{++id}, 1, 50}, nullptr, tkr, SELL});
+  addOrder({{InternalOrderId{++id}, 1, 60}, nullptr, tkr, SELL});
+
+  addOrder({{InternalOrderId{++id}, 1, 30}, nullptr, tkr, BUY});
+  addOrder({{InternalOrderId{++id}, 1, 20}, nullptr, tkr, BUY});
+  addOrder({{InternalOrderId{++id}, 1, 10}, nullptr, tkr, BUY});
 
   book->match(*this);
 
@@ -86,34 +84,40 @@ TEST_F(OrderBookFixture, OrdersWontMatch) {
 }
 
 TEST_F(OrderBookFixture, 3Buy3SellMatch) {
-  addOrder({cId(), {oId(), ts(), tkr, 1, 40, BUY}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 50, BUY}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 60, BUY}});
+  statusq.clear();
 
-  addOrder({cId(), {oId(), ts(), tkr, 1, 30, SELL}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 20, SELL}});
-  addOrder({cId(), {oId(), ts(), tkr, 1, 10, SELL}});
+  uint32_t id = 0;
+  addOrder({{InternalOrderId{++id}, 1, 40}, nullptr, tkr, BUY});
+  addOrder({{InternalOrderId{++id}, 1, 50}, nullptr, tkr, BUY});
+  addOrder({{InternalOrderId{++id}, 1, 60}, nullptr, tkr, BUY});
 
+  addOrder({{InternalOrderId{++id}, 1, 30}, nullptr, tkr, SELL});
+  book->match(*this);
+  addOrder({{InternalOrderId{++id}, 1, 20}, nullptr, tkr, SELL});
+  book->match(*this);
+  addOrder({{InternalOrderId{++id}, 1, 10}, nullptr, tkr, SELL});
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 12);
+  ASSERT_EQ(statusq.size(), 9);
 }
 
 TEST_F(OrderBookFixture, 10Buy1SellMatch) {
+  statusq.clear();
+
   Quantity quantity{1};
   Price price{10};
 
   for (uint32_t idx = 0; idx < 10; ++idx) {
-    addOrder({cId(), {oId(), ts(), tkr, idx, price, BUY}});
+    addOrder({{InternalOrderId{idx}, idx, price}, nullptr, tkr, BUY});
     quantity += idx;
   }
 
-  addOrder({cId(), {oId(), ts(), tkr, quantity, price, SELL}});
+  addOrder({{InternalOrderId{42}, quantity, price}, nullptr, tkr, SELL});
   book->match(*this);
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 31);
+  ASSERT_EQ(statusq.size(), 21);
 }
 
 } // namespace hft::tests

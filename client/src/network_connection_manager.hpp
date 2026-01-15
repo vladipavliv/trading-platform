@@ -15,6 +15,7 @@
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
+#include "types/functional_types.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
@@ -36,15 +37,12 @@ public:
     ipcClient_.setDatagramClb(
         [this](DatagramTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    bus_.subscribe<Order>([this](CRef<Order> order) {
-      if (upstreamChannel_) {
-        upstreamChannel_->write(order);
-      }
-    });
-    bus_.subscribe<ConnectionStatusEvent>( // format
-        [this](CRef<ConnectionStatusEvent> event) { onConnectionStatus(event); });
-    bus_.subscribe<LoginResponse>( // format
-        [this](CRef<LoginResponse> event) { onLoginResponse(event); });
+    using SelfT = NetworkConnectionManager;
+    bus_.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<LoginResponse>(
+        CRefHandler<LoginResponse>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<ConnectionStatusEvent>(
+        CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
   void close() { reset(); }
@@ -82,7 +80,7 @@ private:
     pricesChannel_->read();
   }
 
-  void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
+  void post(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG("{}", toString(event));
     if (event.status != ConnectionStatus::Connected) {
       reset();
@@ -97,7 +95,7 @@ private:
     }
   }
 
-  void onLoginResponse(CRef<LoginResponse> event) {
+  void post(CRef<LoginResponse> event) {
     LOG_INFO_SYSTEM("{}", toString(event));
     if (event.ok) {
       token_ = event.token;
@@ -132,6 +130,12 @@ private:
     pricesChannel_.reset();
     state_ = ConnectionState::Disconnected;
     bus_.post(ClientState::Disconnected);
+  }
+
+  void post(CRef<Order> order) {
+    if (upstreamChannel_) {
+      upstreamChannel_->write(order);
+    }
   }
 
 private:

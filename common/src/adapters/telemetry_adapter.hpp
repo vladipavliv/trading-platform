@@ -19,11 +19,9 @@ public:
   TelemetryAdapter(BusT &bus, bool producer)
       : bus_{bus}, layout_{ShmManager::layout()}, transport_{init(producer)}, producer_{producer} {
     if (producer_) {
-      bus_.template subscribe<TelemetryMsg>([this](CRef<TelemetryMsg> msg) {
-        auto *ptr = reinterpret_cast<const uint8_t *>(&msg);
-        CByteSpan span(ptr, sizeof(TelemetryMsg));
-        transport_.asyncTx(span, [](IoResult, size_t) {}, 0);
-      });
+      using SelfT = TelemetryAdapter<BusT>;
+      bus_.template subscribe<TelemetryMsg>(
+          CRefHandler<TelemetryMsg>::template bind<SelfT, &SelfT::post>(this));
     } else {
       ByteSpan span(reinterpret_cast<uint8_t *>(&msg_), sizeof(TelemetryMsg));
       transport_.asyncRx(span, [this](IoResult res, size_t size) { bus_.post(msg_); });
@@ -39,6 +37,12 @@ private:
     } else {
       return ShmTransport::makeReader(layout_.telemetry, ErrorBus{bus_.systemBus});
     }
+  }
+
+  void post(CRef<TelemetryMsg> msg) {
+    auto *ptr = reinterpret_cast<const uint8_t *>(&msg);
+    CByteSpan span(ptr, sizeof(TelemetryMsg));
+    transport_.asyncTx(span, [](IoResult, size_t) {}, 0);
   }
 
 private:

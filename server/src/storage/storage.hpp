@@ -6,10 +6,12 @@
 #ifndef HFT_SERVER_STORAGE_HPP
 #define HFT_SERVER_STORAGE_HPP
 
+#include "config/server_config.hpp"
 #include "container_types.hpp"
 #include "execution/market_data.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 #include "ticker.hpp"
 #include "traits.hpp"
 
@@ -47,7 +49,7 @@ private:
       const size_t currWorkerTickers = perWorker + (idx < leftOver ? 1 : 0);
       for (size_t i = 0; i < currWorkerTickers && iter != prices.end(); ++i, ++iter) {
         LOG_TRACE("{}: ${}", toString(iter->ticker), iter->price);
-        data.emplace(iter->ticker, std::make_unique<TickerData>(idx));
+        data.emplace(iter->ticker, idx);
       }
     }
     LOG_INFO("Data loaded for {} tickers", prices.size());

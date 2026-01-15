@@ -36,6 +36,18 @@ void ServerConfig::load(CRef<String> fileName) {
       throw std::runtime_error("Invalid cores configuration");
     }
   }
+  if (const auto core = Config::get_optional<uint16_t>("cpu.core_gateway")) {
+    cfg.coreGateway = *core;
+    if (cfg.coreSystem.has_value() && cfg.coreSystem == *core) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+    if (cfg.coreNetwork.has_value() && cfg.coreNetwork == *core) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+    if (*core == 0) {
+      throw std::runtime_error("Invalid cores configuration");
+    }
+  }
   if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
     cfg.coresApp = utils::split<CoreId>(*cores);
     if (cfg.coreSystem.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
@@ -65,9 +77,9 @@ void ServerConfig::load(CRef<String> fileName) {
 void ServerConfig::log() {
   LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
                   cfg.portUdp);
-  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} PriceFeedRate:{}µs",
-                  cfg.coreSystem.value_or(0), cfg.coreNetwork.value_or(0), toString(cfg.coresApp),
-                  cfg.priceFeedRate);
+  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} GatewayCore:{} AppCores:{} PriceFeedRate:{}µs",
+                  cfg.coreSystem.value_or(0), cfg.coreNetwork.value_or(0),
+                  cfg.coreGateway.value_or(0), toString(cfg.coresApp), cfg.priceFeedRate);
   LOG_INFO_SYSTEM("OrderBookLimit: {} OrderBookPersist: {}", cfg.orderBookLimit,
                   cfg.orderBookPersist);
   LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);

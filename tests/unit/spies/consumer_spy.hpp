@@ -11,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include "domain/server_auth_messages.hpp"
 #include "functional_types.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
@@ -60,7 +61,7 @@ struct ConsumerSpy {
   size_t size() const { return data.size(); }
 
   std::vector<std::any> data;
-  std::vector<Callback> printers;
+  std::vector<StdCallback> printers;
 };
 
 } // namespace hft::tests

@@ -8,9 +8,9 @@
 
 #include "domain_types.hpp"
 #include "primitive_types.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::server {
-
 struct ServerLoginRequest {
   ConnectionId connectionId;
   LoginRequest request;
@@ -27,7 +27,18 @@ struct ServerLoginResponse {
   bool ok{false};
   String error{""};
 };
-
 } // namespace hft::server
+
+namespace hft {
+inline String toString(const server::ServerLoginRequest &msg) {
+  return std::format("{} {}", msg.connectionId, toString(msg.request));
+}
+inline String toString(const server::ServerTokenBindRequest &msg) {
+  return std::format("{} {}", msg.connectionId, toString(msg.request));
+}
+inline String toString(const server::ServerLoginResponse &msg) {
+  return std::format("{} {} {} {}", msg.connectionId, msg.clientId, msg.ok, msg.error);
+}
+} // namespace hft
 
 #endif // HFT_SERVER_DOMAINSERVERAUTHMESSAGES_HPP

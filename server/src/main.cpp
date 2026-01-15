@@ -8,6 +8,7 @@
 #include <boost/program_options.hpp>
 
 #include "adapters/telemetry_adapter.hpp"
+#include "execution/flat_order_book.hpp"
 #ifdef COMM_SHM
 #include "session/trusted_session_manager.hpp"
 #include "transport/shm/shm_server.hpp"
@@ -61,13 +62,18 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+#ifndef CICD
     ShmManager::initialize(true);
+#endif
 
-    ServerControlCenter serverCc;
-    serverCc.start();
+    ControlCenter cc;
+    cc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   }
+#ifndef CICD
   ShmManager::deinitialize();
+#endif
+
   return 0;
 }
