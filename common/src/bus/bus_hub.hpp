@@ -31,7 +31,9 @@ public:
   inline IoCtx &systemIoCtx() { return systemBus.systemIoCtx(); }
 
   void run() {
+#if !defined(BENCHMARK_BUILD) && !defined(UNIT_TESTS_BUILD)
     marketBus.validate();
+#endif
     systemBus.run();
   }
 

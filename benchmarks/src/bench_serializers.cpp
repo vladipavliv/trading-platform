@@ -10,7 +10,7 @@
 #include "container_types.hpp"
 #include "domain/server_order_messages.hpp"
 #include "domain_types.hpp"
-#include "execution/order_book.hpp"
+#include "execution/flat_order_book.hpp"
 #include "primitive_types.hpp"
 #include "serialization/fbs/fbs_domain_serializer.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
@@ -26,7 +26,7 @@ using namespace server;
 using namespace serialization;
 
 static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
-  const Order order = utils::generateOrder();
+  const Order order = generateOrder();
   ByteBuffer buffer(128);
   size_t size{0};
 
@@ -44,10 +44,10 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
   BusType bus;
-  bus.template subscribe<Order>([](CRef<Order> o) {});
+  bus.template subscribe<Order>(CRefHandler<Order>{});
 
   ByteBuffer buffer(128);
-  auto size = fbs::FbsDomainSerializer::serialize(utils::generateOrder(), buffer.data());
+  auto size = fbs::FbsDomainSerializer::serialize(generateOrder(), buffer.data());
 
   for (auto _ : state) {
     auto res = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
@@ -60,7 +60,7 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Ser_FbsDeserialize);
 
 static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
-  const Order order = utils::generateOrder();
+  const Order order = generateOrder();
   Vector<uint8_t> buffer(128);
   size_t size{0};
 
@@ -77,11 +77,11 @@ BENCHMARK(DISABLED_BM_Ser_SbeSerialize);
 static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
-  const Order order = utils::generateOrder();
+  const Order order = generateOrder();
   ByteBuffer buffer(128);
 
   BusType bus;
-  bus.template subscribe<Order>([](CRef<Order> o) {});
+  bus.template subscribe<Order>(CRefHandler<Order>{});
 
   size_t size = sbe::SbeDomainSerializer::serialize(order, buffer.data());
 

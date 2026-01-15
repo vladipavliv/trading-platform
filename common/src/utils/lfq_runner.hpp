@@ -13,6 +13,7 @@
 #include "container_types.hpp"
 #include "containers/sequenced_spsc.hpp"
 #include "containers/vyukov_mpmc.hpp"
+#include "gateway/internal_order.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"

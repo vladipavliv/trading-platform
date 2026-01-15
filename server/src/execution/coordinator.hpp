@@ -62,11 +62,14 @@ class Coordinator {
 
     inline void post(CRef<InternalOrderEvent> ioe) {
       LOG_DEBUG("Matcher {}", toString(ioe));
+      if (ioe.data == nullptr) {
+        throw std::runtime_error("TickerData is not initialized");
+      }
       if (ioe.data->orderBook.add(ioe, bus)) {
         ioe.data->orderBook.match(bus);
       }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-      ioe.data->orderBook.sendAck(so, bus);
+      ioe.data->orderBook.sendAck(ioe, bus);
 #endif
     }
 

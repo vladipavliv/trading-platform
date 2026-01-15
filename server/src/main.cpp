@@ -62,13 +62,18 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+#ifndef CICD
     ShmManager::initialize(true);
+#endif
 
     ControlCenter cc;
     cc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   }
+#ifndef CICD
   ShmManager::deinitialize();
+#endif
+
   return 0;
 }

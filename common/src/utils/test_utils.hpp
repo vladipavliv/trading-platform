@@ -23,28 +23,6 @@ inline Price fluctuateThePrice(Price price) {
   return price + fluctuation;
 }
 
-struct alignas(64) Consumer {
-  explicit Consumer(size_t target = 0) : target{target}, processed{0}, signal{0} {}
-
-  const size_t target;
-  alignas(64) std::atomic<uint64_t> processed;
-  alignas(64) std::atomic<uint32_t> signal;
-  alignas(64) std::atomic<bool> flag;
-  alignas(64) std::atomic<bool> shutdown;
-
-  template <typename Message>
-  void post(const Message &) {
-    auto counter = processed.fetch_add(1, std::memory_order_relaxed);
-    if (counter + 1 >= target) {
-      signal.store(1, std::memory_order_release);
-      futexWake(signal);
-    }
-  }
-
-  void wait() { hybridWait(signal, 0, flag, shutdown); }
-  void clear() { signal.store(0, std::memory_order_relaxed); }
-};
-
 } // namespace hft::utils
 
 #endif // HFT_COMMON_TESTUTILS_HPP

@@ -60,7 +60,9 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+#ifndef CICD
     ShmManager::initialize(false);
+#endif
 
     ControlCenter cc;
     cc.start();
@@ -69,6 +71,9 @@ int main(int argc, char *argv[]) {
   } catch (...) {
     std::cerr << "Unknown exception caught in main" << std::endl;
   }
+#ifndef CICD
   ShmManager::deinitialize();
+#endif
+
   return 0;
 }

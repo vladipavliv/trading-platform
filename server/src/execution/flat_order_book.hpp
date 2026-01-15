@@ -99,7 +99,9 @@ public:
         consumer.post(
             InternalOrderStatus(bestBid.id, matchQty, matchPrice,
                                 (bestBid.quantity == 0) ? OrderState::Full : OrderState::Partial));
-      } else {
+      }
+
+      if (lastAdded_ == bestAsk.id) {
         consumer.post(
             InternalOrderStatus(bestAsk.id, matchQty, matchPrice,
                                 (bestAsk.quantity == 0) ? OrderState::Full : OrderState::Partial));

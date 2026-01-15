@@ -26,7 +26,7 @@ struct ALIGN_CL TickerData {
   TickerData(TickerData &&other) noexcept
       : workerId(other.workerId), orderBook(std::move(other.orderBook)) {}
 
-  const ThreadId workerId;
+  ThreadId workerId;
   ALIGN_CL mutable OrderBook orderBook;
 
 private:

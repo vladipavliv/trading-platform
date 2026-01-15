@@ -37,6 +37,7 @@ public:
 
   UPtr<server::Coordinator> coordinator;
 
+  alignas(64) AtomicUInt64 processed;
   AtomicBool error_;
   std::atomic_flag flag{ATOMIC_FLAG_INIT};
   std::jthread systemThread;
@@ -46,6 +47,9 @@ public:
 
   void setupBus();
   void setupCoordinator();
+
+  void post(const ServerEvent &ev);
+  void post(const ServerOrderStatus &ev);
 };
 
 } // namespace hft::benchmarks
