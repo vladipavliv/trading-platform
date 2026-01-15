@@ -19,10 +19,53 @@ using Expected = std::expected<T, StatusCode>;
 template <typename T>
 using Optional = std::optional<T>;
 
-using Callback = std::function<void()>;
+template <typename T, typename Event, void (T::*func)(const Event &)>
+static void handlerBridge(void *ctx, const Event &event) {
+  (static_cast<T *>(ctx)->*func)(event);
+}
+
+template <typename T, void (T::*func)()>
+static void callbackBridge(void *ctx) {
+  (static_cast<T *>(ctx)->*func)();
+}
+
+template <typename Event>
+struct CRefHandler {
+  using FnPtr = void (*)(void *, const Event &);
+
+  void *ctx{nullptr};
+  FnPtr clb{nullptr};
+
+  template <typename T, void (T::*func)(const Event &)>
+  static constexpr CRefHandler bind(T *ctx) {
+    return {ctx, &handlerBridge<T, Event, func>};
+  }
+
+  inline void operator()(const Event &ev) const { clb(ctx, ev); }
+
+  explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
+};
+
+struct Callback {
+  using FnPtr = void (*)(void *);
+
+  void *ctx{nullptr};
+  FnPtr clb{nullptr};
+
+  template <typename T, void (T::*func)()>
+  static constexpr Callback bind(T *ctx) {
+    return {ctx, &callbackBridge<T, func>};
+  }
+
+  inline void operator()() const { clb(ctx); }
+
+  explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
+};
+
+using StdCallback = std::function<void()>;
 
 template <typename ArgType>
-using CRefHandler = std::function<void(const ArgType &)>;
+using StdCRefHandler = std::function<void(const ArgType &)>;
 
 } // namespace hft
 

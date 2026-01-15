@@ -13,8 +13,8 @@
 #include "domain/server_order_messages.hpp"
 #include "domain_types.hpp"
 #include "events.hpp"
+#include "gateway/internal_order.hpp"
 #include "market_data.hpp"
-#include "order_book.hpp"
 #include "traits.hpp"
 #include "utils/ctx_runner.hpp"
 #include "utils/lfq_runner.hpp"
@@ -54,59 +54,39 @@ namespace hft::server {
  * value to have its id, and flag 'free', and it exchanges it with its id and flag 'busy'
  */
 class Coordinator {
+  /**
+   * @brief Consumer for workers to execute order in their thread
+   */
   struct Matcher {
-    Matcher(ServerBus &bus, const MarketData &data) : bus{bus}, data{data} {}
+    explicit Matcher(ServerBus &bus) : bus{bus} {}
 
-    inline void post(CRef<ServerOrder> so) {
-      if (so.order.action == OrderAction::Dummy) {
-        return;
-      }
-      const auto &oData = data.at(so.order.ticker);
-      if (oData->orderBook.add(so, bus)) {
-        oData->orderBook.match(bus);
+    inline void post(CRef<InternalOrderEvent> ioe) {
+      LOG_DEBUG("Matcher {}", toString(ioe));
+      if (ioe.data->orderBook.add(ioe, bus)) {
+        ioe.data->orderBook.match(bus);
       }
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-      oData->orderBook.sendAck(so, bus);
+      ioe.data->orderBook.sendAck(so, bus);
 #endif
     }
 
     ServerBus &bus;
-    const MarketData &data;
   };
-
-  using Worker = LfqRunner<ServerOrder, Matcher>;
+  using Worker = LfqRunner<InternalOrderEvent, Matcher, SystemBus>;
 
 public:
-  Coordinator(ServerBus &bus, CRef<MarketData> data) : bus_{bus}, matcher_{bus, data} {
-    bus_.subscribe<ServerOrder>([this](CRef<ServerOrder> order) {
-      if (matcher_.data.count(order.order.ticker) == 0) {
-        LOG_ERROR_SYSTEM("Ticker not found {}", toString(order.order.ticker));
-        return;
-      }
-      const auto &data = matcher_.data.at(order.order.ticker);
-      auto &worker = workers_[data->getThreadId()];
-
-      SpinWait waiter;
-      while (!worker->post(order)) {
-        if (!++waiter) {
-          LOG_ERROR_SYSTEM("Failed to post order");
-          break;
-        }
-      }
-    });
-    bus_.subscribe(Command::Telemetry_Start, [this] {
-      LOG_INFO_SYSTEM("Start telemetry stream");
-      telemetry_ = true;
-    });
-    bus_.subscribe(Command::Telemetry_Stop, [this] {
-      LOG_INFO_SYSTEM("Stop telemetry stream");
-      telemetry_ = false;
-    });
+  Coordinator(ServerBus &bus, CRef<MarketData> data) : bus_{bus}, data_{data}, matcher_{bus_} {
+    bus_.subscribe<InternalOrderEvent>(
+        CRefHandler<InternalOrderEvent>::template bind<Coordinator, &Coordinator::post>(this));
   }
 
-  void start() { startWorkers(); }
+  void start() {
+    LOG_DEBUG_SYSTEM("Coordinator start");
+    startWorkers();
+  }
 
   void stop() {
+    LOG_DEBUG_SYSTEM("Coordinator start");
     for (auto &worker : workers_) {
       worker->stop();
     }
@@ -119,24 +99,32 @@ private:
 
     workers_.reserve(appCores);
     if (ServerConfig::cfg.coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<Worker>(matcher_, ErrorBus(bus_.systemBus)));
+      workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus));
       workers_[0]->run();
     } else {
       for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
         const auto coreId = ServerConfig::cfg.coresApp[i];
-        workers_.emplace_back(std::make_unique<Worker>(coreId, matcher_, ErrorBus(bus_.systemBus)));
+        workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, coreId));
         workers_[i]->run();
       }
     }
     bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
+  void post(CRef<InternalOrderEvent> ioe) {
+    if (data_.count(ioe.ticker) == 0) {
+      LOG_ERROR_SYSTEM("Ticker not found {}", toString(ioe.ticker));
+      return;
+    }
+    ioe.data = &data_.at(ioe.ticker);
+    workers_[ioe.data->workerId]->post(ioe);
+  }
+
 private:
   ServerBus &bus_;
+  const MarketData &data_;
 
   Matcher matcher_;
-  bool telemetry_{false};
-
   Vector<UPtr<Worker>> workers_;
 };
 

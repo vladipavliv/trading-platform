@@ -75,6 +75,10 @@ class CommandParser;
 class BoostIpcServer;
 class NetworkSessionManager;
 class TrustedSessionManager;
+class FlatOrderBook;
+struct InternalOrderEvent;
+struct InternalOrder;
+struct InternalOrderStatus;
 
 template <typename BusT>
 using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
@@ -92,7 +96,9 @@ using IpcServer = BoostIpcServer;
 using SessionManager = NetworkSessionManager;
 #endif
 
-using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice>;
+using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice, InternalOrderEvent,
+                                    InternalOrderStatus>;
+
 using ServerBus = BusHub<ServerMessageBus>;
 using UpstreamBus = BusRestrictor<ServerBus, ServerOrder, ServerLoginRequest, ChannelStatusEvent,
                                   ConnectionStatusEvent>;
@@ -105,6 +111,7 @@ using ServerConsoleReader = ConsoleReader<CommandParser>;
 
 using DbAdapter = adapters::PostgresAdapter;
 using ServerTelemetryAdapter = TelemetryAdapter<ServerBus>;
+using OrderBook = FlatOrderBook;
 
 } // namespace hft::server
 

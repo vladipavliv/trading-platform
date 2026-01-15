@@ -22,9 +22,22 @@ class HugeArray {
 public:
   static constexpr size_t ByteSize = Capacity * sizeof(T);
 
-  explicit HugeArray() { data_ = allocHuge<T>(ByteSize); }
+  explicit HugeArray() { data_ = utils::allocHuge<T>(ByteSize); }
 
-  ~HugeArray() { freeHuge(data_, ByteSize); }
+  HugeArray(HugeArray &&other) noexcept : data_(other.data_) { other.data_ = nullptr; }
+
+  HugeArray &operator=(HugeArray &&other) noexcept {
+    if (this != &other) {
+      if (data_) {
+        utils::freeHuge(data_, ByteSize);
+      }
+      data_ = other.data_;
+      other.data_ = nullptr;
+    }
+    return *this;
+  }
+
+  ~HugeArray() { utils::freeHuge(data_, ByteSize); }
 
   [[nodiscard]] inline T &operator[](size_t index) noexcept { return data_[index]; }
 

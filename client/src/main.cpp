@@ -62,8 +62,8 @@ int main(int argc, char *argv[]) {
 
     ShmManager::initialize(false);
 
-    ClientControlCenter clientCc;
-    clientCc.start();
+    ControlCenter cc;
+    cc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   } catch (...) {

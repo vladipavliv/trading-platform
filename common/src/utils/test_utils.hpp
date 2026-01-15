@@ -17,23 +17,6 @@
 
 namespace hft::utils {
 
-inline Ticker generateTicker() {
-  Ticker result;
-  for (size_t i = 0; i < 4; ++i) {
-    result[i] = RNG::generate<uint8_t>((uint8_t)'A', (uint8_t)'Z');
-  }
-  return result;
-}
-
-inline Order generateOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
-  return Order{generateOrderId(),
-               getCycles(),
-               ticker,
-               RNG::generate<Quantity>(0, 1000),
-               RNG::generate<Price>(10, 10000),
-               RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
-}
-
 inline Price fluctuateThePrice(Price price) {
   const int32_t delta = price * PRICE_FLUCTUATION_RATE / 100;
   const int32_t fluctuation = RNG::generate(0, delta * 2) - delta;

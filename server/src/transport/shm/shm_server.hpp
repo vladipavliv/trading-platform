@@ -43,14 +43,11 @@ public:
   void start() {
     running_.store(true, std::memory_order_release);
     layout_.downstream.futex.store(1, std::memory_order_release);
-    waitForConnection();
-    if (!running_) {
-      return;
-    }
     notifyClientConnected();
   }
 
   void stop() {
+    LOG_DEBUG_SYSTEM("stop");
     running_.store(false, std::memory_order_release);
     layout_.upstream.futex.fetch_add(1, std::memory_order_release);
     utils::futexWake(layout_.upstream.futex);

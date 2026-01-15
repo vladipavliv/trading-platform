@@ -10,6 +10,22 @@
 
 namespace hft {
 enum class IoResult : uint8_t { Ok, WouldBlock, Closed, Error };
+
+inline String toString(const IoResult &msg) {
+  switch (msg) {
+  case IoResult::Ok:
+    return "Ok";
+  case IoResult::WouldBlock:
+    return "WouldBlock";
+  case IoResult::Closed:
+    return "Closed";
+  case IoResult::Error:
+    return "Error";
+  default:
+    return "Unknown";
+  }
 }
+
+} // namespace hft
 
 #endif // HFT_COMMON_IORESULT_HPP

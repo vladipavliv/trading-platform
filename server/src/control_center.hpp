@@ -14,6 +14,7 @@
 #include "domain_types.hpp"
 #include "events.hpp"
 #include "execution/coordinator.hpp"
+#include "gateway/order_gateway.hpp"
 #include "price_feed.hpp"
 #include "session/authenticator.hpp"
 #include "storage/storage.hpp"
@@ -28,48 +29,38 @@ namespace hft::server {
 /**
  * @brief Creates all the components and controls the flow
  */
-class ServerControlCenter {
+class ControlCenter {
   using PricesChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
-  ServerControlCenter()
+  ControlCenter()
       : storage_{dbAdapter_}, sessionMgr_{bus_}, ipcServer_{bus_},
         authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
+        gateway_{bus_}, consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
+
+    using SelfT = ControlCenter;
     // System bus subscriptions
-    bus_.subscribe<ServerEvent>([this](CRef<ServerEvent> event) {
-      switch (event.state) {
-      case ServerState::Operational:
-        // start the network server only after internal components are fully operational
-        LOG_INFO_SYSTEM("Server is ready");
-        ipcServer_.start();
-        break;
-      default:
-        break;
-      }
-    });
-    bus_.subscribe<InternalError>([this](CRef<InternalError> error) {
-      LOG_ERROR_SYSTEM("Internal error: {} {}", error.what, toString(error.code));
-      stop();
-    });
+    bus_.subscribe<ServerEvent>(CRefHandler<ServerEvent>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<TickerPrice>(CRefHandler<TickerPrice>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<InternalError>(
+        CRefHandler<InternalError>::template bind<SelfT, &SelfT::post>(this));
 
     // network callbacks
-    ipcServer_.setUpstreamClb([this](StreamTransport &&transport) { // format
-      sessionMgr_.acceptUpstream(std::move(transport));
-    });
-    ipcServer_.setDownstreamClb([this](StreamTransport &&transport) { // format
+    ipcServer_.setUpstreamClb(
+        [this](StreamTransport &&transport) { sessionMgr_.acceptUpstream(std::move(transport)); });
+    ipcServer_.setDownstreamClb([this](StreamTransport &&transport) {
       sessionMgr_.acceptDownstream(std::move(transport));
     });
     ipcServer_.setDatagramClb([this](DatagramTransport &&transport) {
       const auto id = utils::generateConnectionId();
       LOG_INFO_SYSTEM("UDP prices channel created {}", id);
       pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
-      bus_.subscribe<TickerPrice>([this](CRef<TickerPrice> p) { pricesChannel_->write(p); });
+      bus_.subscribe<TickerPrice>(
+          CRefHandler<TickerPrice>::template bind<SelfT, &SelfT::post>(this));
     });
 
-    // commands
-    bus_.systemBus.subscribe(Command::Shutdown, [this] { stop(); });
+    bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<SelfT, &SelfT::stop>(this));
 
     signals_.async_wait([&](BoostErrorCode code, int) {
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
@@ -77,20 +68,23 @@ public:
     });
   }
 
+  ~ControlCenter() { LOG_DEBUG_SYSTEM("~ControlCenter"); }
+
   void start() {
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
     }
     greetings();
 
+    gateway_.start();
     coordinator_.start();
-
     bus_.run();
   }
 
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
+    gateway_.stop();
     ipcServer_.stop();
     sessionMgr_.close();
     coordinator_.stop();
@@ -98,6 +92,25 @@ public:
   }
 
 private:
+  void post(CRef<ServerEvent> event) {
+    switch (event.state) {
+    case ServerState::Operational:
+      // start the network server only after internal components are fully operational
+      ipcServer_.start();
+      LOG_INFO_SYSTEM("Server is ready");
+      break;
+    default:
+      break;
+    }
+  }
+
+  void post(CRef<InternalError> event) {
+    LOG_ERROR_SYSTEM("Internal error: {} {}", event.what, toString(event.code));
+    stop();
+  }
+
+  void post(CRef<TickerPrice> p) { pricesChannel_->write(p); }
+
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
@@ -116,6 +129,7 @@ private:
   IpcServer ipcServer_;
   Authenticator authenticator_;
   Coordinator coordinator_;
+  OrderGateway gateway_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
 

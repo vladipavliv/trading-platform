@@ -35,7 +35,10 @@ inline void warmMemory(void *addr, size_t size, bool write = false) {
   size_t iterations = size / sizeof(uint64_t);
 
   for (size_t i = 0; i < iterations; i += 8) {
-    __sync_fetch_and_add(&p[i], 0);
+    p[i] = p[i];
+  }
+  if (write) {
+    std::memset(addr, 0, size);
   }
 }
 
@@ -87,7 +90,7 @@ inline T *allocHuge(size_t size, bool lock = true) {
     throw std::system_error(errno, std::generic_category(), "mlock failed");
   }
 
-  std::memset(ptr, 0, alignedSize);
+  warmMemory(ptr, size, true);
   return static_cast<T *>(ptr);
 }
 

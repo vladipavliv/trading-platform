@@ -16,6 +16,7 @@
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "types/functional_types.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 
@@ -24,19 +25,25 @@ namespace hft {
 /**
  * @brief
  */
-template <typename MessageType, typename Consumer, size_t Capacity = 65536>
+template <typename MessageT, typename ConsumerT, typename BusT, size_t Capacity = 65536>
 class LfqRunner {
   using Queue = SequencedSPSC<Capacity>;
 
 public:
-  LfqRunner(Consumer &consumer, ErrorBus &&bus) : consumer_{consumer}, bus_{std::move(bus)} {}
+  LfqRunner(ConsumerT &consumer, BusT &bus, Optional<CoreId> coreId = std::nullopt,
+            bool feedFromBus = false)
+      : consumer_{consumer}, bus_{bus}, coreId_{coreId} {
+    if (feedFromBus) {
+      using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
+      bus_.template subscribe<MessageT>(
+          CRefHandler<MessageT>::template bind<SelfT, &SelfT::post>(this));
+    }
+  }
 
-  LfqRunner(CoreId id, Consumer &consumer, ErrorBus &&bus)
-      : coreId_{id}, consumer_{consumer}, bus_{std::move(bus)} {}
-
-  ~LfqRunner() {}
+  ~LfqRunner() { stop(); }
 
   void run() {
+    LOG_DEBUG("LfqRunner run");
     thread_ = std::jthread([this]() {
       try {
         running_.store(true);
@@ -44,10 +51,10 @@ public:
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
-          LOG_INFO("LfqRunner started on core {}", coreId_.value());
+          LOG_INFO_SYSTEM("LfqRunner started on core {}", coreId_.value());
           utils::pinThreadToCore(coreId_.value());
         } else {
-          LOG_INFO("LfqRunner started");
+          LOG_INFO_SYSTEM("LfqRunner started");
         }
 
         lfqLoop();
@@ -55,19 +62,22 @@ public:
         LOG_ERROR_SYSTEM("{}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
+      LOG_DEBUG_SYSTEM("LfqRunner finished");
     });
     running_.wait(false);
   }
 
   void stop() {
+    LOG_DEBUG("LfqRunner stop");
     running_.store(false, std::memory_order_release);
     ftx_.fetch_add(1, std::memory_order_release);
     utils::futexWake(ftx_);
   }
 
-  inline bool post(CRef<MessageType> message) {
+  inline void post(CRef<MessageT> message) {
+    LOG_DEBUG("{}", toString(message));
     auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
-    auto msgSize = sizeof(MessageType);
+    auto msgSize = sizeof(MessageT);
 
     SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {
@@ -79,14 +89,13 @@ public:
       ftx_.store(++wakeCounter_, std::memory_order_release);
       utils::futexWake(ftx_);
     }
-    return true;
   }
 
 private:
   void lfqLoop() {
-    MessageType message;
+    MessageT message;
     auto msgPtr = reinterpret_cast<uint8_t *>(&message);
-    auto msgSize = sizeof(MessageType);
+    auto msgSize = sizeof(MessageT);
 
     SpinWait waiter;
     while (running_.load(std::memory_order_acquire)) {
@@ -114,6 +123,7 @@ private:
       sleeping_.store(false, std::memory_order_release);
       waiter.reset();
     }
+    LOG_DEBUG_SYSTEM("LfqLoop stop");
   }
 
 private:
@@ -125,8 +135,8 @@ private:
   alignas(64) AtomicUInt32 ftx_{0};
   alignas(64) uint64_t wakeCounter_{0};
 
-  alignas(64) Consumer &consumer_;
-  ErrorBus bus_;
+  alignas(64) ConsumerT &consumer_;
+  BusT &bus_;
   std::jthread thread_;
 };
 

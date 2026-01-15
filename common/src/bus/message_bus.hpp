@@ -10,6 +10,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "functional_types.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
@@ -44,11 +45,37 @@ public:
     handlerRef(event);
   }
 
+  void validate() const {
+    std::string missingTypes;
+
+    std::apply(
+        [&](auto &&...handlers) {
+          ((!handlers
+                ? (void(missingTypes += getTypeName<std::decay_t<decltype(handlers)>>() + ", "))
+                : void()),
+           ...);
+        },
+        handlers_);
+
+    if (!missingTypes.empty()) {
+      missingTypes.erase(missingTypes.length() - 2);
+      throw std::runtime_error("MessageBus validation failed. Missing subscribers for: " +
+                               missingTypes);
+    }
+
+    LOG_INFO("MessageBus validated successfully.");
+  }
+
 private:
   MessageBus(const MessageBus &) = delete;
   MessageBus(MessageBus &&) = delete;
   MessageBus &operator=(const MessageBus &) = delete;
   MessageBus &operator=(const MessageBus &&) = delete;
+
+  template <typename T>
+  static std::string getTypeName() {
+    return typeid(T).name();
+  }
 
 private:
   std::tuple<CRefHandler<Events>...> handlers_;

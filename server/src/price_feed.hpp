@@ -6,10 +6,14 @@
 #ifndef HFT_SERVER_PRICEFEED_HPP
 #define HFT_SERVER_PRICEFEED_HPP
 
+#include "bus/bus_hub.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
+#include "container_types.hpp"
 #include "execution/market_data.hpp"
+#include "types/functional_types.hpp"
 #include "utils/rng.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::server {
 
@@ -90,8 +94,10 @@ public:
     for (auto &value : tickerData) {
       fluctuations_.push_back(Fluctuation(value));
     }
-    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Start, [this] { start(); });
-    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Stop, [this] { stop(); });
+    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Start,
+                                      Callback::template bind<PriceFeed, &PriceFeed::start>(this));
+    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Stop,
+                                      Callback::template bind<PriceFeed, &PriceFeed::stop>(this));
   }
 
   void start() {

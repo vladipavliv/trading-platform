@@ -132,5 +132,5 @@ Client:
 
 Manual shared memory tests:
 ```bash
-12:30:06.993808 [I] Orders: 23,249,495|103,300,662 Rtt: [<1µs|>1µs] 99.37%(2.5M) avg:301ns | 0.63%(15.8K) avg:2µs | Max:46µs
+03:02:30.695637 [I] Orders: 16,645,091|26,670,536 Rtt: [<1µs|>1µs] 99.29%(4.3M) avg:335ns | 0.71%(31.0K) avg:2µs | Max:15µs
 ```

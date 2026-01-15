@@ -25,6 +25,7 @@ struct ServerConfig {
   // Cores
   Optional<CoreId> coreSystem;
   Optional<CoreId> coreNetwork;
+  Optional<CoreId> coreGateway;
   std::vector<CoreId> coresApp;
   double nsPerCycle;
 

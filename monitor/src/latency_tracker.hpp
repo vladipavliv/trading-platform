@@ -26,12 +26,14 @@ public:
       : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
         monitorRate_{
             Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    bus_.subscribe<TelemetryMsg>([this](CRef<TelemetryMsg> msg) { onMsg(msg); });
+    bus_.subscribe<TelemetryMsg>(
+        CRefHandler<TelemetryMsg>::template bind<LatencyTracker, &LatencyTracker::post>(this));
+
     scheduleStatsTimer();
   }
 
 private:
-  void onMsg(CRef<TelemetryMsg> msg) {
+  void post(CRef<TelemetryMsg> msg) {
     switch (msg.type) {
     case TelemetryType::Startup:
       break;

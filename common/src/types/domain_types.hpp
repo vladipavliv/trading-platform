@@ -11,14 +11,20 @@
 
 namespace hft {
 
-using OrderId = uint64_t;
-using ClientId = uint64_t;
+using OrderId = uint32_t;
+using ClientId = uint32_t;
 using Quantity = uint32_t;
-using Price = uint32_t; // 1cent precision
+using Price = uint32_t;
 
-enum class OrderAction : uint8_t { Buy, Sell, Dummy };
+enum class OrderAction : uint8_t {
+  Dummy = 0,
+  Buy = 1 << 0,
+  Sell = 1 << 1,
+  Modify = 1 << 2,
+  Cancel = 1 << 3
+};
 
-enum class OrderState : uint8_t { Accepted, Rejected, Partial, Full };
+enum class OrderState : uint8_t { Accepted, Rejected, Cancelled, Partial, Full };
 
 struct LoginRequest {
   String name;
@@ -45,10 +51,6 @@ struct Order {
   Quantity quantity;
   Price price;
   OrderAction action;
-
-  char padding[3] = {0};
-
-  inline void partialFill(Quantity amount) { quantity = quantity < amount ? 0 : quantity - amount; }
   auto operator<=>(const Order &) const = default;
 };
 
@@ -58,7 +60,6 @@ struct OrderStatus {
   Quantity quantity;
   Price fillPrice;
   OrderState state;
-  char padding[7] = {0};
   auto operator<=>(const OrderStatus &) const = default;
 };
 
@@ -86,6 +87,8 @@ inline String toString(const OrderState &state) {
     return "Accepted";
   case OrderState::Rejected:
     return "Rejected";
+  case OrderState::Cancelled:
+    return "Cancelled";
   case OrderState::Partial:
     return "Partial";
   case OrderState::Full:
@@ -97,10 +100,16 @@ inline String toString(const OrderState &state) {
 
 inline String toString(const OrderAction &state) {
   switch (state) {
+  case OrderAction::Dummy:
+    return "Dummy";
   case OrderAction::Buy:
     return "Buy";
   case OrderAction::Sell:
     return "Sell";
+  case OrderAction::Modify:
+    return "Modify";
+  case OrderAction::Cancel:
+    return "Cancel";
   default:
     return "Unknown";
   }

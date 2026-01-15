@@ -108,11 +108,6 @@ public:
     }
   }
 
-  template <typename EventType>
-  void bindProduceTopic(CRef<String> topic) {
-    bus_.template subscribe<EventType>([this, topic](CRef<EventType> msg) { produce(msg, topic); });
-  }
-
 private:
   bool createConsumer() {
     LOG_DEBUG("Create consumer");
@@ -232,7 +227,6 @@ private:
     bus_.post(KafkaEvent{KafkaStatus::Error, error_});
   }
 
-private:
   void printTopics() {
     std::stringstream ss;
     ss << "Kafka consume topics: ";

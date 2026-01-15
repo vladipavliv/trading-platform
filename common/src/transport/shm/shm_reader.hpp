@@ -52,6 +52,7 @@ public:
         utils::setThreadRealTime();
         const auto coreId = Config::get_optional<CoreId>("cpu.core_network");
         if (coreId.has_value()) {
+          LOG_DEBUG_SYSTEM("Pin ShmReader thread to core {}", *coreId);
           utils::pinThreadToCore(*coreId);
         }
         running_.store(true, std::memory_order_release);

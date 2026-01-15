@@ -36,12 +36,10 @@ public:
     networkClient_.setDatagramClb(
         [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    bus_.subscribe<Order>([this](CRef<Order> order) {
-      LOG_DEBUG("{}", toString(order));
-      auto *ptr = reinterpret_cast<const uint8_t *>(&order);
-      CByteSpan span(ptr, sizeof(Order));
-      upstreamChannel_->asyncTx(span, [](IoResult, size_t) {});
-    });
+    using SelfT = TrustedConnectionManager;
+    bus_.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<ConnectionStatusEvent>(
+        CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
   void close() { reset(); }
@@ -67,7 +65,14 @@ private:
     downstreamChannel_ = std::make_unique<DownStreamChannel>(std::move(transport));
 
     ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(OrderStatus));
-    downstreamChannel_->asyncRx(span, [this](IoResult, size_t) { bus_.post(status_); });
+    downstreamChannel_->asyncRx(span, [this](IoResult res, size_t bytes) {
+      if (res == IoResult::Ok) {
+        bus_.post(status_);
+      } else {
+        LOG_ERROR_SYSTEM("Failed to read from shm, stopping");
+        reset();
+      }
+    });
     notify();
   }
 
@@ -81,7 +86,19 @@ private:
     pricesChannel_ = std::make_unique<DatagramChannel>(std::move(transport));
   }
 
-  void onConnectionStatus(CRef<ConnectionStatusEvent> event) {
+  void post(CRef<Order> order) {
+    LOG_DEBUG("{}", toString(order));
+    auto *ptr = reinterpret_cast<const uint8_t *>(&order);
+    CByteSpan span(ptr, sizeof(Order));
+    upstreamChannel_->asyncTx(span, [this](IoResult res, size_t bytes) {
+      if (res != IoResult::Ok) {
+        LOG_ERROR_SYSTEM("Failed to write to shm, stopping");
+        reset();
+      }
+    });
+  }
+
+  void post(CRef<ConnectionStatusEvent> event) {
     LOG_DEBUG("{}", toString(event));
     if (event.status != ConnectionStatus::Connected) {
       reset();
