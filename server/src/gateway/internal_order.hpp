@@ -19,6 +19,7 @@ struct TickerData;
 
 struct InternalOrder {
   SystemOrderId id;
+  BookOrderId bookOId;
   Quantity quantity;
   Price price;
 
@@ -40,7 +41,8 @@ struct InternalOrderEvent {
 
 namespace hft {
 inline String toString(const server::InternalOrder &event) {
-  return std::format("InternalOrder {} {} {}", event.id.raw(), event.quantity, event.price);
+  return std::format("InternalOrder {} {} {} {}", event.id.raw(), event.bookOId.raw(),
+                     event.quantity, event.price);
 }
 inline String toString(const server::InternalOrderEvent &e) {
   return std::format("InternalOrderEvent {} {} {}", toString(e.order), toString(e.action),

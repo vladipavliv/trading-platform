@@ -32,6 +32,11 @@ inline Ticker genTicker() {
   return result;
 }
 
+inline BookOrderId genBookOId() {
+  static uint32_t counter = 0;
+  return BookOrderId::make(counter++, 1);
+}
+
 inline Order genOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
   return Order{genId(),
                getCycles(),
@@ -44,7 +49,7 @@ inline Order genOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
 inline InternalOrderEvent genInternalOrder() {
   Order o = genOrder();
   return InternalOrderEvent{
-      {SystemOrderId{o.id}, o.quantity, o.price}, nullptr, o.ticker, o.action};
+      {SystemOrderId{o.id}, genBookOId(), o.quantity, o.price}, nullptr, o.ticker, o.action};
 }
 
 struct GenTickerData {
@@ -77,7 +82,7 @@ struct GenOrderData {
         dataIt = tickers.tickers.begin();
       }
       auto o = genOrder(*dataIt++);
-      InternalOrder io{SlotId<>(i), o.quantity, o.price};
+      InternalOrder io{SlotId<>(i), genBookOId(), o.quantity, o.price};
       orders.push_back(InternalOrderEvent{io, nullptr, o.ticker, o.action});
     }
   }

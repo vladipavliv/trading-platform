@@ -7,6 +7,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "adapters/dummies/dummy_telemetry_adapter.hpp"
 #include "adapters/telemetry_adapter.hpp"
 #include "client/src/commands/command.hpp"
 #include "server/src/commands/command.hpp"

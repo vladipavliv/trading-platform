@@ -70,15 +70,13 @@ TEST_F(OrderBookFixture, OrdersWontMatch) {
   statusq.clear();
 
   uint32_t id = 0;
-  addOrder({{SystemOrderId{++id}, 1, 40}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, 1, 50}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, 1, 60}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 40}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 50}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 60}, nullptr, tkr, SELL});
 
-  addOrder({{SystemOrderId{++id}, 1, 30}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, 1, 20}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, 1, 10}, nullptr, tkr, BUY});
-
-  book->match(*this);
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 30}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 20}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 10}, nullptr, tkr, BUY});
 
   printStatusQ();
   ASSERT_TRUE(statusq.size() == 6);
@@ -88,16 +86,13 @@ TEST_F(OrderBookFixture, 3Buy3SellMatch) {
   statusq.clear();
 
   uint32_t id = 0;
-  addOrder({{SystemOrderId{++id}, 1, 40}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, 1, 50}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, 1, 60}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 40}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 50}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 60}, nullptr, tkr, BUY});
 
-  addOrder({{SystemOrderId{++id}, 1, 30}, nullptr, tkr, SELL});
-  book->match(*this);
-  addOrder({{SystemOrderId{++id}, 1, 20}, nullptr, tkr, SELL});
-  book->match(*this);
-  addOrder({{SystemOrderId{++id}, 1, 10}, nullptr, tkr, SELL});
-  book->match(*this);
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 30}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 20}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 10}, nullptr, tkr, SELL});
 
   printStatusQ();
   ASSERT_EQ(statusq.size(), 9);
@@ -110,12 +105,11 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   Price price{10};
 
   for (uint32_t idx = 0; idx < 10; ++idx) {
-    addOrder({{SystemOrderId{idx}, idx, price}, nullptr, tkr, BUY});
+    addOrder({{SystemOrderId{idx}, BookOrderId{}, idx, price}, nullptr, tkr, BUY});
     quantity += idx;
   }
 
-  addOrder({{SystemOrderId{42}, quantity, price}, nullptr, tkr, SELL});
-  book->match(*this);
+  addOrder({{SystemOrderId{42}, BookOrderId{}, quantity, price}, nullptr, tkr, SELL});
 
   printStatusQ();
   ASSERT_EQ(statusq.size(), 21);

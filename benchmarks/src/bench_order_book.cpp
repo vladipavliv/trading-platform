@@ -60,9 +60,7 @@ BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
     book.clear();
 
     for (auto &order : orders) {
-      if (book.add(order, *this)) {
-        book.match(*this);
-      }
+      book.add(order, *this);
     }
     benchmark::DoNotOptimize(counter);
   }

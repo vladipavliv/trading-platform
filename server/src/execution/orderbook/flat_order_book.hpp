@@ -36,7 +36,7 @@ class FlatOrderBook {
   }
 
 public:
-  FlatOrderBook() {}
+  FlatOrderBook() = default;
 
   FlatOrderBook(FlatOrderBook &&other) noexcept
       : bids_(std::move(other.bids_)), asks_(std::move(other.asks_)) {}
@@ -68,11 +68,24 @@ public:
       std::push_heap(&side[0], &side[askCount_], compareAsks);
     }
 
-    lastAdded_ = ioe.order.id;
+    match(ioe, consumer);
     return true;
   }
 
-  void match(BusableFor<InternalOrderStatus> auto &consumer) {
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
+  void sendAck(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
+    consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Accepted));
+  }
+
+  void clear() {
+    bidCount_ = 0;
+    askCount_ = 0;
+  }
+#endif
+
+private:
+  void match(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
+    auto &o = ioe.order;
     while (bidCount_ > 0 && askCount_ > 0) {
       auto &bestBid = bids_[0];
       auto &bestAsk = asks_[0];
@@ -86,13 +99,13 @@ public:
       bestBid.partialFill(matchQty);
       bestAsk.partialFill(matchQty);
 
-      if (lastAdded_ == bestBid.id) {
+      if (o.id == bestBid.id) {
         consumer.post(
             InternalOrderStatus(bestBid.id, BookOrderId{}, matchQty, matchPrice,
                                 (bestBid.quantity == 0) ? OrderState::Full : OrderState::Partial));
       }
 
-      if (lastAdded_ == bestAsk.id) {
+      if (o.id == bestAsk.id) {
         consumer.post(
             InternalOrderStatus(bestAsk.id, BookOrderId{}, matchQty, matchPrice,
                                 (bestAsk.quantity == 0) ? OrderState::Full : OrderState::Partial));
@@ -109,29 +122,16 @@ public:
     }
   }
 
-#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
-  void sendAck(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
-    consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Accepted));
-  }
-
-  void clear() {
-    bidCount_ = 0;
-    askCount_ = 0;
-    lastAdded_ = SystemOrderId();
-  }
-#endif
-
 private:
   FlatOrderBook(const FlatOrderBook &) = delete;
   FlatOrderBook &operator=(const FlatOrderBook &other) = delete;
 
 private:
-  ALIGN_CL HugeArray<InternalOrder, MAX_BOOK_ORDERS> bids_;
-  ALIGN_CL HugeArray<InternalOrder, MAX_BOOK_ORDERS> asks_;
+  HugeArray<InternalOrder, MAX_BOOK_ORDERS> bids_;
+  HugeArray<InternalOrder, MAX_BOOK_ORDERS> asks_;
 
   uint32_t bidCount_{0};
   uint32_t askCount_{0};
-  SystemOrderId lastAdded_;
 };
 
 } // namespace hft::server

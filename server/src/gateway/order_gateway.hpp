@@ -60,6 +60,8 @@ public:
       cleanupOrder(s);
       break;
     default:
+      // update book id for easier access
+      r.bookOId = s.bookOId;
       break;
     }
   }
@@ -98,7 +100,8 @@ private:
       LOG_ERROR_SYSTEM("Failed to cancel order: {}", toString(so));
       return;
     }
-    bus_.post(InternalOrderEvent{{r.id, o.quantity, o.price}, nullptr, o.ticker, o.action});
+    bus_.post(
+        InternalOrderEvent{{r.id, r.bookOId, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
   void newOrder(CRef<ServerOrder> so) {
@@ -110,8 +113,8 @@ private:
       return;
     }
     recordMap_[id.index()] = {o.created, id, BookOrderId{}, so.clientId};
-    bus_.post(InternalOrderEvent{{id, o.quantity, o.price}, nullptr, o.ticker, o.action});
-    // bus_.post(ServerOrderStatus{so.clientId, {id.raw(), o.created, 0, 0, OrderState::Accepted}});
+    bus_.post(
+        InternalOrderEvent{{id, BookOrderId{}, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
   void cleanupOrder(CRef<InternalOrderStatus> ios) {

@@ -13,7 +13,7 @@ namespace hft::server {
 
 static constexpr uint32_t MAX_SYSTEM_ORDERS = 16'777'216;
 static constexpr uint32_t MAX_BOOK_ORDERS = 131'072;
-static constexpr uint32_t MAX_PRICE_TICK_RANGE = 100'000;
+static constexpr uint32_t MAX_TICKS = 100'000;
 
 /**
  * @brief Internal server-side id
