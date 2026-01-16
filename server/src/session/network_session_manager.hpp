@@ -46,8 +46,7 @@ class NetworkSessionManager {
 public:
   explicit NetworkSessionManager(ServerBus &bus)
       : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
-        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS},
-        statusQueue_{std::make_unique<VyukovMPMC<ServerOrderStatus>>()} {
+        unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     LOG_INFO_SYSTEM("NetworkSessionManager initialized");
 
     using SelfT = NetworkSessionManager;
@@ -244,8 +243,6 @@ private:
   folly::AtomicHashMap<ConnectionId, SPtr<DownstreamChan>> unauthorizedDownstreamMap_;
 
   folly::AtomicHashMap<ClientId, SPtr<Session>> sessionsMap_;
-
-  UPtr<VyukovMPMC<ServerOrderStatus>> statusQueue_;
 };
 
 } // namespace hft::server

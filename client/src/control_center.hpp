@@ -57,6 +57,7 @@ public:
 
     ipcClient_.start();
     engine_.start();
+    telemetry_.start();
 
     bus_.run();
   }
@@ -64,10 +65,10 @@ public:
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
+    ipcClient_.stop();
+    engine_.stop();
     telemetry_.close();
     connectionManager_.close();
-    engine_.stop();
-    ipcClient_.stop();
     bus_.stop();
   }
 

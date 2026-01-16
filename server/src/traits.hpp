@@ -110,7 +110,13 @@ using DatagramBus =
 using ServerConsoleReader = ConsoleReader<CommandParser>;
 
 using DbAdapter = adapters::PostgresAdapter;
-using ServerTelemetryAdapter = TelemetryAdapter<ServerBus>;
+
+#ifndef CICD
+using ServerTelemetry = TelemetryAdapter<ServerBus>;
+#else
+using ServerTelemetry = DummyTelemetryAdapter<ServerBus>;
+#endif
+
 using OrderBook = FlatOrderBook;
 
 } // namespace hft::server

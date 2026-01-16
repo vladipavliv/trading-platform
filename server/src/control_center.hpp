@@ -84,8 +84,8 @@ public:
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
-    gateway_.stop();
     ipcServer_.stop();
+    gateway_.stop();
     sessionMgr_.close();
     coordinator_.stop();
     bus_.stop();

@@ -10,6 +10,7 @@
 #include "container_types.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "shm_ptr.hpp"
 #include "shm_queue.hpp"
 #include "transport/async_transport.hpp"
 #include "utils/spin_wait.hpp"
@@ -22,40 +23,28 @@ class ShmWriter {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  explicit ShmWriter(ShmQueue &queue) : queue_{queue} {}
-
-  ShmWriter(ShmWriter &&other) noexcept
-      : queue_{other.queue_}, running_(other.running_.load(std::memory_order_acquire)) {
-    other.running_.store(false, std::memory_order_release);
-  }
+  ShmWriter(CRef<String> name, bool createNew) : shm_{name, createNew} {}
+  ShmWriter(ShmWriter &&other) noexcept : shm_{std::move(other.shm_)} {}
+  ~ShmWriter() = default;
 
   ShmWriter(const ShmWriter &) = delete;
-
-  ~ShmWriter() { close(); }
 
   void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_HOT) {
     using namespace utils;
     SpinWait waiter{retry};
-    while (!queue_.queue.write(buffer.data(), buffer.size()) &&
-           running_.load(std::memory_order_acquire)) {
+    while (!shm_->queue.write(buffer.data(), buffer.size())) {
       if (!++waiter) {
         LOG_ERROR("would block");
         clb(IoResult::Error, 0);
         return;
       }
     }
-    queue_.notify();
+    shm_->notify();
     clb(IoResult::Ok, buffer.size());
   }
 
-  void close() noexcept {
-    LOG_DEBUG("ShmWriter close");
-    running_.store(false, std::memory_order_release);
-  }
-
 private:
-  ShmQueue &queue_;
-  AtomicBool running_{true};
+  ShmUPtr<ShmQueue> shm_;
 };
 
 } // namespace hft

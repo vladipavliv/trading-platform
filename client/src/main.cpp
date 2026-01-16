@@ -21,7 +21,6 @@
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
-#include "transport/shm/shm_manager.hpp"
 
 #include "config/client_config.hpp"
 #include "control_center.hpp"
@@ -60,10 +59,6 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-#ifndef CICD
-    ShmManager::initialize(false);
-#endif
-
     ControlCenter cc;
     cc.start();
   } catch (const std::exception &e) {
@@ -71,9 +66,6 @@ int main(int argc, char *argv[]) {
   } catch (...) {
     std::cerr << "Unknown exception caught in main" << std::endl;
   }
-#ifndef CICD
-  ShmManager::deinitialize();
-#endif
 
   return 0;
 }

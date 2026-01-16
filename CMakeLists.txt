@@ -20,7 +20,7 @@ set(CMAKE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
 
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(COMM_TYPE_SHM "Use Shared Memory for IPC instead of Sockets" OFF)
+option(COMM_TYPE_SHM "Use Shared Memory for IPC instead of Sockets" ON)
 option(PROFILING "Colect profiling data" OFF)
 set(SPDLOG_ACTIVE_LEVEL "SPDLOG_LEVEL_ERROR" CACHE STRING "spdlog active level")
 

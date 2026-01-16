@@ -61,7 +61,12 @@ class CommandParser;
 using MonitorBus = BusHub<MessageBus<TelemetryMsg>>;
 
 using MonitorConsoleReader = ConsoleReader<CommandParser>;
+
+#ifndef CICD
 using MonitorTelemetry = TelemetryAdapter<MonitorBus>;
+#else
+using MonitorTelemetry = DummyTelemetryAdapter<MonitorBus>;
+#endif
 
 } // namespace hft::monitor
 

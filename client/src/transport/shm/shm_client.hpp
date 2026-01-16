@@ -6,19 +6,13 @@
 #ifndef HFT_CLIENT_SHMCLIENT_HPP
 #define HFT_CLIENT_SHMCLIENT_HPP
 
-#include <functional>
-#include <memory>
-#include <string>
-
 #include "bus/bus_hub.hpp"
 #include "config/client_config.hpp"
-#include "internal_error.hpp"
+#include "primitive_types.hpp"
 #include "traits.hpp"
-#include "transport/shm/shm_layout.hpp"
-#include "transport/shm/shm_manager.hpp"
+#include "transport/shm/shm_reactor.hpp"
 #include "transport/shm/shm_transport.hpp"
 #include "utils/memory_utils.hpp"
-#include "utils/thread_utils.hpp"
 
 namespace hft::client {
 
@@ -30,7 +24,7 @@ public:
   using StreamClb = std::function<void(ShmTransport &&transport)>;
   using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
-  explicit ShmClient(ClientBus &bus) : bus_{bus}, layout_{ShmManager::layout()} {}
+  explicit ShmClient(ClientBus &bus) : bus_{bus} {}
 
   ~ShmClient() { stop(); }
 
@@ -40,43 +34,33 @@ public:
 
   void setDatagramClb(DatagramClb &&datagramClb) {}
 
-  void start() {
-    if (running_) {
-      LOG_ERROR_SYSTEM("ShmClient is already running");
-      return;
-    }
-    if (layout_.downstream.futex.load(std::memory_order_acquire) == 0) {
-      throw std::runtime_error("Server is offline");
-    }
-    layout_.upstream.futex.store(1, std::memory_order_release);
-    utils::futexWake(layout_.upstream.futex);
-    notifyConnected();
-  }
+  void start() { initialize(); }
 
   void stop() {
     LOG_INFO("ShmClient stop");
-    running_.store(false, std::memory_order_release);
+    ShmReactor::instance().stop();
+    // TODO(self): Notify server we are disconnecting
   }
 
 private:
-  void notifyConnected() {
+  void initialize() {
     if (upstreamClb_) {
-      upstreamClb_(ShmTransport::makeWriter(layout_.upstream));
+      const auto name = Config::get<String>("shm.shm_upstream");
+      upstreamClb_(ShmTransport::makeWriter(name, false));
     }
     if (downstreamClb_) {
-      downstreamClb_(ShmTransport::makeReader(layout_.downstream, ErrorBus{bus_.systemBus}));
+      const auto name = Config::get<String>("shm.shm_downstream");
+      downstreamClb_(ShmTransport::makeReader(name, false));
     }
+    ShmReactor::instance().run();
   }
 
 private:
   ClientBus &bus_;
-  ShmLayout &layout_;
 
   StreamClb upstreamClb_;
   StreamClb downstreamClb_;
   DatagramClb datagramClb_;
-
-  AtomicBool running_{false};
 };
 } // namespace hft::client
 

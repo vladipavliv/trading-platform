@@ -19,8 +19,8 @@ for arg in "$@"; do
     d|debug)
       CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE"
       ;;
-    s|shm)
-      CMAKE_ARGS="$CMAKE_ARGS -DCOMM_TYPE_SHM=ON"
+    s|sock)
+      CMAKE_ARGS="$CMAKE_ARGS -DCOMM_TYPE_SHM=OFF"
       ;;
     p|profile)
       CMAKE_ARGS="$CMAKE_ARGS -DPROFILING=ON"

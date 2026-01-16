@@ -59,8 +59,11 @@ public:
   }
 
   void stop() {
-    LOG_DEBUG("Stopping trade engine");
-    running_ = false;
+    LOG_INFO_SYSTEM("Stopping trade engine");
+    running_.store(false, std::memory_order_release);
+    if (worker_.joinable()) {
+      worker_.join();
+    }
   }
 
   void tradeStart() {
@@ -116,7 +119,7 @@ private:
   void tradeLoop() {
     uint32_t warmupCount = Config::get<uint64_t>("rates.warmup");
     uint32_t counter = 0;
-    while (running_) {
+    while (running_.load(std::memory_order_acquire)) {
       if (!trading_) {
         asm volatile("pause" ::: "memory");
         continue;

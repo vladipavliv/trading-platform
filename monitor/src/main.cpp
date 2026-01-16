@@ -48,8 +48,6 @@ int main(int argc, char *argv[]) {
     LOG_INIT(MonitorConfig::cfg.logOutput);
     MonitorConfig::cfg.nsPerCycle = utils::getNsPerCycle();
 
-    ShmManager::initialize(false);
-
     MonitorControlCenter monitorCc;
     monitorCc.start();
   } catch (const std::exception &e) {

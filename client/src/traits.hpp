@@ -105,7 +105,11 @@ using DatagramBus =
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;
+#ifndef CICD
 using ClientTelemetry = TelemetryAdapter<ClientBus>;
+#else
+using ClientTelemetry = DummyTelemetryAdapter<ClientBus>;
+#endif
 
 } // namespace hft::client
 

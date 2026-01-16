@@ -6,9 +6,9 @@
 #ifndef HFT_COMMON_TELEMETRYADAPTER_HPP
 #define HFT_COMMON_TELEMETRYADAPTER_HPP
 
-#include "transport/shm/shm_layout.hpp"
-#include "transport/shm/shm_manager.hpp"
+#include "transport/shm/shm_ptr.hpp"
 #include "transport/shm/shm_transport.hpp"
+#include "types/container_types.hpp"
 #include "types/telemetry_types.hpp"
 
 namespace hft {
@@ -16,8 +16,10 @@ namespace hft {
 template <typename BusT>
 class TelemetryAdapter {
 public:
-  TelemetryAdapter(BusT &bus, bool producer)
-      : bus_{bus}, layout_{ShmManager::layout()}, transport_{init(producer)}, producer_{producer} {
+  TelemetryAdapter(BusT &bus, bool producer) : bus_{bus}, producer_{producer}, transport_{init()} {}
+
+  void start() {
+    LOG_DEBUG_SYSTEM("TelemetryAdapter start");
     if (producer_) {
       using SelfT = TelemetryAdapter<BusT>;
       bus_.template subscribe<TelemetryMsg>(
@@ -31,11 +33,12 @@ public:
   void close() { transport_.close(); }
 
 private:
-  ShmTransport init(bool producer) {
-    if (producer) {
-      return ShmTransport::makeWriter(layout_.telemetry);
+  ShmTransport init() {
+    const auto name = Config::get<String>("shm.shm_telemetry");
+    if (producer_) {
+      return ShmTransport::makeWriter(name, producer_);
     } else {
-      return ShmTransport::makeReader(layout_.telemetry, ErrorBus{bus_.systemBus});
+      return ShmTransport::makeReader(name, producer_);
     }
   }
 
@@ -47,12 +50,10 @@ private:
 
 private:
   BusT &bus_;
-  ShmLayout &layout_;
-
-  TelemetryMsg msg_;
-  ShmTransport transport_;
-
   const bool producer_;
+
+  ShmTransport transport_;
+  TelemetryMsg msg_;
 };
 } // namespace hft
 

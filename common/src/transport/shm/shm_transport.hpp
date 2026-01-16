@@ -8,6 +8,7 @@
 
 #include "bus/system_bus.hpp"
 #include "shm_queue.hpp"
+#include "shm_reactor.hpp"
 #include "shm_reader.hpp"
 #include "shm_writer.hpp"
 
@@ -17,77 +18,61 @@ class ShmTransport {
 public:
   using RxHandler = std::function<void(IoResult, size_t)>;
 
-  enum class Type : uint8_t { Reader, Writer };
+  enum class Type : uint8_t { None, Reader, Writer };
 
-  static ShmTransport makeReader(ShmQueue &q, ErrorBus bus) {
+  static ShmTransport makeReader(CRef<String> name, bool createNew) {
     ShmTransport t(Type::Reader);
-    new (&t.reader_) ShmReader(q, std::move(bus));
+    t.reader_.emplace(name, createNew);
     return t;
   }
 
-  static ShmTransport makeWriter(ShmQueue &q) {
+  static ShmTransport makeWriter(CRef<String> name, bool createNew) {
     ShmTransport t(Type::Writer);
-    new (&t.writer_) ShmWriter(q);
+    t.writer_.emplace(name, createNew);
     return t;
   }
 
-  ShmTransport(ShmTransport &&other) noexcept : type_(other.type_) {
-    if (type_ == Type::Reader) {
-      new (&reader_) ShmReader(std::move(other.reader_));
-    } else {
-      new (&writer_) ShmWriter(std::move(other.writer_));
-    }
-  }
-
+  ShmTransport(ShmTransport &&other) noexcept = default;
   ShmTransport &operator=(ShmTransport &&other) noexcept = delete;
 
-  ~ShmTransport() {
-    close();
-    destroy();
-  }
+  ~ShmTransport() = default;
 
   Type type() const noexcept { return type_; }
 
   void asyncRx(ByteSpan buf, RxHandler clb) {
     LOG_DEBUG("ShmTransport asyncRx");
     if (type_ == Type::Reader) {
-      reader_.asyncRx(buf, std::move(clb));
+      reader_->asyncRx(buf, std::move(clb));
+    } else {
+      LOG_ERROR_SYSTEM("Unable to read from shm: wrong transport type");
     }
   }
 
   void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_HOT) {
     LOG_DEBUG("ShmTransport asyncTx");
     if (type_ == Type::Writer) {
-      writer_.asyncTx(buffer, std::move(clb), retry);
+      writer_->asyncTx(buffer, std::move(clb), retry);
+    } else {
+      LOG_ERROR_SYSTEM("Unable to write to shm: wrong transport type");
     }
   }
 
   void close() {
-    if (type_ == Type::Writer) {
-      writer_.close();
-    } else {
-      reader_.close();
+    if (ShmReactor::instance().running()) {
+      throw std::runtime_error("Reactor should be stopped before closing connections");
     }
   }
 
 private:
-  explicit ShmTransport(Type t) : type_(t) {}
+  ShmTransport() : type_(Type::None) {}
 
-  void destroy() noexcept {
-    if (type_ == Type::Reader) {
-      reader_.~ShmReader();
-    } else {
-      writer_.~ShmWriter();
-    }
-  }
+  explicit ShmTransport(Type t) : type_(t) {}
 
 private:
   Type type_;
 
-  union {
-    ShmReader reader_;
-    ShmWriter writer_;
-  };
+  std::optional<ShmReader> reader_;
+  std::optional<ShmWriter> writer_;
 };
 
 } // namespace hft

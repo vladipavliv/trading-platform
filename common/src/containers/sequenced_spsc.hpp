@@ -74,9 +74,12 @@ public:
   }
 
 private:
+  // data first so it fills up the huge pages nicely
+  alignas(64) Sloth slots_[SlotCount];
+
+  // control block is separated to the next huge page
   alignas(64) uint64_t writeIdx_{0};
   alignas(64) uint64_t readIdx_{0};
-  alignas(64) Sloth slots_[SlotCount];
 };
 
 } // namespace hft

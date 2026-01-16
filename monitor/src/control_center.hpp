@@ -6,6 +6,7 @@
 #ifndef HFT_MONITOR_CONTROLCENTER_HPP
 #define HFT_MONITOR_CONTROLCENTER_HPP
 
+#include "bus/bus_hub.hpp"
 #include "bus/system_bus.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
@@ -30,10 +31,13 @@ public:
 
   void start() {
     greetings();
+    telemetry_.start();
+    ShmReactor::instance().run();
     bus_.run();
   }
 
   void stop() {
+    ShmReactor::instance().stop();
     telemetry_.close();
     bus_.stop();
     LOG_INFO_SYSTEM("stonk");

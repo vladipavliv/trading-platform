@@ -22,7 +22,6 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
 #include "bus/bus_restrictor.hpp"
-#include "transport/shm/shm_manager.hpp"
 
 #include "config/server_config.hpp"
 #include "control_center.hpp"
@@ -62,18 +61,11 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-#ifndef CICD
-    ShmManager::initialize(true);
-#endif
-
     ControlCenter cc;
     cc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;
   }
-#ifndef CICD
-  ShmManager::deinitialize();
-#endif
 
   return 0;
 }

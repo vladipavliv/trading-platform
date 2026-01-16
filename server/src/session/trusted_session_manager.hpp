@@ -42,6 +42,7 @@ public:
   }
 
   void acceptUpstream(StreamTransport &&t) {
+    LOG_DEBUG_SYSTEM("acceptUpstream");
     upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
     ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(Order));
     upChannel_->asyncRx(span, [this](IoResult res, size_t bytes) {
@@ -54,6 +55,7 @@ public:
   }
 
   void acceptDownstream(StreamTransport &&t) {
+    LOG_DEBUG_SYSTEM("acceptDownstream");
     downChannel_ = std::make_unique<DownstreamChan>(std::move(t));
   }
 
