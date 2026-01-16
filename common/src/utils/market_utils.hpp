@@ -3,8 +3,8 @@
  * @date 2026-01-07
  */
 
-#ifndef HFT_COMMON_TESTUTILS_HPP
-#define HFT_COMMON_TESTUTILS_HPP
+#ifndef HFT_COMMON_MARKETUTILS_HPP
+#define HFT_COMMON_MARKETUTILS_HPP
 
 #include <atomic>
 
@@ -25,4 +25,4 @@ inline Price fluctuateThePrice(Price price) {
 
 } // namespace hft::utils
 
-#endif // HFT_COMMON_TESTUTILS_HPP
+#endif // HFT_COMMON_MARKETUTILS_HPP

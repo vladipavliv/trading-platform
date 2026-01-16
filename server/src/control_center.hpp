@@ -53,7 +53,7 @@ public:
       sessionMgr_.acceptDownstream(std::move(transport));
     });
     ipcServer_.setDatagramClb([this](DatagramTransport &&transport) {
-      const auto id = utils::generateConnectionId();
+      const auto id = utils::genConnectionId();
       LOG_INFO_SYSTEM("UDP prices channel created {}", id);
       pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
       bus_.subscribe<TickerPrice>(

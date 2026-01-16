@@ -8,14 +8,14 @@
 #include "container_types.hpp"
 #include "domain_types.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
-#include "spies/consumer_spy.hpp"
+#include "utils/post_spy.hpp"
 
 namespace hft::tests {
 using namespace serialization::sbe;
 using namespace hft::serialization::gen::sbe;
 
 TEST(SbeSerializerTest, serializeDeserialize) {
-  ConsumerSpy spy;
+  PostSpy spy;
 
   LoginRequest request{"name", "password"};
   ByteBuffer buffer(128);
@@ -23,7 +23,7 @@ TEST(SbeSerializerTest, serializeDeserialize) {
   const size_t serSize = SbeDomainSerializer::serialize(request, buffer.data());
   ASSERT_TRUE(serSize != 0);
 
-  auto deserSize = SbeDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
+  auto deserSize = SbeDomainSerializer::deserialize<PostSpy>(buffer.data(), serSize, spy);
 
   ASSERT_TRUE(deserSize);
   ASSERT_TRUE(*deserSize != 0);
@@ -32,7 +32,7 @@ TEST(SbeSerializerTest, serializeDeserialize) {
 }
 
 TEST(SbeSerializerTest, SeveralMessagesInOneBuffer) {
-  ConsumerSpy spy;
+  PostSpy spy;
 
   LoginRequest request0{"name0", "password0"};
   LoginRequest request1{"name1", "password1"};
@@ -53,8 +53,8 @@ TEST(SbeSerializerTest, SeveralMessagesInOneBuffer) {
   const auto ptr1 = buffer.data() + domain::LoginRequest::sbeBlockAndHeaderLength();
   const auto size1 = buffer.size() - domain::LoginRequest::sbeBlockAndHeaderLength();
 
-  const auto deserSize0 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr0, size0, spy);
-  const auto deserSize1 = SbeDomainSerializer::deserialize<ConsumerSpy>(ptr1, size1, spy);
+  const auto deserSize0 = SbeDomainSerializer::deserialize<PostSpy>(ptr0, size0, spy);
+  const auto deserSize1 = SbeDomainSerializer::deserialize<PostSpy>(ptr1, size1, spy);
 
   ASSERT_TRUE(deserSize0);
   ASSERT_TRUE(deserSize1);

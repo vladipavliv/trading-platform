@@ -8,14 +8,14 @@
 #include "container_types.hpp"
 #include "domain_types.hpp"
 #include "serialization/fbs/fbs_domain_serializer.hpp"
-#include "spies/consumer_spy.hpp"
+#include "utils/post_spy.hpp"
 
 namespace hft::tests {
 using namespace serialization::fbs;
 using namespace hft::serialization::gen::fbs;
 
 TEST(FbsSerializerTest, serializeDeserialize) {
-  ConsumerSpy spy;
+  PostSpy spy;
 
   LoginRequest request{"name", "password"};
   ByteBuffer buffer(128);
@@ -23,7 +23,7 @@ TEST(FbsSerializerTest, serializeDeserialize) {
   const size_t serSize = FbsDomainSerializer::serialize(request, buffer.data());
   ASSERT_TRUE(serSize != 0);
 
-  const auto deserSize = FbsDomainSerializer::deserialize<ConsumerSpy>(buffer.data(), serSize, spy);
+  const auto deserSize = FbsDomainSerializer::deserialize<PostSpy>(buffer.data(), serSize, spy);
   ASSERT_TRUE(deserSize);
   ASSERT_EQ(*deserSize, serSize);
 

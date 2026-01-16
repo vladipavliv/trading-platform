@@ -8,8 +8,8 @@
 
 #include "domain_types.hpp"
 #include "id/slot_id.hpp"
-#include "internal_id.hpp"
 #include "primitive_types.hpp"
+#include "schema.hpp"
 #include "ticker.hpp"
 #include "utils/string_utils.hpp"
 
@@ -18,7 +18,7 @@ namespace hft::server {
 struct TickerData;
 
 struct InternalOrder {
-  InternalOrderId id;
+  SystemOrderId id;
   Quantity quantity;
   Price price;
 

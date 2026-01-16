@@ -11,6 +11,8 @@
 namespace hft::utils {
 using LittleEndianUInt16 = boost::endian::little_uint16_at;
 using LittleEndianUInt32 = boost::endian::little_uint32_at;
+
+constexpr uint32_t bitWidth(uint32_t x) { return x == 0 ? 0 : 32 - __builtin_clz(x - 1); }
 } // namespace hft::utils
 
 #endif // HFT_COMMON_BINARYUTILS_HPP

@@ -6,8 +6,10 @@
 #ifndef HFT_COMMON_TIMEUTILS_HPP
 #define HFT_COMMON_TIMEUTILS_HPP
 
+#include <chrono>
 #include <cstdint>
 #include <ctime>
+#include <thread>
 #include <utility>
 #include <x86intrin.h>
 

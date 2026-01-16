@@ -28,7 +28,7 @@ namespace hft::server {
  * @brief
  */
 class OrderGateway {
-  using OrderMapping = boost::unordered_flat_map<CompositeKey, InternalOrderId>;
+  using OrderMapping = boost::unordered_flat_map<CompositeKey, SystemOrderId>;
 
 public:
   explicit OrderGateway(ServerBus &bus)
@@ -90,7 +90,7 @@ private:
 
   void cancelOrder(CRef<ServerOrder> so) {
     LOG_DEBUG("{}", toString(so));
-    InternalOrderId id{so.order.id};
+    SystemOrderId id{so.order.id};
 
     auto &o = so.order;
     auto &r = recordMap_[id.index()];
@@ -109,7 +109,7 @@ private:
       bus_.post(ServerOrderStatus{so.clientId, {o.id, o.created, 0, 0, OrderState::Rejected}});
       return;
     }
-    recordMap_[id.index()] = {o.created, id, so.clientId};
+    recordMap_[id.index()] = {o.created, id, BookOrderId{}, so.clientId};
     bus_.post(InternalOrderEvent{{id, o.quantity, o.price}, nullptr, o.ticker, o.action});
     // bus_.post(ServerOrderStatus{so.clientId, {id.raw(), o.created, 0, 0, OrderState::Accepted}});
   }
@@ -129,7 +129,7 @@ private:
   ServerBus &bus_;
 
   ALIGN_CL SlotIdPool<> idPool_;
-  ALIGN_CL HugeArray<OrderRecord, SlotIdPool<>::Capacity> recordMap_;
+  ALIGN_CL HugeArray<OrderRecord, SlotIdPool<>::CAPACITY> recordMap_;
 
   ALIGN_CL LfqRunner<InternalOrderStatus, OrderGateway, ServerBus> worker_;
 };

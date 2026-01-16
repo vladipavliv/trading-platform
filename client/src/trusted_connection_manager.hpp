@@ -15,7 +15,6 @@
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
-#include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::client {
@@ -51,7 +50,6 @@ private:
       return;
     }
     LOG_INFO_SYSTEM("Connected upstream");
-    const size_t id = utils::generateConnectionId();
     upstreamChannel_ = std::make_unique<UpStreamChannel>(std::move(transport));
     notify();
   }
@@ -82,7 +80,6 @@ private:
       return;
     }
     LOG_INFO_SYSTEM("Connected datagram");
-    const size_t id = utils::generateConnectionId();
     pricesChannel_ = std::make_unique<DatagramChannel>(std::move(transport));
   }
 

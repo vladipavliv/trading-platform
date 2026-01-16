@@ -8,7 +8,8 @@
 #include <gtest/gtest.h>
 
 #include "config/server_config.hpp"
-#include "execution/flat_order_book.hpp"
+#include "execution/orderbook/flat_order_book.hpp"
+#include "utils/data_generator.hpp"
 #include "utils/test_utils.hpp"
 
 namespace hft::tests {
@@ -17,13 +18,13 @@ using namespace server;
 using namespace utils;
 
 namespace {
-ClientId cId() { return generateConnectionId(); }
-OrderId oId() { return generateOrderId(); }
+ClientId cId() { return genId(); }
+OrderId oId() { return genId(); }
 Timestamp ts() { return getTimestampNs(); }
 
 const OrderAction BUY = OrderAction::Buy;
 const OrderAction SELL = OrderAction::Sell;
-const Ticker tkr = generateTicker();
+const Ticker tkr = genTicker();
 } // namespace
 
 using OrderBook = FlatOrderBook;
@@ -69,13 +70,13 @@ TEST_F(OrderBookFixture, OrdersWontMatch) {
   statusq.clear();
 
   uint32_t id = 0;
-  addOrder({{InternalOrderId{++id}, 1, 40}, nullptr, tkr, SELL});
-  addOrder({{InternalOrderId{++id}, 1, 50}, nullptr, tkr, SELL});
-  addOrder({{InternalOrderId{++id}, 1, 60}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 40}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 50}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 60}, nullptr, tkr, SELL});
 
-  addOrder({{InternalOrderId{++id}, 1, 30}, nullptr, tkr, BUY});
-  addOrder({{InternalOrderId{++id}, 1, 20}, nullptr, tkr, BUY});
-  addOrder({{InternalOrderId{++id}, 1, 10}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 30}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 20}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 10}, nullptr, tkr, BUY});
 
   book->match(*this);
 
@@ -87,15 +88,15 @@ TEST_F(OrderBookFixture, 3Buy3SellMatch) {
   statusq.clear();
 
   uint32_t id = 0;
-  addOrder({{InternalOrderId{++id}, 1, 40}, nullptr, tkr, BUY});
-  addOrder({{InternalOrderId{++id}, 1, 50}, nullptr, tkr, BUY});
-  addOrder({{InternalOrderId{++id}, 1, 60}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 40}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 50}, nullptr, tkr, BUY});
+  addOrder({{SystemOrderId{++id}, 1, 60}, nullptr, tkr, BUY});
 
-  addOrder({{InternalOrderId{++id}, 1, 30}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 30}, nullptr, tkr, SELL});
   book->match(*this);
-  addOrder({{InternalOrderId{++id}, 1, 20}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 20}, nullptr, tkr, SELL});
   book->match(*this);
-  addOrder({{InternalOrderId{++id}, 1, 10}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{++id}, 1, 10}, nullptr, tkr, SELL});
   book->match(*this);
 
   printStatusQ();
@@ -109,11 +110,11 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   Price price{10};
 
   for (uint32_t idx = 0; idx < 10; ++idx) {
-    addOrder({{InternalOrderId{idx}, idx, price}, nullptr, tkr, BUY});
+    addOrder({{SystemOrderId{idx}, idx, price}, nullptr, tkr, BUY});
     quantity += idx;
   }
 
-  addOrder({{InternalOrderId{42}, quantity, price}, nullptr, tkr, SELL});
+  addOrder({{SystemOrderId{42}, quantity, price}, nullptr, tkr, SELL});
   book->match(*this);
 
   printStatusQ();

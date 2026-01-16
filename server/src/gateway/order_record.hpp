@@ -7,12 +7,13 @@
 #define HFT_SERVER_ORDERRECORD_HPP
 
 #include "domain_types.hpp"
-#include "internal_id.hpp"
+#include "schema.hpp"
 
 namespace hft::server {
 struct OrderRecord {
   Timestamp created;
-  InternalOrderId id;
+  SystemOrderId id;
+  BookOrderId bookOId;
   ClientId clientId;
 };
 } // namespace hft::server

@@ -6,25 +6,18 @@
 #ifndef HFT_SERVER_FLATORDERBOOK_HPP
 #define HFT_SERVER_FLATORDERBOOK_HPP
 
-#include <algorithm>
-#include <set>
-#include <string>
-#include <vector>
-
-#include "logging.hpp"
-
 #include "bus/busable.hpp"
 #include "config/server_config.hpp"
 #include "constants.hpp"
 #include "container_types.hpp"
-#include "domain/server_order_messages.hpp"
 #include "gateway/internal_order.hpp"
 #include "gateway/internal_order_status.hpp"
+#include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "schema.hpp"
 #include "utils/huge_array.hpp"
 #include "utils/string_utils.hpp"
-#include "utils/time_utils.hpp"
 
 namespace hft::server {
 
@@ -41,8 +34,6 @@ class FlatOrderBook {
   static inline bool compareAsks(CRef<InternalOrder> left, CRef<InternalOrder> right) {
     return left.price > right.price;
   }
-
-  static constexpr size_t MAX_ORDERS = 131072;
 
 public:
   FlatOrderBook() {}
@@ -62,9 +53,9 @@ public:
     auto &side = (ioe.action == OrderAction::Buy) ? bids_ : asks_;
     auto &count = (ioe.action == OrderAction::Buy) ? bidCount_ : askCount_;
 
-    if (UNLIKELY(count >= MAX_ORDERS)) {
+    if (UNLIKELY(count >= MAX_BOOK_ORDERS)) {
       LOG_ERROR_SYSTEM("OrderBook side limit reached!");
-      consumer.post(InternalOrderStatus(ioe.order.id, 0, 0, OrderState::Rejected));
+      consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Rejected));
       return false;
     }
 
@@ -97,13 +88,13 @@ public:
 
       if (lastAdded_ == bestBid.id) {
         consumer.post(
-            InternalOrderStatus(bestBid.id, matchQty, matchPrice,
+            InternalOrderStatus(bestBid.id, BookOrderId{}, matchQty, matchPrice,
                                 (bestBid.quantity == 0) ? OrderState::Full : OrderState::Partial));
       }
 
       if (lastAdded_ == bestAsk.id) {
         consumer.post(
-            InternalOrderStatus(bestAsk.id, matchQty, matchPrice,
+            InternalOrderStatus(bestAsk.id, BookOrderId{}, matchQty, matchPrice,
                                 (bestAsk.quantity == 0) ? OrderState::Full : OrderState::Partial));
       }
 
@@ -120,13 +111,13 @@ public:
 
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
   void sendAck(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
-    consumer.post(InternalOrderStatus(ioe.order.id, 0, 0, OrderState::Accepted));
+    consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Accepted));
   }
 
   void clear() {
     bidCount_ = 0;
     askCount_ = 0;
-    lastAdded_ = InternalOrderId();
+    lastAdded_ = SystemOrderId();
   }
 #endif
 
@@ -135,12 +126,12 @@ private:
   FlatOrderBook &operator=(const FlatOrderBook &other) = delete;
 
 private:
-  ALIGN_CL HugeArray<InternalOrder, MAX_ORDERS> bids_;
-  ALIGN_CL HugeArray<InternalOrder, MAX_ORDERS> asks_;
+  ALIGN_CL HugeArray<InternalOrder, MAX_BOOK_ORDERS> bids_;
+  ALIGN_CL HugeArray<InternalOrder, MAX_BOOK_ORDERS> asks_;
 
   uint32_t bidCount_{0};
   uint32_t askCount_{0};
-  InternalOrderId lastAdded_;
+  SystemOrderId lastAdded_;
 };
 
 } // namespace hft::server

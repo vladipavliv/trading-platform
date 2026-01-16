@@ -19,7 +19,7 @@ target_include_directories(run_benchmarks PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/common/src
     ${CMAKE_SOURCE_DIR}/server/src
-    ${CMAKE_SOURCE_DIR}/client/src
+    ${CMAKE_SOURCE_DIR}/tests/unit/src
 )
 
 add_custom_command(
