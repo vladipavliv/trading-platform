@@ -37,11 +37,19 @@ class RttTracker {
 public:
   struct Snapshot {
     struct Sample {
-      uint64_t sum;
-      uint64_t size;
+      uint64_t sum{0};
+      uint64_t size{0};
     };
     std::array<Sample, RangeCount> samples;
     uint64_t globalMax;
+
+    uint64_t volume() const {
+      uint64_t total = 0;
+      for (const auto &s : samples) {
+        total += s.size;
+      }
+      return total;
+    }
   };
 
   static uint64_t logRtt(Timestamp rttNs) {
@@ -70,9 +78,7 @@ public:
     return snap;
   }
 
-  static String getStatsString() {
-    const auto stats = getStats();
-
+  static String toString(CRef<Snapshot> stats) {
     uint64_t totalCount = 0;
     for (const auto &s : stats.samples) {
       totalCount += s.size;
@@ -101,7 +107,9 @@ public:
       } else {
         const double pct = (double(s.size) / totalCount) * 100.0;
         const double avgNs = double(s.sum) / s.size;
-        ss << pct << "%(" << toShortCount(s.size) << ") avg:" << toScaleNs(avgNs);
+        ss << pct << "%";
+        // ss << "(" << toShortCount(s.size) << ")"
+        ss << " avg:" << toScaleNs(avgNs);
       }
       ss << " | ";
     }

@@ -38,11 +38,7 @@ private:
     case TelemetryType::Startup:
       break;
     case TelemetryType::OrderLatency: {
-      ordersPlaced_.store(msg.data.order.ordersPlaced);
-      ordersFulfilled_.store(msg.data.order.ordersFulfilled);
-      counter_.fetch_add(1, std::memory_order_relaxed);
-      const auto rtt =
-          (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg.nsPerCycle;
+      auto rtt = (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg.nsPerCycle;
       Tracker::logRtt(rtt);
     } break;
     case TelemetryType::Runtime:
@@ -66,15 +62,13 @@ private:
         }
         return;
       }
-      static uint64_t lastCounter{0};
-      auto counter = counter_.load(std::memory_order_relaxed);
-      if (counter != lastCounter) {
-        auto opnStr = thousandify(ordersPlaced_.load() - ordersFulfilled_.load());
-        auto plcStr = thousandify(ordersPlaced_.load());
-        LOG_INFO_SYSTEM("Orders: {}|{} Rtt: {}", opnStr, plcStr, Tracker::getStatsString());
+      const auto stats = Tracker::getStats();
+      const auto volume = stats.volume();
+      if (volume != 0) {
+        const auto rps = (volume * 1000) / monitorRate_.count();
+        LOG_INFO_SYSTEM("Rps: {} Rtt: {}", thousandify(rps), Tracker::toString(stats));
         Tracker::reset();
       }
-      lastCounter = counter;
       scheduleStatsTimer();
     });
   }
@@ -84,10 +78,6 @@ private:
 
   const Milliseconds monitorRate_;
   SteadyTimer statsTimer_;
-
-  AtomicUInt64 ordersPlaced_;
-  AtomicUInt64 ordersFulfilled_;
-  AtomicUInt64 counter_;
 };
 } // namespace hft::monitor
 

@@ -91,14 +91,26 @@ using IpcClient = BoostIpcClient;
 using ConnectionManager = NetworkConnectionManager;
 #endif
 
-using ClientMessageBus = MessageBus<Order, OrderStatus, TickerPrice, TelemetryMsg>;
+using ClientMessageBus = MessageBus<
+    // directly routed events
+    Order, OrderStatus, TickerPrice, TelemetryMsg>;
+
 using ClientBus = BusHub<ClientMessageBus>;
-using UpstreamBus =
-    BusRestrictor<ClientBus, Order, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
-using DownstreamBus =
-    BusRestrictor<ClientBus, OrderStatus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
-using DatagramBus =
-    BusRestrictor<ClientBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
+using UpstreamBus = BusRestrictor<
+    // bus
+    ClientBus,
+    // events
+    Order, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
+using DownstreamBus = BusRestrictor<
+    // bus
+    ClientBus,
+    // events
+    OrderStatus, LoginResponse, ChannelStatusEvent, ConnectionStatusEvent>;
+using DatagramBus = BusRestrictor<
+    // bus
+    ClientBus,
+    // events
+    TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;

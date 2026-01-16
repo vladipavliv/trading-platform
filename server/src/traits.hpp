@@ -93,19 +93,28 @@ using IpcServer = BoostIpcServer;
 using SessionManager = NetworkSessionManager;
 #endif
 
-using ServerMessageBus = MessageBus<ServerOrder, ServerOrderStatus, TickerPrice, InternalOrderEvent,
-                                    InternalOrderStatus>;
+using ServerMessageBus = MessageBus<
+    // directly routed messages
+    ServerOrder, ServerOrderStatus, TickerPrice, InternalOrderEvent, InternalOrderStatus>;
 
 using ServerBus = BusHub<ServerMessageBus>;
-using UpstreamBus = BusRestrictor<ServerBus, ServerOrder, ServerLoginRequest, ChannelStatusEvent,
-                                  ConnectionStatusEvent>;
-using DownstreamBus = BusRestrictor<ServerBus, ServerOrderStatus, ServerTokenBindRequest,
-                                    ChannelStatusEvent, ConnectionStatusEvent>;
-using DatagramBus =
-    BusRestrictor<ServerBus, TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
+using UpstreamBus = BusRestrictor<
+    // bus
+    ServerBus,
+    // events
+    ServerOrder, ServerLoginRequest, ChannelStatusEvent, ConnectionStatusEvent>;
+using DownstreamBus = BusRestrictor<
+    // bus
+    ServerBus,
+    // events
+    ServerOrderStatus, ServerTokenBindRequest, ChannelStatusEvent, ConnectionStatusEvent>;
+using DatagramBus = BusRestrictor<
+    // bus
+    ServerBus,
+    // events
+    TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ServerConsoleReader = ConsoleReader<CommandParser>;
-
 using DbAdapter = adapters::PostgresAdapter;
 
 #ifndef CICD
