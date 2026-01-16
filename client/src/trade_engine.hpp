@@ -88,8 +88,8 @@ private:
     worker_ = std::jthread{[this]() {
       try {
         utils::setThreadRealTime();
-        if (!ClientConfig::cfg.coresApp.empty()) {
-          utils::pinThreadToCore(ClientConfig::cfg.coresApp[0]);
+        if (!ClientConfig::cfg().coresApp.empty()) {
+          utils::pinThreadToCore(ClientConfig::cfg().coresApp[0]);
         }
         tradeLoop();
       } catch (const std::exception &ex) {
@@ -145,7 +145,7 @@ private:
       LOG_TRACE("Placing order {}", toString(order));
       bus_.marketBus.post(order);
 
-      for (int i = 0; i < ClientConfig::cfg.tradeRate; ++i) {
+      for (int i = 0; i < ClientConfig::cfg().tradeRate; ++i) {
         asm volatile("pause" ::: "memory");
       }
     }

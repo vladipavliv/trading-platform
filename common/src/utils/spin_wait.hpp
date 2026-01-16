@@ -16,7 +16,7 @@ namespace hft {
 
 class SpinWait {
 public:
-  explicit SpinWait(uint32_t cap = INT32_MAX) : cap_{cap} {}
+  explicit SpinWait(uint32_t cap = SPIN_RETRIES_WARM) : cap_{cap} {}
 
   inline bool operator++() noexcept {
     if (cycles_ >= cap_) {
@@ -28,6 +28,9 @@ public:
       return true;
     } else if (cycles_ < SPIN_RETRIES_WARM) {
       asm volatile("pause" ::: "memory");
+      return true;
+    } else if (cycles_ < SPIN_RETRIES_YIELD) {
+      std::this_thread::yield();
       return true;
     }
     return false;

@@ -82,12 +82,12 @@ public:
   }
 
   void start() {
-    LOG_DEBUG_SYSTEM("Coordinator start");
+    LOG_DEBUG("Coordinator start");
     startWorkers();
   }
 
   void stop() {
-    LOG_DEBUG_SYSTEM("Coordinator start");
+    LOG_DEBUG("Coordinator start");
     for (auto &worker : workers_) {
       worker->stop();
     }
@@ -96,15 +96,15 @@ public:
 private:
   void startWorkers() {
     const auto appCores =
-        ServerConfig::cfg.coresApp.empty() ? 1 : ServerConfig::cfg.coresApp.size();
+        ServerConfig::cfg().coresApp.empty() ? 1 : ServerConfig::cfg().coresApp.size();
 
     workers_.reserve(appCores);
-    if (ServerConfig::cfg.coresApp.empty()) {
+    if (ServerConfig::cfg().coresApp.empty()) {
       workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus));
       workers_[0]->run();
     } else {
-      for (size_t i = 0; i < ServerConfig::cfg.coresApp.size(); ++i) {
-        const auto coreId = ServerConfig::cfg.coresApp[i];
+      for (size_t i = 0; i < ServerConfig::cfg().coresApp.size(); ++i) {
+        const auto coreId = ServerConfig::cfg().coresApp[i];
         workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, coreId));
         workers_[i]->run();
       }

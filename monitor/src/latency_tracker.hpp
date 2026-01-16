@@ -38,7 +38,8 @@ private:
     case TelemetryType::Startup:
       break;
     case TelemetryType::OrderLatency: {
-      auto rtt = (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg.nsPerCycle;
+      auto rtt =
+          (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg().nsPerCycle;
       Tracker::logRtt(rtt);
     } break;
     case TelemetryType::Runtime:

@@ -47,8 +47,8 @@ public:
     workerThread_ = std::jthread([this]() {
       try {
         utils::setThreadRealTime();
-        if (ClientConfig::cfg.coreNetwork.has_value()) {
-          const auto coreId = *ClientConfig::cfg.coreNetwork;
+        if (ClientConfig::cfg().coreNetwork.has_value()) {
+          const auto coreId = *ClientConfig::cfg().coreNetwork;
           utils::pinThreadToCore(coreId);
           LOG_DEBUG("Network thread started on the core {}", coreId);
         } else {
@@ -56,8 +56,8 @@ public:
         }
         ioCtx_.post([this]() {
           LOG_DEBUG("Connecting to the server");
-          asyncConnect(ClientConfig::cfg.portTcpUp, upStreamClb_);
-          asyncConnect(ClientConfig::cfg.portTcpDown, downStreamClb_);
+          asyncConnect(ClientConfig::cfg().portTcpUp, upStreamClb_);
+          asyncConnect(ClientConfig::cfg().portTcpDown, downStreamClb_);
 
           createPrices();
         });
@@ -75,7 +75,7 @@ public:
 private:
   void asyncConnect(uint16_t port, const StreamClb &callback) {
     auto socket = std::make_shared<TcpSocket>(ioCtx_);
-    TcpEndpoint endpoint(boost::asio::ip::make_address(ClientConfig::cfg.url), port);
+    TcpEndpoint endpoint(boost::asio::ip::make_address(ClientConfig::cfg().url), port);
 
     socket->async_connect(endpoint, [this, socket, callback, port](BoostErrorCode ec) {
       if (!ec) [[likely]] {
@@ -95,11 +95,11 @@ private:
 
       configureSocket(socket);
 
-      UdpEndpoint listenEndpoint(Udp::v4(), ClientConfig::cfg.portUdp);
+      UdpEndpoint listenEndpoint(Udp::v4(), ClientConfig::cfg().portUdp);
       socket.bind(listenEndpoint);
 
       datagramClb_(BoostUdpTransport{std::move(socket)});
-      LOG_INFO_SYSTEM("UDP listener bound to port {}", ClientConfig::cfg.portUdp);
+      LOG_INFO_SYSTEM("UDP listener bound to port {}", ClientConfig::cfg().portUdp);
     } catch (const std::exception &e) {
       LOG_ERROR_SYSTEM("Failed to setup UDP pricing: {}", e.what());
     }

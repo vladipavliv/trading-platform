@@ -30,7 +30,6 @@ public:
 
   size_t tickerCount{10};
   size_t workerCount{1};
-  size_t orderLimit{ORDER_BOOK_LIMIT};
 
   tests::GenTickerData tickers;
   tests::GenOrderData orders;
@@ -39,7 +38,7 @@ public:
   UPtr<server::Coordinator> coordinator;
 
   alignas(64) AtomicUInt64 processed;
-  AtomicBool error_;
+  AtomicBool error;
   std::atomic_flag flag{ATOMIC_FLAG_INIT};
   std::jthread systemThread;
 
@@ -49,8 +48,8 @@ public:
   void setupBus();
   void setupCoordinator();
 
-  void post(const server::ServerEvent &ev);
-  void post(const server::ServerOrderStatus &ev);
+  void post(const server::ServerEvent &s);
+  void post(const server::InternalOrderStatus &s);
 };
 
 } // namespace hft::benchmarks

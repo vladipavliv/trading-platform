@@ -51,8 +51,8 @@ public:
       try {
         running_ = true;
         utils::setThreadRealTime();
-        if (ServerConfig::cfg.coreNetwork.has_value()) {
-          const CoreId id = ServerConfig::cfg.coreNetwork.value();
+        if (ServerConfig::cfg().coreNetwork.has_value()) {
+          const CoreId id = ServerConfig::cfg().coreNetwork.value();
           utils::pinThreadToCore(id);
           LOG_DEBUG("Network thread started on the core {}", id);
         } else {
@@ -88,7 +88,7 @@ public:
 
 private:
   void startUpstream() {
-    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpUp);
+    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg().portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -109,7 +109,7 @@ private:
   }
 
   void startDownstream() {
-    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg.portTcpDown);
+    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg().portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);
@@ -155,7 +155,7 @@ private:
       socket.set_option(socket_base::broadcast{true});
       configureUdpSocket(socket);
 
-      UdpEndpoint endpoint(ip::address_v4::broadcast(), ServerConfig::cfg.portUdp);
+      UdpEndpoint endpoint(ip::address_v4::broadcast(), ServerConfig::cfg().portUdp);
       socket.connect(endpoint);
 
       LOG_INFO_SYSTEM("UDP initialized {}:{}", endpoint.address().to_string(), endpoint.port());

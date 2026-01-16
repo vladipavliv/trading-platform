@@ -14,7 +14,6 @@ constexpr size_t SPIN_RETRIES_YIELD = SPIN_RETRIES_WARM * 10;
 constexpr size_t SPIN_RETRIES_BLOCK = SPIN_RETRIES_YIELD * 2;
 
 constexpr size_t LFQ_CAPACITY = 65536;
-constexpr size_t ORDER_BOOK_LIMIT = 10000;
 constexpr size_t CACHE_LINE_SIZE = 64;
 constexpr size_t LOG_FILE_SIZE = 100 * 1024 * 1024;
 constexpr size_t MAX_CONNECTIONS = 10;

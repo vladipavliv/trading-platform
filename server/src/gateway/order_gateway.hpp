@@ -32,7 +32,7 @@ class OrderGateway {
 
 public:
   explicit OrderGateway(ServerBus &bus)
-      : bus_{bus}, worker_{*this, bus_, ServerConfig::cfg.coreGateway, true} {
+      : bus_{bus}, worker_{*this, bus_, ServerConfig::cfg().coreGateway, true} {
     bus_.subscribe<ServerOrder>(
         CRefHandler<ServerOrder>::template bind<OrderGateway, &OrderGateway::post>(this));
   }

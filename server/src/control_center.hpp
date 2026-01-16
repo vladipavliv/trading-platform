@@ -114,7 +114,7 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ServerConfig::log();
+    ServerConfig::cfg().log();
     consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }

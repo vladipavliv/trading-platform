@@ -28,7 +28,7 @@ public:
 
   inline static Vector<InternalOrderEvent> orders;
 
-  BM_Sys_OrderBookFix() { ServerConfig::load("bench_server_config.ini"); }
+  BM_Sys_OrderBookFix() { ServerConfig::cfg().load("bench_server_config.ini"); }
 
   template <typename EventType>
   void post(CRef<EventType>) {}

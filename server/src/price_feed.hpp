@@ -83,7 +83,7 @@ class PriceFeed {
 public:
   PriceFeed(ServerBus &bus, DbAdapter &dbAdapter)
       : bus_{bus}, priceUpdateTimer_{bus_.systemIoCtx()},
-        updateInterval_{ServerConfig::cfg.priceFeedRate} {
+        updateInterval_{ServerConfig::cfg().priceFeedRate} {
     const auto dataResult = dbAdapter.readTickers();
     if (!dataResult) {
       throw std::runtime_error("Failed to load tickers");

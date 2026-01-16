@@ -33,11 +33,11 @@ inline Ticker genTicker() {
 }
 
 inline BookOrderId genBookOId() {
-  static uint32_t counter = 0;
-  return BookOrderId::make(counter++, 1);
+  // static uint32_t counter = 0;
+  return BookOrderId::make(1, 1);
 }
 
-inline Order genOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
+inline Order genOrder(Ticker ticker) {
   return Order{genId(),
                getCycles(),
                ticker,
@@ -45,6 +45,8 @@ inline Order genOrder(Ticker ticker = {'G', 'O', 'O', 'G'}) {
                RNG::generate<Price>(10, 10000),
                RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
 }
+
+inline Order genOrder() { return genOrder(genTicker()); }
 
 inline InternalOrderEvent genInternalOrder() {
   Order o = genOrder();

@@ -52,10 +52,10 @@ public:
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
-          LOG_INFO_SYSTEM("LfqRunner started on core {}", coreId_.value());
+          LOG_INFO("LfqRunner started on core {}", coreId_.value());
           utils::pinThreadToCore(coreId_.value());
         } else {
-          LOG_INFO_SYSTEM("LfqRunner started");
+          LOG_INFO("LfqRunner started");
         }
 
         lfqLoop();
@@ -63,7 +63,7 @@ public:
         LOG_ERROR_SYSTEM("{}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
-      LOG_DEBUG_SYSTEM("LfqRunner finished");
+      LOG_DEBUG("LfqRunner finished");
     });
     running_.wait(false);
   }
@@ -124,7 +124,7 @@ private:
       sleeping_.store(false, std::memory_order_release);
       waiter.reset();
     }
-    LOG_DEBUG_SYSTEM("LfqLoop stop");
+    LOG_DEBUG("LfqLoop stop");
   }
 
 private:

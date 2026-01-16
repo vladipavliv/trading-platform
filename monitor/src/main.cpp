@@ -45,9 +45,8 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    MonitorConfig::load(configPath);
-    LOG_INIT(MonitorConfig::cfg.logOutput);
-    MonitorConfig::cfg.nsPerCycle = utils::getNsPerCycle();
+    MonitorConfig::cfg().load(configPath);
+    LOG_INIT(MonitorConfig::cfg().logOutput);
 
     MonitorControlCenter monitorCc;
     monitorCc.start();

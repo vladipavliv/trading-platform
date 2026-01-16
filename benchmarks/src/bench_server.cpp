@@ -8,6 +8,7 @@
 #include "config/server_config.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
+#include "schema.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/test_utils.hpp"
 
@@ -18,14 +19,13 @@ using namespace tests;
 using namespace utils;
 
 BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
-  ServerConfig::load("bench_server_config.ini");
-  LOG_INIT(ServerConfig::cfg.logOutput);
+  ServerConfig::cfg().load("bench_server_config.ini");
+  LOG_INIT(ServerConfig::cfg().logOutput);
 
   tickerCount = Config::get<size_t>("bench.ticker_count");
-  orderLimit = Config::get<size_t>("bench.order_count");
 
   tickers.gen(tickerCount);
-  orders.gen(orderLimit);
+  orders.gen(MAX_BOOK_ORDERS);
   marketData.gen(workerCount);
 
   setupBus();
@@ -44,11 +44,11 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
     throw std::runtime_error("Too many workers");
   }
 
-  ServerConfig::cfg.coresApp.clear();
-  ServerConfig::cfg.coreNetwork = getCore(0);
+  ServerConfig::cfg().coresApp.clear();
+  ServerConfig::cfg().coreNetwork = getCore(0);
 
   for (size_t i = 1; i <= workerCount; ++i) {
-    ServerConfig::cfg.coresApp.push_back(getCore(i));
+    ServerConfig::cfg().coresApp.push_back(getCore(i));
   }
 
   setupCoordinator();
@@ -93,28 +93,28 @@ void BM_Sys_ServerFix::post(const ServerEvent &ev) {
   }
 }
 
-void BM_Sys_ServerFix::post(const ServerOrderStatus &s) {
-  if (s.orderStatus.state == OrderState::Accepted) {
+void BM_Sys_ServerFix::post(CRef<InternalOrderStatus> s) {
+  if (s.state == OrderState::Accepted) {
     processed.fetch_add(1, std::memory_order_relaxed);
-  } else if (s.orderStatus.state == OrderState::Rejected) {
-    error_.store(true, std::memory_order_release);
+  } else if (s.state == OrderState::Rejected) {
+    error.store(true, std::memory_order_release);
     LOG_ERROR_SYSTEM("Increase OrderBook limit");
   }
 }
 
-BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) {
   using namespace server;
 
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
   const uint64_t ordersCount = orders.orders.size();
 
-  bus->subscribe<ServerOrderStatus>(
-      CRefHandler<ServerOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
+  bus->subscribe<InternalOrderStatus>(
+      CRefHandler<InternalOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
 
-  SpinWait waiter;
+  SpinWait waiter{SPIN_RETRIES_YIELD};
   while (state.KeepRunningBatch(ordersCount)) {
     waiter.reset();
-    if (error_.load(std::memory_order_acquire)) {
+    if (error.load(std::memory_order_acquire)) {
       state.SkipWithError("Increase OrderBook limit");
     }
     processed.store(0, std::memory_order_release);
@@ -123,14 +123,15 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
       bus->post(order);
     }
 
-    while (processed.load(std::memory_order_relaxed) < ordersCount) {
+    while (!error.load(std::memory_order_acquire) &&
+           processed.load(std::memory_order_relaxed) < ordersCount) {
       if (!++waiter) {
         break;
       }
     }
 
     if (processed.load(std::memory_order_relaxed) < ordersCount) {
-      state.SkipWithError("Failed to process all orders");
+      state.SkipWithError(std::format("Processed {} out if {}", processed.load(), ordersCount));
     }
 
     state.PauseTiming();
@@ -144,14 +145,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Throughput)(benchmark::State &state) {
   coordinator.reset();
 }
 
-BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerLatency)(benchmark::State &state) {
   using namespace server;
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   const uint64_t ordersCount = orders.orders.size();
 
-  bus->subscribe<ServerOrderStatus>(
-      CRefHandler<ServerOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
+  bus->subscribe<InternalOrderStatus>(
+      CRefHandler<InternalOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
 
   SpinWait waiter;
   auto iter = orders.orders.begin();
@@ -168,13 +169,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
     bus->post(*iter++);
 
     uint32_t cycles = 0;
-    while (!processed.load(std::memory_order_relaxed) == 0) {
+    while (!error.load(std::memory_order_acquire) &&
+           processed.load(std::memory_order_relaxed) == 0) {
       if (!++waiter) {
         break;
       }
     }
-    if (!processed.load(std::memory_order_relaxed) == 0) {
-      state.SkipWithError("Failed to process all orders");
+    if (processed.load(std::memory_order_relaxed) == 0) {
+      state.SkipWithError("Failed to process order in time");
     }
     processed.store(0, std::memory_order_relaxed);
   }
@@ -185,14 +187,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, Latency)(benchmark::State &state) {
   coordinator.reset();
 }
 
-BENCHMARK_REGISTER_F(BM_Sys_ServerFix, Throughput)
+BENCHMARK_REGISTER_F(BM_Sys_ServerFix, ServerThroughput)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)
     ->Arg(4)
     ->Unit(benchmark::kNanosecond);
 
-BENCHMARK_REGISTER_F(BM_Sys_ServerFix, Latency)
+BENCHMARK_REGISTER_F(BM_Sys_ServerFix, ServerLatency)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)

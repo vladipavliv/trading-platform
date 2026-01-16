@@ -41,6 +41,9 @@ public:
     requires Routed<Event>
   inline void post(CRef<Event> event) {
     auto &handlerRef = std::get<CRefHandler<Event>>(handlers_);
+    if (!handlerRef) {
+      throw std::runtime_error("Handler not set");
+    }
     assert(handlerRef);
     handlerRef(event);
   }

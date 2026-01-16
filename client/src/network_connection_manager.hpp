@@ -91,7 +91,7 @@ private:
     if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
       LOG_INFO_SYSTEM("Authenticating");
       state_ = ConnectionState::Connected;
-      upstreamChannel_->write(LoginRequest{ClientConfig::cfg.name, ClientConfig::cfg.password});
+      upstreamChannel_->write(LoginRequest{ClientConfig::cfg().name, ClientConfig::cfg().password});
     }
   }
 

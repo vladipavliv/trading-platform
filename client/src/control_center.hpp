@@ -76,7 +76,7 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Client go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ClientConfig::log();
+    ClientConfig::cfg().log();
     consoleReader_.printCommands();
   }
 

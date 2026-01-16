@@ -26,7 +26,6 @@
 #include "config/client_config.hpp"
 #include "control_center.hpp"
 #include "logging.hpp"
-#include "utils/time_utils.hpp"
 
 int main(int argc, char *argv[]) {
   using namespace hft;
@@ -50,12 +49,11 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    ClientConfig::load(configPath);
-    LOG_INIT(ClientConfig::cfg.logOutput);
-    ClientConfig::cfg.nsPerCycle = utils::getNsPerCycle();
+    ClientConfig::cfg().load(configPath);
+    LOG_INIT(ClientConfig::cfg().logOutput);
 
 #ifdef COMM_SHM
-    if (ClientConfig::cfg.coresApp.size() > 1) {
+    if (ClientConfig::cfg().coresApp.size() > 1) {
       throw std::logic_error("Multi-worker currently not supported for shm");
     }
 #endif

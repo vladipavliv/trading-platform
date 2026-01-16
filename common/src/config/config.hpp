@@ -54,11 +54,15 @@ struct Config {
 
   template <typename T>
   static std::optional<T> get_optional(const std::string &name) {
-    if (!data)
-      return std::nullopt;
-
-    if (auto res = data->template get_optional<T>(name)) {
-      return *res;
+    try {
+      if (!data) {
+        return std::nullopt;
+      }
+      if (auto res = data->template get_optional<T>(name)) {
+        return *res;
+      }
+    } catch (const std::exception &e) {
+      LOG_ERROR("Config optional key '{}' error: {}", name, e.what());
     }
     return std::nullopt;
   }

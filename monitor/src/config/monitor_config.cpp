@@ -8,23 +8,24 @@
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::monitor {
-
-MonitorConfig MonitorConfig::cfg;
 
 void MonitorConfig::load(CRef<String> fileName) {
   Config::load(fileName);
 
   // cores
   if (auto core = Config::get_optional<size_t>("cpu.core_system")) {
-    MonitorConfig::cfg.coreSystem = *core;
+    MonitorConfig::cfg().coreSystem = *core;
   }
 
+  nsPerCycle = utils::getNsPerCycle();
+
   // Logging
-  MonitorConfig::cfg.logOutput = Config::get<String>("log.output");
+  MonitorConfig::cfg().logOutput = Config::get<String>("log.output");
 }
 
-void MonitorConfig::log() { LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput); }
+void MonitorConfig::log() { LOG_INFO_SYSTEM("LogOutput: {}", logOutput); }
 
 } // namespace hft::monitor

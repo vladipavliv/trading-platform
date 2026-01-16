@@ -7,7 +7,6 @@
 #define HFT_SERVER_FLATORDERBOOK_HPP
 
 #include "bus/busable.hpp"
-#include "config/server_config.hpp"
 #include "constants.hpp"
 #include "container_types.hpp"
 #include "gateway/internal_order.hpp"

@@ -51,12 +51,11 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    ServerConfig::load(configPath);
-    LOG_INIT(ServerConfig::cfg.logOutput);
-    ServerConfig::cfg.nsPerCycle = utils::getNsPerCycle();
+    ServerConfig::cfg().load(configPath);
+    LOG_INIT(ServerConfig::cfg().logOutput);
 
 #ifdef COMM_SHM
-    if (ServerConfig::cfg.coresApp.size() > 1) {
+    if (ServerConfig::cfg().coresApp.size() > 1) {
       throw std::logic_error("Multi-worker currently not supported for shm");
     }
 #endif

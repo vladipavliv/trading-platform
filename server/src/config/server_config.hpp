@@ -14,7 +14,10 @@
 namespace hft::server {
 
 struct ServerConfig {
-  static ServerConfig cfg;
+  static ServerConfig &cfg() {
+    static ServerConfig config;
+    return config;
+  }
 
   // Network
   String url;
@@ -34,15 +37,11 @@ struct ServerConfig {
   uint32_t monitorRate;
   uint32_t telemetryRate;
 
-  // Data
-  size_t orderBookLimit;
-  bool orderBookPersist;
-
   // Logging
   String logOutput;
 
-  static void load(const String &fileName);
-  static void log();
+  void load(const String &fileName);
+  void log();
 };
 
 } // namespace hft::server

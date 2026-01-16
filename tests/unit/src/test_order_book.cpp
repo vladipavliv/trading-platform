@@ -35,8 +35,8 @@ public:
   Vector<InternalOrderStatus> statusq;
 
   void SetUp() override {
-    ServerConfig::load("utest_server_config.ini");
-    LOG_INIT(ServerConfig::cfg.logOutput);
+    ServerConfig::cfg().load("utest_server_config.ini");
+    LOG_INIT(ServerConfig::cfg().logOutput);
     book = std::make_unique<OrderBook>();
   }
 

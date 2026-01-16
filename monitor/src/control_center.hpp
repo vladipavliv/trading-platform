@@ -47,7 +47,7 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Monitor go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    MonitorConfig::log();
+    MonitorConfig::cfg().log();
     consoleReader_.printCommands();
   }
 

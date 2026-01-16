@@ -8,6 +8,7 @@
 #include "ptr_types.hpp"
 #include "utils/parse_utils.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::server {
 
@@ -15,21 +16,21 @@ void ServerConfig::load(CRef<String> fileName) {
   Config::load(fileName);
 
   // Network
-  cfg.url = Config::get<String>("network.url");
-  cfg.portTcpUp = Config::get<size_t>("network.port_tcp_up");
-  cfg.portTcpDown = Config::get<size_t>("network.port_tcp_down");
-  cfg.portUdp = Config::get<size_t>("network.port_udp");
+  url = Config::get<String>("network.url");
+  portTcpUp = Config::get<size_t>("network.port_tcp_up");
+  portTcpDown = Config::get<size_t>("network.port_tcp_down");
+  portUdp = Config::get<size_t>("network.port_udp");
 
   // Cores
   if (const auto core = Config::get_optional<uint16_t>("cpu.core_system")) {
-    cfg.coreSystem = *core;
+    coreSystem = *core;
     if (*core == 0) {
       throw std::runtime_error("Invalid cores configuration");
     }
   }
   if (const auto core = Config::get_optional<uint16_t>("cpu.core_network")) {
-    cfg.coreNetwork = *core;
-    if (cfg.coreSystem.has_value() && cfg.coreSystem == *core) {
+    coreNetwork = *core;
+    if (coreSystem.has_value() && coreSystem == *core) {
       throw std::runtime_error("Invalid cores configuration");
     }
     if (*core == 0) {
@@ -37,11 +38,11 @@ void ServerConfig::load(CRef<String> fileName) {
     }
   }
   if (const auto core = Config::get_optional<uint16_t>("cpu.core_gateway")) {
-    cfg.coreGateway = *core;
-    if (cfg.coreSystem.has_value() && cfg.coreSystem == *core) {
+    coreGateway = *core;
+    if (coreSystem.has_value() && coreSystem == *core) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    if (cfg.coreNetwork.has_value() && cfg.coreNetwork == *core) {
+    if (coreNetwork.has_value() && coreNetwork == *core) {
       throw std::runtime_error("Invalid cores configuration");
     }
     if (*core == 0) {
@@ -49,42 +50,34 @@ void ServerConfig::load(CRef<String> fileName) {
     }
   }
   if (const auto cores = Config::get_optional<String>("cpu.cores_app")) {
-    cfg.coresApp = utils::split<CoreId>(*cores);
-    if (cfg.coreSystem.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
-                                                *cfg.coreSystem) != cfg.coresApp.end()) {
+    coresApp = utils::split<CoreId>(*cores);
+    if (coreSystem.has_value() &&
+        std::find(coresApp.begin(), coresApp.end(), *coreSystem) != coresApp.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
-    if (cfg.coreNetwork.has_value() && std::find(cfg.coresApp.begin(), cfg.coresApp.end(),
-                                                 *cfg.coreNetwork) != cfg.coresApp.end()) {
+    if (coreNetwork.has_value() &&
+        std::find(coresApp.begin(), coresApp.end(), *coreNetwork) != coresApp.end()) {
       throw std::runtime_error("Invalid cores configuration");
     }
   }
 
-  // Rates
-  cfg.priceFeedRate = Config::get<uint32_t>("rates.price_feed_rate_us");
-  cfg.monitorRate = Config::get<uint32_t>("rates.monitor_rate_ms");
-  cfg.telemetryRate = Config::get<uint32_t>("rates.telemetry_ms");
+  nsPerCycle = utils::getNsPerCycle();
 
-  // Data
-  cfg.orderBookLimit =
-      Config::get_optional<size_t>("data.order_book_limit").value_or(ORDER_BOOK_LIMIT);
-  cfg.orderBookPersist = Config::get_optional<bool>("data.order_book_persist").value_or(false);
+  // Rates
+  priceFeedRate = Config::get<uint32_t>("rates.price_feed_rate_us");
+  monitorRate = Config::get<uint32_t>("rates.monitor_rate_ms");
+  telemetryRate = Config::get<uint32_t>("rates.telemetry_ms");
 
   // Logging
-  cfg.logOutput = Config::get<String>("log.output");
+  logOutput = Config::get<String>("log.output");
 }
 
 void ServerConfig::log() {
-  LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", cfg.url, cfg.portTcpUp, cfg.portTcpDown,
-                  cfg.portUdp);
+  LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", url, portTcpUp, portTcpDown, portUdp);
   LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} GatewayCore:{} AppCores:{} PriceFeedRate:{}µs",
-                  cfg.coreSystem.value_or(0), cfg.coreNetwork.value_or(0),
-                  cfg.coreGateway.value_or(0), toString(cfg.coresApp), cfg.priceFeedRate);
-  LOG_INFO_SYSTEM("OrderBookLimit: {} OrderBookPersist: {}", cfg.orderBookLimit,
-                  cfg.orderBookPersist);
-  LOG_INFO_SYSTEM("LogOutput: {}", cfg.logOutput);
+                  coreSystem.value_or(0), coreNetwork.value_or(0), coreGateway.value_or(0),
+                  toString(coresApp), priceFeedRate);
+  LOG_INFO_SYSTEM("LogOutput: {}", logOutput);
 }
-
-ServerConfig ServerConfig::cfg;
 
 } // namespace hft::server

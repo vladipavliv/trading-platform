@@ -36,7 +36,7 @@ private:
 
     const auto &prices = result.value();
     const ThreadId workerCount =
-        ServerConfig::cfg.coresApp.size() == 0 ? 1 : ServerConfig::cfg.coresApp.size();
+        ServerConfig::cfg().coresApp.size() == 0 ? 1 : ServerConfig::cfg().coresApp.size();
 
     MarketData data;
     data.reserve(prices.size());
