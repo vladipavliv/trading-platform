@@ -54,7 +54,7 @@ private:
       return;
     }
     LOG_INFO_SYSTEM("Connected upstream");
-    const size_t id = utils::generateConnectionId();
+    const auto id = utils::genConnectionId();
     upstreamChannel_ =
         std::make_shared<UpStreamChannel>(std::move(transport), id, UpstreamBus{bus_});
     upstreamChannel_->read();
@@ -67,7 +67,7 @@ private:
       return;
     }
     LOG_INFO_SYSTEM("Connected downstream");
-    const size_t id = utils::generateConnectionId();
+    const auto id = utils::genConnectionId();
     downstreamChannel_ =
         std::make_shared<DownStreamChannel>(std::move(transport), id, DownstreamBus{bus_});
     downstreamChannel_->read();
@@ -75,7 +75,7 @@ private:
   }
 
   void onDatagramConnected(DatagramTransport &&transport) {
-    const size_t id = utils::generateConnectionId();
+    const auto id = utils::genConnectionId();
     pricesChannel_ = std::make_shared<DatagramChannel>(std::move(transport), id, DatagramBus{bus_});
     pricesChannel_->read();
   }

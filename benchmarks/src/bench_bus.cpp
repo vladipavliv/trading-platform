@@ -9,28 +9,30 @@
 #include "config/config.hpp"
 #include "domain_types.hpp"
 #include "primitive_types.hpp"
-#include "utils/bench_utils.hpp"
+#include "utils/data_generator.hpp"
 #include "utils/lfq_runner.hpp"
-#include "utils/test_data.hpp"
+#include "utils/post_tracker.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
 using namespace utils;
 using namespace server;
+using namespace tests;
 
 constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
 constexpr double CPU_FREQ = 5.2;
 
 static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
-  using Runner = LfqRunner<InternalOrderEvent, Consumer, SystemBus>;
+  using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
-  TestTickerData tkrData{TICKER_COUNT};
-  TestOrderData orData{tkrData, ORDER_COUNT};
+  GenTickerData tkrData{TICKER_COUNT};
+  GenOrderData orData{tkrData, ORDER_COUNT};
 
   pinThreadToCore(getCore(0));
 
-  Consumer consumer{ORDER_COUNT - 1};
+  PostTracker consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
   auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));
@@ -56,13 +58,13 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
 BENCHMARK(BM_Op_LfqRunnerThroughput);
 
 static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
-  using Runner = LfqRunner<InternalOrderEvent, Consumer, SystemBus>;
+  using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
-  TestTickerData tkrData{TICKER_COUNT};
-  TestOrderData orData{tkrData, ORDER_COUNT};
+  GenTickerData tkrData{TICKER_COUNT};
+  GenOrderData orData{tkrData, ORDER_COUNT};
   pinThreadToCore(getCore(0));
 
-  Consumer consumer{ORDER_COUNT - 1};
+  PostTracker consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
   auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));

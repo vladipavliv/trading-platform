@@ -66,7 +66,7 @@ public:
   }
 
   void acceptUpstream(StreamTransport &&transport) {
-    const auto id = utils::generateConnectionId();
+    const auto id = utils::genConnectionId();
     LOG_INFO_SYSTEM("New upstream connection id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
@@ -78,7 +78,7 @@ public:
   }
 
   void acceptDownstream(StreamTransport &&transport) {
-    const auto id = utils::generateConnectionId();
+    const auto id = utils::genConnectionId();
     LOG_INFO_SYSTEM("New downstream connection Id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
@@ -150,7 +150,7 @@ private:
       LOG_ERROR_SYSTEM("Authentication failed for {}, closing channel", loginResult.connectionId);
       channel->write(LoginResponse{0, false, loginResult.error});
     } else {
-      const auto token = utils::generateToken();
+      const auto token = utils::genToken();
 
       auto newSession = std::make_shared<Session>();
       newSession->clientId = loginResult.clientId;

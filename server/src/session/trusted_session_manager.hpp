@@ -14,7 +14,6 @@
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
 #include "transport/session_channel.hpp"
-#include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {

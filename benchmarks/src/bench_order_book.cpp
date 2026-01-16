@@ -9,17 +9,18 @@
 #include "config/server_config.hpp"
 #include "container_types.hpp"
 #include "domain/server_order_messages.hpp"
-#include "execution/flat_order_book.hpp"
+#include "execution/orderbook/flat_order_book.hpp"
 #include "gateway/internal_order.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
-#include "utils/id_utils.hpp"
+#include "utils/data_generator.hpp"
 #include "utils/rng.hpp"
-#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
 using namespace server;
+using namespace utils;
+using namespace tests;
 
 class BM_Sys_OrderBookFix : public benchmark::Fixture {
 public:
@@ -37,7 +38,7 @@ public:
 
     orders.reserve(ordersCount);
     for (size_t i = 0; i < ordersCount; ++i) {
-      auto io = generateInternalOrder();
+      auto io = genInternalOrder();
       orders.emplace_back(io);
     }
   }
@@ -59,9 +60,7 @@ BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
     book.clear();
 
     for (auto &order : orders) {
-      if (book.add(order, *this)) {
-        book.match(*this);
-      }
+      book.add(order, *this);
     }
     benchmark::DoNotOptimize(counter);
   }

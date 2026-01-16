@@ -10,23 +10,23 @@
 #include "container_types.hpp"
 #include "domain/server_order_messages.hpp"
 #include "domain_types.hpp"
-#include "execution/flat_order_book.hpp"
+#include "execution/orderbook/flat_order_book.hpp"
 #include "primitive_types.hpp"
 #include "serialization/fbs/fbs_domain_serializer.hpp"
 #include "serialization/sbe/sbe_domain_serializer.hpp"
 #include "traits.hpp"
-#include "utils/id_utils.hpp"
+#include "utils/data_generator.hpp"
 #include "utils/rng.hpp"
-#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
 using namespace utils;
 using namespace server;
 using namespace serialization;
+using namespace tests;
 
 static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
-  const Order order = generateOrder();
+  const Order order = genOrder();
   ByteBuffer buffer(128);
   size_t size{0};
 
@@ -47,7 +47,7 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   bus.template subscribe<Order>(CRefHandler<Order>{});
 
   ByteBuffer buffer(128);
-  auto size = fbs::FbsDomainSerializer::serialize(generateOrder(), buffer.data());
+  auto size = fbs::FbsDomainSerializer::serialize(genOrder(), buffer.data());
 
   for (auto _ : state) {
     auto res = fbs::FbsDomainSerializer::deserialize<BusType>(buffer.data(), buffer.size(), bus);
@@ -60,7 +60,7 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
 BENCHMARK(DISABLED_BM_Ser_FbsDeserialize);
 
 static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
-  const Order order = generateOrder();
+  const Order order = genOrder();
   Vector<uint8_t> buffer(128);
   size_t size{0};
 
@@ -77,7 +77,7 @@ BENCHMARK(DISABLED_BM_Ser_SbeSerialize);
 static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
-  const Order order = generateOrder();
+  const Order order = genOrder();
   ByteBuffer buffer(128);
 
   BusType bus;

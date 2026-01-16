@@ -11,24 +11,14 @@
 
 namespace hft::utils {
 
-inline auto generateOrderId() -> uint32_t {
+inline auto genConnectionId() -> uint32_t {
   static uint64_t counter{0};
   return counter++;
 }
 
-inline auto generateConnectionId() -> uint32_t {
+inline auto genToken() -> uint32_t {
   static uint64_t counter{0};
   return counter++;
-}
-
-inline auto generateToken() -> uint32_t {
-  static uint64_t counter{0};
-  return counter++;
-}
-
-inline auto generateInternalId() -> SlotId<> {
-  static uint32_t counter{0};
-  return SlotId<>(++counter);
 }
 
 } // namespace hft::utils

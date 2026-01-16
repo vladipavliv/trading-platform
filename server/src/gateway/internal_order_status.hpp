@@ -7,15 +7,16 @@
 #define HFT_SERVER_INTERNALORDERSTATUS_HPP
 
 #include "domain_types.hpp"
-#include "internal_id.hpp"
 #include "primitive_types.hpp"
+#include "schema.hpp"
 #include "ticker.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
 
 struct InternalOrderStatus {
-  InternalOrderId id;
+  SystemOrderId id;
+  BookOrderId bookOId;
   Quantity fillQty;
   Price fillPrice;
   OrderState state;

@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <boost/lockfree/queue.hpp>
-// #include <folly/MPMCQueue.h>
+#include <folly/MPMCQueue.h>
 
 #include "containers/vyukov_mpmc.hpp"
 #include "primitive_types.hpp"
@@ -49,7 +49,7 @@ static void DISABLED_BM_Op_BoostMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(write);
 }
 BENCHMARK(DISABLED_BM_Op_BoostMpmcQueue);
-/*
+
 static void DISABLED_BM_Op_FollyMpmcQueue(benchmark::State &state) {
   auto queue = std::make_unique<folly::MPMCQueue<size_t>>(capacity);
 
@@ -67,6 +67,5 @@ static void DISABLED_BM_Op_FollyMpmcQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(write);
 }
 BENCHMARK(DISABLED_BM_Op_FollyMpmcQueue);
-*/
 
 } // namespace hft::benchmarks

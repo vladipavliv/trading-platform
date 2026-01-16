@@ -7,29 +7,32 @@
 #define HFT_SERVER_SLOTID_HPP
 
 #include "primitive_types.hpp"
+#include "utils/binary_utils.hpp"
 
 namespace hft {
 /**
  * @brief Versioned handle for O(1) array-access with ABA protection
  * Combines a static index with generation counter to allow safe reuse in flat arrays
  */
-template <typename ValueType = uint32_t, uint8_t IndexBits = 24, uint8_t GenBits = 8>
+template <uint32_t MaxCapacity = 16777216>
 class SlotId {
-  static_assert(IndexBits + GenBits <= sizeof(ValueType) * 8, "Bit count exceeds storage type");
-
-  static constexpr ValueType INDEX_MASK = (ValueType{1} << IndexBits) - 1;
-  static constexpr ValueType GEN_MASK = (ValueType{1} << GenBits) - 1;
-
 public:
-  using StorageType = ValueType;
+  static constexpr uint8_t IndexBits = utils::bitWidth(MaxCapacity);
+  static constexpr uint8_t GenBits = 32 - IndexBits;
 
-  SlotId() = default;
-  explicit constexpr SlotId(StorageType raw) : value_(raw) {}
+  static_assert(IndexBits < 32, "Capacity too large for uint32 storage");
+  static_assert(GenBits >= 1, "No bits left for generation counter");
+
+  static constexpr uint32_t INDEX_MASK = (1U << IndexBits) - 1;
+  static constexpr uint32_t GEN_MASK = (1U << GenBits) - 1;
+
+  SlotId() noexcept = default;
+  explicit constexpr SlotId(uint32_t raw) : value_(raw) {}
 
   static constexpr SlotId make(uint32_t index, uint32_t gen) {
     assert(index <= INDEX_MASK);
-    assert(gen <= GEN_MASK && gen != 0);
-    return SlotId((static_cast<StorageType>(gen) << IndexBits) | (index & INDEX_MASK));
+    assert(gen <= GEN_MASK);
+    return SlotId(((gen & GEN_MASK) << IndexBits) | (index & INDEX_MASK));
   }
 
   [[nodiscard]] constexpr uint32_t index() const noexcept {
@@ -40,11 +43,11 @@ public:
     return static_cast<uint32_t>((value_ >> IndexBits) & GEN_MASK);
   }
 
-  [[nodiscard]] constexpr StorageType raw() const noexcept { return value_; }
-  [[nodiscard]] constexpr bool isValid() const noexcept { return value_ != 0; }
+  [[nodiscard]] constexpr uint32_t raw() const noexcept { return value_; }
+  [[nodiscard]] constexpr bool isValid() const noexcept { return gen() != 0; }
 
   inline void nextGen() noexcept {
-    StorageType g = (gen() + 1) & GEN_MASK;
+    uint32_t g = (gen() + 1) & GEN_MASK;
 
     if (UNLIKELY(g == 0)) {
       g = 1;
@@ -57,11 +60,14 @@ public:
   constexpr bool operator!=(const SlotId &other) const noexcept { return value_ != other.value_; }
   explicit constexpr operator bool() const noexcept { return isValid(); }
 
+  static constexpr uint32_t capacity() { return MaxCapacity; }
+  static constexpr uint32_t indexBits() { return IndexBits; }
+  static constexpr uint32_t genBits() { return GenBits; }
   static constexpr uint32_t maxIndex() { return INDEX_MASK; }
   static constexpr uint32_t maxGen() { return GEN_MASK; }
 
 private:
-  StorageType value_;
+  uint32_t value_;
 };
 } // namespace hft
 

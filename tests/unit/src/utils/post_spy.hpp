@@ -3,8 +3,8 @@
  * @date 2025-04-24
  */
 
-#ifndef HFT_TEST_CONSUMERSPY_HPP
-#define HFT_TEST_CONSUMERSPY_HPP
+#ifndef HFT_TEST_POSTSPY_HPP
+#define HFT_TEST_POSTSPY_HPP
 
 #include <any>
 #include <typeinfo>
@@ -22,7 +22,7 @@ namespace hft::tests {
 /**
  * @brief Spy for a message consumer
  */
-struct ConsumerSpy {
+struct PostSpy {
   template <typename EventType>
   void post(CRef<EventType> event) {
     data.push_back(event);
@@ -47,7 +47,7 @@ struct ConsumerSpy {
   }
 
   void printAll() {
-    std::cout << "ConsumerSpy " << data.size() << " messages" << std::endl;
+    std::cout << "PostSpy " << data.size() << " messages" << std::endl;
     for (auto &printer : printers) {
       printer();
     }
@@ -66,4 +66,4 @@ struct ConsumerSpy {
 
 } // namespace hft::tests
 
-#endif // HFT_TEST_CONSUMERSPY_HPP
+#endif // HFT_TEST_POSTSPY_HPP

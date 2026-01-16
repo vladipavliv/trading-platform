@@ -8,7 +8,7 @@
 #include <boost/program_options.hpp>
 
 #include "adapters/telemetry_adapter.hpp"
-#include "execution/flat_order_book.hpp"
+#include "execution/orderbook/flat_order_book.hpp"
 #ifdef COMM_SHM
 #include "session/trusted_session_manager.hpp"
 #include "transport/shm/shm_server.hpp"

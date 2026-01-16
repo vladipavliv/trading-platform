@@ -12,11 +12,12 @@
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
+#include "events.hpp"
 #include "execution/coordinator.hpp"
 #include "primitive_types.hpp"
 #include "storage/storage.hpp"
 #include "types/constants.hpp"
-#include "utils/test_data.hpp"
+#include "utils/data_generator.hpp"
 
 namespace hft::benchmarks {
 
@@ -31,9 +32,9 @@ public:
   size_t workerCount{1};
   size_t orderLimit{ORDER_BOOK_LIMIT};
 
-  TestTickerData tickers;
-  TestOrderData orders;
-  TestMarketData marketData;
+  tests::GenTickerData tickers;
+  tests::GenOrderData orders;
+  tests::GenMarketData marketData;
 
   UPtr<server::Coordinator> coordinator;
 
@@ -48,8 +49,8 @@ public:
   void setupBus();
   void setupCoordinator();
 
-  void post(const ServerEvent &ev);
-  void post(const ServerOrderStatus &ev);
+  void post(const server::ServerEvent &ev);
+  void post(const server::ServerOrderStatus &ev);
 };
 
 } // namespace hft::benchmarks

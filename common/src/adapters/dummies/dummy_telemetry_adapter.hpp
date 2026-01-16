@@ -9,11 +9,11 @@
 namespace hft {
 
 template <typename BusT>
-class TelemetryAdapter {
+class DummyTelemetryAdapter {
 public:
-  TelemetryAdapter(BusT &bus, bool producer);
+  DummyTelemetryAdapter(BusT &bus, bool producer) {}
 
-  void start();
+  void start() {}
 
   void close() {}
 };

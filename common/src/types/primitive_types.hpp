@@ -65,14 +65,20 @@ enum class State : uint8_t { On, Off, Error };
 #define PREFETCH(addr)
 #endif
 
+#ifndef LIKELY
 #if defined(__GNUC__) || defined(__clang__)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#define PREFETCH(addr) __builtin_prefetch(addr)
 #else
 #define LIKELY(x) (x)
+#endif
+#endif
+
+#ifndef UNLIKELY
+#if defined(__GNUC__) || defined(__clang__)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
 #define UNLIKELY(x) (x)
-#define PREFETCH(addr)
+#endif
 #endif
 
 } // namespace hft

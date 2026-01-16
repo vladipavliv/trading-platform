@@ -18,10 +18,10 @@
 #include "traits.hpp"
 #include "utils/ctx_runner.hpp"
 #include "utils/huge_array.hpp"
+#include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/rtt_tracker.hpp"
 #include "utils/telemetry_utils.hpp"
-#include "utils/test_utils.hpp"
 #include "utils/time_utils.hpp"
 
 namespace hft::client {

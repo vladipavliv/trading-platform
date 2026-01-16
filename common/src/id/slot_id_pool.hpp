@@ -16,24 +16,22 @@ namespace hft {
 /**
  * @brief SPSC LIFO thread-safe pool of indexes
  */
-template <typename ValueType = uint32_t, uint8_t IndexBits = 24, uint8_t GenBits = 8>
+template <uint32_t MaxCapacity = 16777216>
 class SlotIdPool {
-  static constexpr uint32_t CAPACITY = 1u << IndexBits;
-  static constexpr uint32_t MASK = CAPACITY - 1;
-  static constexpr uint32_t LOCAL_CACHE_SIZE = 65536;
-  static constexpr uint32_t FRESH_CHUNK_SIZE = 1024 * 16;
-
 public:
-  using IdType = SlotId<ValueType, IndexBits, GenBits>;
-  static constexpr uint32_t Capacity = CAPACITY;
+  using IdType = SlotId<MaxCapacity>;
+
+  static constexpr uint32_t MASK = IdType::maxIndex();
+  static constexpr uint32_t CAPACITY = MASK + 1;
+
+  static constexpr uint32_t LOCAL_CACHE_SIZE = 65536;
+  static constexpr uint32_t FRESH_CHUNK_SIZE = 16384;
 
   SlotIdPool() : localTop_(0), nextFreshIdx_(1) {}
 
   [[nodiscard]] inline IdType acquire() noexcept {
     if (LIKELY(localTop_ > 0)) {
-      --localTop_;
-      LOG_DEBUG("acquire {}", localStack_[localTop_].index());
-      return localStack_[localTop_];
+      return localStack_[--localTop_];
     }
     return refill();
   }
@@ -60,7 +58,7 @@ private:
     head_.store(h, std::memory_order_release);
 
     if (localTop_ == 0) {
-      uint32_t limit = std::min(nextFreshIdx_ + FRESH_CHUNK_SIZE, IdType::maxIndex() + 1);
+      const uint32_t limit = std::min(nextFreshIdx_ + FRESH_CHUNK_SIZE, CAPACITY);
 
       while (nextFreshIdx_ < limit && localTop_ < LOCAL_CACHE_SIZE) {
         localStack_[localTop_++] = IdType::make(nextFreshIdx_++, 1);
@@ -68,13 +66,7 @@ private:
       LOG_DEBUG("Generated fresh chunk of {} IDs", localTop_);
     }
 
-    if (LIKELY(localTop_ > 0)) {
-      --localTop_;
-      LOG_DEBUG("return refilled {}", localStack_[localTop_].index());
-      return localStack_[localTop_];
-    }
-
-    return IdType{};
+    return (localTop_ > 0) ? localStack_[--localTop_] : IdType{};
   }
 
 private:
@@ -84,8 +76,8 @@ private:
   HugeArray<IdType, CAPACITY> sharedQueue_;
 
   IdType localStack_[LOCAL_CACHE_SIZE];
-  uint32_t localTop_;
-  uint32_t nextFreshIdx_;
+  uint32_t localTop_ = 0;
+  uint32_t nextFreshIdx_ = 1;
 };
 
 } // namespace hft

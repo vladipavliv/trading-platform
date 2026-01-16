@@ -8,8 +8,8 @@
 
 #include "domain_types.hpp"
 #include "id/slot_id.hpp"
-#include "internal_id.hpp"
 #include "primitive_types.hpp"
+#include "schema.hpp"
 #include "ticker.hpp"
 #include "utils/string_utils.hpp"
 
@@ -18,7 +18,8 @@ namespace hft::server {
 struct TickerData;
 
 struct InternalOrder {
-  InternalOrderId id;
+  SystemOrderId id;
+  BookOrderId bookOId;
   Quantity quantity;
   Price price;
 
@@ -40,7 +41,8 @@ struct InternalOrderEvent {
 
 namespace hft {
 inline String toString(const server::InternalOrder &event) {
-  return std::format("InternalOrder {} {} {}", event.id.raw(), event.quantity, event.price);
+  return std::format("InternalOrder {} {} {} {}", event.id.raw(), event.bookOId.raw(),
+                     event.quantity, event.price);
 }
 inline String toString(const server::InternalOrderEvent &e) {
   return std::format("InternalOrderEvent {} {} {}", toString(e.order), toString(e.action),

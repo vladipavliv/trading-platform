@@ -14,10 +14,8 @@
 namespace hft {
 template <typename... Events>
 class MessageBus;
-
 template <size_t Capacity, typename... Events>
 class StreamBus;
-
 template <typename MarketBusT = MessageBus<>>
 struct BusHub;
 
@@ -29,6 +27,8 @@ class DummyFramer;
 
 template <typename BusT>
 class TelemetryAdapter;
+template <typename BusT>
+class DummyTelemetryAdapter;
 
 namespace serialization {
 namespace fbs {

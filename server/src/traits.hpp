@@ -13,16 +13,12 @@
 namespace hft {
 template <typename... Events>
 class MessageBus;
-
 template <size_t Capacity, typename... Events>
 class StreamBus;
-
 template <typename BusT, typename... MessageTs>
 struct BusLimiter;
-
 template <typename BusT, typename... MessageTs>
 struct BusRestrictor;
-
 template <typename MarketBusT = MessageBus<>>
 struct BusHub;
 
@@ -33,14 +29,15 @@ class ShmTransport;
 class BoostTcpTransport;
 class BoostUdpTransport;
 
+template <typename SerializerType>
+class FixedSizeFramer;
 template <typename Serializer>
 class DummyFramer;
 
-template <typename SerializerType>
-class FixedSizeFramer;
-
 template <typename BusT>
 class TelemetryAdapter;
+template <typename BusT>
+class DummyTelemetryAdapter;
 
 namespace serialization {
 namespace fbs {

@@ -8,12 +8,14 @@
 #include "config/server_config.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
-#include "utils/bench_utils.hpp"
 #include "utils/spin_wait.hpp"
+#include "utils/test_utils.hpp"
 
 namespace hft::benchmarks {
 
 using namespace server;
+using namespace tests;
+using namespace utils;
 
 BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   ServerConfig::load("bench_server_config.ini");
@@ -22,9 +24,9 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   tickerCount = Config::get<size_t>("bench.ticker_count");
   orderLimit = Config::get<size_t>("bench.order_count");
 
-  tickers.generate(tickerCount);
-  orders.generate(orderLimit);
-  marketData.generate(workerCount);
+  tickers.gen(tickerCount);
+  orders.gen(orderLimit);
+  marketData.gen(workerCount);
 
   setupBus();
 }

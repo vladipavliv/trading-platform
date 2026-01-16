@@ -8,8 +8,11 @@
 
 #include <gtest/gtest.h>
 
+#include "container_types.hpp"
 #include "containers/sequenced_spsc.hpp"
+#include "domain_types.hpp"
 #include "ptr_types.hpp"
+#include "utils/data_generator.hpp"
 #include "utils/test_utils.hpp"
 
 namespace hft::tests {
@@ -25,7 +28,7 @@ TEST(SequencedSPSCTest, Basic) {
   const size_t orderSize = sizeof(Order);
 
   for (int i = 0; i < 1000; ++i) {
-    orders.push_back(generateOrder());
+    orders.push_back(genOrder());
   }
 
   uint64_t watchdog = 0;
