@@ -19,6 +19,16 @@ constexpr size_t LOG_FILE_SIZE = 100 * 1024 * 1024;
 constexpr size_t MAX_CONNECTIONS = 10;
 constexpr size_t PRICE_FLUCTUATION_RATE = 5;
 
+#ifdef CICD
+static constexpr uint32_t MAX_SYSTEM_ORDERS = 1 << 17;
+static constexpr uint32_t MAX_BOOK_ORDERS = 1 << 10;
+static constexpr uint32_t MAX_TICKS = 1 << 7;
+#else
+static constexpr uint32_t MAX_SYSTEM_ORDERS = 1 << 24;
+static constexpr uint32_t MAX_BOOK_ORDERS = 1 << 17;
+static constexpr uint32_t MAX_TICKS = 1 << 16;
+#endif
+
 } // namespace hft
 
 #endif // HFT_COMMON_TYPES_HPP

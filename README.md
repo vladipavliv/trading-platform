@@ -1,8 +1,8 @@
 ## Introduction
-Ultra-low latency trading ecosystem built with C++20 using lock-free primitives, templates, and cache-coherent memory layouts.
+Ultra-low latency trading ecosystem built with C++ using lock-free primitives, templates, and cache-coherent memory layouts.
 
 ## Tech stack
-- Language: C++20 (Atomics, Templates, Concepts), Python
+- Language: C++20 (Atomics, Templates, Concepts)
 - Networking: Boost.Asio(TCP/UDP), Shared Memory
 - Serialization: SBE (Simple Binary Encoding), FlatBuffers
 - Infrastructure: Postgres, Kafka, Folly, Spdlog
@@ -11,28 +11,28 @@ Ultra-low latency trading ecosystem built with C++20 using lock-free primitives,
 
 Benchmarks:
 ```bash
-2026-01-17T03:40:45+01:00
+2026-01-17T06:26:35+01:00
 Running ./run_benchmarks
-Run on (16 X 5232.94 MHz CPU s)
+Run on (16 X 5228.75 MHz CPU s)
 CPU Caches:
   L1 Data 48 KiB (x8)
   L1 Instruction 32 KiB (x8)
   L2 Unified 1024 KiB (x8)
   L3 Unified 98304 KiB (x1)
-Load Average: 0.09, 0.25, 0.57
+Load Average: 2.76, 1.42, 0.87
 ***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
 ------------------------------------------------------------------------------
 Benchmark                                    Time             CPU   Iterations
 ------------------------------------------------------------------------------
-BM_Sys_ServerFix/ServerThroughput/1       29.3 ns         29.3 ns     23461888 1 worker(s)
-BM_Sys_ServerFix/ServerThroughput/2       17.2 ns         17.2 ns     40632320 2 worker(s)
-BM_Sys_ServerFix/ServerThroughput/3       14.2 ns         14.2 ns     49283072 3 worker(s)
-BM_Sys_ServerFix/ServerThroughput/4       13.3 ns         13.3 ns     52822016 4 worker(s)
-BM_Sys_ServerFix/ServerLatency/1           118 ns          118 ns      5714018 1 worker(s)
-BM_Sys_ServerFix/ServerLatency/2           121 ns          121 ns      5725767 2 worker(s)
-BM_Sys_ServerFix/ServerLatency/3           122 ns          122 ns      5686773 3 worker(s)
-BM_Sys_ServerFix/ServerLatency/4           123 ns          123 ns      5751560 4 worker(s)
-BM_Sys_OrderBookFix/AddOrder              18.7 ns         18.7 ns     37879808
+BM_Sys_ServerFix/ServerThroughput/1       29.0 ns         29.0 ns     24248320 1 worker(s)
+BM_Sys_ServerFix/ServerThroughput/2       17.2 ns         17.2 ns     40894464 2 worker(s)
+BM_Sys_ServerFix/ServerThroughput/3       14.3 ns         14.3 ns     49152000 3 worker(s)
+BM_Sys_ServerFix/ServerThroughput/4       13.6 ns         13.6 ns     51642368 4 worker(s)
+BM_Sys_ServerFix/ServerLatency/1           125 ns          125 ns      5492186 1 worker(s)
+BM_Sys_ServerFix/ServerLatency/2           123 ns          123 ns      5621389 2 worker(s)
+BM_Sys_ServerFix/ServerLatency/3           126 ns          126 ns      5373182 3 worker(s)
+BM_Sys_ServerFix/ServerLatency/4           123 ns          123 ns      5627533 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder              16.4 ns         16.4 ns     43139072
 ```
 
 Manual shared memory tests:

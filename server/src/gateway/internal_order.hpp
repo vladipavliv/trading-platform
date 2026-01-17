@@ -11,6 +11,7 @@
 #include "primitive_types.hpp"
 #include "schema.hpp"
 #include "ticker.hpp"
+#include "traits.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {

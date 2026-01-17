@@ -18,6 +18,12 @@
 
 namespace hft::utils {
 
+#ifdef CICD
+static constexpr int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#else
+static constexpr int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE;
+#endif
+
 static constexpr size_t HUGE_PAGE_SIZE = 2 * 1024 * 1024;
 
 constexpr size_t alignHuge(size_t size) {
@@ -66,7 +72,7 @@ inline void *mapSharedMemory(const std::string &name, size_t size, bool create) 
     throw std::system_error(errno, std::generic_category(), "ftruncate failed");
   }
 
-  void *addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  void *addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | flags, fd, 0);
   close(fd);
 
   if (addr == MAP_FAILED) {
@@ -80,16 +86,20 @@ template <typename T = void>
 inline T *allocHuge(size_t size, bool lock = true) {
   size = alignHuge(size);
 
-  void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1, 0);
+  void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, flags, -1, 0);
+
+  if (ptr == MAP_FAILED && errno == ENOMEM) {
+    LOG_WARN("HugePages allocation failed, falling back to standard pages");
+    int fallback_flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, fallback_flags, -1, 0);
+  }
 
   if (ptr == MAP_FAILED) {
-    throw std::system_error(errno, std::generic_category(), "mmap HugePages failed");
+    throw std::system_error(errno, std::generic_category(), "mmap failed");
   }
 
   if (lock && mlock(ptr, size) != 0) {
-    munmap(ptr, size);
-    throw std::system_error(errno, std::generic_category(), "mlock failed");
+    LOG_WARN("mlock failed (likely CI limit), continuing without memory lock");
   }
 
   warmMemory(ptr, size, true);
