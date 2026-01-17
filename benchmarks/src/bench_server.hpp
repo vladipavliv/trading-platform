@@ -35,11 +35,11 @@ public:
   tests::GenOrderData orders;
   tests::GenMarketData marketData;
 
-  UPtr<server::Coordinator> coordinator;
+  ALIGN_CL AtomicUInt64 processed;
+  ALIGN_CL AtomicBool error;
+  ALIGN_CL std::atomic_flag flag{ATOMIC_FLAG_INIT};
 
-  alignas(64) AtomicUInt64 processed;
-  AtomicBool error;
-  std::atomic_flag flag{ATOMIC_FLAG_INIT};
+  UPtr<server::Coordinator> coordinator;
   std::jthread systemThread;
 
   void SetUp(const ::benchmark::State &state) override;

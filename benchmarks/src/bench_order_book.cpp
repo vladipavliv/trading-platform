@@ -14,6 +14,7 @@
 #include "gateway/internal_order.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "traits.hpp"
 #include "utils/data_generator.hpp"
 #include "utils/rng.hpp"
 
@@ -56,7 +57,7 @@ void BM_Sys_OrderBookFix::post<InternalOrderStatus>(CRef<InternalOrderStatus> s)
 }
 
 BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
-  FlatOrderBook book;
+  OrderBook book;
   while (state.KeepRunningBatch(orders.size())) {
     book.clear();
 

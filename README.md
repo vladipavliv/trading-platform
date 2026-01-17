@@ -11,7 +11,7 @@ Ultra-low latency trading ecosystem built with C++20 using lock-free primitives,
 
 Benchmarks:
 ```bash
-2026-01-13T13:22:35+01:00
+2026-01-17T03:25:23+01:00
 Running ./run_benchmarks
 Run on (16 X 5271 MHz CPU s)
 CPU Caches:
@@ -19,22 +19,20 @@ CPU Caches:
   L1 Instruction 32 KiB (x8)
   L2 Unified 1024 KiB (x8)
   L3 Unified 98304 KiB (x1)
-Load Average: 0.93, 0.52, 0.54
+Load Average: 1.24, 1.53, 1.24
 ***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
-------------------------------------------------------------------------
-Benchmark                              Time             CPU   Iterations
-------------------------------------------------------------------------
-BM_Sys_ServerFix/Throughput/1       62.8 ns         62.8 ns     11272192 1 worker(s)
-BM_Sys_ServerFix/Throughput/2       37.5 ns         37.5 ns     18874368 2 worker(s)
-BM_Sys_ServerFix/Throughput/3       27.4 ns         27.4 ns     25690112 3 worker(s)
-BM_Sys_ServerFix/Throughput/4       22.1 ns         22.1 ns     31719424 4 worker(s)
-BM_Sys_ServerFix/Latency/1           151 ns          151 ns      4408122 1 worker(s)
-BM_Sys_ServerFix/Latency/2           163 ns          163 ns      4190611 2 worker(s)
-BM_Sys_ServerFix/Latency/3           150 ns          150 ns      4552097 3 worker(s)
-BM_Sys_ServerFix/Latency/4           145 ns          145 ns      4755725 4 worker(s)
-BM_Sys_OrderBookFix/AddOrder        42.0 ns         42.0 ns     16433152
-BM_Op_LfqRunnerThroughput           19.9 ns         19.9 ns     35651584
-BM_Op_LfqRunnerTailSpy              17.7 ns         17.7 ns     39845888 Max_ns=912.885 Min_ns=0 P50_ns=9.03846 P99.9_ns=18.0769 P99_ns=18.0769
+------------------------------------------------------------------------------
+Benchmark                                    Time             CPU   Iterations
+------------------------------------------------------------------------------
+BM_Sys_ServerFix/ServerThroughput/1       29.8 ns         29.8 ns     23592960 1 worker(s)
+BM_Sys_ServerFix/ServerThroughput/2       17.2 ns         17.2 ns     41025536 2 worker(s)
+BM_Sys_ServerFix/ServerThroughput/3       14.7 ns         14.6 ns     47448064 3 worker(s)
+BM_Sys_ServerFix/ServerThroughput/4       13.7 ns         13.7 ns     51249152 4 worker(s)
+BM_Sys_ServerFix/ServerLatency/1           125 ns          125 ns      5556860 1 worker(s)
+BM_Sys_ServerFix/ServerLatency/2           125 ns          125 ns      5591859 2 worker(s)
+BM_Sys_ServerFix/ServerLatency/3           125 ns          125 ns      5590582 3 worker(s)
+BM_Sys_ServerFix/ServerLatency/4           125 ns          125 ns      5531174 4 worker(s)
+BM_Sys_OrderBookFix/AddOrder              18.0 ns         18.0 ns     39223296
 ```
 
 Manual shared memory tests:

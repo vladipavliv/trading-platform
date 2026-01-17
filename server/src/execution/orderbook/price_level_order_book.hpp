@@ -59,6 +59,7 @@ public:
   }
 
   bool add(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
+    LOG_DEBUG("Add order {}", toString(ioe));
     if (ioe.action == OrderAction::Cancel) {
       cancelOrder(ioe, consumer);
       return true;
@@ -103,6 +104,7 @@ public:
 
 private:
   uint32_t match(CRef<InternalOrder> o, Side side, BusableFor<InternalOrderStatus> auto &consumer) {
+    LOG_DEBUG("Match {}", toString(o));
     uint32_t remainingQty = o.quantity;
 
     while (remainingQty > 0) {
@@ -146,6 +148,7 @@ private:
 
   void restOrder(CRef<InternalOrder> o, Side side, uint32_t qty,
                  BusableFor<InternalOrderStatus> auto &consumer) {
+    LOG_DEBUG("restOrder {}", toString(o));
     BookOrderId localId = acquireId();
     if (UNLIKELY(!localId)) {
       LOG_ERROR("OrderBook is full");
@@ -217,6 +220,7 @@ private:
   }
 
   inline void updateOccupancy(Side side, uint32_t priceIdx, bool active) {
+    LOG_DEBUG("updateOccupancy");
     uint64_t *mask = (side == Side::Buy) ? bidMask_ : askMask_;
     const uint32_t wordIdx = priceIdx >> 6;
     const uint64_t bit = 1ULL << (priceIdx & 63);

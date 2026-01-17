@@ -94,11 +94,11 @@ void BM_Sys_ServerFix::post(const ServerEvent &ev) {
 }
 
 void BM_Sys_ServerFix::post(CRef<InternalOrderStatus> s) {
-  if (s.state == OrderState::Accepted) {
-    processed.fetch_add(1, std::memory_order_relaxed);
-  } else if (s.state == OrderState::Rejected) {
+  if (s.state == OrderState::Rejected) {
     error.store(true, std::memory_order_release);
     LOG_ERROR_SYSTEM("Increase OrderBook limit");
+  } else {
+    processed.fetch_add(1, std::memory_order_relaxed);
   }
 }
 
@@ -113,9 +113,9 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
 
   SpinWait waiter{SPIN_RETRIES_YIELD};
   while (state.KeepRunningBatch(ordersCount)) {
-    waiter.reset();
     if (error.load(std::memory_order_acquire)) {
       state.SkipWithError("Increase OrderBook limit");
+      break;
     }
     processed.store(0, std::memory_order_release);
 
@@ -123,8 +123,11 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
       bus->post(order);
     }
 
-    while (!error.load(std::memory_order_acquire) &&
-           processed.load(std::memory_order_relaxed) < ordersCount) {
+    while (processed.load(std::memory_order_relaxed) < ordersCount) {
+      if (error.load(std::memory_order_acquire)) {
+        state.SkipWithError("Increase OrderBook limit");
+        break;
+      }
       if (!++waiter) {
         break;
       }
@@ -132,11 +135,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
 
     if (processed.load(std::memory_order_relaxed) < ordersCount) {
       state.SkipWithError(std::format("Processed {} out if {}", processed.load(), ordersCount));
+      break;
     }
 
     state.PauseTiming();
     marketData.cleanup();
     state.ResumeTiming();
+
+    waiter.reset();
   }
 
   benchmark::DoNotOptimize(processed);
