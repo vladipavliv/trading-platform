@@ -14,7 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto=8 -DNDEBUG -fomit-frame-pointer")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O1 -g3 -march=native -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address -fsanitize=undefined -O1 -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address,undefined -fsanitize-address-use-after-scope -O1 -fno-omit-frame-pointer")
 set(CMAKE_CXX_FLAGS_DEBUG_VALGRIND "-g -O0 -fno-omit-frame-pointer")
 set(CMAKE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
 

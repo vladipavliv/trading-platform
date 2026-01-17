@@ -18,8 +18,9 @@ template <RefCountedShm T>
 class ShmUPtr {
 public:
   explicit ShmUPtr(CRef<String> name) : name_{name}, alignedSize_(utils::alignHuge(sizeof(T))) {
-    LOG_DEBUG_SYSTEM("ShmUPtr {}", name_);
     auto [ptr, own] = utils::mapSharedMemory(name_, alignedSize_);
+
+    LOG_DEBUG_SYSTEM("ShmUPtr ctor {} {}", name_, own ? "created" : "opened");
 
     utils::warmMemory(ptr, alignedSize_, own);
     utils::lockMemory(ptr, alignedSize_);
@@ -30,6 +31,7 @@ public:
 
   ShmUPtr(ShmUPtr &&other)
       : name_{other.name_}, alignedSize_{other.alignedSize_}, ptr_{other.ptr_} {
+    LOG_DEBUG_SYSTEM("ShmUPtr mov {}", name_);
     other.ptr_ = nullptr;
   }
 
@@ -37,12 +39,16 @@ public:
   ShmUPtr &operator=(const ShmUPtr &) = delete;
 
   ~ShmUPtr() {
-    LOG_DEBUG_SYSTEM("~ShmUPtr {}", name_);
-    bool last = ptr_ && ptr_->decrement();
+    if (!ptr_) {
+      return;
+    }
+    LOG_DEBUG_SYSTEM("~ShmUPtr dtor {}", name_);
+    bool last = ptr_->decrement();
 
     munlock(ptr_, alignedSize_);
     munmap(ptr_, alignedSize_);
     if (last) {
+      LOG_DEBUG_SYSTEM("Cleaning up {}", name_);
       unlink(name_.c_str());
     }
     ptr_ = nullptr;

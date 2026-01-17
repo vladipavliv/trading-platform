@@ -16,8 +16,6 @@ grant_perms() {
     fi
 }
 
-pkill -9 -f "hft_server|hft_client|hft_monitor" 2>/dev/null
-
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks
     grant_perms "./run_benchmarks"

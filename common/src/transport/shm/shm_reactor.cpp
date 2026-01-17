@@ -7,66 +7,99 @@
 #include "config/config.hpp"
 #include "logging.hpp"
 #include "shm_reader.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft {
 
+ShmReactor::ShmReactor(ErrorBus &&bus) : bus_{std::move(bus)} {
+  LOG_INFO_SYSTEM("ShmReactor ctor");
+  ShmReactor *expected = nullptr;
+  if (!instance.compare_exchange_strong(expected, this, std::memory_order_release)) {
+    throw std::runtime_error("ShmReactor is already initialized");
+  }
+}
+
+ShmReactor::~ShmReactor() { instance.store(nullptr, std::memory_order_release); }
+
 void ShmReactor::add(ShmReader *reader) {
   if (running_.load(std::memory_order_acquire)) {
-    throw std::runtime_error("ShmReactor::add is called after start");
+    LOG_ERROR("ShmReactor is already running");
+    return;
   }
+  LOG_DEBUG("Register ShmReader");
   readers_.push_back(reader);
 }
 
 void ShmReactor::run() {
-  LOG_DEBUG_SYSTEM("ShmReactor run");
+  if (running_.load()) {
+    LOG_ERROR_SYSTEM("ShmReactor is already running");
+    return;
+  }
+  running_.store(true, std::memory_order_release);
+  LOG_DEBUG("ShmReactor run");
   thread_ = std::jthread([this]() {
     try {
       utils::setThreadRealTime();
       const auto coreId = Config::get_optional<CoreId>("cpu.core_network");
       if (coreId.has_value()) {
-        LOG_DEBUG_SYSTEM("Pin ShmReader thread to core {}", *coreId);
+        LOG_DEBUG("Pin ShmReader thread to core {}", *coreId);
         utils::pinThreadToCore(*coreId);
       }
-      running_.store(true, std::memory_order_release);
       loop();
-      LOG_DEBUG_SYSTEM("ShmReactor::loop end");
+      LOG_DEBUG("ShmReactor::loop end");
     } catch (const std::exception &ex) {
-      LOG_ERROR_SYSTEM("Exception in ShmReader {}", ex.what());
-      running_.store(false, std::memory_order_release);
+      bus_.post(InternalError{StatusCode::Error, String("Exception in ShmReader {}") + ex.what()});
     } catch (...) {
-      LOG_ERROR_SYSTEM("Unknown exception in ShmReader");
-      running_.store(false, std::memory_order_release);
+      bus_.post(InternalError{StatusCode::Error, "Unknown exception in ShmReader"});
     }
+    running_.store(false, std::memory_order_release);
   });
 }
 
 void ShmReactor::stop() {
+  LOG_DEBUG_SYSTEM("ShmReactor stop");
   if (!running_.load(std::memory_order_acquire)) {
+    LOG_WARN_SYSTEM("already stopped");
     return;
   }
-  LOG_DEBUG_SYSTEM("ShmReactor stop");
+
   running_.store(false, std::memory_order_release);
   for (auto *rdr : readers_) {
     rdr->notify();
   }
-  if (thread_.joinable()) {
-    thread_.join();
-  }
+  utils::join(thread_);
 }
 
 void ShmReactor::loop() {
-  LOG_DEBUG_SYSTEM("ShmReactor::loop start {}", readers_.size());
-  SpinWait waiter;
+  LOG_DEBUG_SYSTEM("ShmReactor::loop start {} readers", readers_.size());
+  if (readers_.empty()) {
+    LOG_ERROR_SYSTEM("No ShmReaders registered.");
+    return;
+  }
+  SpinWait waiter{SPIN_RETRIES_WARM};
   while (running_.load(std::memory_order_acquire)) {
     bool busy = false;
-    for (auto *reader : readers_) {
-      busy |= reader->poll();
+    for (size_t i = 0; i < readers_.size(); ++i) {
+      auto res = readers_[i]->poll();
+      if (res == ShmReader::Result::Vanished) {
+        LOG_DEBUG_SYSTEM("Reader vanished");
+        readers_[i] = readers_.back();
+        readers_.pop_back();
+        if (readers_.empty()) {
+          LOG_DEBUG_SYSTEM("No more active readers");
+          break;
+        }
+        --i;
+        continue;
+      } else if (res == ShmReader::Result::Busy) {
+        busy = true;
+      }
     }
     if (busy) {
       waiter.reset();
     } else if (!++waiter) {
-      // TODO(self): fix when there is more then 1 reader
-      readers_.front()->wait();
+      readers_[0]->wait();
+      waiter.reset();
     }
   }
 }

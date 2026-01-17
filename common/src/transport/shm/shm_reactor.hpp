@@ -7,7 +7,9 @@
 #define HFT_COMMON_SHMREACTOR_HPP
 
 #include <thread>
+#include <vector>
 
+#include "bus/system_bus.hpp"
 #include "primitive_types.hpp"
 
 namespace hft {
@@ -15,14 +17,25 @@ namespace hft {
 class ShmReader;
 
 /**
- * @brief For simplicity ipc layer needs to be stopped before closing transports
+ * @brief
  */
 class ShmReactor {
+  static constexpr size_t MAX_READERS = 4;
+
 public:
-  inline static ShmReactor &instance() {
-    static ShmReactor reactor;
-    return reactor;
-  }
+  /**
+   * @brief not a singletone, but a service locator
+   */
+  inline static Atomic<ShmReactor *> instance = nullptr;
+
+  explicit ShmReactor(ErrorBus &&bus);
+  ~ShmReactor();
+
+  ShmReactor(const ShmReactor &) = delete;
+  ShmReactor &operator=(const ShmReactor &) = delete;
+
+  ShmReactor(ShmReactor &&) = delete;
+  ShmReactor &operator=(ShmReactor &&) = delete;
 
   void run();
   void stop();
@@ -32,12 +45,15 @@ public:
 
 private:
   ShmReactor() = default;
+
   void loop();
+  void cleanClosed();
 
 private:
   std::vector<ShmReader *> readers_;
   AtomicBool running_{false};
 
+  ErrorBus bus_;
   std::jthread thread_;
 };
 } // namespace hft

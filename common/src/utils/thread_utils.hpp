@@ -49,6 +49,12 @@ inline void setThreadRealTime(int priority = 99) {
   return aux & CORE_ID_MASK;
 }
 
+inline void join(std::jthread &th) {
+  if (th.joinable() && std::this_thread::get_id() != th.get_id()) {
+    th.join();
+  }
+}
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_THREADUTILS_HPP

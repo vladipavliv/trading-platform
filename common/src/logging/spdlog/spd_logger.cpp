@@ -39,6 +39,7 @@ void SpdLogger::initialize(const std::string &fileName) {
 
     fileLogger->set_pattern("%H:%M:%S.%f [%^%L%$] [%s:%#] %v");
     fileLogger->set_level(static_cast<spdlog::level::level_enum>(SPDLOG_ACTIVE_LEVEL));
+    fileLogger->flush_on(spdlog::level::debug);
     spdlog::set_default_logger(fileLogger);
   }
 }

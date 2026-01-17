@@ -19,30 +19,42 @@
 
 namespace hft {
 
+class ShmReactor;
+
 class ShmReader {
+  enum class State : uint8_t { Ready, Active, Closing, Closed };
+
 public:
+  enum class Result : uint8_t { Idle, Busy, Vanished };
+
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
   explicit ShmReader(CRef<String> name);
   ShmReader(ShmReader &&other);
-  ~ShmReader() = default;
+  ~ShmReader();
 
   ShmReader &operator=(ShmReader &&other) = delete;
   ShmReader(const ShmReader &) = delete;
 
   void asyncRx(ByteSpan buf, RxHandler clb);
-  bool poll();
+  void close();
+
+  Result poll();
+
   void wait();
   void notify();
 
 private:
+  ShmReactor &init();
   void readLoop();
 
 private:
   ShmUPtr<ShmQueue> shm_;
+  ShmReactor &reactor_;
 
   ByteSpan buf_;
   RxHandler clb_;
+  Atomic<State> state_{State::Ready};
 };
 
 } // namespace hft

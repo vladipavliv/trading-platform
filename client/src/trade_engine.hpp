@@ -22,6 +22,7 @@
 #include "utils/rng.hpp"
 #include "utils/rtt_tracker.hpp"
 #include "utils/telemetry_utils.hpp"
+#include "utils/thread_utils.hpp"
 #include "utils/time_utils.hpp"
 
 namespace hft::client {
@@ -59,9 +60,7 @@ public:
   void stop() {
     LOG_INFO_SYSTEM("Stopping trade engine");
     running_.store(false, std::memory_order_release);
-    if (worker_.joinable()) {
-      worker_.join();
-    }
+    utils::join(worker_);
   }
 
   void tradeStart() {

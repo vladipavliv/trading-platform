@@ -23,7 +23,9 @@ namespace hft::monitor {
  */
 class MonitorControlCenter {
 public:
-  MonitorControlCenter() : consoleReader_{bus_.systemBus}, telemetry_{bus_, false}, tracker_{bus_} {
+  MonitorControlCenter()
+      : reactor_{ErrorBus{bus_.systemBus}}, consoleReader_{bus_.systemBus}, telemetry_{bus_, false},
+        tracker_{bus_} {
     bus_.subscribe(
         Command::Shutdown,
         Callback::template bind<MonitorControlCenter, &MonitorControlCenter::stop>(this));
@@ -32,12 +34,12 @@ public:
   void start() {
     greetings();
     telemetry_.start();
-    ShmReactor::instance().run();
+    reactor_.run();
     bus_.run();
   }
 
   void stop() {
-    ShmReactor::instance().stop();
+    reactor_.stop();
     telemetry_.close();
     bus_.stop();
     LOG_INFO_SYSTEM("stonk");
@@ -53,6 +55,8 @@ private:
 
 private:
   MonitorBus bus_;
+
+  ShmReactor reactor_;
 
   MonitorConsoleReader consoleReader_;
   MonitorTelemetry telemetry_;

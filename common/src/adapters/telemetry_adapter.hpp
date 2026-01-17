@@ -7,6 +7,7 @@
 #define HFT_COMMON_TELEMETRYADAPTER_HPP
 
 #include "transport/shm/shm_ptr.hpp"
+#include "transport/shm/shm_reactor.hpp"
 #include "transport/shm/shm_transport.hpp"
 #include "types/container_types.hpp"
 #include "types/telemetry_types.hpp"
@@ -50,10 +51,11 @@ private:
 
 private:
   BusT &bus_;
+
   const bool producer_;
+  TelemetryMsg msg_;
 
   ShmTransport transport_;
-  TelemetryMsg msg_;
 };
 } // namespace hft
 

@@ -24,7 +24,7 @@ public:
   using StreamClb = std::function<void(ShmTransport &&transport)>;
   using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
-  explicit ShmClient(ClientBus &bus) : bus_{bus} {}
+  explicit ShmClient(ClientBus &bus) : bus_{bus}, reactor_{ErrorBus{bus_.systemBus}} {}
 
   ~ShmClient() { stop(); }
 
@@ -38,7 +38,7 @@ public:
 
   void stop() {
     LOG_INFO("ShmClient stop");
-    ShmReactor::instance().stop();
+    reactor_.stop();
     // TODO(self): Notify server we are disconnecting
   }
 
@@ -53,11 +53,13 @@ private:
       const auto name = Config::get<String>("shm.shm_downstream");
       downstreamClb_(ShmTransport::makeReader(name));
     }
-    ShmReactor::instance().run();
+    reactor_.run();
   }
 
 private:
   ClientBus &bus_;
+
+  ShmReactor reactor_;
 
   StreamClb upstreamClb_;
   StreamClb downstreamClb_;
