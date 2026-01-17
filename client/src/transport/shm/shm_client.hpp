@@ -47,11 +47,11 @@ private:
     LOG_DEBUG("ShmClient::initialize");
     if (upstreamClb_) {
       const auto name = Config::get<String>("shm.shm_upstream");
-      upstreamClb_(ShmTransport::makeWriter(name, false));
+      upstreamClb_(ShmTransport::makeWriter(name));
     }
     if (downstreamClb_) {
       const auto name = Config::get<String>("shm.shm_downstream");
-      downstreamClb_(ShmTransport::makeReader(name, false));
+      downstreamClb_(ShmTransport::makeReader(name));
     }
     ShmReactor::instance().run();
   }

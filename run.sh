@@ -10,14 +10,13 @@ export POSTGRES_DB=hft_db
 
 args=("$@")
 
-# Helper function to grant RT permissions to a binary
 grant_perms() {
     if [ -f "$1" ]; then
-        # cap_sys_nice allows setting thread priority and affinity
-        # cap_ipc_lock allows mlockall (pinning memory)
         sudo setcap 'cap_sys_nice,cap_ipc_lock=eip' "$1"
     fi
 }
+
+pkill -9 -f "hft_server|hft_client|hft_monitor" 2>/dev/null
 
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks

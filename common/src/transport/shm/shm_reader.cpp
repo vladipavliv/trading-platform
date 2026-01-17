@@ -8,12 +8,16 @@
 
 namespace hft {
 
-ShmReader::ShmReader(CRef<String> name, bool createNew) : shm_{name, createNew} {}
+ShmReader::ShmReader(CRef<String> name) : shm_{name} {}
 
 ShmReader::ShmReader(ShmReader &&other)
     : shm_{std::move(other.shm_)}, buf_{std::move(other.buf_)}, clb_{std::move(other.clb_)} {}
 
 void ShmReader::asyncRx(ByteSpan buf, RxHandler clb) {
+  if (clb_ != nullptr) {
+    LOG_ERROR_SYSTEM("ShmReader is already armed");
+    return;
+  }
   LOG_INFO_SYSTEM("asyncRx");
   buf_ = buf;
   clb_ = std::move(clb);

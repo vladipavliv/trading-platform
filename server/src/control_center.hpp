@@ -85,9 +85,9 @@ public:
     LOG_INFO_SYSTEM("stonk");
 
     ipcServer_.stop();
+    coordinator_.stop();
     gateway_.stop();
     sessionMgr_.close();
-    coordinator_.stop();
     bus_.stop();
   }
 

@@ -36,9 +36,9 @@ private:
   ShmTransport init() {
     const auto name = Config::get<String>("shm.shm_telemetry");
     if (producer_) {
-      return ShmTransport::makeWriter(name, producer_);
+      return ShmTransport::makeWriter(name);
     } else {
-      return ShmTransport::makeReader(name, producer_);
+      return ShmTransport::makeReader(name);
     }
   }
 

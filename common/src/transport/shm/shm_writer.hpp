@@ -23,7 +23,7 @@ class ShmWriter {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  ShmWriter(CRef<String> name, bool createNew) : shm_{name, createNew} {}
+  explicit ShmWriter(CRef<String> name) : shm_{name} {}
   ShmWriter(ShmWriter &&other) noexcept : shm_{std::move(other.shm_)} {}
   ~ShmWriter() = default;
 

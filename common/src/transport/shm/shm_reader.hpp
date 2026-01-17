@@ -23,7 +23,7 @@ class ShmReader {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  ShmReader(CRef<String> name, bool createNew);
+  explicit ShmReader(CRef<String> name);
   ShmReader(ShmReader &&other);
   ~ShmReader() = default;
 

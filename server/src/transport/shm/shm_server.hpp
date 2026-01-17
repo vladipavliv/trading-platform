@@ -52,11 +52,11 @@ private:
     LOG_DEBUG("ShmServer::initialize");
     if (upstreamClb_) {
       const auto name = Config::get<String>("shm.shm_upstream");
-      upstreamClb_(ShmTransport::makeReader(name, true));
+      upstreamClb_(ShmTransport::makeReader(name));
     }
     if (downstreamClb_) {
       const auto name = Config::get<String>("shm.shm_downstream");
-      downstreamClb_(ShmTransport::makeWriter(name, true));
+      downstreamClb_(ShmTransport::makeWriter(name));
     }
     ShmReactor::instance().run();
   }

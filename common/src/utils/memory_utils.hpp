@@ -19,9 +19,10 @@
 namespace hft::utils {
 
 #ifdef CICD
-static constexpr int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+static constexpr int ANON_FLAGS = MAP_PRIVATE | MAP_ANONYMOUS;
 #else
-static constexpr int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE;
+static constexpr int ANON_FLAGS = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE;
+static constexpr int SHM_FLAGS = MAP_SHARED | MAP_HUGETLB | MAP_POPULATE;
 #endif
 
 static constexpr size_t HUGE_PAGE_SIZE = 2 * 1024 * 1024;
@@ -30,18 +31,12 @@ constexpr size_t alignHuge(size_t size) {
   return (size + HUGE_PAGE_SIZE - 1) & ~(HUGE_PAGE_SIZE - 1);
 }
 
-/**
- * @brief Locks memory to prevent swapping
- */
 inline void lockMemory(void *addr, size_t size) {
   if (mlock(addr, size) != 0) {
     throw std::system_error(errno, std::generic_category(), "mlock failed");
   }
 }
 
-/**
- * @brief "Warms up" memory by touching every page.
- */
 inline void warmMemory(void *addr, size_t size, bool write = false) {
   volatile uint64_t *p = static_cast<volatile uint64_t *>(addr);
   size_t iterations = size / sizeof(uint64_t);
@@ -54,45 +49,65 @@ inline void warmMemory(void *addr, size_t size, bool write = false) {
   }
 }
 
-/**
- * @brief Maps a shared memory file.
- */
-inline void *mapSharedMemory(const std::string &name, size_t size, bool create) {
+struct ShmRes {
+  void *ptr = nullptr;
+  bool own = false;
+};
+
+inline ShmRes mapAnonymousShm(size_t size) {
+  size = alignHuge(size);
+  void *addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, ANON_FLAGS, -1, 0);
+  if (addr == MAP_FAILED) {
+    throw std::system_error(errno, std::generic_category(), "mmap anonymous failed");
+  }
+  return {addr, true};
+}
+
+inline ShmRes mapFileHuge(const std::string &path, size_t size) {
   size = alignHuge(size);
 
-  const int flags = create ? (O_CREAT | O_RDWR | O_EXCL) : O_RDWR;
-  const int fd = open(name.c_str(), flags, 0666);
-
+  int fd = open(path.c_str(), O_CREAT | O_RDWR, 0666);
   if (fd == -1) {
-    throw std::system_error(errno, std::generic_category(), "Failed to open SHM: " + name);
+    throw std::system_error(errno, std::generic_category(), "open file failed");
   }
 
-  if (create && ftruncate(fd, size) == -1) {
+  if (ftruncate(fd, size) == -1) {
     close(fd);
     throw std::system_error(errno, std::generic_category(), "ftruncate failed");
   }
 
-  void *addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | flags, fd, 0);
+  ShmRes res;
+  res.ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, SHM_FLAGS, fd, 0);
   close(fd);
-
-  if (addr == MAP_FAILED) {
+  if (res.ptr == MAP_FAILED) {
     throw std::system_error(errno, std::generic_category(), "mmap failed");
   }
 
-  return addr;
+  res.own = true;
+  return res;
+}
+
+inline ShmRes mapSharedMemory(const std::string &name, size_t size) {
+#ifdef CICD
+  return mapAnonymousShm(size);
+#else
+  return mapFileHuge(name, size);
+#endif
 }
 
 template <typename T = void>
 inline T *allocHuge(size_t size, bool lock = true) {
   size = alignHuge(size);
 
-  void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, flags, -1, 0);
+  void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, ANON_FLAGS, -1, 0);
 
+#ifndef CICD
   if (ptr == MAP_FAILED && errno == ENOMEM) {
     LOG_WARN("HugePages allocation failed, falling back to standard pages");
     int fallback_flags = MAP_PRIVATE | MAP_ANONYMOUS;
     ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, fallback_flags, -1, 0);
   }
+#endif
 
   if (ptr == MAP_FAILED) {
     throw std::system_error(errno, std::generic_category(), "mmap failed");

@@ -9,43 +9,43 @@
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "shm_concepts.hpp"
 #include "utils/memory_utils.hpp"
 
 namespace hft {
 
-template <typename T>
+template <RefCountedShm T>
 class ShmUPtr {
 public:
-  ShmUPtr(CRef<String> name, bool createNew)
-      : name_{name}, createNew_{createNew}, alignedSize_(utils::alignHuge(sizeof(T))) {
-    LOG_DEBUG_SYSTEM("ShmUPtr {} {}", name, createNew);
-    if (createNew_) {
-      unlink(name_.c_str());
-    }
-    void *addr = utils::mapSharedMemory(name_, alignedSize_, createNew_);
+  explicit ShmUPtr(CRef<String> name) : name_{name}, alignedSize_(utils::alignHuge(sizeof(T))) {
+    LOG_DEBUG_SYSTEM("ShmUPtr {}", name_);
+    auto [ptr, own] = utils::mapSharedMemory(name_, alignedSize_);
 
-    utils::warmMemory(addr, alignedSize_, createNew_);
-    utils::lockMemory(addr, alignedSize_);
+    utils::warmMemory(ptr, alignedSize_, own);
+    utils::lockMemory(ptr, alignedSize_);
 
-    ptr_ = createNew_ ? (new (addr) T()) : static_cast<T *>(addr);
+    ptr_ = own ? (new (ptr) T()) : static_cast<T *>(ptr);
+    ptr_->increment();
   }
 
   ShmUPtr(ShmUPtr &&other)
-      : name_{other.name_}, createNew_{other.createNew_}, alignedSize_{other.alignedSize_},
-        ptr_{other.ptr_} {
+      : name_{other.name_}, alignedSize_{other.alignedSize_}, ptr_{other.ptr_} {
     other.ptr_ = nullptr;
   }
 
+  ShmUPtr(const ShmUPtr &) = delete;
+  ShmUPtr &operator=(const ShmUPtr &) = delete;
+
   ~ShmUPtr() {
-    if (ptr_) {
-      LOG_DEBUG_SYSTEM("~ShmUPtr {}", name_);
-      munlock(ptr_, alignedSize_);
-      munmap(ptr_, alignedSize_);
-      if (createNew_) {
-        unlink(name_.c_str());
-      }
-      ptr_ = nullptr;
+    LOG_DEBUG_SYSTEM("~ShmUPtr {}", name_);
+    bool last = ptr_ && ptr_->decrement();
+
+    munlock(ptr_, alignedSize_);
+    munmap(ptr_, alignedSize_);
+    if (last) {
+      unlink(name_.c_str());
     }
+    ptr_ = nullptr;
   }
 
   T *get() const { return ptr_; }
@@ -53,7 +53,6 @@ public:
 
 private:
   const String name_;
-  const bool createNew_;
   const size_t alignedSize_;
 
   T *ptr_{nullptr};

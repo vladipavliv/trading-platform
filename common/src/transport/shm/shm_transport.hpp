@@ -20,15 +20,15 @@ public:
 
   enum class Type : uint8_t { None, Reader, Writer };
 
-  static ShmTransport makeReader(CRef<String> name, bool createNew) {
+  static ShmTransport makeReader(CRef<String> name) {
     ShmTransport t(Type::Reader);
-    t.reader_.emplace(name, createNew);
+    t.reader_.emplace(name);
     return t;
   }
 
-  static ShmTransport makeWriter(CRef<String> name, bool createNew) {
+  static ShmTransport makeWriter(CRef<String> name) {
     ShmTransport t(Type::Writer);
-    t.writer_.emplace(name, createNew);
+    t.writer_.emplace(name);
     return t;
   }
 

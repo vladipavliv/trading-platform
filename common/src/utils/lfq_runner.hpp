@@ -92,6 +92,7 @@ public:
     SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {
       if (!++waiter) {
+        LOG_ERROR("Failed to post to LfqRunner");
         break;
       }
     }
@@ -144,13 +145,13 @@ private:
 private:
   const Optional<CoreId> coreId_;
 
-  alignas(64) Queue queue_;
-  alignas(64) AtomicBool running_{false};
-  alignas(64) AtomicBool sleeping_{false};
-  alignas(64) AtomicUInt32 ftx_{0};
-  alignas(64) uint64_t wakeCounter_{0};
+  ALIGN_CL Queue queue_;
+  ALIGN_CL AtomicBool running_{false};
+  ALIGN_CL AtomicBool sleeping_{false};
+  ALIGN_CL AtomicUInt32 ftx_{0};
+  ALIGN_CL uint64_t wakeCounter_{0};
 
-  alignas(64) ConsumerT &consumer_;
+  ALIGN_CL ConsumerT &consumer_;
   BusT &bus_;
   std::jthread thread_;
 };
