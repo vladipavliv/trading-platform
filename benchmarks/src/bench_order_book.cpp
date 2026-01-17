@@ -10,6 +10,7 @@
 #include "container_types.hpp"
 #include "domain/server_order_messages.hpp"
 #include "execution/orderbook/flat_order_book.hpp"
+#include "execution/orderbook/price_level_order_book.hpp"
 #include "gateway/internal_order.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"

@@ -11,6 +11,7 @@
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "execution/orderbook/flat_order_book.hpp"
+#include "execution/orderbook/price_level_order_book.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
 

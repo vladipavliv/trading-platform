@@ -156,7 +156,8 @@ private:
     LOG_DEBUG("{}", toString(s));
     switch (s.state) {
     case OrderState::Rejected:
-      LOG_ERROR_SYSTEM("Order {} was rejected", toString(s));
+      LOG_ERROR_SYSTEM("{}", toString(s));
+      LOG_ERROR_SYSTEM("Order was rejected, stopping");
       tradeStop();
       break;
     default:

@@ -39,5 +39,5 @@ BM_Op_LfqRunnerTailSpy              17.7 ns         17.7 ns     39845888 Max_ns=
 
 Manual shared memory tests:
 ```bash
-19:31:43.213764 [I] Rps: 4,245,219 Rtt: [<1µs|>1µs] 99.19% avg:384ns | 0.81% avg:3µs | Max:18µs
+01:36:57.832642 [I] Rps: 5,335,230 Rtt: [<1µs|>1µs] 99.66% avg:320ns | 0.34% avg:3µs | Max:18µs
 ```

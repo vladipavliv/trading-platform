@@ -72,10 +72,12 @@ class CommandParser;
 class BoostIpcServer;
 class NetworkSessionManager;
 class TrustedSessionManager;
-class FlatOrderBook;
 struct InternalOrderEvent;
 struct InternalOrder;
 struct InternalOrderStatus;
+
+class FlatOrderBook;
+class PriceLevelOrderBook;
 
 template <typename BusT>
 using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
@@ -123,7 +125,8 @@ using ServerTelemetry = TelemetryAdapter<ServerBus>;
 using ServerTelemetry = DummyTelemetryAdapter<ServerBus>;
 #endif
 
-using OrderBook = FlatOrderBook;
+// using OrderBook = FlatOrderBook;
+using OrderBook = PriceLevelOrderBook;
 
 } // namespace hft::server
 

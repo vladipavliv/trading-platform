@@ -48,7 +48,7 @@ public:
     }
   }
 
-  void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_HOT) {
+  void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_WARM) {
     LOG_DEBUG("ShmTransport asyncTx");
     if (type_ == Type::Writer) {
       writer_->asyncTx(buffer, std::move(clb), retry);
