@@ -15,6 +15,7 @@
 #include "constants.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft {
 

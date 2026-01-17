@@ -16,7 +16,7 @@ namespace hft {
 
 class SpinWait {
 public:
-  explicit SpinWait(size_t cap = /*SPIN_RETRIES_WARM*/ SPIN_RETRIES_YIELD) : cap_{cap} {}
+  explicit SpinWait(size_t cap = SPIN_RETRIES_WARM) : cap_{cap} {}
 
   inline bool operator++() noexcept {
     if (cycles_ >= cap_) {
