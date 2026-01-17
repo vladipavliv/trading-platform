@@ -23,8 +23,11 @@ class ShmWriter {
 public:
   using RxHandler = std::move_only_function<void(IoResult, size_t)>;
 
-  explicit ShmWriter(CRef<String> name) : shm_{name} {}
-  ShmWriter(ShmWriter &&other) noexcept : shm_{std::move(other.shm_)} {}
+  explicit ShmWriter(CRef<String> name) : closed_{false}, shm_{name} {}
+  ShmWriter(ShmWriter &&other) noexcept
+      : closed_{other.closed_.load(std::memory_order_acquire)}, shm_{std::move(other.shm_)} {
+    other.closed_.store(true, std::memory_order_release);
+  }
   ~ShmWriter() = default;
 
   ShmWriter(const ShmWriter &) = delete;
@@ -43,7 +46,10 @@ public:
     clb(IoResult::Ok, buffer.size());
   }
 
+  void close() { closed_.store(true, std::memory_order_release); }
+
 private:
+  AtomicBool closed_;
   ShmUPtr<ShmQueue> shm_;
 };
 

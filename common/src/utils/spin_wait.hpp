@@ -16,7 +16,7 @@ namespace hft {
 
 class SpinWait {
 public:
-  explicit SpinWait(uint32_t cap = SPIN_RETRIES_WARM) : cap_{cap} {}
+  explicit SpinWait(size_t cap = SPIN_RETRIES_WARM) : cap_{cap} {}
 
   inline bool operator++() noexcept {
     if (cycles_ >= cap_) {
@@ -38,11 +38,11 @@ public:
 
   inline void reset() noexcept { cycles_ = 0; }
 
-  inline uint32_t cycles() noexcept { return cycles_; }
+  inline size_t cycles() noexcept { return cycles_; }
 
 private:
-  const uint32_t cap_{0};
-  uint32_t cycles_{0};
+  const size_t cap_{0};
+  size_t cycles_{0};
 };
 
 } // namespace hft

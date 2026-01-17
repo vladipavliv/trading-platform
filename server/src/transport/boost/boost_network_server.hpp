@@ -18,12 +18,12 @@
 #include "transport/boost/boost_network_types.hpp"
 #include "transport/boost/boost_tcp_transport.hpp"
 #include "transport/boost/boost_udp_transport.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft::server {
 
 /**
- * @brief Runs network io_context. Starts tcp acceptors and broadcast service
- * Redirects accepted tcp sockets to the gateway
+ * @brief
  */
 class BoostIpcServer {
 public:
@@ -81,9 +81,7 @@ public:
       return;
     }
     ioCtx_.stop();
-    if (workerThread_.joinable()) {
-      workerThread_.join();
-    }
+    utils::join(workerThread_);
   }
 
   auto getHook() -> std::function<void(Callback &&clb)> {

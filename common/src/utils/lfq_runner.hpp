@@ -20,6 +20,7 @@
 #include "types/functional_types.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
+#include "utils/thread_utils.hpp"
 
 namespace hft {
 
@@ -77,11 +78,9 @@ public:
     }
     LOG_DEBUG("LfqRunner stop");
     running_.store(false, std::memory_order_release);
-    ftx_.store(++wakeCounter_, std::memory_order_release);
+    ftx_.fetch_add(1, std::memory_order_release);
     utils::futexWake(ftx_);
-    if (thread_.joinable()) {
-      thread_.join();
-    }
+    utils::join(thread_);
   }
 
   inline void post(CRef<MessageT> message) {
@@ -97,7 +96,7 @@ public:
       }
     }
     if (sleeping_.load(std::memory_order_seq_cst)) [[unlikely]] {
-      ftx_.store(++wakeCounter_, std::memory_order_release);
+      ftx_.fetch_add(1, std::memory_order_release);
       utils::futexWake(ftx_);
     }
   }
@@ -149,7 +148,6 @@ private:
   ALIGN_CL AtomicBool running_{false};
   ALIGN_CL AtomicBool sleeping_{false};
   ALIGN_CL AtomicUInt32 ftx_{0};
-  ALIGN_CL uint64_t wakeCounter_{0};
 
   ALIGN_CL ConsumerT &consumer_;
   BusT &bus_;

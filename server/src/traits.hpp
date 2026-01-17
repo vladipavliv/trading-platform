@@ -75,6 +75,7 @@ class TrustedSessionManager;
 struct InternalOrderEvent;
 struct InternalOrder;
 struct InternalOrderStatus;
+class PriceLevelOrderBook;
 
 class FlatOrderBook;
 class PriceLevelOrderBook;

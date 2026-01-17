@@ -33,10 +33,11 @@ struct alignas(utils::HUGE_PAGE_SIZE) ShmQueue {
   }
 
   void wait() {
-    LOG_DEBUG("ShmQueue wait");
+    LOG_DEBUG("ShmQueue wait start");
     const auto ftxVal = futex.load(std::memory_order_acquire);
     waitFlag.store(true, std::memory_order_release);
     utils::futexWait(futex, ftxVal);
+    LOG_DEBUG("ShmQueue wait end");
     waitFlag.store(false, std::memory_order_release);
   }
 

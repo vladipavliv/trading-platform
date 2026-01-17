@@ -63,29 +63,30 @@ inline ShmRes mapAnonymousShm(size_t size) {
   return {addr, true};
 }
 
+#ifndef CICD
 inline ShmRes mapFileHuge(const std::string &path, size_t size) {
   size = alignHuge(size);
 
+  struct stat st;
+  bool existed = (stat(path.c_str(), &st) == 0);
+
   int fd = open(path.c_str(), O_CREAT | O_RDWR, 0666);
   if (fd == -1) {
-    throw std::system_error(errno, std::generic_category(), "open file failed");
+    throw std::system_error(errno, std::generic_category(), String("open file failed") + path);
   }
-
-  if (ftruncate(fd, size) == -1) {
+  if (!existed && ftruncate(fd, size) == -1) {
     close(fd);
-    throw std::system_error(errno, std::generic_category(), "ftruncate failed");
+    throw std::system_error(errno, std::generic_category(), String("ftruncate file failed") + path);
   }
-
-  ShmRes res;
-  res.ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, SHM_FLAGS, fd, 0);
+  void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, SHM_FLAGS, fd, 0);
   close(fd);
-  if (res.ptr == MAP_FAILED) {
-    throw std::system_error(errno, std::generic_category(), "mmap failed");
+  if (ptr == MAP_FAILED) {
+    throw std::system_error(errno, std::generic_category(), String("mmap file failed") + path);
   }
 
-  res.own = true;
-  return res;
+  return {ptr, !existed};
 }
+#endif
 
 inline ShmRes mapSharedMemory(const std::string &name, size_t size) {
 #ifdef CICD

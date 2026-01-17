@@ -58,8 +58,11 @@ public:
   }
 
   void close() {
-    if (ShmReactor::instance().running()) {
-      throw std::runtime_error("Reactor should be stopped before closing connections");
+    if (reader_.has_value()) {
+      reader_->close();
+    }
+    if (writer_.has_value()) {
+      writer_->close();
     }
   }
 
