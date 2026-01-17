@@ -72,6 +72,10 @@ inline String formatNs(uint64_t ns) {
   }
 }
 
+/**
+ * @brief Number thousandifier
+ * @return Thousandified number. A number, that has gone through thousandification procedures
+ */
 template <std::integral T>
 std::string thousandify(T value) {
   std::string s = std::to_string(value);

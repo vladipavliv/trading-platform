@@ -120,8 +120,10 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
     processed.store(0, std::memory_order_release);
 
     for (const auto &order : orders.orders) {
+      benchmark::DoNotOptimize(&order);
       bus->post(order);
     }
+    benchmark::ClobberMemory();
 
     while (processed.load(std::memory_order_relaxed) < ordersCount) {
       if (error.load(std::memory_order_acquire)) {
@@ -144,8 +146,6 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
 
     waiter.reset();
   }
-
-  benchmark::DoNotOptimize(processed);
 
   coordinator->stop();
   coordinator.reset();
@@ -172,7 +172,9 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerLatency)(benchmark::State &state) {
       state.ResumeTiming();
     }
 
+    benchmark::DoNotOptimize(&*iter);
     bus->post(*iter++);
+    benchmark::ClobberMemory();
 
     uint32_t cycles = 0;
     while (!error.load(std::memory_order_acquire) &&

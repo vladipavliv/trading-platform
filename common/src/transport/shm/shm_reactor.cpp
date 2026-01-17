@@ -65,6 +65,7 @@ void ShmReactor::loop() {
     if (busy) {
       waiter.reset();
     } else if (!++waiter) {
+      // TODO(self): fix when there is more then 1 reader
       readers_.front()->wait();
     }
   }
