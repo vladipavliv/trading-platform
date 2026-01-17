@@ -19,7 +19,7 @@ namespace hft::monitor {
  * @brief
  */
 class LatencyTracker {
-  using Tracker = RttTracker<1000>;
+  using Tracker = RttTracker<RTT_RANGES>;
 
 public:
   explicit LatencyTracker(MonitorBus &bus)

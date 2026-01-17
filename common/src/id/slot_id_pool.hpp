@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_SLOTIDPOOL_HPP
 #define HFT_SERVER_SLOTIDPOOL_HPP
 
+#include "constants.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "slot_id.hpp"
@@ -16,7 +17,7 @@ namespace hft {
 /**
  * @brief SPSC LIFO thread-safe pool of indexes
  */
-template <uint32_t MaxCapacity = 16777216>
+template <uint32_t MaxCapacity = MAX_SYSTEM_ORDERS>
 class SlotIdPool {
 public:
   using IdType = SlotId<MaxCapacity>;

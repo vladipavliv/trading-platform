@@ -32,8 +32,6 @@ namespace hft::client {
  * Later on maybe will add proper algorithms
  */
 class TradeEngine {
-  static constexpr size_t ORDER_LIMIT = 16777216;
-  // static constexpr size_t ORDER_LIMIT = 524288;
 
   struct ClientOrder {
     Order order;
@@ -93,7 +91,7 @@ private:
         }
         tradeLoop();
       } catch (const std::exception &ex) {
-        LOG_ERROR("Exception in trade engine loop {}", ex.what());
+        LOG_ERROR_SYSTEM("Exception in trade engine loop {}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
     }};
@@ -202,7 +200,7 @@ private:
   std::jthread worker_;
 
   // SlotIdPool<> idPool_;
-  // HugeArray<ClientOrder, ORDER_LIMIT> orders_;
+  // HugeArray<ClientOrder, MAX_SYSTEM_ORDERS> orders_;
 
   alignas(64) AtomicUInt64 placed_{0};
   alignas(64) AtomicUInt64 fulfilled_{0};

@@ -44,6 +44,7 @@ public:
 
 private:
   void initialize() {
+    LOG_DEBUG("ShmClient::initialize");
     if (upstreamClb_) {
       const auto name = Config::get<String>("shm.shm_upstream");
       upstreamClb_(ShmTransport::makeWriter(name, false));

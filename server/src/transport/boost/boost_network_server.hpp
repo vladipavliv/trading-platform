@@ -68,6 +68,10 @@ public:
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
         ioCtx_.stop();
         bus_.post(InternalError(StatusCode::Error, e.what()));
+      } catch (...) {
+        LOG_ERROR_SYSTEM("Unknown exception in ShmReader");
+        ioCtx_.stop();
+        bus_.post(InternalError(StatusCode::Error, "Unknown"));
       }
     });
   }

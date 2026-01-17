@@ -6,6 +6,7 @@
 #ifndef HFT_SERVER_SLOTID_HPP
 #define HFT_SERVER_SLOTID_HPP
 
+#include "constants.hpp"
 #include "primitive_types.hpp"
 #include "utils/binary_utils.hpp"
 
@@ -14,7 +15,7 @@ namespace hft {
  * @brief Versioned handle for O(1) array-access with ABA protection
  * Combines a static index with generation counter to allow safe reuse in flat arrays
  */
-template <uint32_t MaxCapacity = 16777216>
+template <uint32_t MaxCapacity = MAX_SYSTEM_ORDERS>
 class SlotId {
 public:
   static constexpr uint8_t IndexBits = utils::bitWidth(MaxCapacity);

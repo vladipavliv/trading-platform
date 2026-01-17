@@ -62,6 +62,9 @@ public:
       } catch (const std::exception &ex) {
         LOG_ERROR_SYSTEM("{}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
+      } catch (...) {
+        LOG_ERROR_SYSTEM("Unknown exception in ShmReader");
+        bus_.post(InternalError{StatusCode::Error, "Unknown"});
       }
       LOG_DEBUG("LfqRunner finished");
     });
