@@ -54,10 +54,9 @@ namespace hft::server {
  * offloading it right away to another thread.
  * Network and gateway threads touch in the gateway. Ensuring they do not touch the same data
  * is done via thread safe id pool, network thread allocates the id, writes the record producing
- * InternalOrderEvent for the worker, and never touches that record again.
- * Gateway thread can access that record only when status notification comes from the worker,
- * and from that point it fully manages the record.
- * When order gets closed, id of the record gets returned to the pool
+ * InternalOrderEvent for the worker, and never touches that record, until its released to the pool.
+ * Gateway thread takes over that record when status notification comes from the worker,
+ * until order gets closed, when it releases id to the pool
  */
 class ControlCenter {
   using PricesChannel = Channel<DatagramTransport, DatagramBus>;

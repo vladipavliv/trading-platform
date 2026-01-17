@@ -13,6 +13,7 @@
 
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "vyukov_mpmc.hpp"
 
 namespace hft {
 
@@ -54,51 +55,29 @@ public:
   BufferPool &operator=(const BufferPool &) = delete;
 
   inline auto acquire() -> BufferPtr {
-    uint32_t current = freePtr_.load(std::memory_order_relaxed);
-    while (true) {
-      if (current == 0) [[unlikely]] {
+    uint32_t index = 0;
+    if (!indexQueue_.pop(index)) {
+      index = nextFreeIdx_.fetch_add(1, std::memory_order_relaxed);
+      if (index >= PoolSize) {
         LOG_ERROR("BufferPool exhausted");
         return BufferPtr{};
       }
-
-      uint32_t next = current - 1;
-      if (freePtr_.compare_exchange_weak(current, next, std::memory_order_acquire,
-                                         std::memory_order_relaxed)) {
-        uint32_t idx = freeIndices_[next];
-        return {&storage_[idx * BufferCapacity], idx};
-      }
     }
+    return {&storage_[index * BufferCapacity], index};
   }
 
   inline void release(uint32_t index) noexcept {
-    uint32_t current = freePtr_.load(std::memory_order_relaxed);
-    while (true) {
-      if (current >= PoolSize) [[unlikely]] {
-        LOG_ERROR("Double release detected for index {}", index);
-        assert(false);
-        return;
-      }
-
-      uint32_t next = current + 1;
-      freeIndices_[current] = index;
-      if (freePtr_.compare_exchange_weak(current, next, std::memory_order_release,
-                                         std::memory_order_relaxed)) {
-        return;
-      }
+    if (!indexQueue_.push(index)) {
+      LOG_ERROR_SYSTEM("Index double release in BufferPool");
     }
   }
 
 private:
-  BufferPool() : freePtr_(PoolSize) {
-    for (uint32_t i = 0; i < PoolSize; ++i) {
-      freeIndices_[i] = i;
-    }
-    std::memset(storage_.data(), 0, BufferCapacity * PoolSize);
-  }
+  BufferPool() : nextFreeIdx_(0) {}
 
-  alignas(64) std::array<uint8_t, BufferCapacity * PoolSize> storage_;
-  alignas(64) std::array<uint32_t, PoolSize> freeIndices_;
-  alignas(64) std::atomic<uint32_t> freePtr_;
+  ALIGN_CL std::array<uint8_t, BufferCapacity * PoolSize> storage_;
+  ALIGN_CL VyukovMPMC<uint32_t, PoolSize> indexQueue_;
+  ALIGN_CL AtomicUInt32 nextFreeIdx_;
 };
 
 } // namespace hft
