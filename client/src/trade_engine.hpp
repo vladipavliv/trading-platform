@@ -93,7 +93,7 @@ private:
         }
         tradeLoop();
       } catch (const std::exception &ex) {
-        LOG_ERROR("Exception in trade engine loop {}", ex.what());
+        LOG_ERROR_SYSTEM("Exception in trade engine loop {}", ex.what());
         bus_.post(InternalError{StatusCode::Error, ex.what()});
       }
     }};

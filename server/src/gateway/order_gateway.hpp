@@ -77,11 +77,13 @@ private:
     }
     switch (so.order.action) {
     case OrderAction::Dummy:
+      LOG_DEBUG("Dummy order received");
       break;
     case OrderAction::Cancel:
       cancelOrder(so);
       break;
     case OrderAction::Modify:
+      LOG_DEBUG("Modify request received");
       // TODO(self)
       break;
     default:

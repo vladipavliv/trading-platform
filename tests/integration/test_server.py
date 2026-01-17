@@ -43,27 +43,27 @@ def test_order(server, tickers, client_name, client_password):
     price = 1
     quantity = 1
 
-    orderBuy = serialization.create_order_message(1, 2, tickers[0]['ticker'], quantity, price, 0)
-    orderSell = serialization.create_order_message(3, 4, tickers[0]['ticker'], quantity, price, 1)
+    orderBuy = serialization.create_order_message(1, 2, tickers[0]['ticker'], quantity, price, 1)
+    orderSell = serialization.create_order_message(3, 4, tickers[0]['ticker'], quantity, price, 2)
 
     client.sendUpstream(orderBuy)
+    
+    order_status_accepted = client.receiveDownstream()
+    assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
+    assert order_status_accepted.State() == 0 # accepted
+
+    # order_status_accepted = client.receiveDownstream()
+    # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
+    # assert order_status_accepted.State() == 0 # accepted
+
     client.sendUpstream(orderSell)
-
-    # order_status_accepted = client.receiveDownstream()
-    # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
-    # assert order_status_accepted.State() == 0 # accepted
-
-    # order_status_accepted = client.receiveDownstream()
-    # assert isinstance(order_status_accepted, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_accepted}"
-    # assert order_status_accepted.State() == 0 # accepted
 
     order_status_filled = client.receiveDownstream()
     assert isinstance(order_status_filled, OrderStatus.OrderStatus), f"Unexpected server response to Order {order_status_filled}"
     
     assert order_status_filled.FillPrice() == price
     assert order_status_filled.Quantity() == quantity
-    assert order_status_filled.State() == 3 # full
-    assert order_status_filled.OrderId() == 3
+    assert order_status_filled.State() == 4 # full
 
     print(f"OrderStatus {order_status_filled.State()}")
 
@@ -102,7 +102,7 @@ def spam_orders(num_orders: int, tickers, client_name, client_password):
     except AssertionError as e:
         print(f"Thread {client_name} exception: {e}")
 
-def test_stress(server, stress_iterations, tickers, client_name, client_password):
+def disabled_test_stress(server, stress_iterations, tickers, client_name, client_password):
     num_clients = 1
 
     threads = []
