@@ -125,8 +125,8 @@ using ServerTelemetry = TelemetryAdapter<ServerBus>;
 using ServerTelemetry = DummyTelemetryAdapter<ServerBus>;
 #endif
 
-using OrderBook = FlatOrderBook;
-// using OrderBook = PriceLevelOrderBook;
+// using OrderBook = FlatOrderBook;
+using OrderBook = PriceLevelOrderBook;
 
 } // namespace hft::server
 

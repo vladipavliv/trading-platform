@@ -10,6 +10,7 @@
 #include "config/server_config.hpp"
 #include "execution/orderbook/flat_order_book.hpp"
 #include "execution/orderbook/price_level_order_book.hpp"
+#include "traits.hpp"
 #include "utils/data_generator.hpp"
 #include "utils/test_utils.hpp"
 
@@ -23,12 +24,20 @@ ClientId cId() { return genId(); }
 OrderId oId() { return genId(); }
 Timestamp ts() { return getTimestampNs(); }
 
+BookOrderId booId() {
+  static uint32_t counter;
+  return BookOrderId::make(counter++, 1);
+}
+
+SystemOrderId syoId() {
+  static uint32_t counter;
+  return SystemOrderId::make(counter++, 1);
+}
+
 const OrderAction BUY = OrderAction::Buy;
 const OrderAction SELL = OrderAction::Sell;
 const Ticker tkr = genTicker();
 } // namespace
-
-using OrderBook = PriceLevelOrderBook;
 
 class OrderBookFixture : public ::testing::Test {
 public:
@@ -56,10 +65,7 @@ public:
   template <typename EventType>
   void post(CRef<EventType>) {}
 
-  void addOrder(InternalOrderEvent order) {
-    book->add(order, *this);
-    book->sendAck(order, *this);
-  }
+  void addOrder(InternalOrderEvent order) { book->add(order, *this); }
 };
 
 template <>
@@ -67,36 +73,40 @@ void OrderBookFixture::post<InternalOrderStatus>(CRef<InternalOrderStatus> event
   statusq.push_back(event);
 }
 
+auto makeOrder(uint32_t qty, uint32_t price, OrderAction action) -> InternalOrderEvent {
+  return {{syoId(), booId(), qty, price}, nullptr, tkr, action};
+}
+
 TEST_F(OrderBookFixture, OrdersWontMatch) {
   statusq.clear();
 
-  uint32_t id = 0;
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 40}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 50}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 60}, nullptr, tkr, SELL});
+  addOrder(makeOrder(1, 40, SELL));
+  addOrder(makeOrder(1, 50, SELL));
+  addOrder(makeOrder(1, 60, SELL));
 
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 30}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 20}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 10}, nullptr, tkr, BUY});
+  addOrder(makeOrder(1, 30, BUY));
+  addOrder(makeOrder(1, 20, BUY));
+  addOrder(makeOrder(1, 10, BUY));
 
   printStatusQ();
-  ASSERT_TRUE(statusq.size() == 6);
+  // 6 ack
+  ASSERT_EQ(statusq.size(), 6);
 }
 
 TEST_F(OrderBookFixture, 3Buy3SellMatch) {
   statusq.clear();
 
-  uint32_t id = 0;
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 40}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 50}, nullptr, tkr, BUY});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 60}, nullptr, tkr, BUY});
+  addOrder(makeOrder(1, 40, BUY));
+  addOrder(makeOrder(1, 50, BUY));
+  addOrder(makeOrder(1, 60, BUY));
 
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 30}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 20}, nullptr, tkr, SELL});
-  addOrder({{SystemOrderId{++id}, BookOrderId{}, 1, 10}, nullptr, tkr, SELL});
+  addOrder(makeOrder(1, 30, SELL));
+  addOrder(makeOrder(1, 20, SELL));
+  addOrder(makeOrder(1, 10, SELL));
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 9);
+  // 3 buy ack + 3 full no ack
+  ASSERT_EQ(statusq.size(), 6);
 }
 
 TEST_F(OrderBookFixture, 10Buy1SellMatch) {
@@ -105,15 +115,16 @@ TEST_F(OrderBookFixture, 10Buy1SellMatch) {
   Quantity quantity{1};
   Price price{10};
 
-  for (uint32_t idx = 0; idx < 10; ++idx) {
-    addOrder({{SystemOrderId{idx}, BookOrderId{}, idx, price}, nullptr, tkr, BUY});
+  for (uint32_t idx = 1; idx < 10; ++idx) {
+    addOrder(makeOrder(idx, price, BUY));
     quantity += idx;
   }
 
-  addOrder({{SystemOrderId{42}, BookOrderId{}, quantity, price}, nullptr, tkr, SELL});
+  addOrder(makeOrder(quantity, price, SELL));
 
   printStatusQ();
-  ASSERT_EQ(statusq.size(), 21);
+  // 9buy ack + 1full no ack
+  ASSERT_EQ(statusq.size(), 10);
 }
 
 } // namespace hft::tests
