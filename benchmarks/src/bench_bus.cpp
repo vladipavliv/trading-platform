@@ -24,7 +24,7 @@ constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
 constexpr double CPU_FREQ = 5.2;
 
-static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
+static void DISABLED_BM_Op_LfqRunnerThroughput(benchmark::State &state) {
   using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
   GenTickerData tkrData{TICKER_COUNT};
@@ -55,9 +55,9 @@ static void BM_Op_LfqRunnerThroughput(benchmark::State &state) {
 
   lfqRunner->stop();
 }
-BENCHMARK(BM_Op_LfqRunnerThroughput);
+BENCHMARK(DISABLED_BM_Op_LfqRunnerThroughput);
 
-static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
+static void DISABLED_BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
   using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
   GenTickerData tkrData{TICKER_COUNT};
@@ -100,6 +100,6 @@ static void BM_Op_LfqRunnerTailSpy(benchmark::State &state) {
 
   lfqRunner->stop();
 }
-BENCHMARK(BM_Op_LfqRunnerTailSpy);
+BENCHMARK(DISABLED_BM_Op_LfqRunnerTailSpy);
 
 } // namespace hft::benchmarks

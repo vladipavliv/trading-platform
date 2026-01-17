@@ -69,10 +69,16 @@ public:
   }
 
   void stop() {
+    if (!running_.load(std::memory_order_acquire)) {
+      return;
+    }
     LOG_DEBUG("LfqRunner stop");
     running_.store(false, std::memory_order_release);
-    ftx_.fetch_add(1, std::memory_order_release);
+    ftx_.store(++wakeCounter_, std::memory_order_release);
     utils::futexWake(ftx_);
+    if (thread_.joinable()) {
+      thread_.join();
+    }
   }
 
   inline void post(CRef<MessageT> message) {
@@ -94,6 +100,7 @@ public:
 
 private:
   void lfqLoop() {
+    LOG_DEBUG("LfqRunner::lfqLoop enter");
     MessageT message;
     auto msgPtr = reinterpret_cast<uint8_t *>(&message);
     auto msgSize = sizeof(MessageT);
@@ -120,11 +127,15 @@ private:
         continue;
       }
 
+      if (!running_.load(std::memory_order_acquire)) {
+        break;
+      }
+
+      LOG_DEBUG("futex sleep");
       utils::futexWait(ftx_, ftxVal);
       sleeping_.store(false, std::memory_order_release);
       waiter.reset();
     }
-    LOG_DEBUG("LfqLoop stop");
   }
 
 private:
