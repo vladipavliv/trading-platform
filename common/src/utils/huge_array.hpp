@@ -46,6 +46,12 @@ public:
   static constexpr size_t capacity() noexcept { return Capacity; }
   static constexpr size_t size_bytes() noexcept { return ByteSize; }
 
+  void clear() noexcept {
+    if (LIKELY(data_ != nullptr)) {
+      std::memset(data_, 0, ByteSize);
+    }
+  }
+
   HugeArray(const HugeArray &) = delete;
   HugeArray &operator=(const HugeArray &) = delete;
 

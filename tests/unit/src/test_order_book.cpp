@@ -9,6 +9,7 @@
 
 #include "config/server_config.hpp"
 #include "execution/orderbook/flat_order_book.hpp"
+#include "execution/orderbook/price_level_order_book.hpp"
 #include "utils/data_generator.hpp"
 #include "utils/test_utils.hpp"
 
@@ -27,7 +28,7 @@ const OrderAction SELL = OrderAction::Sell;
 const Ticker tkr = genTicker();
 } // namespace
 
-using OrderBook = FlatOrderBook;
+using OrderBook = PriceLevelOrderBook;
 
 class OrderBookFixture : public ::testing::Test {
 public:

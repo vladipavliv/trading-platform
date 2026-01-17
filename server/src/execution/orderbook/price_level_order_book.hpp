@@ -28,8 +28,8 @@ class PriceLevelOrderBook {
     BookOrderId localId;
     SystemOrderId systemId;
 
-    uint32_t next = 0;
-    uint32_t prev = 0;
+    uint32_t next;
+    uint32_t prev;
 
     uint32_t price;
     uint32_t qty;
@@ -38,9 +38,9 @@ class PriceLevelOrderBook {
   };
 
   struct PriceLevel {
-    uint32_t head = 0;
-    uint32_t tail = 0;
-    uint64_t volume = 0;
+    uint32_t head;
+    uint32_t tail;
+    uint64_t volume;
   };
 
   struct BestPrice {
@@ -48,10 +48,10 @@ class PriceLevelOrderBook {
     bool exists;
   };
 
-  static constexpr uint32_t MASK_WORDS = (MAX_TICKS / 64) + 1;
+  static constexpr uint32_t MASK_SIZE = (MAX_TICKS / 64) + 1;
 
 public:
-  PriceLevelOrderBook() {
+  PriceLevelOrderBook() : freeTop_{0}, nextAvailableIdx_{1} {
     std::memset(bidMask_, 0, sizeof(bidMask_));
     std::memset(askMask_, 0, sizeof(askMask_));
   }
@@ -63,7 +63,7 @@ public:
     }
 
     auto &o = ioe.order;
-    const Side side = this->side(ioe.action);
+    const Side side = getSide(ioe.action);
     uint32_t remainingQty = match(o, side, consumer);
 
     if (remainingQty > 0) {
@@ -75,6 +75,23 @@ public:
 
     return true;
   }
+
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
+  void sendAck(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
+    consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Accepted));
+  }
+
+  void clear() {
+    std::memset(bidMask_, 0, sizeof(bidMask_));
+    std::memset(askMask_, 0, sizeof(askMask_));
+
+    freeTop_ = 0;
+    nextAvailableIdx_ = 1;
+
+    bids_.clear();
+    asks_.clear();
+  }
+#endif
 
 private:
   uint32_t match(CRef<InternalOrder> o, Side side, BusableFor<InternalOrderStatus> auto &consumer) {
@@ -93,11 +110,28 @@ private:
       PriceLevel &level = (side == Side::Buy) ? asks_[bestPrice.price] : bids_[bestPrice.price];
 
       while (level.head != 0 && remainingQty > 0) {
-        Node &restingNode = nodePool_[level.head];
-        uint32_t fillQty = std::min(remainingQty, restingNode.qty);
+        Node &node = nodePool_[level.head];
+        uint32_t fillQty = std::min(remainingQty, node.qty);
         remainingQty -= fillQty;
 
-        executeFill(invert(side), bestPrice.price, fillQty, consumer);
+        const bool isFullFill = (fillQty == node.qty);
+        const auto status = isFullFill ? OrderState::Full : OrderState::Partial;
+
+        node.qty -= fillQty;
+        level.volume -= fillQty;
+
+        if (isFullFill) {
+          uint32_t oldHead = level.head;
+          level.head = node.next;
+
+          if (level.head != 0) {
+            nodePool_[level.head].prev = 0;
+          } else {
+            level.tail = 0;
+            updateOccupancy(node.side, bestPrice.price, false);
+          }
+          releaseId(node.localId);
+        }
       }
     }
     return remainingQty;
@@ -168,35 +202,7 @@ private:
     }
 
     consumer.post(InternalOrderStatus{o.id, o.bookOId, 0, 0, OrderState::Cancelled});
-    releaseId(node.bookOId);
-  }
-
-  void executeFill(Side side, uint32_t priceIdx, uint32_t fillQty,
-                   BusableFor<InternalOrderStatus> auto &consumer) {
-    PriceLevel &level = (side == Side::Buy) ? bids_[priceIdx] : asks_[priceIdx];
-    Node &node = nodePool_[level.head];
-
-    const bool isFullFill = (fillQty == node.qty);
-    const auto status = isFullFill ? OrderState::Full : OrderState::Partial;
-
-    // for now only send status for the latest order
-    // consumer.post(InternalOrderStatus{node.systemId, fillQty, priceIdx, status, node.localId});
-
-    node.qty -= fillQty;
-    level.volume -= fillQty;
-
-    if (isFullFill) {
-      uint32_t oldHead = level.head;
-      level.head = node.next;
-
-      if (level.head != 0) {
-        nodePool_[level.head].prev = 0;
-      } else {
-        level.tail = 0;
-        updateOccupancy(side, priceIdx, false);
-      }
-      releaseId(node.localId);
-    }
+    releaseId(node.localId);
   }
 
   inline void updateOccupancy(Side side, uint32_t priceIdx, bool active) {
@@ -213,7 +219,7 @@ private:
   }
 
   BestPrice getBestBid() const {
-    for (int i = MASK_WORDS; i >= 0; --i) {
+    for (int i = static_cast<int>(MASK_SIZE) - 1; i >= 0; --i) {
       if (bidMask_[i] != 0) {
         Price p = (i << 6) + (63 - __builtin_clzll(bidMask_[i]));
         return {p, true};
@@ -223,7 +229,7 @@ private:
   }
 
   BestPrice getBestAsk() const {
-    for (uint32_t i = 0; i <= MASK_WORDS; ++i) {
+    for (uint32_t i = 0; i < MASK_SIZE; ++i) {
       if (askMask_[i] != 0) {
         Price p = (i << 6) + __builtin_ctzll(askMask_[i]);
         return {p, true};
@@ -247,7 +253,7 @@ private:
     freeStack_[freeTop_++] = idx;
   }
 
-  inline Side side(OrderAction action) const {
+  inline Side getSide(OrderAction action) const {
     return action == OrderAction::Buy ? Side::Buy : Side::Sell;
   }
 
@@ -258,12 +264,12 @@ private:
   HugeArray<PriceLevel, MAX_TICKS> bids_;
   HugeArray<PriceLevel, MAX_TICKS> asks_;
 
-  ALIGN_CL uint64_t bidMask_[MAX_TICKS / 64 + 1];
-  ALIGN_CL uint64_t askMask_[MAX_TICKS / 64 + 1];
+  ALIGN_CL uint64_t bidMask_[MASK_SIZE];
+  ALIGN_CL uint64_t askMask_[MASK_SIZE];
 
   BookOrderId freeStack_[MAX_BOOK_ORDERS];
-  uint32_t freeTop_ = 0;
-  uint32_t nextAvailableIdx_ = 1;
+  uint32_t freeTop_;
+  uint32_t nextAvailableIdx_;
 };
 } // namespace hft::server
 
