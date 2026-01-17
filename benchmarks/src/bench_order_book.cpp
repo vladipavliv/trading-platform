@@ -24,13 +24,13 @@ using namespace server;
 using namespace utils;
 using namespace tests;
 
-class BM_Sys_OrderBookFix : public benchmark::Fixture {
+class BM_OrderBookFix : public benchmark::Fixture {
 public:
   uint64_t counter;
 
   inline static Vector<InternalOrderEvent> orders;
 
-  BM_Sys_OrderBookFix() { ServerConfig::cfg().load("bench_server_config.ini"); }
+  BM_OrderBookFix() { ServerConfig::cfg().load("bench_server_config.ini"); }
 
   template <typename EventType>
   void post(CRef<EventType>) {}
@@ -49,14 +49,14 @@ public:
 };
 
 template <>
-void BM_Sys_OrderBookFix::post<InternalOrderStatus>(CRef<InternalOrderStatus> s) {
+void BM_OrderBookFix::post<InternalOrderStatus>(CRef<InternalOrderStatus> s) {
   if (s.state == OrderState::Rejected) {
     throw std::runtime_error("Increase OrderBook limit");
   }
   ++counter;
 }
 
-BENCHMARK_F(BM_Sys_OrderBookFix, AddOrder)(benchmark::State &state) {
+BENCHMARK_F(BM_OrderBookFix, AddOrder)(benchmark::State &state) {
   OrderBook book;
   while (state.KeepRunningBatch(orders.size())) {
     book.clear();

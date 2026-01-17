@@ -25,7 +25,12 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Maintains order storage
+ * strips down metadata of incoming orders producing internal events
+ * supplies needed metadata to outgoing order status messages
+ * maintans a thread with LfqRunner to manage outgoing traffic
+ * network thread meets here with gateway thread,
+ * sync is managed by lock-free handing over of order entry ids via spsc lifo id queue
  */
 class OrderGateway {
   using OrderMapping = boost::unordered_flat_map<CompositeKey, SystemOrderId>;
@@ -70,7 +75,7 @@ private:
   void post(CRef<ServerOrder> so) {
     LOG_DEBUG("{}", toString(so));
     if (!isValid(so)) {
-      LOG_ERROR("Invalid order {}", toString(so));
+      LOG_ERROR_SYSTEM("Invalid order {}", toString(so));
       bus_.post(ServerOrderStatus{so.clientId,
                                   {so.order.id, so.order.created, 0, 0, OrderState::Rejected}});
       return;
@@ -111,6 +116,7 @@ private:
     auto &o = so.order;
     auto id = idPool_.acquire();
     if (!id) {
+      LOG_ERROR_SYSTEM("Server opened order limit exceeded, rejecting {}", toString(so));
       bus_.post(ServerOrderStatus{so.clientId, {o.id, o.created, 0, 0, OrderState::Rejected}});
       return;
     }

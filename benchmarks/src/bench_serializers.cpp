@@ -25,7 +25,7 @@ using namespace server;
 using namespace serialization;
 using namespace tests;
 
-static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
+static void DISABLED_BM_FbsSerialize(benchmark::State &state) {
   const Order order = genOrder();
   ByteBuffer buffer(128);
   size_t size{0};
@@ -38,9 +38,9 @@ static void DISABLED_BM_Ser_FbsSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
-BENCHMARK(DISABLED_BM_Ser_FbsSerialize);
+BENCHMARK(DISABLED_BM_FbsSerialize);
 
-static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
+static void DISABLED_BM_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
   BusType bus;
@@ -57,9 +57,9 @@ static void DISABLED_BM_Ser_FbsDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);
 }
-BENCHMARK(DISABLED_BM_Ser_FbsDeserialize);
+BENCHMARK(DISABLED_BM_FbsDeserialize);
 
-static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
+static void DISABLED_BM_SbeSerialize(benchmark::State &state) {
   const Order order = genOrder();
   Vector<uint8_t> buffer(128);
   size_t size{0};
@@ -72,9 +72,9 @@ static void DISABLED_BM_Ser_SbeSerialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&order);
   benchmark::DoNotOptimize(&buffer);
 }
-BENCHMARK(DISABLED_BM_Ser_SbeSerialize);
+BENCHMARK(DISABLED_BM_SbeSerialize);
 
-static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
+static void DISABLED_BM_SbeDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
   const Order order = genOrder();
@@ -93,6 +93,6 @@ static void DISABLED_BM_Ser_SbeDeserialize(benchmark::State &state) {
   benchmark::DoNotOptimize(&buffer);
   benchmark::DoNotOptimize(size);
 }
-BENCHMARK(DISABLED_BM_Ser_SbeDeserialize);
+BENCHMARK(DISABLED_BM_SbeDeserialize);
 
 } // namespace hft::benchmarks

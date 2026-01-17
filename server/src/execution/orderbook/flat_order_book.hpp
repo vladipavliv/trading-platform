@@ -22,9 +22,7 @@ namespace hft::server {
 
 /**
  * @brief Flat order book
- * @details Since testing is done locally, all the orders have the same client id
- * so every match would come with two notifications, about recent order and a previous one
- * To avoid this the order status is sent only about the most recent order
+ * @details for local testing only the last added order gets notification
  */
 class FlatOrderBook {
   static inline bool compareBids(CRef<InternalOrder> left, CRef<InternalOrder> right) {

@@ -27,7 +27,37 @@
 namespace hft::server {
 
 /**
- * @brief Creates all the components and controls the flow
+ * @brief cc
+ * Order event flow
+ * 1. IpcServer (network thread)
+ *    consume: Order
+ *    produce: ServerOrder supplied with client id
+ * 2. OrderGateway (network thread)
+ *    consume: ServerOrder, allocates id, creates order record
+ *    produce: InternalOrderEvent with stripped down metadata
+ * 3. Coordinator (network thread)
+ *    cunsume: InternalOrderEvent
+ *    produce: (thread hop) manual dispatch to a proper worker via worker LfqRunner
+ * 4. Worker (worker thread)
+ *    cunsume: manually dispatched from Coordinator
+ *    produce: (thread hop) InternalOrderStatus via gateway LfqRunner
+ * 5. OrderGateway (gateway thread)
+ *    cunsume: InternalOrderStatus, update record with local OB id, cleanup if Rejected
+ *    produce: ServerOrderStatus
+ * 6. SessionManager (gateway thread)
+ *    consume: ServerOrderStatus
+ *    produce: manually writes to a proper channel based on client id
+ *
+ * Threading model:
+ * Most important thread cache-wise is workers thread, so trashing its cache is minimized.
+ * Order event is popped from lfq, added to the book, status is posted and handled via lfq runner
+ * offloading it right away to another thread.
+ * Network and gateway threads touch in the gateway. Ensuring they do not touch the same data
+ * is done via thread safe id pool, network thread allocates the id, writes the record producing
+ * InternalOrderEvent for the worker, and never touches that record again.
+ * Gateway thread can access that record only when status notification comes from the worker,
+ * and from that point it fully manages the record.
+ * When order gets closed, id of the record gets returned to the pool
  */
 class ControlCenter {
   using PricesChannel = Channel<DatagramTransport, DatagramBus>;
