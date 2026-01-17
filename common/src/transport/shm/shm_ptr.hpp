@@ -42,7 +42,6 @@ public:
     if (!ptr_) {
       return;
     }
-    LOG_DEBUG_SYSTEM("~ShmUPtr dtor {}", name_);
     bool last = ptr_->decrement();
 
     munlock(ptr_, alignedSize_);
