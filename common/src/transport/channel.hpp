@@ -21,7 +21,7 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief performs framing, serializing, and routing messages network <-> system
  */
 template <typename TransportT, typename BusT>
 class Channel : public std::enable_shared_from_this<Channel<TransportT, BusT>> {

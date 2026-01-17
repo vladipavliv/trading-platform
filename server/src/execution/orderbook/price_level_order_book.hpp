@@ -18,6 +18,14 @@
 
 namespace hft::server {
 
+/**
+ * @brief Maintains pool of nodes with stack-based generation id recycling
+ * maintains array of combined price levels bids+asks,
+ * provides internal id of order node to the gateway for fast modify/cancel
+ * this way no need to maintain separate map of system oid -> internal book oid
+ * optimized best price discovery via masks
+ * @note for local testing only the last added order gets notification
+ */
 class PriceLevelOrderBook {
   enum class Side : uint8_t { Buy, Sell };
 
@@ -227,16 +235,18 @@ private:
 
     if (active) {
       mask[wordIdx] |= bit;
-      if (side == Side::Buy)
+      if (side == Side::Buy) {
         maxBid_ = std::max(maxBid_, priceIdx);
-      else
+      } else {
         minAsk_ = std::min(minAsk_, priceIdx);
+      }
     } else {
       mask[wordIdx] &= ~bit;
-      if (side == Side::Buy && priceIdx == maxBid_)
+      if (side == Side::Buy && priceIdx == maxBid_) {
         findNewMaxBid(wordIdx);
-      else if (side == Side::Sell && priceIdx == minAsk_)
+      } else if (side == Side::Sell && priceIdx == minAsk_) {
         findNewMinAsk(wordIdx);
+      }
     }
   }
 
@@ -280,8 +290,9 @@ private:
     for (int i = startWord; i >= minWord; --i) {
       if (bidMask_[i] != 0) {
         Price p = (i << 6) + (63 - __builtin_clzll(bidMask_[i]));
-        if (p >= limitPrice)
+        if (p >= limitPrice) {
           return {p, true};
+        }
         break;
       }
     }

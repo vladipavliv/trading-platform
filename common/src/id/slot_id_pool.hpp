@@ -15,7 +15,7 @@
 namespace hft {
 
 /**
- * @brief SPSC LIFO thread-safe pool of indexes
+ * @brief SPSC LIFO-ish thread-safe pool of indexes
  */
 template <uint32_t MaxCapacity = MAX_SYSTEM_ORDERS>
 class SlotIdPool {

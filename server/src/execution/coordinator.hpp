@@ -25,7 +25,20 @@
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Manages order-matching workers, routes order to a proper worker by the ticker
+ * for optimization tickerdata is supplied with InternalOrderEvent
+ * so worker doesnt have to look it up in the MarketData
+ * for further optimizations all loaded tickers could be indexed at a startup
+ * to avoid 'ticker->' hashmap
+ * @note ticker rerouting could be done by managing WorkerId uint32 atomic,
+ * using highest bit to indicate that book is locked
+ * 1. on ticker reroute sys thread does spin CAS in the OrderBook
+ *    (free_flag|curr_worker_id)->(free_flag|next_worker_id)
+ * 2. on order processing worker does CAS
+ *    (free_flag|self_id)->(busy_flag|self_id)
+ *    only way it fails is if worker_id changed
+ * 3. on failure order gets returned to Coordinator for dispatching to a new worker
+ * 4. on success order gets processed blocking attempts to reroute the ticker
  */
 class Coordinator {
   /**

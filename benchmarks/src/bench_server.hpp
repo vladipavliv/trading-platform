@@ -21,10 +21,10 @@
 
 namespace hft::benchmarks {
 
-class BM_Sys_ServerFix : public benchmark::Fixture {
+class BM_ServerFix : public benchmark::Fixture {
 public:
-  BM_Sys_ServerFix();
-  ~BM_Sys_ServerFix();
+  BM_ServerFix();
+  ~BM_ServerFix();
 
   UPtr<server::ServerBus> bus;
 

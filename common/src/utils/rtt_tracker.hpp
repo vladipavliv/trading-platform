@@ -17,7 +17,7 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief HdrHistogram at home
  */
 template <size_t... Ranges>
 class RttTracker {

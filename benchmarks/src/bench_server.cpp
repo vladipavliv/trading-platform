@@ -18,7 +18,7 @@ using namespace server;
 using namespace tests;
 using namespace utils;
 
-BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
+BM_ServerFix::BM_ServerFix() : orders{tickers}, marketData{tickers} {
   ServerConfig::cfg().load("bench_server_config.ini");
   LOG_INIT(ServerConfig::cfg().logOutput);
 
@@ -31,14 +31,14 @@ BM_Sys_ServerFix::BM_Sys_ServerFix() : orders{tickers}, marketData{tickers} {
   setupBus();
 }
 
-BM_Sys_ServerFix::~BM_Sys_ServerFix() {
+BM_ServerFix::~BM_ServerFix() {
   if (bus) {
     bus->stop();
     bus.reset();
   }
 }
 
-void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
+void BM_ServerFix::SetUp(const ::benchmark::State &state) {
   workerCount = state.range(0);
   if (workerCount > 4) {
     throw std::runtime_error("Too many workers");
@@ -54,22 +54,22 @@ void BM_Sys_ServerFix::SetUp(const ::benchmark::State &state) {
   setupCoordinator();
 }
 
-void BM_Sys_ServerFix::TearDown(const ::benchmark::State &state) {
+void BM_ServerFix::TearDown(const ::benchmark::State &state) {
   if (coordinator) {
     coordinator->stop();
     coordinator.reset();
   }
 }
 
-void BM_Sys_ServerFix::setupBus() {
+void BM_ServerFix::setupBus() {
   using namespace server;
   bus = std::make_unique<ServerBus>();
   bus->systemBus.subscribe<ServerEvent>(
-      CRefHandler<ServerEvent>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
+      CRefHandler<ServerEvent>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
   systemThread = std::jthread([this]() { bus->run(); });
 }
 
-void BM_Sys_ServerFix::setupCoordinator() {
+void BM_ServerFix::setupCoordinator() {
   using namespace server;
 
   ThreadId id = 0;
@@ -86,14 +86,14 @@ void BM_Sys_ServerFix::setupCoordinator() {
   flag.wait(false);
 }
 
-void BM_Sys_ServerFix::post(const ServerEvent &ev) {
+void BM_ServerFix::post(const ServerEvent &ev) {
   if (ev.state == ServerState::Operational) {
     flag.test_and_set();
     flag.notify_all();
   }
 }
 
-void BM_Sys_ServerFix::post(CRef<InternalOrderStatus> s) {
+void BM_ServerFix::post(CRef<InternalOrderStatus> s) {
   if (s.state == OrderState::Rejected) {
     error.store(true, std::memory_order_release);
     LOG_ERROR_SYSTEM("Increase OrderBook limit");
@@ -102,14 +102,14 @@ void BM_Sys_ServerFix::post(CRef<InternalOrderStatus> s) {
   }
 }
 
-BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
   using namespace server;
 
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
   const uint64_t ordersCount = orders.orders.size();
 
   bus->subscribe<InternalOrderStatus>(
-      CRefHandler<InternalOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
+      CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter{SPIN_RETRIES_YIELD};
   while (state.KeepRunningBatch(ordersCount)) {
@@ -151,14 +151,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerThroughput)(benchmark::State &state) 
   coordinator.reset();
 }
 
-BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerLatency)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
   using namespace server;
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   const uint64_t ordersCount = orders.orders.size();
 
   bus->subscribe<InternalOrderStatus>(
-      CRefHandler<InternalOrderStatus>::bind<BM_Sys_ServerFix, &BM_Sys_ServerFix::post>(this));
+      CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter;
   auto iter = orders.orders.begin();
@@ -195,14 +195,14 @@ BENCHMARK_DEFINE_F(BM_Sys_ServerFix, ServerLatency)(benchmark::State &state) {
   coordinator.reset();
 }
 
-BENCHMARK_REGISTER_F(BM_Sys_ServerFix, ServerThroughput)
+BENCHMARK_REGISTER_F(BM_ServerFix, InternalThroughput)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)
     ->Arg(4)
     ->Unit(benchmark::kNanosecond);
 
-BENCHMARK_REGISTER_F(BM_Sys_ServerFix, ServerLatency)
+BENCHMARK_REGISTER_F(BM_ServerFix, InternalLatency)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)

@@ -12,7 +12,7 @@ namespace hft::benchmarks {
 
 using namespace utils;
 
-static void DISABLED_BM_Op_BenchRng(benchmark::State &state) {
+static void DISABLED_BM_BenchRng(benchmark::State &state) {
   benchmark::DoNotOptimize(RNG::generate<size_t>(0, 1));
   size_t value{0};
 
@@ -21,6 +21,6 @@ static void DISABLED_BM_Op_BenchRng(benchmark::State &state) {
     benchmark::DoNotOptimize(value);
   }
 }
-BENCHMARK(DISABLED_BM_Op_BenchRng);
+BENCHMARK(DISABLED_BM_BenchRng);
 
 } // namespace hft::benchmarks
