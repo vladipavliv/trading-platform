@@ -7,6 +7,7 @@
 #define HFT_COMMON_SHMTRANSPORT_HPP
 
 #include "bus/system_bus.hpp"
+#include "functional_types.hpp"
 #include "shm_queue.hpp"
 #include "shm_reactor.hpp"
 #include "shm_reader.hpp"
@@ -16,8 +17,6 @@ namespace hft {
 
 class ShmTransport {
 public:
-  using RxHandler = std::function<void(IoResult, size_t)>;
-
   enum class Type : uint8_t { None, Reader, Writer };
 
   static ShmTransport makeReader(CRef<String> name) {
@@ -39,7 +38,16 @@ public:
 
   Type type() const noexcept { return type_; }
 
-  void asyncRx(ByteSpan buf, RxHandler clb) {
+  IoResult syncRx(ByteSpan buf) {
+    LOG_DEBUG("ShmTransport syncRx");
+    if (type_ == Type::Reader) {
+      return reader_->syncRx(buf);
+    }
+    LOG_ERROR_SYSTEM("Unable to read from shm: wrong transport type");
+    return {0, IoStatus::Error};
+  }
+
+  void asyncRx(ByteSpan buf, CRefHandler<IoResult> &&clb) {
     LOG_DEBUG("ShmTransport asyncRx");
     if (type_ == Type::Reader) {
       reader_->asyncRx(buf, std::move(clb));
@@ -48,10 +56,19 @@ public:
     }
   }
 
-  void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_WARM) {
+  IoResult syncTx(CByteSpan buffer) {
+    LOG_DEBUG("ShmTransport syncTx");
+    if (type_ == Type::Writer) {
+      return writer_->syncTx(buffer);
+    }
+    LOG_ERROR_SYSTEM("Unable to write to shm: wrong transport type");
+    return {0, IoStatus::Error};
+  }
+
+  void asyncTx(CByteSpan buffer, CRefHandler<IoResult> &&clb) {
     LOG_DEBUG("ShmTransport asyncTx");
     if (type_ == Type::Writer) {
-      writer_->asyncTx(buffer, std::move(clb), retry);
+      writer_->asyncTx(buffer, std::move(clb));
     } else {
       LOG_ERROR_SYSTEM("Unable to write to shm: wrong transport type");
     }
@@ -68,7 +85,6 @@ public:
 
 private:
   ShmTransport() : type_(Type::None) {}
-
   explicit ShmTransport(Type t) : type_(t) {}
 
 private:

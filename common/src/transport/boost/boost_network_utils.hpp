@@ -13,19 +13,19 @@
 #include "logging.hpp"
 
 namespace hft {
-IoResult toIoResult(BoostErrorCode ec) noexcept {
+IoStatus toIoStatus(BoostErrorCode ec) noexcept {
   if (!ec) {
-    return IoResult::Ok;
+    return IoStatus::Ok;
   }
   switch (ec.value()) {
   case boost::asio::error::operation_aborted:
   case boost::asio::error::eof:
-    return IoResult::Closed;
+    return IoStatus::Closed;
   case boost::asio::error::would_block:
-    return IoResult::WouldBlock;
+    return IoStatus::WouldBlock;
   default:
     LOG_ERROR("{}", ec.message());
-    return IoResult::Error;
+    return IoStatus::Error;
   }
 }
 } // namespace hft

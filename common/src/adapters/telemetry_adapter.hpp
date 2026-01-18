@@ -16,18 +16,19 @@ namespace hft {
 
 template <typename BusT>
 class TelemetryAdapter {
+  using SelfT = TelemetryAdapter<BusT>;
+
 public:
   TelemetryAdapter(BusT &bus, bool producer) : bus_{bus}, producer_{producer}, transport_{init()} {}
 
   void start() {
     LOG_DEBUG_SYSTEM("TelemetryAdapter start");
     if (producer_) {
-      using SelfT = TelemetryAdapter<BusT>;
       bus_.template subscribe<TelemetryMsg>(
           CRefHandler<TelemetryMsg>::template bind<SelfT, &SelfT::post>(this));
     } else {
       ByteSpan span(reinterpret_cast<uint8_t *>(&msg_), sizeof(TelemetryMsg));
-      transport_.asyncRx(span, [this](IoResult res, size_t size) { bus_.post(msg_); });
+      transport_.asyncRx(span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
     }
   }
 
@@ -46,7 +47,17 @@ private:
   void post(CRef<TelemetryMsg> msg) {
     auto *ptr = reinterpret_cast<const uint8_t *>(&msg);
     CByteSpan span(ptr, sizeof(TelemetryMsg));
-    transport_.asyncTx(span, [](IoResult, size_t) {}, 0);
+    if (!transport_.syncTx(span)) {
+      LOG_ERROR("Failed to write telemetry");
+    }
+  }
+
+  void post(CRef<IoResult> res) {
+    if (!res) {
+      LOG_ERROR_SYSTEM("Failed to read from shm");
+    } else {
+      bus_.post(msg_);
+    }
   }
 
 private:

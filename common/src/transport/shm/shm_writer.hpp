@@ -8,11 +8,11 @@
 
 #include "constants.hpp"
 #include "container_types.hpp"
+#include "functional_types.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "shm_ptr.hpp"
 #include "shm_queue.hpp"
-#include "transport/async_transport.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 #include "utils/time_utils.hpp"
@@ -21,8 +21,6 @@ namespace hft {
 
 class ShmWriter {
 public:
-  using RxHandler = std::move_only_function<void(IoResult, size_t)>;
-
   explicit ShmWriter(CRef<String> name) : closed_{false}, shm_{name} {}
   ShmWriter(ShmWriter &&other) noexcept
       : closed_{other.closed_.load(std::memory_order_acquire)}, shm_{std::move(other.shm_)} {
@@ -32,18 +30,31 @@ public:
 
   ShmWriter(const ShmWriter &) = delete;
 
-  void asyncTx(CByteSpan buffer, RxHandler clb, uint32_t retry = SPIN_RETRIES_HOT) {
+  auto syncTx(CByteSpan buffer) -> IoResult {
     using namespace utils;
-    SpinWait waiter{retry};
+    SpinWait waiter;
     while (!shm_->queue.write(buffer.data(), buffer.size())) {
       if (!++waiter) {
         LOG_ERROR("would block");
-        clb(IoResult::Error, 0);
+        return {0, IoStatus::Error};
+      }
+    }
+    shm_->notify();
+    return {(uint32_t)buffer.size(), IoStatus::Ok};
+  }
+
+  void asyncTx(CByteSpan buffer, CRefHandler<IoResult> &&clb) {
+    using namespace utils;
+    SpinWait waiter;
+    while (!shm_->queue.write(buffer.data(), buffer.size())) {
+      if (!++waiter) {
+        LOG_ERROR("would block");
+        clb({0, IoStatus::Error});
         return;
       }
     }
     shm_->notify();
-    clb(IoResult::Ok, buffer.size());
+    clb({(uint32_t)buffer.size(), IoStatus::Ok});
   }
 
   void close() { closed_.store(true, std::memory_order_release); }
