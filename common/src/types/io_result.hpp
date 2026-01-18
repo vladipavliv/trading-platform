@@ -9,17 +9,24 @@
 #include <cstdint>
 
 namespace hft {
-enum class IoResult : uint8_t { Ok, WouldBlock, Closed, Error };
+enum class IoStatus : uint8_t { Ok, WouldBlock, Closed, Error };
 
-inline String toString(const IoResult &msg) {
+struct IoResult {
+  uint32_t bytes;
+  IoStatus code;
+
+  constexpr explicit operator bool() const noexcept { return code == IoStatus::Ok; }
+};
+
+inline String toString(const IoStatus &msg) {
   switch (msg) {
-  case IoResult::Ok:
+  case IoStatus::Ok:
     return "Ok";
-  case IoResult::WouldBlock:
+  case IoStatus::WouldBlock:
     return "WouldBlock";
-  case IoResult::Closed:
+  case IoStatus::Closed:
     return "Closed";
-  case IoResult::Error:
+  case IoStatus::Error:
     return "Error";
   default:
     return "Unknown";

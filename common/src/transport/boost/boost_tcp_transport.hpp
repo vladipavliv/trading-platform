@@ -14,7 +14,6 @@
 #include "container_types.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
-#include "transport/async_transport.hpp"
 #include "transport/boost/boost_network_types.hpp"
 
 namespace hft {
@@ -30,7 +29,7 @@ public:
   void asyncRx(ByteSpan buf, Callback &&clb) {
     using namespace boost::asio;
     auto handler = [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
-      clb(toIoResult(ec), bytes);
+      clb({(uint32_t)bytes, toIoStatus(ec)});
     };
     static_assert(sizeof(handler) <= MAX_HANDLER_SIZE, "async handler is too large");
     socket_.async_read_some(buffer(buf.data(), buf.size()), std::move(handler));
@@ -40,11 +39,15 @@ public:
   void asyncTx(CByteSpan buf, Callback &&clb) {
     using namespace boost::asio;
     auto handler = [clb = std::forward<Callback>(clb)](BoostErrorCode ec, size_t bytes) mutable {
-      clb(toIoResult(ec), bytes);
+      clb({(uint32_t)bytes, toIoStatus(ec)});
     };
     static_assert(sizeof(handler) <= MAX_HANDLER_SIZE, "async handler is too large");
     async_write(socket_, buffer(buf.data(), buf.size()), std::move(handler));
   }
+
+  IoResult syncRx(ByteSpan buf) { return IoResult{}; }
+
+  IoResult syncTx(CByteSpan buf) { return IoResult{}; }
 
   void close() {
     BoostErrorCode ec;

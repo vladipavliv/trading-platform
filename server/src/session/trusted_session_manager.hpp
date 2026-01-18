@@ -25,10 +25,12 @@ class TrustedSessionManager {
   using UpstreamChan = StreamTransport;
   using DownstreamChan = StreamTransport;
 
+  using SelfT = TrustedSessionManager;
+
 public:
   explicit TrustedSessionManager(ServerBus &bus) : bus_{bus} {
     LOG_INFO_SYSTEM("TrustedSessionManager initialized");
-    using SelfT = TrustedSessionManager;
+
     bus_.subscribe<ServerOrderStatus>(
         CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ChannelStatusEvent>(
@@ -44,13 +46,7 @@ public:
     LOG_DEBUG_SYSTEM("acceptUpstream");
     upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
     ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(Order));
-    upChannel_->asyncRx(span, [this](IoResult res, size_t bytes) {
-      if (res == IoResult::Ok) {
-        bus_.post(ServerOrder{0, order_});
-      } else {
-        LOG_ERROR("Failed to read from shm {}", toString(res));
-      }
-    });
+    upChannel_->asyncRx(span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
   }
 
   void acceptDownstream(StreamTransport &&t) {
@@ -86,15 +82,24 @@ private:
     }
   }
 
+  void post(CRef<IoResult> res) {
+    if (!res) {
+      LOG_ERROR("Failed to read from shm");
+      close();
+    } else {
+      bus_.post(ServerOrder{0, order_});
+    }
+  }
+
   void post(CRef<ServerOrderStatus> status) {
     LOG_DEBUG("{}", toString(status.orderStatus));
     auto *ptr = reinterpret_cast<const uint8_t *>(&status.orderStatus);
     CByteSpan span(ptr, sizeof(OrderStatus));
-    downChannel_->asyncTx(span, [this](IoResult res, size_t bytes) {
-      if (res != IoResult::Ok) {
-        LOG_ERROR("Failed to write to shm {}", toString(res));
-      }
-    });
+    auto res = downChannel_->syncTx(span);
+    if (!res) {
+      LOG_ERROR("Failed to write to shm");
+      close();
+    }
   }
 
 private:

@@ -81,7 +81,7 @@ void ShmReactor::loop() {
     bool busy = false;
     for (size_t i = 0; i < readers_.size(); ++i) {
       auto res = readers_[i]->poll();
-      if (res == ShmReader::Result::Vanished) {
+      if (res == ShmReader::PollResult::Vanished) {
         LOG_DEBUG_SYSTEM("Reader vanished");
         readers_[i] = readers_.back();
         readers_.pop_back();
@@ -91,7 +91,7 @@ void ShmReactor::loop() {
         }
         --i;
         continue;
-      } else if (res == ShmReader::Result::Busy) {
+      } else if (res == ShmReader::PollResult::Busy) {
         busy = true;
       }
     }

@@ -24,6 +24,8 @@ class TrustedConnectionManager {
   using DownStreamChannel = StreamTransport;
   using DatagramChannel = DatagramTransport;
 
+  using SelfT = TrustedConnectionManager;
+
 public:
   TrustedConnectionManager(ClientBus &bus, ShmClient &networkClient)
       : bus_{bus}, networkClient_{networkClient} {
@@ -35,7 +37,6 @@ public:
     networkClient_.setDatagramClb(
         [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    using SelfT = TrustedConnectionManager;
     bus_.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
     bus_.subscribe<ConnectionStatusEvent>(
         CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
@@ -63,14 +64,8 @@ private:
     downstreamChannel_ = std::make_unique<DownStreamChannel>(std::move(transport));
 
     ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(OrderStatus));
-    downstreamChannel_->asyncRx(span, [this](IoResult res, size_t bytes) {
-      if (res == IoResult::Ok) {
-        bus_.post(status_);
-      } else {
-        LOG_ERROR_SYSTEM("Failed to read from shm, stopping");
-        reset();
-      }
-    });
+    downstreamChannel_->asyncRx( // format
+        span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
     notify();
   }
 
@@ -83,16 +78,24 @@ private:
     pricesChannel_ = std::make_unique<DatagramChannel>(std::move(transport));
   }
 
+  void post(CRef<IoResult> res) {
+    if (res.code == IoStatus::Ok) {
+      bus_.post(status_);
+    } else {
+      LOG_ERROR_SYSTEM("Failed to read from shm, stopping");
+      reset();
+    }
+  }
+
   void post(CRef<Order> order) {
     LOG_DEBUG("{}", toString(order));
     auto *ptr = reinterpret_cast<const uint8_t *>(&order);
     CByteSpan span(ptr, sizeof(Order));
-    upstreamChannel_->asyncTx(span, [this](IoResult res, size_t bytes) {
-      if (res != IoResult::Ok) {
-        LOG_ERROR_SYSTEM("Failed to write to shm, stopping");
-        reset();
-      }
-    });
+    auto res = upstreamChannel_->syncTx(span);
+    if (!res) {
+      LOG_ERROR_SYSTEM("Failed to write to shm, stopping");
+      reset();
+    }
   }
 
   void post(CRef<ConnectionStatusEvent> event) {

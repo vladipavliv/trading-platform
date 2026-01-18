@@ -15,6 +15,7 @@ struct OrderRecord {
   SystemOrderId id;
   BookOrderId bookOId;
   ClientId clientId;
+  OrderId externalId;
 };
 } // namespace hft::server
 

@@ -43,7 +43,7 @@ ShmReader::ShmReader(ShmReader &&other)
   other.state_ = State::Closed;
 }
 
-void ShmReader::asyncRx(ByteSpan buf, RxHandler clb) {
+void ShmReader::asyncRx(ByteSpan buf, CRefHandler<IoResult> &&clb) {
   if (state_ != State::Ready) {
     LOG_ERROR_SYSTEM("Invalid state in ShmReader");
     return;
@@ -56,23 +56,23 @@ void ShmReader::asyncRx(ByteSpan buf, RxHandler clb) {
   reactor_.add(this);
 }
 
-ShmReader::Result ShmReader::poll() {
+ShmReader::PollResult ShmReader::poll() {
   switch (state_.load(std::memory_order_acquire)) {
   case State::Ready:
-    return Result::Idle;
+    return PollResult::Idle;
   case State::Active: {
-    const size_t bytes = shm_->queue.read(buf_.data(), buf_.size());
+    const uint32_t bytes = shm_->queue.read(buf_.data(), buf_.size());
     if (bytes != 0) {
-      clb_(IoResult::Ok, bytes);
-      return Result::Busy;
+      clb_(IoResult{bytes, IoStatus::Ok});
+      return PollResult::Busy;
     }
-    return Result::Idle;
+    return PollResult::Idle;
   }
   case State::Closing:
     state_.store(State::Closed, std::memory_order_release);
-    return Result::Vanished;
+    return PollResult::Vanished;
   default:
-    return Result::Vanished;
+    return PollResult::Vanished;
   }
 }
 
@@ -87,5 +87,7 @@ void ShmReader::close() {
 void ShmReader::wait() { shm_->wait(); }
 
 void ShmReader::notify() { shm_->notify(); }
+
+auto ShmReader::syncRx(ByteSpan buf) -> IoResult { return {0, IoStatus::Error}; }
 
 } // namespace hft

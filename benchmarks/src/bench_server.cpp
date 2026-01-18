@@ -65,7 +65,7 @@ void BM_ServerFix::setupBus() {
   using namespace server;
   bus = std::make_unique<ServerBus>();
   bus->systemBus.subscribe<ServerEvent>(
-      CRefHandler<ServerEvent>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+      CRefHandler<ServerEvent>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
   systemThread = std::jthread([this]() { bus->run(); });
 }
 
@@ -109,7 +109,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
   const uint64_t ordersCount = orders.orders.size();
 
   bus->subscribe<InternalOrderStatus>(
-      CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+      CRefHandler<InternalOrderStatus>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter{SPIN_RETRIES_YIELD};
   while (state.KeepRunningBatch(ordersCount)) {
@@ -158,7 +158,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
   const uint64_t ordersCount = orders.orders.size();
 
   bus->subscribe<InternalOrderStatus>(
-      CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+      CRefHandler<InternalOrderStatus>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter;
   auto iter = orders.orders.begin();

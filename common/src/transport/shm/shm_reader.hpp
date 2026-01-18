@@ -10,6 +10,7 @@
 #include "config/config.hpp"
 #include "container_types.hpp"
 #include "containers/sequenced_spsc.hpp"
+#include "functional_types.hpp"
 #include "io_result.hpp"
 #include "primitive_types.hpp"
 #include "shm_ptr.hpp"
@@ -25,9 +26,7 @@ class ShmReader {
   enum class State : uint8_t { Ready, Active, Closing, Closed };
 
 public:
-  enum class Result : uint8_t { Idle, Busy, Vanished };
-
-  using RxHandler = std::move_only_function<void(IoResult, size_t)>;
+  enum class PollResult : uint8_t { Idle, Busy, Vanished };
 
   explicit ShmReader(CRef<String> name);
   ShmReader(ShmReader &&other);
@@ -36,13 +35,13 @@ public:
   ShmReader &operator=(ShmReader &&other) = delete;
   ShmReader(const ShmReader &) = delete;
 
-  void asyncRx(ByteSpan buf, RxHandler clb);
+  void asyncRx(ByteSpan buf, CRefHandler<IoResult> &&clb);
+  auto syncRx(ByteSpan buf) -> IoResult;
   void close();
-
-  Result poll();
-
   void wait();
   void notify();
+
+  auto poll() -> PollResult;
 
 private:
   ShmReactor &init();
@@ -53,7 +52,7 @@ private:
   ShmReactor &reactor_;
 
   ByteSpan buf_;
-  RxHandler clb_;
+  CRefHandler<IoResult> clb_;
   Atomic<State> state_{State::Ready};
 };
 

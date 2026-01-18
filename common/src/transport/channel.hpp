@@ -13,8 +13,8 @@
 #include "logging.hpp"
 #include "network_traits.hpp"
 #include "primitive_types.hpp"
-#include "transport/async_transport.hpp"
 #include "transport/connection_status.hpp"
+#include "transport/transport.hpp"
 #include "utils/string_utils.hpp"
 #include <cassert>
 
@@ -26,7 +26,8 @@ namespace hft {
 template <typename TransportT, typename BusT>
 class Channel : public std::enable_shared_from_this<Channel<TransportT, BusT>> {
 public:
-  static_assert(AsyncTransport<TransportT>, "TransportT must satisfy the AsyncTransport concept");
+  static_assert(Transport<TransportT, std::function<void(IoResult)>>,
+                "TransportT must satisfy the Transport concept");
   static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
 
   Channel(TransportT &&transport, ConnectionId id, BusT &&bus)
@@ -45,13 +46,13 @@ public:
       return;
     }
     transport_.asyncRx( // format
-        buffer_.buffer(), [self = this->weak_from_this()](IoResult code, size_t bytes) {
+        buffer_.buffer(), [self = this->weak_from_this()](IoResult res) {
           auto sharedSelf = self.lock();
           if (!sharedSelf) {
             LOG_ERROR("Channel vanished");
             return;
           }
-          sharedSelf->readHandler(code, bytes);
+          sharedSelf->readHandler(res);
         });
   }
 
@@ -72,16 +73,16 @@ public:
 
     const auto dataSpan = ByteSpan{netBuff.data, size};
     LOG_TRACE("sending {} bytes", size);
-    transport_.asyncTx(dataSpan, [self = this->weak_from_this(),
-                                  idx = netBuff.index](IoResult code, size_t bytes) {
-      BufferPool<>::instance().release(idx);
-      auto sharedSelf = self.lock();
-      if (!sharedSelf) {
-        LOG_ERROR("Channel vanished");
-        return;
-      }
-      sharedSelf->writeHandler(code, bytes);
-    });
+    transport_.asyncTx( // format
+        dataSpan, [self = this->weak_from_this(), idx = netBuff.index](IoResult res) {
+          BufferPool<>::instance().release(idx);
+          auto sharedSelf = self.lock();
+          if (!sharedSelf) {
+            LOG_ERROR("Channel vanished");
+            return;
+          }
+          sharedSelf->writeHandler(res);
+        });
   }
 
   inline ConnectionId id() const noexcept { return id_; }
@@ -103,19 +104,19 @@ public:
   }
 
 private:
-  void readHandler(IoResult code, size_t bytes) {
-    if (code != IoResult::Ok) {
+  void readHandler(IoResult res) {
+    if (res.code != IoStatus::Ok) {
       buffer_.reset();
       LOG_ERROR("readHandler error");
       onStatus(ConnectionStatus::Error);
       return;
     }
-    buffer_.commitWrite(bytes);
-    const auto res = Framer::unframe(buffer_.data(), bus_);
-    if (res) {
-      buffer_.commitRead(*res);
+    buffer_.commitWrite(res.bytes);
+    const auto unfr = Framer::unframe(buffer_.data(), bus_);
+    if (unfr) {
+      buffer_.commitRead(*unfr);
     } else {
-      LOG_ERROR("Failed to unframe message {}", toString(res.error()));
+      LOG_ERROR("Failed to unframe message {}", toString(unfr.error()));
       buffer_.reset();
       onStatus(ConnectionStatus::Error);
       return;
@@ -123,8 +124,8 @@ private:
     read();
   }
 
-  void writeHandler(IoResult code, size_t bytes) {
-    if (code != IoResult::Ok && code != IoResult::Closed) {
+  void writeHandler(IoResult res) {
+    if (res.code != IoStatus::Ok && res.code != IoStatus::Closed) {
       onStatus(ConnectionStatus::Error);
     }
   }

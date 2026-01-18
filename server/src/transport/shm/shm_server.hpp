@@ -13,7 +13,6 @@
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
 #include "traits.hpp"
-#include "transport/async_transport.hpp"
 #include "transport/shm/shm_reactor.hpp"
 #include "transport/shm/shm_transport.hpp"
 #include "utils/memory_utils.hpp"

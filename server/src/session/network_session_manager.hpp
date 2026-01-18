@@ -16,7 +16,6 @@
 #include "events.hpp"
 #include "logging.hpp"
 #include "traits.hpp"
-#include "transport/async_transport.hpp"
 #include "transport/connection_status.hpp"
 #include "transport/session_channel.hpp"
 #include "utils/id_utils.hpp"

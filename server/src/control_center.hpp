@@ -59,8 +59,6 @@ namespace hft::server {
  * until order gets closed, when it releases id to the pool
  */
 class ControlCenter {
-  using PricesChannel = Channel<DatagramTransport, DatagramBus>;
-
 public:
   ControlCenter()
       : storage_{dbAdapter_}, sessionMgr_{bus_}, ipcServer_{bus_},
@@ -82,11 +80,7 @@ public:
       sessionMgr_.acceptDownstream(std::move(transport));
     });
     ipcServer_.setDatagramClb([this](DatagramTransport &&transport) {
-      const auto id = utils::genConnectionId();
-      LOG_INFO_SYSTEM("UDP prices channel created {}", id);
-      pricesChannel_ = std::make_unique<PricesChannel>(std::move(transport), id, DatagramBus{bus_});
-      bus_.subscribe<TickerPrice>(
-          CRefHandler<TickerPrice>::template bind<SelfT, &SelfT::post>(this));
+
     });
 
     bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<SelfT, &SelfT::stop>(this));
@@ -133,12 +127,12 @@ private:
     }
   }
 
+  void post(CRef<TickerPrice>) {}
+
   void post(CRef<InternalError> event) {
     LOG_ERROR_SYSTEM("Internal error: {} {}", event.what, toString(event.code));
     stop();
   }
-
-  void post(CRef<TickerPrice> p) { pricesChannel_->write(p); }
 
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
@@ -161,8 +155,6 @@ private:
   OrderGateway gateway_;
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
-
-  UPtr<PricesChannel> pricesChannel_;
 
   boost::asio::signal_set signals_;
 };

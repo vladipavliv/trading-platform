@@ -11,7 +11,6 @@
 #include "primitive_types.hpp"
 #include "session_bus.hpp"
 #include "traits.hpp"
-#include "transport/async_transport.hpp"
 #include "transport/channel.hpp"
 
 namespace hft::server {
