@@ -35,11 +35,13 @@ BM_ServerFix/InternalLatency/4           122 ns          122 ns      5719689 4 w
 BM_OrderBookFix/AddOrder                17.6 ns         17.6 ns     39141376
 ```
 
-Manual shared memory tests:
+Manual tests (16m opened orders limit, 100k price levels, 100 tickers)
+
+Shared memory:
 ```bash
 01:36:57.832642 [I] Rps: 5,335,230 Rtt: [<1µs|>1µs] 99.66% avg:320ns | 0.34% avg:3µs | Max:18µs
 ```
-Manual boost sockets tests:
+Boost sockets:
 ```bash
 04:35:06.070989 [I] Rps: 441,436 Rtt: [<10µs|<100µs|>100µs] 95.95% avg:7µs | 4.05% avg:10µs | 0% | Max:44µs
 ```
