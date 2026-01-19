@@ -47,16 +47,6 @@ namespace hft::server {
  * 6. SessionManager (gateway thread)
  *    consume: ServerOrderStatus
  *    produce: manually writes to a proper channel based on client id
- *
- * Threading model:
- * Most important thread cache-wise is workers thread, so trashing its cache is minimized.
- * Order event is popped from lfq, added to the book, status is posted and handled via lfq runner
- * offloading it right away to another thread.
- * Network and gateway threads touch in the gateway. Ensuring they do not touch the same data
- * is done via thread safe id pool, network thread allocates the id, writes the record producing
- * InternalOrderEvent for the worker, and never touches that record, until its released to the pool.
- * Gateway thread takes over that record when status notification comes from the worker,
- * until order gets closed, when it releases id to the pool
  */
 class ControlCenter {
 public:
