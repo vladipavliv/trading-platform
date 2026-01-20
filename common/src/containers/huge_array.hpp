@@ -6,8 +6,8 @@
 #ifndef HFT_COMMON_HUGEARRAY_HPP
 #define HFT_COMMON_HUGEARRAY_HPP
 
-#include "memory_utils.hpp"
 #include "primitive_types.hpp"
+#include "utils/memory_utils.hpp"
 
 namespace hft {
 

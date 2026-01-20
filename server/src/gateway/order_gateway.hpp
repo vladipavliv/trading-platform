@@ -10,6 +10,7 @@
 
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
+#include "containers/huge_array.hpp"
 #include "domain/server_order_messages.hpp"
 #include "id/slot_id_pool.hpp"
 #include "internal_order.hpp"
@@ -19,7 +20,6 @@
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "traits.hpp"
-#include "utils/huge_array.hpp"
 #include "utils/lfq_runner.hpp"
 
 namespace hft::server {

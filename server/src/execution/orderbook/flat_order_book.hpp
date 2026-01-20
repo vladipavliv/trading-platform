@@ -9,13 +9,13 @@
 #include "bus/busable.hpp"
 #include "constants.hpp"
 #include "container_types.hpp"
+#include "containers/huge_array.hpp"
 #include "gateway/internal_order.hpp"
 #include "gateway/internal_order_status.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "schema.hpp"
-#include "utils/huge_array.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {

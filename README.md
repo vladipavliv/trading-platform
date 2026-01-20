@@ -35,7 +35,7 @@ BM_ServerFix/InternalLatency/4           122 ns          122 ns      5719689 4 w
 BM_OrderBookFix/AddOrder                17.6 ns         17.6 ns     39141376
 ```
 
-Manual tests (16m opened orders limit, 100k price levels, 100 tickers)
+Manual tests (16m opened orders limit, 8k price levels, 100 tickers)
 
 Shared memory:
 ```bash

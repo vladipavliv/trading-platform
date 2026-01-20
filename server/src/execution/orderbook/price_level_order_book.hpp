@@ -7,6 +7,7 @@
 #define HFT_SERVER_PRICELEVELORDERBOOK_HPP
 
 #include "bus/busable.hpp"
+#include "containers/huge_array.hpp"
 #include "gateway/internal_order.hpp"
 #include "gateway/internal_order_status.hpp"
 #include "id/slot_id.hpp"
@@ -15,7 +16,6 @@
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "schema.hpp"
-#include "utils/huge_array.hpp"
 
 namespace hft::server {
 

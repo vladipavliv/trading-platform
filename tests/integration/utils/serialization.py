@@ -61,7 +61,6 @@ def create_order_message(
 
     Order.OrderStart(builder)
     Order.OrderAddId(builder, order_id)
-    Order.OrderAddCreated(builder, created)
     Order.OrderAddTicker(builder, ticker_offset)
     Order.OrderAddQuantity(builder, quantity)
     Order.OrderAddPrice(builder, price)
