@@ -22,8 +22,6 @@ class ShmReader;
  * if more readers are needed utils::waitForAny could be used
  */
 class ShmReactor {
-  static constexpr size_t MAX_READERS = 4;
-
 public:
   /**
    * @brief service locator
@@ -34,14 +32,12 @@ public:
   ~ShmReactor();
 
   ShmReactor(const ShmReactor &) = delete;
-  ShmReactor &operator=(const ShmReactor &) = delete;
-
   ShmReactor(ShmReactor &&) = delete;
+  ShmReactor &operator=(const ShmReactor &) = delete;
   ShmReactor &operator=(ShmReactor &&) = delete;
 
   void run();
   void stop();
-
   void add(ShmReader *reader);
   bool running() const;
 
@@ -49,7 +45,6 @@ private:
   ShmReactor() = default;
 
   void loop();
-  void cleanClosed();
 
 private:
   std::vector<ShmReader *> readers_;

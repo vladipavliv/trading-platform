@@ -6,8 +6,6 @@
 #ifndef HFT_SERVER_ORDERGATEWAY_HPP
 #define HFT_SERVER_ORDERGATEWAY_HPP
 
-#include <boost/unordered/unordered_flat_map.hpp>
-
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
 #include "containers/huge_array.hpp"
@@ -26,15 +24,12 @@ namespace hft::server {
 
 /**
  * @brief Maintains order storage
- * strips down metadata of incoming orders producing internal events
- * supplies needed metadata to outgoing order status messages
- * maintans a thread with LfqRunner to manage outgoing traffic
- * network thread meets here with gateway thread,
- * sync is managed by lock-free handing over of order entry ids via spsc lifo id queue
+ * strips down metadata of incoming orders producing internal events, supplies needed metadata to
+ * outgoing order status messages, uses a separate thread with LfqRunner to manage outgoing traffic
+ * network thread meets here with gateway thread, sync is managed by lock-free handing over of order
+ * entry ids via spsc id queue
  */
 class OrderGateway {
-  using OrderMapping = boost::unordered_flat_map<CompositeKey, SystemOrderId>;
-
 public:
   explicit OrderGateway(ServerBus &bus)
       : bus_{bus}, worker_{*this, bus_, "gateway", ServerConfig::cfg().coreGateway, true} {
@@ -91,8 +86,6 @@ private:
       LOG_ERROR_SYSTEM("Invalid order {}", toString(so));
       bus_.post(
           ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
-      bus_.post(
-          ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
       return;
     }
     switch (o.action) {
@@ -114,7 +107,6 @@ private:
 
   void cancelOrder(CRef<ServerOrder> so) {
     LOG_DEBUG("Cancel order: {}", toString(so));
-    // initially client sends his internal oid, when cancel/modify - system oid sent in status msg
     SystemOrderId sysOId{so.order.id};
 
     auto &o = so.order;
@@ -156,7 +148,6 @@ private:
 
   ALIGN_CL SlotIdPool<> idPool_;
   ALIGN_CL HugeArray<OrderRecord, SlotIdPool<>::CAPACITY> recordMap_;
-
   ALIGN_CL LfqRunner<InternalOrderStatus, OrderGateway, ServerBus> worker_;
 
   ALIGN_CL AtomicBool closed_{false};
