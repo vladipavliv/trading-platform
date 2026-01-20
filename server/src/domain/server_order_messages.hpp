@@ -24,10 +24,10 @@ struct ServerOrderStatus {
 
 namespace hft {
 inline String toString(const server::ServerOrder &msg) {
-  return std::format("{} {}", msg.clientId, toString(msg.order));
+  return std::format("ClientId {} {}", msg.clientId, toString(msg.order));
 }
 inline String toString(const server::ServerOrderStatus &msg) {
-  return std::format("{} {}", msg.clientId, toString(msg.orderStatus));
+  return std::format("ClientId {} {}", msg.clientId, toString(msg.orderStatus));
 }
 } // namespace hft
 

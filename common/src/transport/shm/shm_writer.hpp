@@ -32,6 +32,10 @@ public:
 
   auto syncTx(CByteSpan buffer) -> IoResult {
     using namespace utils;
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN_SYSTEM("ShmWriter is already closed");
+      return IoResult{0, IoStatus::Error};
+    }
     SpinWait waiter;
     while (!shm_->queue.write(buffer.data(), buffer.size())) {
       if (!++waiter) {
@@ -45,6 +49,10 @@ public:
 
   void asyncTx(CByteSpan buffer, CRefHandler<IoResult> &&clb) {
     using namespace utils;
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN_SYSTEM("ShmWriter is already closed");
+      return;
+    }
     SpinWait waiter;
     while (!shm_->queue.write(buffer.data(), buffer.size())) {
       if (!++waiter) {

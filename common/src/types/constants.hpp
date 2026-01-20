@@ -26,7 +26,7 @@ static constexpr uint32_t MAX_TICKS = 1 << 7;
 #else
 static constexpr uint32_t MAX_SYSTEM_ORDERS = 1 << 24;
 static constexpr uint32_t MAX_BOOK_ORDERS = 1 << 17;
-static constexpr uint32_t MAX_TICKS = 1 << 16;
+static constexpr uint32_t MAX_TICKS = 1 << 13;
 #endif
 
 } // namespace hft

@@ -7,14 +7,15 @@
 #define HFT_SERVER_PRICELEVELORDERBOOK_HPP
 
 #include "bus/busable.hpp"
+#include "containers/huge_array.hpp"
 #include "gateway/internal_order.hpp"
 #include "gateway/internal_order_status.hpp"
 #include "id/slot_id.hpp"
 #include "id/slot_id_pool.hpp"
+#include "internal_error.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "schema.hpp"
-#include "utils/huge_array.hpp"
 
 namespace hft::server {
 
@@ -77,7 +78,7 @@ public:
     const Side side = getSide(ioe.action);
 
     if (UNLIKELY(o.price >= MAX_TICKS)) [[unlikely]] {
-      LOG_ERROR("Price out of bounds: %u", o.price);
+      LOG_ERROR_SYSTEM("Price out of bounds: %u", o.price);
       return false;
     }
 
@@ -131,6 +132,12 @@ private:
       auto &pricePoint = levels_[bestPrice.price];
       PriceLevelSide &level = (side == Side::Buy) ? pricePoint.ask : pricePoint.bid;
 
+      if (UNLIKELY(level.head == 0)) {
+        LOG_DEBUG("Mask out of sync at price {}", bestPrice.price);
+        updateOccupancy((side == Side::Buy ? Side::Sell : Side::Buy), bestPrice.price, false);
+        continue;
+      }
+
       while (level.head != 0 && remainingQty > 0) {
         Node &restingNode = nodePool_[level.head];
         uint32_t fillQty = std::min(remainingQty, restingNode.qty);
@@ -159,7 +166,7 @@ private:
     LOG_DEBUG("restOrder {}", toString(o));
     BookOrderId localId = acquireId();
     if (UNLIKELY(!localId)) {
-      LOG_ERROR("OrderBook is full");
+      consumer.post(InternalError{StatusCode::Error, "OrderBook is full"});
       return;
     }
 
@@ -198,7 +205,8 @@ private:
     Node &node = nodePool_[idx];
 
     if (UNLIKELY(node.localId != o.bookOId)) {
-      LOG_ERROR("Invalid book oid");
+      LOG_ERROR("Failed to cancel order {}, already closed", toString(ioe));
+      consumer.post(InternalOrderStatus{o.id, o.bookOId, 0, 0, OrderState::Rejected});
       return;
     }
 
@@ -228,10 +236,12 @@ private:
   }
 
   inline void updateOccupancy(Side side, uint32_t priceIdx, bool active) {
-    LOG_DEBUG("updateOccupancy");
     uint64_t *mask = (side == Side::Buy) ? bidMask_ : askMask_;
     const uint32_t wordIdx = priceIdx >> 6;
     const uint64_t bit = 1ULL << (priceIdx & 63);
+
+    auto &level = levels_[priceIdx];
+    uint64_t volume = (side == Side::Buy) ? level.bid.volume : level.ask.volume;
 
     if (active) {
       mask[wordIdx] |= bit;
@@ -241,7 +251,9 @@ private:
         minAsk_ = std::min(minAsk_, priceIdx);
       }
     } else {
-      mask[wordIdx] &= ~bit;
+      if (volume == 0) {
+        mask[wordIdx] &= ~bit;
+      }
       if (side == Side::Buy && priceIdx == maxBid_) {
         findNewMaxBid(wordIdx);
       } else if (side == Side::Sell && priceIdx == minAsk_) {
@@ -276,8 +288,9 @@ private:
     for (uint32_t i = startWord; i <= maxWord; ++i) {
       if (askMask_[i] != 0) {
         Price p = (i << 6) + __builtin_ctzll(askMask_[i]);
-        if (p <= limitPrice)
+        if (p <= limitPrice && levels_[p].ask.head != 0) {
           return {p, true};
+        }
         break;
       }
     }
@@ -290,7 +303,7 @@ private:
     for (int i = startWord; i >= minWord; --i) {
       if (bidMask_[i] != 0) {
         Price p = (i << 6) + (63 - __builtin_clzll(bidMask_[i]));
-        if (p >= limitPrice) {
+        if (p >= limitPrice && levels_[p].bid.head != 0) {
           return {p, true};
         }
         break;
@@ -325,10 +338,9 @@ private:
   ALIGN_CL uint64_t bidMask_[MASK_SIZE];
   ALIGN_CL uint64_t askMask_[MASK_SIZE];
 
-  BookOrderId freeStack_[MAX_BOOK_ORDERS];
+  HugeArray<BookOrderId, MAX_BOOK_ORDERS> freeStack_;
   uint32_t freeTop_;
   uint32_t nextAvailableIdx_;
-
   Price minAsk_;
   Price maxBid_;
 };

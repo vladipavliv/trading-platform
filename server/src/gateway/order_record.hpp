@@ -11,11 +11,12 @@
 
 namespace hft::server {
 struct OrderRecord {
-  Timestamp created;
-  SystemOrderId id;
+  OrderId externalOId;
+  SystemOrderId systemOId;
   BookOrderId bookOId;
+
   ClientId clientId;
-  OrderId externalId;
+  Ticker ticker;
 };
 } // namespace hft::server
 

@@ -35,7 +35,7 @@ static void DISABLED_BM_LfqRunnerThroughput(benchmark::State &state) {
   PostTracker consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));
+  auto lfqRunner = std::make_unique<Runner>(consumer, bus, "worker", getCore(1));
   lfqRunner->run();
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
@@ -67,7 +67,7 @@ static void DISABLED_BM_LfqRunnerTailSpy(benchmark::State &state) {
   PostTracker consumer{ORDER_COUNT - 1};
 
   SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(consumer, bus, getCore(1));
+  auto lfqRunner = std::make_unique<Runner>(consumer, bus, "worker", getCore(1));
   lfqRunner->run();
 
   std::vector<uint64_t> tscLogs(ORDER_COUNT + 1);

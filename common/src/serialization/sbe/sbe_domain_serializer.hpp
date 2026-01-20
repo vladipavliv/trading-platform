@@ -88,8 +88,8 @@ public:
         return std::unexpected(StatusCode::Error);
       }
       domain::Order msg(data + headerSize, messageSize);
-      consumer.post(Order{msg.id(), msg.created(), makeTicker(msg.ticker().getChar4AsString()),
-                          msg.quantity(), msg.price(), convert(msg.action())});
+      consumer.post(Order{msg.id(), makeTicker(msg.ticker().getChar4AsString()), msg.quantity(),
+                          msg.price(), convert(msg.action())});
       return domain::Order::sbeBlockAndHeaderLength();
     }
     case domain::OrderStatus::sbeTemplateId(): {
@@ -98,8 +98,8 @@ public:
         return std::unexpected(StatusCode::Error);
       }
       domain::OrderStatus msg(data + headerSize, messageSize);
-      consumer.post(OrderStatus{msg.order_id(), msg.timestamp(), msg.quantity(), msg.fill_price(),
-                                convert(msg.state())});
+      consumer.post(OrderStatus{msg.order_id(), msg.system_order_id(), msg.quantity(),
+                                msg.fill_price(), convert(msg.state())});
       return domain::OrderStatus::sbeBlockAndHeaderLength();
     }
     case domain::TickerPrice::sbeTemplateId(): {
@@ -154,7 +154,7 @@ public:
 
     domain::Order msg;
     msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
-    msg.id(r.id).created(r.created).ticker().putChar4(r.ticker.data());
+    msg.id(r.id).ticker().putChar4(r.ticker.data());
     msg.quantity(r.quantity).price(r.price).action(convert(r.action));
     return msgSize;
   }
@@ -165,7 +165,7 @@ public:
 
     domain::OrderStatus msg;
     msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
-    msg.order_id(r.orderId).timestamp(r.timeStamp).quantity(r.quantity);
+    msg.order_id(r.orderId).system_order_id(r.systemOrderId).quantity(r.quantity);
     msg.fill_price(r.fillPrice).state(convert(r.state));
     return msgSize;
   }

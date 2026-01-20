@@ -7,10 +7,10 @@
 #define HFT_SERVER_SLOTIDPOOL_HPP
 
 #include "constants.hpp"
+#include "containers/huge_array.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "slot_id.hpp"
-#include "utils/huge_array.hpp"
 
 namespace hft {
 

@@ -15,6 +15,7 @@
 #include "constants.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "ptr_types.hpp"
 
 namespace hft {
 
@@ -39,6 +40,11 @@ public:
     }
   }
 
+  template <typename T>
+  inline bool write(CRef<T> msg) {
+    return write(reinterpret_cast<const uint8_t *>(&msg), sizeof(T));
+  }
+
   inline bool write(const uint8_t *__restrict__ src, uint32_t length) noexcept {
     if (length > DataCapacity) {
       return false;
@@ -53,6 +59,11 @@ public:
     sloth.seq.store(writeIdx_ + 1, std::memory_order_release);
     ++writeIdx_;
     return true;
+  }
+
+  template <typename T>
+  inline uint32_t read(T &msg) {
+    return read(reinterpret_cast<uint8_t *>(&msg), sizeof(T));
   }
 
   inline uint32_t read(uint8_t *__restrict__ dst, uint32_t maxLen) noexcept {

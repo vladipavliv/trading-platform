@@ -6,6 +6,18 @@ HUGE_MOUNT=/mnt/huge
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
 
+sudo fuser -k -m /mnt/huge
+
+pkill -f hft_server
+pkill -f hft_client
+pkill -f hft_monitor
+
+sudo rm -rf /mnt/huge/*
+
+sync
+echo 3 | sudo tee /proc/sys/vm/drop_caches
+echo 1 | sudo tee /proc/sys/vm/compact_memory
+
 echo "[I] Setting up hugetlbfs at $HUGE_MOUNT"
 
 # Unmount if already mounted
@@ -32,3 +44,5 @@ for f in hft_upstream hft_downstream hft_telemetry; do
 done
 
 echo "[I] Huge pages setup complete"
+
+grep Huge /proc/meminfo

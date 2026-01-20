@@ -25,8 +25,8 @@ struct InternalOrderStatus {
 
 namespace hft {
 inline String toString(const server::InternalOrderStatus &event) {
-  return std::format("InternalOrderStatus {} {} {} {}", event.id.raw(), toString(event.state),
-                     event.fillPrice, event.fillQty);
+  return std::format("InternalOrderStatus {} {} {} {} {}", event.id.raw(), event.bookOId.raw(),
+                     event.fillQty, event.fillPrice, toString(event.state));
 }
 } // namespace hft
 

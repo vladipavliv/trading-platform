@@ -38,11 +38,7 @@ inline BookOrderId genBookOId() {
 }
 
 inline Order genOrder(Ticker ticker) {
-  return Order{genId(),
-               getCycles(),
-               ticker,
-               RNG::generate<Quantity>(0, 1000),
-               RNG::generate<Price>(10, 10000),
+  return Order{genId(), ticker, RNG::generate<Quantity>(0, 1000), RNG::generate<Price>(10, 10000),
                RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
 }
 

@@ -12,7 +12,7 @@ def generate_ticker():
     return "".join(random.choices(string.ascii_uppercase, k=4))
 
 def generate_price():
-    return random.randint(10, 10000)
+    return random.randint(10, 7500)
 
 def generate_tickers(amount):
     try:

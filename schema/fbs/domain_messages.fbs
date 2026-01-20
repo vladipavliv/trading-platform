@@ -33,7 +33,6 @@ table LoginResponse {
 
 table Order {
     id: uint32;
-    created: uint64;
     ticker: string;
     quantity: uint;
     price: uint;
@@ -42,7 +41,7 @@ table Order {
 
 table OrderStatus {
     order_id: uint32;
-    timestamp: uint64;
+    system_order_id: uint32;
     quantity: uint;
     fill_price: uint;
     state: OrderState;
