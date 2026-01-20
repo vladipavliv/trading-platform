@@ -51,6 +51,7 @@ public:
   void validate() const {
     std::string missingTypes;
 
+    // Check if handlers are set for every message, report the missing ones
     std::apply(
         [&](auto &&...handlers) {
           ((!handlers

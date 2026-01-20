@@ -19,6 +19,9 @@
 
 namespace hft {
 
+/**
+ * @brief Slot based spsc queue for small messages
+ */
 template <size_t SlotCount = 65536>
 class SequencedSPSC {
   static constexpr uint32_t DataCapacity = 52;

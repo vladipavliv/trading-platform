@@ -19,13 +19,11 @@
 namespace hft {
 
 /**
- * @brief Bus for heavy workload with no responsiveness guarantees, optimized for maximum post speed
- * @details Telemetry stream is very intense. To mitigate effect on the hot path,
- * custom optimized lock-free queue is used instead of io_context queue
- * Benchmarks StreamBus::post vs SystemBus::post => 14.3ns vs 52.1 ns
- * This is not used in hot paths cause io_context is optimized not only for producing, but
- * also for consuming. Here we dont care as much for consume side, cause we optimizing for
- * minimal effect on a hot path. In the hot path both sides matter
+ * @brief Currently not in use
+ * Telemetry stream is intense, and it's effect on the hot path must be minimized
+ * SystemBus handles important events so it should be responsive too
+ * So telemetry needs a separate bus, no need for responsiveness guarantees, maximum post speed
+ * As telemetry is currently streamed via shared memory, no need for a special bus
  */
 template <size_t Capacity, typename... Events>
 class StreamBus {

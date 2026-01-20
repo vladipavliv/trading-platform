@@ -13,7 +13,6 @@
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
-
 struct InternalOrderStatus {
   SystemOrderId id;
   BookOrderId bookOId;

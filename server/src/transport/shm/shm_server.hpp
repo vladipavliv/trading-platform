@@ -43,7 +43,6 @@ public:
   void stop() {
     LOG_DEBUG_SYSTEM("Stopping ShmServer");
     reactor_.stop();
-    // TODO(self): properly signal client we are closing
   }
 
 private:

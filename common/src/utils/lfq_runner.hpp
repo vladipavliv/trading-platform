@@ -75,17 +75,17 @@ public:
   }
 
   void stop() {
-    LOG_DEBUG_SYSTEM("Stopping LfqRunner {}", name_);
+    LOG_DEBUG("Stopping LfqRunner {}", name_);
     if (!running_.load(std::memory_order_acquire)) {
       LOG_ERROR("Already stopped");
       return;
     }
     running_.store(false, std::memory_order_release);
     auto val = ftx_.fetch_add(1, std::memory_order_release);
-    LOG_DEBUG_SYSTEM("futex wake {} {}", name_, val);
+    LOG_DEBUG("futex wake {} {}", name_, val);
     utils::futexWake(ftx_);
     utils::join(thread_);
-    LOG_DEBUG_SYSTEM("LfqRunner {} stopped", name_);
+    LOG_DEBUG("LfqRunner {} stopped", name_);
   }
 
   inline void post(CRef<MessageT> message) {

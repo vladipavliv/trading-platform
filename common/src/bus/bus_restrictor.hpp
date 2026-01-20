@@ -14,7 +14,7 @@
 namespace hft {
 
 /**
- * @brief Routes only allowed types, blocks any other types
+ * @brief Bus message runtime blocker
  */
 template <typename BusT, typename... MessageTs>
 struct BusRestrictor {

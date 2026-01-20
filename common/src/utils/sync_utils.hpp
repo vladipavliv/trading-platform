@@ -54,6 +54,27 @@ inline uint32_t hybridWait(Futex &ftx, uint32_t val, FutexFlag &waitFlag, FutexF
   return waiter.cycles();
 }
 
+struct futex_waitv {
+  uint64_t val;
+  uint64_t address;
+  uint32_t flags;
+  uint32_t pad;
+};
+
+inline int waitForAny(const std::vector<Futex *> &futexes) {
+  std::vector<futex_waitv> waitv(futexes.size());
+
+  for (size_t i = 0; i < futexes.size(); ++i) {
+    waitv[i].address = (uintptr_t)&futexes[i];
+
+    waitv[i].val = futexes[i]->load(std::memory_order_acquire);
+    waitv[i].flags = FUTEX_32;
+  }
+
+  long res = syscall(__NR_futex_waitv, waitv.data(), waitv.size(), 0, NULL, 0);
+  return (res >= 0) ? static_cast<int>(res) : -1;
+}
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_SYNCUTILS_HPP

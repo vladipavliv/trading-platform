@@ -35,12 +35,14 @@ BM_ServerFix/InternalLatency/4           122 ns          122 ns      5719689 4 w
 BM_OrderBookFix/AddOrder                17.6 ns         17.6 ns     39141376
 ```
 
-
 Manual tests (16m opened orders limit, 8k price levels, 100 tickers)
 
 Shared memory:
 ```bash
-23:32:12.712988 [I] Rps: 5,457,693 Rtt: [<1µs|>1µs] 99.73% avg:338ns | 0.27% avg:3µs | Max:20µs
+(3 pause speed bumps per order)
+00:41:46.749143 [I] Rps: 10,652,334 Rtt: [<1µs|>1µs] 98.88% avg:363ns | 1.12% avg:3µs | Max:19µs
+(10 pause speed bumps per order)
+00:54:53.240807 [I] Rps: 5,524,216 Rtt: [<1µs|>1µs] 99.73% avg:329ns | 0.27% avg:3µs | Max:27µs
 ```
 Boost sockets:
 ```bash

@@ -28,25 +28,28 @@ namespace hft::server {
 
 /**
  * @brief cc
- * Order event flow
- * 1. IpcServer (network thread)
- *    consume: Order
- *    produce: ServerOrder supplied with client id
- * 2. OrderGateway (network thread)
- *    consume: ServerOrder, allocates id, creates order record
- *    produce: InternalOrderEvent with stripped down metadata
- * 3. Coordinator (network thread)
- *    cunsume: InternalOrderEvent
- *    produce: (thread hop) manual dispatch to a proper worker via worker LfqRunner
- * 4. Worker (worker thread)
- *    cunsume: manually dispatched from Coordinator
- *    produce: (thread hop) InternalOrderStatus via gateway LfqRunner
- * 5. OrderGateway (gateway thread)
- *    cunsume: InternalOrderStatus, update record with local OB id, cleanup if Rejected
- *    produce: ServerOrderStatus
- * 6. SessionManager (gateway thread)
- *    consume: ServerOrderStatus
- *    produce: manually writes to a proper channel based on client id
+ * Order event flow ('=>': MarketBus routing, '->': manual routing)
+ * [network thread]
+ * 1. IpcServer
+ *    -> Order read from the network
+ *    <= ServerOrder supplied with client id
+ * 2. OrderGateway
+ *    => ServerOrder, allocates id, creates order record
+ *    <= InternalOrderEvent with stripped down metadata
+ * 3. Coordinator
+ *    => InternalOrderEvent
+ *    <- (thread hop) manual dispatch to a proper worker via worker LfqRunner
+ * [worker thread]
+ * 4. Worker
+ *    -> manually dispatched from Coordinator
+ *    <= (thread hop) InternalOrderStatus via gateway LfqRunner
+ * [gateway thread]
+ * 5. OrderGateway
+ *    => InternalOrderStatus, update record with local OB id, cleanup if Rejected
+ *    <= ServerOrderStatus supplied with client id
+ * 6. SessionManager
+ *    => ServerOrderStatus
+ *    <- manually writes to a proper channel based on client id
  */
 class ControlCenter {
 public:

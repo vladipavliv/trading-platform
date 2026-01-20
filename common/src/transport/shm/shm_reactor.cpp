@@ -68,9 +68,9 @@ void ShmReactor::stop() {
   }
   readers_.clear();
   instance.store(nullptr, std::memory_order_release);
-  LOG_DEBUG_SYSTEM("Joining ShmReactor thread");
+  LOG_DEBUG("Joining ShmReactor thread");
   utils::join(thread_);
-  LOG_DEBUG_SYSTEM("ShmReactor stopped");
+  LOG_DEBUG("ShmReactor stopped");
 }
 
 void ShmReactor::loop() {

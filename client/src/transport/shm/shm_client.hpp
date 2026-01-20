@@ -39,7 +39,6 @@ public:
   void stop() {
     LOG_INFO("ShmClient stop");
     reactor_.stop();
-    // TODO(self): Notify server we are disconnecting
   }
 
 private:

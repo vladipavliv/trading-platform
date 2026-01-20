@@ -6,6 +6,7 @@
 #ifndef HFT_TESTS_DATAGENERATOR_HPP
 #define HFT_TESTS_DATAGENERATOR_HPP
 
+#include "constants.hpp"
 #include "container_types.hpp"
 #include "execution/market_data.hpp"
 #include "gateway/internal_order.hpp"
@@ -38,7 +39,8 @@ inline BookOrderId genBookOId() {
 }
 
 inline Order genOrder(Ticker ticker) {
-  return Order{genId(), ticker, RNG::generate<Quantity>(0, 1000), RNG::generate<Price>(10, 10000),
+  return Order{genId(), ticker, RNG::generate<Quantity>(0, 1000),
+               RNG::generate<Price>(10, MAX_TICKS - 10),
                RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell};
 }
 

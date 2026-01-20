@@ -15,14 +15,17 @@
 
 namespace hft {
 
+/**
+ * @brief lock-free queue + control block for a one-side message stream via shm
+ */
 struct alignas(utils::HUGE_PAGE_SIZE) ShmQueue {
   // 8mb + control block, place at the start so data fills up 4 full huge pages
   ALIGN_CL SequencedSPSC<128 * 1024> queue;
 
-  ALIGN_CL AtomicUInt32 futex{0};
-  ALIGN_CL uint32_t futexCounter{0};
-  ALIGN_CL AtomicBool waitFlag{false};
-  ALIGN_CL AtomicUInt32 refCount{0};
+  ALIGN_CL AtomicUInt32 futex{0};      // futex
+  ALIGN_CL uint32_t futexCounter{0};   // optimization to avoid fetch_add
+  ALIGN_CL AtomicBool waitFlag{false}; // optimization to hit futex only when necessary
+  ALIGN_CL AtomicUInt32 refCount{0};   // counter for shm cleanup
 
   void notify() {
     if (waitFlag.load(std::memory_order_acquire)) {
@@ -33,11 +36,9 @@ struct alignas(utils::HUGE_PAGE_SIZE) ShmQueue {
   }
 
   void wait() {
-    LOG_DEBUG("ShmQueue wait start");
     const auto ftxVal = futex.load(std::memory_order_acquire);
     waitFlag.store(true, std::memory_order_release);
     utils::futexWait(futex, ftxVal);
-    LOG_DEBUG("ShmQueue wait end");
     waitFlag.store(false, std::memory_order_release);
   }
 
@@ -45,16 +46,14 @@ struct alignas(utils::HUGE_PAGE_SIZE) ShmQueue {
 
   bool decrement() noexcept {
     uint32_t old = refCount.load(std::memory_order_acquire);
-    while (true) {
-      if (old == 0) {
-        LOG_ERROR("Attempted to decrement refCount below 0");
-        return false;
-      }
+    while (old > 0) {
       if (refCount.compare_exchange_weak( // format
               old, old - 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
         return old == 1;
       }
     }
+    LOG_ERROR("Attempted to decrement refCount already at 0");
+    return false;
   }
 
   size_t count() const { return refCount.load(std::memory_order_acquire); }
