@@ -62,13 +62,20 @@ public:
         CRefHandler<InternalOrderEvent>::template bind<Coordinator, &Coordinator::post>(this));
   }
 
+  ~Coordinator() { LOG_DEBUG_SYSTEM("~Coordinator"); }
+
   void start() {
     LOG_DEBUG("Coordinator start");
     startWorkers();
   }
 
   void stop() {
-    LOG_DEBUG("Coordinator start");
+    LOG_DEBUG("Coordinator stop");
+    if (stopped_.load(std::memory_order_acquire)) {
+      LOG_DEBUG("Coordinator already stopped");
+      return;
+    }
+    stopped_.store(true, std::memory_order_release);
     for (auto &worker : workers_) {
       worker->stop();
     }
@@ -81,12 +88,13 @@ private:
 
     workers_.reserve(appCores);
     if (ServerConfig::cfg().coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus));
+      workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, "worker zero"));
       workers_[0]->run();
     } else {
       for (size_t i = 0; i < ServerConfig::cfg().coresApp.size(); ++i) {
+        const auto name = std::format("worker {}", i);
         const auto coreId = ServerConfig::cfg().coresApp[i];
-        workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, coreId));
+        workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, name, coreId));
         workers_[i]->run();
       }
     }
@@ -94,6 +102,10 @@ private:
   }
 
   void post(CRef<InternalOrderEvent> ioe) {
+    if (stopped_.load(std::memory_order_acquire)) {
+      LOG_WARN_SYSTEM("Coordinator already stopped");
+      return;
+    }
     if (data_.count(ioe.ticker) == 0) {
       LOG_ERROR_SYSTEM("Ticker not found {}", toString(ioe.ticker));
       return;
@@ -105,6 +117,7 @@ private:
 private:
   ServerBus &bus_;
   const MarketData &data_;
+  AtomicBool stopped_{false};
 
   Matcher matcher_;
   Vector<UPtr<Worker>> workers_;

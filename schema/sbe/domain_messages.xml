@@ -60,16 +60,15 @@
 
   <message name="Order" id="4" description="Order">
     <field name="id" id="1" type="uint32" />
-    <field name="created" id="2" type="uint64" />
-    <field name="ticker" id="3" type="Char4" />
-    <field name="quantity" id="4" type="uint32" />
-    <field name="price" id="5" type="uint32" />
-    <field name="action" id="6" type="OrderAction" />
+    <field name="ticker" id="2" type="Char4" />
+    <field name="quantity" id="3" type="uint32" />
+    <field name="price" id="4" type="uint32" />
+    <field name="action" id="5" type="OrderAction" />
   </message>
 
   <message name="OrderStatus" id="5" description="Order status">
     <field name="order_id" id="1" type="uint32" />
-    <field name="timestamp" id="2" type="uint64" />
+    <field name="system_order_id" id="2" type="uint32" />
     <field name="quantity" id="3" type="uint32" />
     <field name="fill_price" id="4" type="uint32" />
     <field name="state" id="5" type="OrderState" />

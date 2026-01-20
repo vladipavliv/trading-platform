@@ -12,22 +12,7 @@ ShmReader::ShmReader(CRef<String> name) : reactor_{init()}, shm_{name} {
   LOG_INFO_SYSTEM("ShmReader ctor");
 }
 
-ShmReader::~ShmReader() {
-  auto state = state_.load(std::memory_order_acquire);
-
-  SpinWait waiter{SPIN_RETRIES_YIELD};
-  while (state != State::Closed && reactor_.running()) {
-    if (state == State::Ready || state == State::Active) {
-      state_.store(State::Closing);
-      shm_->notify();
-    }
-    state = state_.load(std::memory_order_acquire);
-    if (!++waiter) {
-      LOG_ERROR_SYSTEM("Failed to properly close ShmReader");
-      break;
-    }
-  }
-}
+ShmReader::~ShmReader() { LOG_DEBUG_SYSTEM("~ShmReader"); }
 
 ShmReactor &ShmReader::init() {
   ShmReactor *r = ShmReactor::instance.load(std::memory_order_acquire);
@@ -77,6 +62,7 @@ ShmReader::PollResult ShmReader::poll() {
 }
 
 void ShmReader::close() {
+  LOG_DEBUG_SYSTEM("ShmReader::close");
   auto state = state_.load(std::memory_order_acquire);
   if (state == State::Ready || state == State::Active) {
     state_.store(State::Closing);

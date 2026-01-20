@@ -30,7 +30,7 @@ public:
 
   explicit ShmServer(ServerBus &bus) : bus_{bus}, reactor_{ErrorBus{bus_.systemBus}} {}
 
-  ~ShmServer() { stop(); }
+  ~ShmServer() { LOG_DEBUG_SYSTEM("~ShmServer"); }
 
   void setUpstreamClb(StreamClb &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
@@ -41,7 +41,7 @@ public:
   void start() { initialize(); }
 
   void stop() {
-    LOG_DEBUG_SYSTEM("stop");
+    LOG_DEBUG_SYSTEM("Stopping ShmServer");
     reactor_.stop();
     // TODO(self): properly signal client we are closing
   }

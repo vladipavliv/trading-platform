@@ -32,9 +32,9 @@ class LfqRunner {
   using Queue = SequencedSPSC<Capacity>;
 
 public:
-  LfqRunner(ConsumerT &consumer, BusT &bus, Optional<CoreId> coreId = std::nullopt,
+  LfqRunner(ConsumerT &consumer, BusT &bus, String name, Optional<CoreId> coreId = std::nullopt,
             bool feedFromBus = false)
-      : consumer_{consumer}, bus_{bus}, coreId_{coreId} {
+      : consumer_{consumer}, bus_{bus}, name_{std::move(name)}, coreId_{coreId} {
     if (feedFromBus) {
       using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
       bus_.template subscribe<MessageT>(
@@ -42,10 +42,10 @@ public:
     }
   }
 
-  ~LfqRunner() { stop(); }
+  ~LfqRunner() { LOG_DEBUG_SYSTEM("~LfqRunner {}", name_); }
 
   void run() {
-    LOG_DEBUG("LfqRunner run");
+    LOG_DEBUG("LfqRunner run {}", name_);
     thread_ = std::jthread([this]() {
       try {
         running_.store(true);
@@ -53,45 +53,55 @@ public:
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
-          LOG_INFO("LfqRunner started on core {}", coreId_.value());
+          LOG_INFO("LfqRunner {} started on core {}", name_, coreId_.value());
           utils::pinThreadToCore(coreId_.value());
         } else {
-          LOG_INFO("LfqRunner started");
+          LOG_INFO("LfqRunner {} started", name_);
         }
 
         lfqLoop();
       } catch (const std::exception &ex) {
-        LOG_ERROR_SYSTEM("{}", ex.what());
-        bus_.post(InternalError{StatusCode::Error, ex.what()});
+        const auto error = std::format("std exception in LfqRunner {}: {}", name_, ex.what());
+        LOG_ERROR_SYSTEM("{}", error);
+        bus_.post(InternalError{StatusCode::Error, error});
       } catch (...) {
-        LOG_ERROR_SYSTEM("Unknown exception in ShmReader");
-        bus_.post(InternalError{StatusCode::Error, "Unknown"});
+        const auto error = std::format("unknown exception in LfqRunner {}", name_);
+        LOG_ERROR_SYSTEM("{}", error);
+        bus_.post(InternalError{StatusCode::Error, error});
       }
-      LOG_DEBUG("LfqRunner finished");
+      LOG_DEBUG("LfqRunner finished {}", name_);
     });
     running_.wait(false);
   }
 
   void stop() {
+    LOG_DEBUG_SYSTEM("Stopping LfqRunner {}", name_);
     if (!running_.load(std::memory_order_acquire)) {
+      LOG_ERROR("Already stopped");
       return;
     }
-    LOG_DEBUG("LfqRunner stop");
     running_.store(false, std::memory_order_release);
-    ftx_.fetch_add(1, std::memory_order_release);
+    auto val = ftx_.fetch_add(1, std::memory_order_release);
+    LOG_DEBUG_SYSTEM("futex wake {} {}", name_, val);
     utils::futexWake(ftx_);
     utils::join(thread_);
+    LOG_DEBUG_SYSTEM("LfqRunner {} stopped", name_);
   }
 
   inline void post(CRef<MessageT> message) {
     LOG_DEBUG("{}", toString(message));
+    if (!running_.load(std::memory_order_acquire)) {
+      LOG_ERROR("Already stopped");
+      return;
+    }
     auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
     auto msgSize = sizeof(MessageT);
 
     SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {
       if (!++waiter) {
-        LOG_ERROR("Failed to post to LfqRunner");
+        const auto err = String("Failed to post to LfqRunner ") + name_;
+        bus_.post(InternalError{StatusCode::Error, err});
         break;
       }
     }
@@ -103,7 +113,7 @@ public:
 
 private:
   void lfqLoop() {
-    LOG_DEBUG("LfqRunner::lfqLoop enter");
+    LOG_DEBUG_SYSTEM("LfqRunner::lfqLoop {} enter", name_);
     MessageT message;
     auto msgPtr = reinterpret_cast<uint8_t *>(&message);
     auto msgSize = sizeof(MessageT);
@@ -114,10 +124,10 @@ private:
         waiter.reset();
         do {
           consumer_.post(message);
-        } while (queue_.read(msgPtr, msgSize));
+        } while (queue_.read(msgPtr, msgSize) && running_.load(std::memory_order_acquire));
         continue;
       }
-      if (++waiter) {
+      if (++waiter || !running_.load(std::memory_order_acquire)) {
         continue;
       }
       const auto ftxVal = ftx_.load(std::memory_order_acquire);
@@ -134,24 +144,27 @@ private:
         break;
       }
 
-      LOG_DEBUG("futex sleep");
+      LOG_DEBUG("futex sleep {} {}", name_, ftxVal);
       utils::futexWait(ftx_, ftxVal);
+      LOG_DEBUG("futex awake {} {}", name_, ftxVal);
       sleeping_.store(false, std::memory_order_release);
       waiter.reset();
     }
+    LOG_DEBUG_SYSTEM("LfqRunner::lfqLoop {} leave", name_);
   }
 
 private:
-  const Optional<CoreId> coreId_;
+  ALIGN_CL ConsumerT &consumer_;
+  ALIGN_CL BusT &bus_;
+  ALIGN_CL const String name_;
+  ALIGN_CL const Optional<CoreId> coreId_;
 
   ALIGN_CL Queue queue_;
   ALIGN_CL AtomicBool running_{false};
   ALIGN_CL AtomicBool sleeping_{false};
   ALIGN_CL AtomicUInt32 ftx_{0};
 
-  ALIGN_CL ConsumerT &consumer_;
-  BusT &bus_;
-  std::jthread thread_;
+  ALIGN_CL std::jthread thread_;
 };
 
 } // namespace hft

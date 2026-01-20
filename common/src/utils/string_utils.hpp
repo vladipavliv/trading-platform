@@ -72,6 +72,18 @@ inline String formatNs(uint64_t ns) {
   }
 }
 
+inline String formatCompact(uint64_t num) {
+  if (num < 1'000) {
+    return std::format("{}", num);
+  } else if (num < 1'000'000) {
+    num /= 1'000;
+    return std::format("{}k", num);
+  } else {
+    num /= 1'000'000;
+    return std::format("{}m", num);
+  }
+}
+
 /**
  * @brief Number thousandifier
  * @return Thousandified number. A number, that has gone through thousandification procedures

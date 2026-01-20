@@ -83,9 +83,8 @@ public:
         LOG_ERROR("Failed to extract Order");
         return std::unexpected(StatusCode::Error);
       }
-      const Order order{
-          orderMsg->id(),       orderMsg->created(), fbStringToTicker(orderMsg->ticker()),
-          orderMsg->quantity(), orderMsg->price(),   convert(orderMsg->action())};
+      const Order order{orderMsg->id(), fbStringToTicker(orderMsg->ticker()), orderMsg->quantity(),
+                        orderMsg->price(), convert(orderMsg->action())};
       consumer.post(order);
       break;
     }
@@ -95,8 +94,9 @@ public:
         LOG_ERROR("Failed to extract OrderStatus");
         return std::unexpected(StatusCode::Error);
       }
-      const OrderStatus status{statusMsg->order_id(), statusMsg->timestamp(), statusMsg->quantity(),
-                               statusMsg->fill_price(), convert(statusMsg->state())};
+      const OrderStatus status{statusMsg->order_id(), statusMsg->system_order_id(),
+                               statusMsg->quantity(), statusMsg->fill_price(),
+                               convert(statusMsg->state())};
       consumer.post(status);
       break;
     }
@@ -157,9 +157,9 @@ public:
   static size_t serialize(CRef<Order> order, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrder(builder, order.id, order.created,
-                                 builder.CreateString(order.ticker.data(), TICKER_SIZE),
-                                 order.quantity, order.price, convert(order.action));
+    const auto msg =
+        CreateOrder(builder, order.id, builder.CreateString(order.ticker.data(), TICKER_SIZE),
+                    order.quantity, order.price, convert(order.action));
     builder.Finish(CreateMessage(builder, MessageUnion_Order, msg.Union()));
     const auto serializedMsg = builder.Release();
 
@@ -170,8 +170,8 @@ public:
   static size_t serialize(CRef<OrderStatus> status, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateOrderStatus(builder, status.orderId, status.timeStamp, status.quantity,
-                                       status.fillPrice, convert(status.state));
+    const auto msg = CreateOrderStatus(builder, status.orderId, status.systemOrderId,
+                                       status.quantity, status.fillPrice, convert(status.state));
     builder.Finish(CreateMessage(builder, MessageUnion_OrderStatus, msg.Union()));
     const auto serializedMsg = builder.Release();
 

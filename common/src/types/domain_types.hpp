@@ -46,7 +46,6 @@ struct LoginResponse {
 
 struct Order {
   OrderId id;
-  Timestamp created;
   Ticker ticker;
   Quantity quantity;
   Price price;
@@ -56,7 +55,7 @@ struct Order {
 
 struct OrderStatus {
   OrderId orderId;
-  Timestamp timeStamp;
+  OrderId systemOrderId;
   Quantity quantity;
   Price fillPrice;
   OrderState state;
@@ -116,14 +115,15 @@ inline String toString(const OrderAction &state) {
 }
 
 inline String toString(const Order &o) {
-  return std::format("Order: Id={} Created={} Ticker={} Qty={} Price={} Action={}", o.id, o.created,
+  return std::format("Order: Id:{} Ticker:{} Qty:{} Price:{} Action:{}", o.id,
                      std::string_view(o.ticker.data(), TICKER_SIZE), o.quantity, o.price,
                      (o.action == OrderAction::Buy ? "Buy" : "Sell"));
 }
 
 inline String toString(const OrderStatus &status) {
-  return std::format("OrderStatus: Id={} Ts={} Qty={} FillPrice={} State={}", status.orderId,
-                     status.timeStamp, status.quantity, status.fillPrice, toString(status.state));
+  return std::format("OrderStatus: ExternalId:{} SystemId:{} Qty:{} FillPrice:{} State:{}",
+                     status.orderId, status.systemOrderId, status.quantity, status.fillPrice,
+                     toString(status.state));
 }
 
 inline String toString(const TickerPrice &price) {

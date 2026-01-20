@@ -37,10 +37,12 @@ class OrderGateway {
 
 public:
   explicit OrderGateway(ServerBus &bus)
-      : bus_{bus}, worker_{*this, bus_, ServerConfig::cfg().coreGateway, true} {
+      : bus_{bus}, worker_{*this, bus_, "gateway", ServerConfig::cfg().coreGateway, true} {
     bus_.subscribe<ServerOrder>(
         CRefHandler<ServerOrder>::template bind<OrderGateway, &OrderGateway::post>(this));
   }
+
+  ~OrderGateway() { LOG_DEBUG_SYSTEM("~OrderGateway"); }
 
   void start() {
     LOG_DEBUG_SYSTEM("OrderGateway start");
@@ -49,14 +51,19 @@ public:
 
   void stop() {
     LOG_DEBUG_SYSTEM("OrderGateway stop");
+    closed_.store(true, std::memory_order_release);
     worker_.stop();
   };
 
   void post(CRef<InternalOrderStatus> s) {
     LOG_DEBUG("{}", toString(s));
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN_SYSTEM("OrderGateway is already stopped");
+      return;
+    }
     auto &r = recordMap_[s.id.index()];
-    bus_.post(
-        ServerOrderStatus{r.clientId, {r.id.raw(), r.created, s.fillQty, s.fillPrice, s.state}});
+    bus_.post(ServerOrderStatus{
+        r.clientId, {r.externalOId, r.systemOId.raw(), s.fillQty, s.fillPrice, s.state}});
 
     switch (s.state) {
     case OrderState::Cancelled:
@@ -66,6 +73,7 @@ public:
       break;
     default:
       // update book id for easier access
+      LOG_DEBUG("Link systemOId {} with bookOId {}", s.id.raw(), s.bookOId.raw());
       r.bookOId = s.bookOId;
       break;
     }
@@ -74,13 +82,20 @@ public:
 private:
   void post(CRef<ServerOrder> so) {
     LOG_DEBUG("{}", toString(so));
-    if (!isValid(so)) {
-      LOG_ERROR_SYSTEM("Invalid order {}", toString(so));
-      bus_.post(ServerOrderStatus{so.clientId,
-                                  {so.order.id, so.order.created, 0, 0, OrderState::Rejected}});
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN_SYSTEM("OrderGateway is already stopped");
       return;
     }
-    switch (so.order.action) {
+    auto &o = so.order;
+    if (!isValid(so)) {
+      LOG_ERROR_SYSTEM("Invalid order {}", toString(so));
+      bus_.post(
+          ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
+      bus_.post(
+          ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
+      return;
+    }
+    switch (o.action) {
     case OrderAction::Dummy:
       LOG_DEBUG("Dummy order received");
       break;
@@ -98,31 +113,33 @@ private:
   }
 
   void cancelOrder(CRef<ServerOrder> so) {
-    LOG_DEBUG("{}", toString(so));
-    SystemOrderId id{so.order.id};
+    LOG_DEBUG("Cancel order: {}", toString(so));
+    // initially client sends his internal oid, when cancel/modify - system oid sent in status msg
+    SystemOrderId sysOId{so.order.id};
 
     auto &o = so.order;
-    auto &r = recordMap_[id.index()];
-    if (so.clientId != r.clientId || o.id != r.id.raw()) {
+    auto &r = recordMap_[sysOId.index()];
+    if (so.clientId != r.clientId || o.id != r.systemOId.raw()) {
       LOG_ERROR_SYSTEM("Failed to cancel order: {}", toString(so));
       return;
     }
     bus_.post(
-        InternalOrderEvent{{r.id, r.bookOId, o.quantity, o.price}, nullptr, o.ticker, o.action});
+        InternalOrderEvent{{sysOId, r.bookOId, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
   void newOrder(CRef<ServerOrder> so) {
-    LOG_DEBUG("{}", toString(so));
+    LOG_DEBUG("Creating order record {}", toString(so));
     auto &o = so.order;
-    auto id = idPool_.acquire();
-    if (!id) {
+    auto systemOId = idPool_.acquire();
+    if (!systemOId) {
       LOG_ERROR_SYSTEM("Server opened order limit exceeded, rejecting {}", toString(so));
-      bus_.post(ServerOrderStatus{so.clientId, {o.id, o.created, 0, 0, OrderState::Rejected}});
+      bus_.post(
+          ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
       return;
     }
-    recordMap_[id.index()] = {o.created, id, BookOrderId{}, so.clientId};
-    bus_.post(
-        InternalOrderEvent{{id, BookOrderId{}, o.quantity, o.price}, nullptr, o.ticker, o.action});
+    recordMap_[systemOId.index()] = {o.id, systemOId, BookOrderId{}, so.clientId, o.ticker};
+    bus_.post(InternalOrderEvent{
+        {systemOId, BookOrderId{}, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
   void cleanupOrder(CRef<InternalOrderStatus> ios) {
@@ -132,17 +149,17 @@ private:
     idPool_.release(ios.id);
   }
 
-  inline bool isValid(CRef<ServerOrder> o) const noexcept {
-    return o.order.quantity > 0 && o.order.price > 0;
-  }
+  inline bool isValid(CRef<ServerOrder> o) const noexcept { return o.order.price > 0; }
 
 private:
-  ServerBus &bus_;
+  ALIGN_CL ServerBus &bus_;
 
   ALIGN_CL SlotIdPool<> idPool_;
   ALIGN_CL HugeArray<OrderRecord, SlotIdPool<>::CAPACITY> recordMap_;
 
   ALIGN_CL LfqRunner<InternalOrderStatus, OrderGateway, ServerBus> worker_;
+
+  ALIGN_CL AtomicBool closed_{false};
 };
 } // namespace hft::server
 

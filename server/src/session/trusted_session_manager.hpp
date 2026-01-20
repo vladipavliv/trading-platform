@@ -37,10 +37,7 @@ public:
         CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
-  ~TrustedSessionManager() {
-    LOG_DEBUG_SYSTEM("~TrustedSessionManager");
-    close();
-  }
+  ~TrustedSessionManager() { LOG_DEBUG_SYSTEM("~TrustedSessionManager"); }
 
   void acceptUpstream(StreamTransport &&t) {
     LOG_DEBUG_SYSTEM("acceptUpstream");
@@ -56,18 +53,25 @@ public:
 
   void close() {
     LOG_DEBUG_SYSTEM("TrustedSessionManager close");
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN("TrustedSessionManager is already closed");
+      return;
+    }
     if (upChannel_) {
       upChannel_->close();
-      upChannel_.reset();
     }
     if (downChannel_) {
       downChannel_->close();
-      downChannel_.reset();
     }
+    closed_.store(true, std::memory_order_release);
   }
 
 private:
   void post(CRef<ChannelStatusEvent> event) {
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN("TrustedSessionManager is already closed");
+      return;
+    }
     LOG_DEBUG("{}", toString(event));
     switch (event.event.status) {
     case ConnectionStatus::Connected:
@@ -83,22 +87,30 @@ private:
   }
 
   void post(CRef<IoResult> res) {
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN("TrustedSessionManager is already closed");
+      return;
+    }
     if (!res) {
       LOG_ERROR("Failed to read from shm");
-      close();
+      bus_.post(InternalError{StatusCode::Error, "Failed to read from shm"});
     } else {
       bus_.post(ServerOrder{0, order_});
     }
   }
 
   void post(CRef<ServerOrderStatus> status) {
+    if (closed_.load(std::memory_order_acquire)) {
+      LOG_WARN("TrustedSessionManager is already closed");
+      return;
+    }
     LOG_DEBUG("{}", toString(status.orderStatus));
     auto *ptr = reinterpret_cast<const uint8_t *>(&status.orderStatus);
     CByteSpan span(ptr, sizeof(OrderStatus));
     auto res = downChannel_->syncTx(span);
     if (!res) {
-      LOG_ERROR("Failed to write to shm");
-      close();
+      LOG_ERROR("Failed to write ServerOrderStatus to shm");
+      bus_.post(InternalError{StatusCode::Error, "Failed to write ServerOrderStatus to shm"});
     }
   }
 
@@ -109,6 +121,8 @@ private:
 
   UPtr<UpstreamChan> upChannel_;
   UPtr<DownstreamChan> downChannel_;
+
+  AtomicBool closed_{false};
 };
 
 } // namespace hft::server

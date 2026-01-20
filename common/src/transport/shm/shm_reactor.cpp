@@ -19,7 +19,7 @@ ShmReactor::ShmReactor(ErrorBus &&bus) : bus_{std::move(bus)} {
   }
 }
 
-ShmReactor::~ShmReactor() { instance.store(nullptr, std::memory_order_release); }
+ShmReactor::~ShmReactor() { LOG_DEBUG_SYSTEM("~ShmReactor"); }
 
 void ShmReactor::add(ShmReader *reader) {
   if (running_.load(std::memory_order_acquire)) {
@@ -62,12 +62,15 @@ void ShmReactor::stop() {
     LOG_WARN_SYSTEM("already stopped");
     return;
   }
-
   running_.store(false, std::memory_order_release);
   for (auto *rdr : readers_) {
     rdr->notify();
   }
+  readers_.clear();
+  instance.store(nullptr, std::memory_order_release);
+  LOG_DEBUG_SYSTEM("Joining ShmReactor thread");
   utils::join(thread_);
+  LOG_DEBUG_SYSTEM("ShmReactor stopped");
 }
 
 void ShmReactor::loop() {
@@ -87,7 +90,7 @@ void ShmReactor::loop() {
         readers_.pop_back();
         if (readers_.empty()) {
           LOG_DEBUG_SYSTEM("No more active readers");
-          break;
+          return;
         }
         --i;
         continue;

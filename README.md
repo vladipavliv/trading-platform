@@ -37,7 +37,7 @@ BM_OrderBookFix/AddOrder                17.6 ns         17.6 ns     39141376
 
 Manual shared memory tests:
 ```bash
-01:36:57.832642 [I] Rps: 5,335,230 Rtt: [<1µs|>1µs] 99.66% avg:320ns | 0.34% avg:3µs | Max:18µs
+23:32:12.712988 [I] Rps: 5,457,693 Rtt: [<1µs|>1µs] 99.73% avg:338ns | 0.27% avg:3µs | Max:20µs
 ```
 Manual boost sockets tests:
 ```bash

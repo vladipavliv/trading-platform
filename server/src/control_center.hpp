@@ -66,12 +66,11 @@ public:
         gateway_{bus_}, consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
-    using SelfT = ControlCenter;
+    using T = ControlCenter;
     // System bus subscriptions
-    bus_.subscribe<ServerEvent>(CRefHandler<ServerEvent>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<TickerPrice>(CRefHandler<TickerPrice>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<InternalError>(
-        CRefHandler<InternalError>::template bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe<ServerEvent>(CRefHandler<ServerEvent>::template bind<T, &T::post>(this));
+    bus_.subscribe<TickerPrice>(CRefHandler<TickerPrice>::template bind<T, &T::post>(this));
+    bus_.subscribe<InternalError>(CRefHandler<InternalError>::template bind<T, &T::post>(this));
 
     // network callbacks
     ipcServer_.setUpstreamClb(
@@ -83,7 +82,7 @@ public:
 
     });
 
-    bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<SelfT, &SelfT::stop>(this));
+    bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<T, &T::stop>(this));
 
     signals_.async_wait([&](BoostErrorCode code, int) {
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
@@ -99,19 +98,28 @@ public:
     }
     greetings();
 
-    gateway_.start();
-    coordinator_.start();
-    bus_.run();
+    try {
+      gateway_.start();
+      coordinator_.start();
+      bus_.run();
+    } catch (const std::exception &e) {
+      LOG_ERROR_SYSTEM("Exception in CC::run {}", e.what());
+      stop();
+    }
   }
 
   void stop() {
     LOG_INFO_SYSTEM("stonk");
 
-    ipcServer_.stop();
-    coordinator_.stop();
-    gateway_.stop();
-    sessionMgr_.close();
-    bus_.stop();
+    try {
+      ipcServer_.stop();
+      coordinator_.stop();
+      gateway_.stop();
+      sessionMgr_.close();
+      bus_.stop();
+    } catch (const std::exception &e) {
+      LOG_ERROR_SYSTEM("Exception in CC::stop {}", e.what());
+    }
   }
 
 private:
@@ -148,8 +156,8 @@ private:
   DbAdapter dbAdapter_;
   Storage storage_;
 
-  SessionManager sessionMgr_;
   IpcServer ipcServer_;
+  SessionManager sessionMgr_;
   Authenticator authenticator_;
   Coordinator coordinator_;
   OrderGateway gateway_;
