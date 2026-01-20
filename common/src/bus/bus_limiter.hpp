@@ -13,7 +13,7 @@
 namespace hft {
 
 /**
- * @brief Limits message types that could be posted to the bus
+ * @brief Bus message compile-time blocker
  */
 template <typename BusT, typename... MessageTs>
 struct BusLimiter {

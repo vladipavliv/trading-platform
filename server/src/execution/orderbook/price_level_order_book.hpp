@@ -78,7 +78,7 @@ public:
     const Side side = getSide(ioe.action);
 
     if (UNLIKELY(o.price >= MAX_TICKS)) [[unlikely]] {
-      LOG_ERROR_SYSTEM("Price out of bounds: %u", o.price);
+      LOG_ERROR_SYSTEM("Price out of bounds: {} {}", o.price, MAX_TICKS);
       return false;
     }
 

@@ -14,6 +14,10 @@
 
 namespace hft {
 
+/**
+ * @brief Unique pointer to a shared memory object
+ * creates or opens the shared memory path, cleans up if last
+ */
 template <RefCountedShm T>
 class ShmUPtr {
 public:
@@ -31,9 +35,10 @@ public:
 
   ShmUPtr(ShmUPtr &&other)
       : name_{other.name_}, alignedSize_{other.alignedSize_}, ptr_{other.ptr_} {
-    LOG_DEBUG_SYSTEM("ShmUPtr mov {}", name_);
+    LOG_DEBUG("ShmUPtr mov {}", name_);
     other.ptr_ = nullptr;
   }
+  ShmUPtr &operator=(ShmUPtr &&) = delete;
 
   ShmUPtr(const ShmUPtr &) = delete;
   ShmUPtr &operator=(const ShmUPtr &) = delete;

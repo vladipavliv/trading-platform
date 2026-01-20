@@ -17,14 +17,14 @@ namespace hft {
 class ShmReader;
 
 /**
- * @brief
+ * @brief polls shm readers
+ * currently only 1 reader is active so waiting for data is done on its futex
+ * if more readers are needed utils::waitForAny could be used
  */
 class ShmReactor {
-  static constexpr size_t MAX_READERS = 4;
-
 public:
   /**
-   * @brief not a singletone, but a service locator
+   * @brief service locator
    */
   inline static Atomic<ShmReactor *> instance = nullptr;
 
@@ -32,14 +32,12 @@ public:
   ~ShmReactor();
 
   ShmReactor(const ShmReactor &) = delete;
-  ShmReactor &operator=(const ShmReactor &) = delete;
-
   ShmReactor(ShmReactor &&) = delete;
+  ShmReactor &operator=(const ShmReactor &) = delete;
   ShmReactor &operator=(ShmReactor &&) = delete;
 
   void run();
   void stop();
-
   void add(ShmReader *reader);
   bool running() const;
 
@@ -47,7 +45,6 @@ private:
   ShmReactor() = default;
 
   void loop();
-  void cleanClosed();
 
 private:
   std::vector<ShmReader *> readers_;

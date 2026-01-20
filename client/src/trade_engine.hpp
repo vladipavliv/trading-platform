@@ -28,14 +28,15 @@
 namespace hft::client {
 
 /**
- * @brief Performs the trading
- * @details For now generates random orders, tracks rtt and price updates
- * Later on maybe will add proper algorithms
+ * @brief Generates random orders for each ticker, tracks the statuses
+ * randomly cancels some of the orders after they have been accepted by the server
+ * streams telemetry to the monitor
  */
 class TradeEngine {
-
   using SystemOId = SlotIdPool<>::IdType;
-
+  /**
+   * @brief Tracks the generated order, and the server-side id for modifications
+   */
   struct ClientOrder {
     Order order;
     Timestamp created;

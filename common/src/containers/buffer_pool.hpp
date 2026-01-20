@@ -18,7 +18,7 @@
 namespace hft {
 
 /**
- * @brief
+ * @brief A chunk of preallocated memory in the pool
  */
 struct BufferPtr {
   uint8_t *data{nullptr};
@@ -36,7 +36,7 @@ struct BufferPtr {
 };
 
 /**
- * @brief
+ * @brief Pool of preallocated buffers for async network writes
  */
 template <uint32_t BufferCapacity = 128, uint32_t PoolSize = 1024>
 class BufferPool {

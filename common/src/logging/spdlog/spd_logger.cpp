@@ -19,10 +19,12 @@ void SpdLogger::initialize(const std::string &fileName) {
   if (fileLogger)
     return;
 
+  const auto logLvl = static_cast<spdlog::level::level_enum>(SPDLOG_ACTIVE_LEVEL);
+
   auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
   consoleLogger = std::make_shared<spdlog::logger>("console", consoleSink);
   consoleLogger->set_pattern("%H:%M:%S.%f [%^%L%$] %v");
-  consoleLogger->set_level(spdlog::level::level_enum::debug);
+  consoleLogger->set_level(logLvl);
 
   if (fileName.empty()) {
     spdlog::set_default_logger(consoleLogger);
@@ -38,7 +40,7 @@ void SpdLogger::initialize(const std::string &fileName) {
                                                spdlog::async_overflow_policy::overrun_oldest);
 
     fileLogger->set_pattern("%H:%M:%S.%f [%^%L%$] [%s:%#] %v");
-    fileLogger->set_level(static_cast<spdlog::level::level_enum>(SPDLOG_ACTIVE_LEVEL));
+    fileLogger->set_level(logLvl);
     fileLogger->flush_on(spdlog::level::debug);
     spdlog::set_default_logger(fileLogger);
   }

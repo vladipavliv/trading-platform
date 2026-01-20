@@ -38,8 +38,10 @@ public:
     }
     SpinWait waiter;
     while (!shm_->queue.write(buffer.data(), buffer.size())) {
+      if (shm_->count() < 2) {
+        return {0, IoStatus::Closed};
+      }
       if (!++waiter) {
-        LOG_ERROR("would block");
         return {0, IoStatus::Error};
       }
     }
@@ -55,8 +57,11 @@ public:
     }
     SpinWait waiter;
     while (!shm_->queue.write(buffer.data(), buffer.size())) {
+      if (shm_->count() < 2) {
+        clb({0, IoStatus::Closed});
+        return;
+      }
       if (!++waiter) {
-        LOG_ERROR("would block");
         clb({0, IoStatus::Error});
         return;
       }

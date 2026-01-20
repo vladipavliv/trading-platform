@@ -11,11 +11,6 @@
 namespace hft {
 
 template <typename T>
-concept Drainable = requires(T &t) {
-  { t.tryDrain() } -> std::convertible_to<std::size_t>;
-};
-
-template <typename T>
 concept RefCountedShm = requires(T t) {
   { t.increment() } -> std::same_as<void>;
   { t.decrement() } -> std::same_as<bool>;
