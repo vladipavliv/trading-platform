@@ -25,11 +25,10 @@ public:
   void start() {
     LOG_DEBUG_SYSTEM("TelemetryAdapter start");
     if (producer_) {
-      bus_.template subscribe<TelemetryMsg>(
-          CRefHandler<TelemetryMsg>::template bind<SelfT, &SelfT::post>(this));
+      bus_.subscribe(CRefHandler<TelemetryMsg>::bind<SelfT, &SelfT::post>(this));
     } else {
       ByteSpan span(reinterpret_cast<uint8_t *>(&msg_), sizeof(TelemetryMsg));
-      transport_.asyncRx(span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
+      transport_.asyncRx(span, CRefHandler<IoResult>::bind<SelfT, &SelfT::post>(this));
     }
   }
 

@@ -9,8 +9,8 @@
 #include "config/config.hpp"
 #include "domain_types.hpp"
 #include "primitive_types.hpp"
+#include "runner/lfq_runner.hpp"
 #include "utils/data_generator.hpp"
-#include "utils/lfq_runner.hpp"
 #include "utils/post_tracker.hpp"
 #include "utils/test_utils.hpp"
 

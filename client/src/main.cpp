@@ -10,12 +10,12 @@
 #include "adapters/dummies/dummy_telemetry_adapter.hpp"
 #include "adapters/telemetry_adapter.hpp"
 #ifdef COMM_SHM
-#include "transport/shm/shm_client.hpp"
-#include "trusted_connection_manager.hpp"
+#include "connection/trusted_connection_manager.hpp"
+#include "ipc/shm/shm_client.hpp"
 #else
-#include "transport/boost/boost_network_client.hpp"
+#include "ipc/boost/boost_network_client.hpp"
 
-#include "network_connection_manager.hpp"
+#include "connection/network_connection_manager.hpp"
 #endif
 
 #include "adapters/dummies/dummy_kafka_adapter.hpp"

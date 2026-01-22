@@ -17,8 +17,8 @@
 #include "order_record.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "runner/lfq_runner.hpp"
 #include "traits.hpp"
-#include "utils/lfq_runner.hpp"
 
 namespace hft::server {
 
@@ -30,12 +30,13 @@ namespace hft::server {
  * entry ids via spsc id queue
  */
 class OrderGateway {
+  using SelfT = OrderGateway;
+
 public:
   explicit OrderGateway(Context &ctx)
       : ctx_{ctx},
         worker_{*this, ctx_.bus, ctx_.stopToken, "gateway", ctx.config.coreGateway, true} {
-    ctx_.bus.subscribe<ServerOrder>(
-        CRefHandler<ServerOrder>::template bind<OrderGateway, &OrderGateway::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerOrder>::bind<SelfT, &SelfT::post>(this));
   }
 
   ~OrderGateway() { LOG_DEBUG_SYSTEM("~OrderGateway"); }

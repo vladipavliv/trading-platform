@@ -11,6 +11,7 @@
 #include "config/client_config.hpp"
 #include "connection_state.hpp"
 #include "events.hpp"
+#include "ipc/shm/shm_client.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
 #include "transport/channel.hpp"
@@ -19,12 +20,14 @@
 
 namespace hft::client {
 
+/**
+ * @brief Connects to the server via shm, not auth procedures
+ */
 class TrustedConnectionManager {
+  using SelfT = TrustedConnectionManager;
   using UpStreamChannel = StreamTransport;
   using DownStreamChannel = StreamTransport;
   using DatagramChannel = DatagramTransport;
-
-  using SelfT = TrustedConnectionManager;
 
 public:
   TrustedConnectionManager(Context &ctx, ShmClient &networkClient)
@@ -37,9 +40,8 @@ public:
     networkClient_.setDatagramClb(
         [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    ctx_.bus.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ConnectionStatusEvent>(
-        CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<Order>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ConnectionStatusEvent>::bind<SelfT, &SelfT::post>(this));
   }
 
   void close() { reset(); }
@@ -64,8 +66,7 @@ private:
     downstreamChannel_ = std::make_unique<DownStreamChannel>(std::move(transport));
 
     ByteSpan span(reinterpret_cast<uint8_t *>(&status_), sizeof(OrderStatus));
-    downstreamChannel_->asyncRx( // format
-        span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
+    downstreamChannel_->asyncRx(span, CRefHandler<IoResult>::bind<SelfT, &SelfT::post>(this));
     notify();
   }
 

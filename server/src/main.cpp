@@ -11,11 +11,11 @@
 #include "execution/orderbook/flat_order_book.hpp"
 #include "execution/orderbook/price_level_order_book.hpp"
 #ifdef COMM_SHM
+#include "ipc/shm/shm_server.hpp"
 #include "session/trusted_session_manager.hpp"
-#include "transport/shm/shm_server.hpp"
 #else
+#include "ipc/boost/boost_network_server.hpp"
 #include "session/network_session_manager.hpp"
-#include "transport/boost/boost_network_server.hpp"
 #endif
 
 #include "adapters/dummies/dummy_kafka_adapter.hpp"

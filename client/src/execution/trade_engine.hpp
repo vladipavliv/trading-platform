@@ -15,8 +15,8 @@
 #include "id/slot_id_pool.hpp"
 #include "market_data.hpp"
 #include "primitive_types.hpp"
+#include "runner/ctx_runner.hpp"
 #include "traits.hpp"
-#include "utils/ctx_runner.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/rtt_tracker.hpp"
@@ -33,6 +33,7 @@ namespace hft::client {
  * streams telemetry to the monitor
  */
 class TradeEngine {
+  using SelfT = TradeEngine;
   using SystemOId = SlotIdPool<>::IdType;
   /**
    * @brief Tracks the generated order, and the server-side id for modifications
@@ -49,10 +50,8 @@ public:
   explicit TradeEngine(Context &ctx)
       : ctx_{ctx}, dbAdapter_{ctx_.config.data}, marketData_{loadMarketData()},
         timer_{ctx_.bus.systemIoCtx()} {
-    ctx_.bus.subscribe<OrderStatus>(
-        CRefHandler<OrderStatus>::template bind<TradeEngine, &TradeEngine::post>(this));
-    ctx_.bus.subscribe<TickerPrice>(
-        CRefHandler<TickerPrice>::template bind<TradeEngine, &TradeEngine::post>(this));
+    ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<TickerPrice>::bind<SelfT, &SelfT::post>(this));
   }
 
   void start() {

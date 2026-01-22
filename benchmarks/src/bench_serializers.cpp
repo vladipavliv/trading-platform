@@ -46,7 +46,7 @@ static void DISABLED_BM_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
   BusType bus{cfg.data};
-  bus.template subscribe<Order>(CRefHandler<Order>{});
+  bus.subscribe(CRefHandler<Order>{});
 
   ByteBuffer buffer(128);
   auto size = fbs::FbsDomainSerializer::serialize(genOrder(), buffer.data());
@@ -83,7 +83,7 @@ static void DISABLED_BM_SbeDeserialize(benchmark::State &state) {
   ByteBuffer buffer(128);
 
   BusType bus{cfg.data};
-  bus.template subscribe<Order>(CRefHandler<Order>{});
+  bus.subscribe(CRefHandler<Order>{});
 
   size_t size = sbe::SbeDomainSerializer::serialize(order, buffer.data());
 

@@ -14,10 +14,10 @@
 #include "commands/command_parser.hpp"
 #include "config/client_config.hpp"
 #include "events.hpp"
+#include "execution/trade_engine.hpp"
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
-#include "trade_engine.hpp"
 #include "traits.hpp"
 #include "utils/console_reader.hpp"
 
@@ -27,6 +27,8 @@ namespace hft::client {
  * @brief Creates all the components and controls the flow
  */
 class ControlCenter {
+  using SelfT = ControlCenter;
+
 public:
   explicit ControlCenter(ClientConfig &&cfg)
       : config_{std::move(cfg)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
@@ -34,17 +36,12 @@ public:
         consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, true},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
-    using SelfT = ControlCenter;
-    bus_.systemBus.subscribe(Command::Start,
-                             Callback::template bind<SelfT, &SelfT::tradeStart>(this));
-    bus_.systemBus.subscribe(Command::Stop,
-                             Callback::template bind<SelfT, &SelfT::tradeStop>(this));
-    bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<SelfT, &SelfT::stop>(this));
+    bus_.systemBus.subscribe(Command::Start, Callback::bind<SelfT, &SelfT::tradeStart>(this));
+    bus_.systemBus.subscribe(Command::Stop, Callback::bind<SelfT, &SelfT::tradeStop>(this));
+    bus_.systemBus.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
 
-    bus_.systemBus.subscribe<ClientState>(
-        CRefHandler<ClientState>::template bind<SelfT, &SelfT::post>(this));
-    bus_.systemBus.subscribe<InternalError>(
-        CRefHandler<InternalError>::template bind<SelfT, &SelfT::post>(this));
+    bus_.systemBus.subscribe(CRefHandler<ClientState>::bind<SelfT, &SelfT::post>(this));
+    bus_.systemBus.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
 
     signals_.async_wait([&](BoostErrorCode code, int) {
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());

@@ -16,12 +16,12 @@
 #include "events.hpp"
 #include "execution/coordinator.hpp"
 #include "gateway/order_gateway.hpp"
+#include "ipc/shm/shm_server.hpp"
 #include "price_feed.hpp"
 #include "session/authenticator.hpp"
 #include "storage/storage.hpp"
 #include "traits.hpp"
 #include "transport/channel.hpp"
-#include "transport/shm/shm_server.hpp"
 #include "utils/console_reader.hpp"
 #include "utils/id_utils.hpp"
 
@@ -53,6 +53,8 @@ namespace hft::server {
  *    <- manually writes to a proper channel based on client id
  */
 class ControlCenter {
+  using SelfT = ControlCenter;
+
 public:
   explicit ControlCenter(ServerConfig &&config)
       : config_{std::move(config)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
@@ -62,11 +64,10 @@ public:
         consoleReader_{ctx_.bus.systemBus}, priceFeed_{ctx_, dbAdapter_},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
-    using T = ControlCenter;
     // System bus subscriptions
-    bus_.subscribe<ServerEvent>(CRefHandler<ServerEvent>::template bind<T, &T::post>(this));
-    bus_.subscribe<TickerPrice>(CRefHandler<TickerPrice>::template bind<T, &T::post>(this));
-    bus_.subscribe<InternalError>(CRefHandler<InternalError>::template bind<T, &T::post>(this));
+    bus_.subscribe(CRefHandler<ServerEvent>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<TickerPrice>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
 
     // network callbacks
     ipcServer_.setUpstreamClb(
@@ -78,7 +79,7 @@ public:
 
     });
 
-    bus_.systemBus.subscribe(Command::Shutdown, Callback::template bind<T, &T::stop>(this));
+    bus_.systemBus.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
 
     signals_.async_wait([&](BoostErrorCode code, int) {
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());

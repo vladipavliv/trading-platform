@@ -22,6 +22,7 @@
 namespace hft::client {
 
 class NetworkConnectionManager {
+  using SelfT = NetworkConnectionManager;
   using UpStreamChannel = Channel<StreamTransport, UpstreamBus>;
   using DownStreamChannel = Channel<StreamTransport, DownstreamBus>;
   using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
@@ -36,12 +37,9 @@ public:
     ipcClient_.setDatagramClb(
         [this](DatagramTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    using SelfT = NetworkConnectionManager;
-    ctx_.bus.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<LoginResponse>(
-        CRefHandler<LoginResponse>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ConnectionStatusEvent>(
-        CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<Order>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<LoginResponse>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ConnectionStatusEvent>::bind<SelfT, &SelfT::post>(this));
   }
 
   void close() { reset(); }

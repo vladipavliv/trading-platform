@@ -27,6 +27,7 @@ namespace hft::server {
  * @brief Manages sessions, generates tokens, authenticates channels
  */
 class NetworkSessionManager {
+  using SelfT = NetworkSessionManager;
   using UpstreamChan = SessionChannel<UpstreamBus>;
   using DownstreamChan = SessionChannel<DownstreamBus>;
 
@@ -48,15 +49,10 @@ public:
         unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     LOG_INFO_SYSTEM("NetworkSessionManager initialized");
 
-    using SelfT = NetworkSessionManager;
-    ctx_.bus.subscribe<ServerOrderStatus>(
-        CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ServerLoginResponse>(
-        CRefHandler<ServerLoginResponse>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ServerTokenBindRequest>(
-        CRefHandler<ServerTokenBindRequest>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ChannelStatusEvent>(
-        CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerOrderStatus>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerLoginResponse>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ChannelStatusEvent>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerTokenBindRequest>::bind<SelfT, &SelfT::post>(this));
   }
 
   ~NetworkSessionManager() {
@@ -66,7 +62,6 @@ public:
 
   void acceptUpstream(StreamTransport &&transport) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_ERROR_SYSTEM("Stop is already requested");
       return;
     }
     const auto id = utils::genConnectionId();
@@ -82,7 +77,6 @@ public:
 
   void acceptDownstream(StreamTransport &&transport) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_ERROR_SYSTEM("Stop is already requested");
       return;
     }
     const auto id = utils::genConnectionId();
@@ -126,7 +120,6 @@ public:
 private:
   void post(CRef<ServerOrderStatus> status) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_ERROR_SYSTEM("Stop is already requested");
       return;
     }
     LOG_DEBUG("{}", toString(status));
@@ -145,7 +138,6 @@ private:
 
   void post(CRef<ServerLoginResponse> loginResult) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_ERROR_SYSTEM("Stop is already requested");
       return;
     }
     LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
@@ -185,7 +177,6 @@ private:
 
   void post(CRef<ServerTokenBindRequest> request) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_ERROR_SYSTEM("Stop is already requested");
       return;
     }
     LOG_INFO_SYSTEM("Token bind request {} {}", request.connectionId, request.request.token);

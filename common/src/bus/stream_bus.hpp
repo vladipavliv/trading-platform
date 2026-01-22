@@ -12,7 +12,7 @@
 #include "containers/vyukov_mpmc.hpp"
 #include "execution.hpp"
 #include "primitive_types.hpp"
-#include "utils/ctx_runner.hpp"
+#include "runner/ctx_runner.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 

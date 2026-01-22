@@ -29,6 +29,7 @@ namespace hft {
  */
 template <typename MessageT, typename ConsumerT, typename BusT, size_t Capacity = 65536>
 class LfqRunner {
+  using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
   using Queue = SequencedSPSC<Capacity>;
 
 public:
@@ -37,9 +38,7 @@ public:
       : consumer_{consumer}, bus_{bus}, stopToken_{std::move(stopToken)}, name_{std::move(name)},
         coreId_{coreId} {
     if (feedFromBus) {
-      using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
-      bus_.template subscribe<MessageT>(
-          CRefHandler<MessageT>::template bind<SelfT, &SelfT::post>(this));
+      bus_.subscribe(CRefHandler<MessageT>::template bind<SelfT, &SelfT::post>(this));
     }
   }
 
@@ -90,7 +89,7 @@ public:
 
   inline void post(CRef<MessageT> message) {
     LOG_DEBUG("{}", toString(message));
-    if (!started_.load(std::memory_order_acquire) || stopToken_.stop_requested()) {
+    if (stopToken_.stop_requested()) {
       return;
     }
     auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
@@ -99,8 +98,8 @@ public:
     SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {
       if (!++waiter) {
-        const auto err = String("Failed to post to LfqRunner ") + name_;
-        bus_.post(InternalError{StatusCode::Error, err});
+        bus_.post(
+            InternalError{StatusCode::Error, std::format("Failed to post to LfqRunner {}", name_)});
         break;
       }
     }
@@ -123,7 +122,7 @@ private:
         waiter.reset();
         do {
           consumer_.post(message);
-        } while (queue_.read(msgPtr, msgSize) && stopToken_.stop_requested());
+        } while (queue_.read(msgPtr, msgSize) && !stopToken_.stop_requested());
         continue;
       }
       if (++waiter || stopToken_.stop_requested()) {
@@ -153,18 +152,18 @@ private:
   }
 
 private:
-  ALIGN_CL ConsumerT &consumer_;
-  ALIGN_CL BusT &bus_;
-  ALIGN_CL std::stop_token stopToken_;
-  ALIGN_CL const String name_;
-  ALIGN_CL const Optional<CoreId> coreId_;
+  ConsumerT &consumer_;
+  BusT &bus_;
+  std::stop_token stopToken_;
+  const String name_;
+  const Optional<CoreId> coreId_;
 
-  ALIGN_CL Queue queue_;
-  ALIGN_CL AtomicBool started_{false};
+  Queue queue_;
+  AtomicBool started_{false};
   ALIGN_CL AtomicBool sleeping_{false};
   ALIGN_CL AtomicUInt32 ftx_{0};
 
-  ALIGN_CL std::jthread thread_;
+  std::jthread thread_;
 };
 
 } // namespace hft

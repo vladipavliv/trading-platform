@@ -15,9 +15,9 @@
 #include "events.hpp"
 #include "gateway/internal_order.hpp"
 #include "market_data.hpp"
+#include "runner/ctx_runner.hpp"
+#include "runner/lfq_runner.hpp"
 #include "traits.hpp"
-#include "utils/ctx_runner.hpp"
-#include "utils/lfq_runner.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/time_utils.hpp"
@@ -40,6 +40,7 @@ namespace hft::server {
  * 4. on success order gets processed blocking attempts to reroute the ticker
  */
 class Coordinator {
+  using SelfT = Coordinator;
   /**
    * @brief Consumer for workers to execute order in their thread
    */
@@ -57,8 +58,7 @@ class Coordinator {
 
 public:
   Coordinator(Context &ctx, CRef<MarketData> data) : ctx_{ctx}, data_{data}, matcher_{ctx_.bus} {
-    ctx_.bus.subscribe<InternalOrderEvent>(
-        CRefHandler<InternalOrderEvent>::template bind<Coordinator, &Coordinator::post>(this));
+    ctx_.bus.subscribe(CRefHandler<InternalOrderEvent>::bind<SelfT, &SelfT::post>(this));
   }
 
   ~Coordinator() { LOG_DEBUG_SYSTEM("~Coordinator"); }
@@ -104,7 +104,6 @@ private:
 
   void post(CRef<InternalOrderEvent> ioe) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_WARN_SYSTEM("Coordinator already stopped");
       return;
     }
     if (data_.count(ioe.ticker) == 0) {
