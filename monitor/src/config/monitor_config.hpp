@@ -14,10 +14,7 @@
 namespace hft::monitor {
 
 struct MonitorConfig {
-  static MonitorConfig &cfg() {
-    static MonitorConfig config;
-    return config;
-  }
+  explicit MonitorConfig(const String &fileName);
 
   // cores
   Optional<CoreId> coreSystem;
@@ -26,8 +23,7 @@ struct MonitorConfig {
   // Logging
   String logOutput;
 
-  void load(CRef<String> fileName);
-  void log();
+  Config data;
 };
 
 } // namespace hft::monitor

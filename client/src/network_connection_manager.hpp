@@ -27,8 +27,7 @@ class NetworkConnectionManager {
   using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
 
 public:
-  NetworkConnectionManager(ClientBus &bus, IpcClient &ipcClient)
-      : bus_{bus}, ipcClient_{ipcClient} {
+  NetworkConnectionManager(Context &ctx, IpcClient &ipcClient) : ctx_{ctx}, ipcClient_{ipcClient} {
     LOG_INFO_SYSTEM("NetworkConnectionManager initialized");
     ipcClient_.setUpstreamClb(
         [this](StreamTransport &&transport) { onUpstreamConnected(std::move(transport)); });
@@ -38,10 +37,10 @@ public:
         [this](DatagramTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
     using SelfT = NetworkConnectionManager;
-    bus_.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<LoginResponse>(
+    ctx_.bus.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe<LoginResponse>(
         CRefHandler<LoginResponse>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ConnectionStatusEvent>(
+    ctx_.bus.subscribe<ConnectionStatusEvent>(
         CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
@@ -56,7 +55,7 @@ private:
     LOG_INFO_SYSTEM("Connected upstream");
     const auto id = utils::genConnectionId();
     upstreamChannel_ =
-        std::make_shared<UpStreamChannel>(std::move(transport), id, UpstreamBus{bus_});
+        std::make_shared<UpStreamChannel>(std::move(transport), id, UpstreamBus{ctx_.bus});
     upstreamChannel_->read();
     tryAuthenticate();
   }
@@ -69,14 +68,15 @@ private:
     LOG_INFO_SYSTEM("Connected downstream");
     const auto id = utils::genConnectionId();
     downstreamChannel_ =
-        std::make_shared<DownStreamChannel>(std::move(transport), id, DownstreamBus{bus_});
+        std::make_shared<DownStreamChannel>(std::move(transport), id, DownstreamBus{ctx_.bus});
     downstreamChannel_->read();
     tryAuthenticate();
   }
 
   void onDatagramConnected(DatagramTransport &&transport) {
     const auto id = utils::genConnectionId();
-    pricesChannel_ = std::make_shared<DatagramChannel>(std::move(transport), id, DatagramBus{bus_});
+    pricesChannel_ =
+        std::make_shared<DatagramChannel>(std::move(transport), id, DatagramBus{ctx_.bus});
     pricesChannel_->read();
   }
 
@@ -91,7 +91,7 @@ private:
     if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
       LOG_INFO_SYSTEM("Authenticating");
       state_ = ConnectionState::Connected;
-      upstreamChannel_->write(LoginRequest{ClientConfig::cfg().name, ClientConfig::cfg().password});
+      upstreamChannel_->write(LoginRequest{ctx_.config.name, ctx_.config.password});
     }
   }
 
@@ -115,7 +115,7 @@ private:
     case ConnectionState::TokenReceived: {
       LOG_INFO_SYSTEM("Authenticated");
       state_ = ConnectionState::Authenticated;
-      bus_.post(ClientState::Connected);
+      ctx_.bus.post(ClientState::Connected);
       break;
     }
     default:
@@ -129,7 +129,7 @@ private:
     downstreamChannel_.reset();
     pricesChannel_.reset();
     state_ = ConnectionState::Disconnected;
-    bus_.post(ClientState::Disconnected);
+    ctx_.bus.post(ClientState::Disconnected);
   }
 
   void post(CRef<Order> order) {
@@ -139,7 +139,7 @@ private:
   }
 
 private:
-  ClientBus &bus_;
+  Context &ctx_;
 
   IpcClient &ipcClient_;
 

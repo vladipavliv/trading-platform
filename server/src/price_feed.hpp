@@ -81,9 +81,9 @@ class PriceFeed {
   };
 
 public:
-  PriceFeed(ServerBus &bus, DbAdapter &dbAdapter)
-      : bus_{bus}, priceUpdateTimer_{bus_.systemIoCtx()},
-        updateInterval_{ServerConfig::cfg().priceFeedRate} {
+  PriceFeed(Context &ctx, DbAdapter &dbAdapter)
+      : ctx_{ctx}, priceUpdateTimer_{ctx_.bus.systemIoCtx()},
+        updateInterval_{ctx_.config.priceFeedRate} {
     const auto dataResult = dbAdapter.readTickers();
     if (!dataResult) {
       throw std::runtime_error("Failed to load tickers");
@@ -94,10 +94,10 @@ public:
     for (auto &value : tickerData) {
       fluctuations_.push_back(Fluctuation(value));
     }
-    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Start,
-                                      Callback::template bind<PriceFeed, &PriceFeed::start>(this));
-    bus_.systemBus.subscribe<Command>(Command::PriceFeed_Stop,
-                                      Callback::template bind<PriceFeed, &PriceFeed::stop>(this));
+    ctx_.bus.subscribe<Command>(Command::PriceFeed_Start,
+                                Callback::template bind<PriceFeed, &PriceFeed::start>(this));
+    ctx_.bus.subscribe<Command>(Command::PriceFeed_Stop,
+                                Callback::template bind<PriceFeed, &PriceFeed::stop>(this));
   }
 
   void start() {
@@ -134,13 +134,13 @@ private:
       if (item.update(timeStamp)) {
         LOG_TRACE("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
         const auto newPrice = item.getPrice();
-        bus_.marketBus.post(TickerPrice{item.base.ticker, newPrice});
+        ctx_.bus.marketBus.post(TickerPrice{item.base.ticker, newPrice});
       }
     }
   }
 
 private:
-  ServerBus &bus_;
+  Context &ctx_;
 
   Vector<Fluctuation> fluctuations_;
 

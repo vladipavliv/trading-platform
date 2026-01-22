@@ -16,7 +16,6 @@
 #include "transport/connection_status.hpp"
 #include "transport/transport.hpp"
 #include "utils/string_utils.hpp"
-#include <cassert>
 
 namespace hft {
 

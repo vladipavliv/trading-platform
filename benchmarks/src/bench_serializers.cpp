@@ -25,6 +25,8 @@ using namespace server;
 using namespace serialization;
 using namespace tests;
 
+ServerConfig cfg{"bench_server_config.ini"};
+
 static void DISABLED_BM_FbsSerialize(benchmark::State &state) {
   const Order order = genOrder();
   ByteBuffer buffer(128);
@@ -43,7 +45,7 @@ BENCHMARK(DISABLED_BM_FbsSerialize);
 static void DISABLED_BM_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
-  BusType bus;
+  BusType bus{cfg.data};
   bus.template subscribe<Order>(CRefHandler<Order>{});
 
   ByteBuffer buffer(128);
@@ -80,7 +82,7 @@ static void DISABLED_BM_SbeDeserialize(benchmark::State &state) {
   const Order order = genOrder();
   ByteBuffer buffer(128);
 
-  BusType bus;
+  BusType bus{cfg.data};
   bus.template subscribe<Order>(CRefHandler<Order>{});
 
   size_t size = sbe::SbeDomainSerializer::serialize(order, buffer.data());

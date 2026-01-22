@@ -12,20 +12,18 @@
 
 namespace hft::monitor {
 
-void MonitorConfig::load(CRef<String> fileName) {
-  Config::load(fileName);
-
+MonitorConfig::MonitorConfig(CRef<String> fileName) : data{fileName} {
   // cores
-  if (auto core = Config::get_optional<size_t>("cpu.core_system")) {
-    MonitorConfig::cfg().coreSystem = *core;
+  if (auto core = data.get_optional<size_t>("cpu.core_system")) {
+    coreSystem = *core;
   }
 
   nsPerCycle = utils::getNsPerCycle();
 
   // Logging
-  MonitorConfig::cfg().logOutput = Config::get<String>("log.output");
-}
+  logOutput = data.get<String>("log.output");
 
-void MonitorConfig::log() { LOG_INFO_SYSTEM("LogOutput: {}", logOutput); }
+  LOG_INFO_SYSTEM("LogOutput: {}", logOutput);
+}
 
 } // namespace hft::monitor

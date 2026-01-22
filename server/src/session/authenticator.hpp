@@ -16,8 +16,8 @@ namespace hft::server {
 
 class Authenticator {
 public:
-  Authenticator(SystemBus &bus, DbAdapter &dbAdapter) : bus_{bus}, dbAdapter_{dbAdapter} {
-    bus_.subscribe<ServerLoginRequest>(
+  Authenticator(Context &ctx, DbAdapter &dbAdapter) : ctx_{ctx}, dbAdapter_{dbAdapter} {
+    ctx_.bus.subscribe<ServerLoginRequest>(
         CRefHandler<ServerLoginRequest>::template bind<Authenticator, &Authenticator::post>(this));
   }
 
@@ -34,11 +34,11 @@ private:
       response.error = toString(result.error());
       LOG_ERROR_SYSTEM("Authentication failed {} {}", r.request.name, response.error);
     }
-    bus_.post(response);
+    ctx_.bus.post(response);
   }
 
 private:
-  SystemBus &bus_;
+  Context &ctx_;
   DbAdapter &dbAdapter_;
 };
 } // namespace hft::server

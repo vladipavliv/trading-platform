@@ -33,13 +33,12 @@ class KafkaAdapter {
   static constexpr size_t CONSUME_CHUNK = 100;
 
 public:
-  explicit KafkaAdapter(BusT &bus)
-      : bus_{bus}, broker_{Config::get<String>("kafka.broker")},
-        consumerGroup_{Config::get<String>("kafka.consumer_group")},
-        pollRate_{Microseconds(Config::get<size_t>("kafka.poll_rate_us"))},
-        consumeTopics_{Config::get_vector<String>("kafka.consume_topics")},
-        produceTopics_{Config::get_vector<String>("kafka.produce_topics")},
-        timer_{bus_.systemIoCtx()} {
+  explicit KafkaAdapter(BusT &bus, const Config &cfg)
+      : bus_{bus}, config_{cfg}, broker_{cfg.get<String>("kafka.broker")},
+        consumerGroup_{cfg.get<String>("kafka.consumer_group")},
+        pollRate_{Microseconds(cfg.get<size_t>("kafka.poll_rate_us"))},
+        consumeTopics_{cfg.get_vector<String>("kafka.consume_topics")},
+        produceTopics_{cfg.get_vector<String>("kafka.produce_topics")}, timer_{bus_.systemIoCtx()} {
     LOG_DEBUG("Kafka adapter ctor");
   };
 
@@ -244,6 +243,7 @@ private:
 
 private:
   BusT &bus_;
+  const Config &config_;
 
   const String broker_;
   const String consumerGroup_;

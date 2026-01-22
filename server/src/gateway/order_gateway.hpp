@@ -31,9 +31,10 @@ namespace hft::server {
  */
 class OrderGateway {
 public:
-  explicit OrderGateway(ServerBus &bus)
-      : bus_{bus}, worker_{*this, bus_, "gateway", ServerConfig::cfg().coreGateway, true} {
-    bus_.subscribe<ServerOrder>(
+  explicit OrderGateway(Context &ctx)
+      : ctx_{ctx},
+        worker_{*this, ctx_.bus, ctx_.stopToken, "gateway", ctx.config.coreGateway, true} {
+    ctx_.bus.subscribe<ServerOrder>(
         CRefHandler<ServerOrder>::template bind<OrderGateway, &OrderGateway::post>(this));
   }
 
@@ -57,7 +58,7 @@ public:
       return;
     }
     auto &r = recordMap_[s.id.index()];
-    bus_.post(ServerOrderStatus{
+    ctx_.bus.post(ServerOrderStatus{
         r.clientId, {r.externalOId, r.systemOId.raw(), s.fillQty, s.fillPrice, s.state}});
 
     switch (s.state) {
@@ -84,7 +85,7 @@ private:
     auto &o = so.order;
     if (!isValid(so)) {
       LOG_ERROR_SYSTEM("Invalid order {}", toString(so));
-      bus_.post(
+      ctx_.bus.post(
           ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
       return;
     }
@@ -115,7 +116,7 @@ private:
       LOG_ERROR_SYSTEM("Failed to cancel order: {}", toString(so));
       return;
     }
-    bus_.post(
+    ctx_.bus.post(
         InternalOrderEvent{{sysOId, r.bookOId, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
@@ -125,12 +126,12 @@ private:
     auto systemOId = idPool_.acquire();
     if (!systemOId) {
       LOG_ERROR_SYSTEM("Server opened order limit exceeded, rejecting {}", toString(so));
-      bus_.post(
+      ctx_.bus.post(
           ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
       return;
     }
     recordMap_[systemOId.index()] = {o.id, systemOId, BookOrderId{}, so.clientId, o.ticker};
-    bus_.post(InternalOrderEvent{
+    ctx_.bus.post(InternalOrderEvent{
         {systemOId, BookOrderId{}, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
@@ -144,7 +145,7 @@ private:
   inline bool isValid(CRef<ServerOrder> o) const noexcept { return o.order.price > 0; }
 
 private:
-  ALIGN_CL ServerBus &bus_;
+  ALIGN_CL Context &ctx_;
 
   ALIGN_CL SlotIdPool<> idPool_;
   ALIGN_CL HugeArray<OrderRecord, SlotIdPool<>::CAPACITY> recordMap_;

@@ -6,6 +6,8 @@
 #ifndef HFT_SERVER_TRAITS_HPP
 #define HFT_SERVER_TRAITS_HPP
 
+#include "app_context.hpp"
+#include "config/server_config.hpp"
 #include "constants.hpp"
 #include "domain/server_auth_messages.hpp"
 #include "domain/server_order_messages.hpp"
@@ -125,6 +127,8 @@ using ServerTelemetry = TelemetryAdapter<ServerBus>;
 #else
 using ServerTelemetry = DummyTelemetryAdapter<ServerBus>;
 #endif
+
+using Context = AppContext<ServerBus, ServerConfig>;
 
 // using OrderBook = FlatOrderBook;
 using OrderBook = PriceLevelOrderBook;

@@ -6,7 +6,9 @@
 #ifndef HFT_MONITOR_TRAITS_HPP
 #define HFT_MONITOR_TRAITS_HPP
 
+#include "app_context.hpp"
 #include "bus/bus_hub.hpp"
+#include "config/monitor_config.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "types/telemetry_types.hpp"
@@ -67,6 +69,8 @@ using MonitorTelemetry = TelemetryAdapter<MonitorBus>;
 #else
 using MonitorTelemetry = DummyTelemetryAdapter<MonitorBus>;
 #endif
+
+using Context = AppContext<MonitorBus, MonitorConfig>;
 
 } // namespace hft::monitor
 

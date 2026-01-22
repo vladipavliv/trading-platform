@@ -27,8 +27,8 @@ class TrustedConnectionManager {
   using SelfT = TrustedConnectionManager;
 
 public:
-  TrustedConnectionManager(ClientBus &bus, ShmClient &networkClient)
-      : bus_{bus}, networkClient_{networkClient} {
+  TrustedConnectionManager(Context &ctx, ShmClient &networkClient)
+      : ctx_{ctx}, networkClient_{networkClient} {
     LOG_INFO_SYSTEM("TrustedConnectionManager initialized");
     networkClient_.setUpstreamClb(
         [this](ShmTransport &&transport) { onUpstreamConnected(std::move(transport)); });
@@ -37,8 +37,8 @@ public:
     networkClient_.setDatagramClb(
         [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
 
-    bus_.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ConnectionStatusEvent>(
+    ctx_.bus.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe<ConnectionStatusEvent>(
         CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
@@ -80,7 +80,7 @@ private:
 
   void post(CRef<IoResult> res) {
     if (res.code == IoStatus::Ok) {
-      bus_.post(status_);
+      ctx_.bus.post(status_);
     } else {
       LOG_ERROR_SYSTEM("Failed to read from shm, stopping");
       reset();
@@ -107,7 +107,7 @@ private:
 
   void notify() {
     if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
-      bus_.post(ClientState::Connected);
+      ctx_.bus.post(ClientState::Connected);
     }
   }
 
@@ -122,11 +122,11 @@ private:
     if (pricesChannel_) {
       pricesChannel_->close();
     }
-    bus_.post(ClientState::Disconnected);
+    ctx_.bus.post(ClientState::Disconnected);
   }
 
 private:
-  ClientBus &bus_;
+  Context &ctx_;
 
   ShmClient &networkClient_;
 

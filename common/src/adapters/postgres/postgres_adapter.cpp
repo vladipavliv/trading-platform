@@ -21,8 +21,8 @@
 
 namespace hft::adapters {
 
-PostgresAdapter::PostgresAdapter()
-    : connectionString_{getConnectionString()}, conn_{connectionString_} {
+PostgresAdapter::PostgresAdapter(const Config &cfg)
+    : config_{cfg}, connectionString_{getConnectionString()}, conn_{connectionString_} {
   if (!conn_.is_open()) {
     throw std::runtime_error("Failed to open db");
   }
@@ -101,11 +101,11 @@ String PostgresAdapter::getConnectionString() const {
   const String dbName = getEnvVar("POSTGRES_DB");
 
   return std::format("host={} port={} user={} password={} dbname={} connect_timeout=1",
-                     host.empty() ? Config::get<String>("db.host") : host,
-                     port.empty() ? Config::get<String>("db.port") : port,
-                     user.empty() ? Config::get<String>("db.user") : user,
-                     password.empty() ? Config::get<String>("db.password") : password,
-                     dbName.empty() ? Config::get<String>("db.dbname") : dbName);
+                     host.empty() ? config_.get<String>("db.host") : host,
+                     port.empty() ? config_.get<String>("db.port") : port,
+                     user.empty() ? config_.get<String>("db.user") : user,
+                     password.empty() ? config_.get<String>("db.password") : password,
+                     dbName.empty() ? config_.get<String>("db.dbname") : dbName);
 }
 
 } // namespace hft::adapters

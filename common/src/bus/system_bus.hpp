@@ -27,7 +27,8 @@ namespace hft {
  */
 class SystemBus {
 public:
-  SystemBus() : ioCtxGuard_{MakeGuard(ioCtx_.get_executor())} {}
+  explicit SystemBus(const Config &config)
+      : config_{config}, ioCtxGuard_{MakeGuard(ioCtx_.get_executor())} {}
 
   inline IoCtx &systemIoCtx() { return ioCtx_; }
 
@@ -52,7 +53,7 @@ public:
 
   void run() {
     utils::setThreadRealTime();
-    const auto coreId = Config::get_optional<size_t>("cpu.core_system");
+    const auto coreId = config_.get_optional<size_t>("cpu.core_system");
     if (coreId.has_value()) {
       utils::pinThreadToCore(coreId.value());
     }
@@ -105,6 +106,7 @@ private:
   }
 
 private:
+  const Config &config_;
   IoCtx ioCtx_;
   IoCtxGuard ioCtxGuard_;
 };

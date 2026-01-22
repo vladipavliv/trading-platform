@@ -34,7 +34,7 @@ class PostgresAdapter {
       "SELECT client_id, password FROM clients WHERE name = $1";
 
 public:
-  PostgresAdapter();
+  explicit PostgresAdapter(const Config &cfg);
 
   auto readTickers(bool cache = true) -> Expected<Span<const TickerPrice>>;
   auto checkCredentials(CRef<String> name, CRef<String> password) -> Expected<ClientId>;
@@ -44,6 +44,7 @@ private:
   String getConnectionString() const;
 
 private:
+  const Config &config_;
   const String connectionString_;
   pqxx::connection conn_;
 };

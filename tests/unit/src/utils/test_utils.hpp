@@ -12,8 +12,8 @@
 
 namespace hft::tests {
 
-inline CoreId getCore(CoreId idx) {
-  static const auto cores = Config::get_vector<CoreId>("bench.bench_cores");
+inline CoreId getCore(Config &cfg, CoreId idx) {
+  static const auto cores = cfg.get_vector<CoreId>("bench.bench_cores");
   return cores.at(idx);
 }
 

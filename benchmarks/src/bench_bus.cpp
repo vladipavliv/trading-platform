@@ -20,9 +20,13 @@ using namespace utils;
 using namespace server;
 using namespace tests;
 
+namespace {
 constexpr size_t TICKER_COUNT = 10;
 constexpr size_t ORDER_COUNT = 16384 * 128;
 constexpr double CPU_FREQ = 5.2;
+
+inline ServerConfig cfg{"bench_server_config.ini"};
+} // namespace
 
 static void DISABLED_BM_LfqRunnerThroughput(benchmark::State &state) {
   using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
@@ -30,12 +34,14 @@ static void DISABLED_BM_LfqRunnerThroughput(benchmark::State &state) {
   GenTickerData tkrData{TICKER_COUNT};
   GenOrderData orData{tkrData, ORDER_COUNT};
 
-  pinThreadToCore(getCore(0));
+  pinThreadToCore(getCore(cfg.data, 0));
 
   PostTracker consumer{ORDER_COUNT - 1};
 
-  SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(consumer, bus, "worker", getCore(1));
+  std::stop_source stopSrc;
+  SystemBus bus{cfg.data};
+  auto lfqRunner =
+      std::make_unique<Runner>(consumer, bus, stopSrc.get_token(), "worker", getCore(cfg.data, 1));
   lfqRunner->run();
 
   while (state.KeepRunningBatch(ORDER_COUNT)) {
@@ -53,6 +59,7 @@ static void DISABLED_BM_LfqRunnerThroughput(benchmark::State &state) {
     benchmark::DoNotOptimize(consumer.signal);
   }
 
+  stopSrc.request_stop();
   lfqRunner->stop();
 }
 BENCHMARK(DISABLED_BM_LfqRunnerThroughput);
@@ -62,12 +69,14 @@ static void DISABLED_BM_LfqRunnerTailSpy(benchmark::State &state) {
 
   GenTickerData tkrData{TICKER_COUNT};
   GenOrderData orData{tkrData, ORDER_COUNT};
-  pinThreadToCore(getCore(0));
+  pinThreadToCore(getCore(cfg.data, 0));
 
   PostTracker consumer{ORDER_COUNT - 1};
 
-  SystemBus bus;
-  auto lfqRunner = std::make_unique<Runner>(consumer, bus, "worker", getCore(1));
+  std::stop_source stopSrc;
+  SystemBus bus{cfg.data};
+  auto lfqRunner =
+      std::make_unique<Runner>(consumer, bus, stopSrc.get_token(), "worker", getCore(cfg.data, 1));
   lfqRunner->run();
 
   std::vector<uint64_t> tscLogs(ORDER_COUNT + 1);
@@ -79,9 +88,7 @@ static void DISABLED_BM_LfqRunnerTailSpy(benchmark::State &state) {
     size_t cycle = 0;
     for (auto &order : orData.orders) {
       uint64_t start = __rdtsc();
-
       lfqRunner->post(order);
-
       tscLogs[cycle++] = __rdtsc() - start;
     }
 
@@ -98,6 +105,7 @@ static void DISABLED_BM_LfqRunnerTailSpy(benchmark::State &state) {
   state.counters["P99.9_ns"] = tscLogs[ORDER_COUNT * 999 / 1000] / CPU_FREQ;
   state.counters["Max_ns"] = tscLogs[ORDER_COUNT - 1] / CPU_FREQ;
 
+  stopSrc.request_stop();
   lfqRunner->stop();
 }
 BENCHMARK(DISABLED_BM_LfqRunnerTailSpy);

@@ -41,12 +41,14 @@ const Ticker tkr = genTicker();
 
 class OrderBookFixture : public ::testing::Test {
 public:
+  const ServerConfig cfg;
   UPtr<OrderBook> book;
   Vector<InternalOrderStatus> statusq;
 
+  OrderBookFixture() : cfg{"utest_server_config.ini"} {}
+
   void SetUp() override {
-    ServerConfig::cfg().load("utest_server_config.ini");
-    LOG_INIT(ServerConfig::cfg().logOutput);
+    LOG_INIT(cfg.logOutput);
     book = std::make_unique<OrderBook>();
   }
 

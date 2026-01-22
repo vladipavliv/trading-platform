@@ -7,6 +7,7 @@
 #define HFT_SERVER_CONTROLCENTER_HPP
 
 #include <boost/asio/signal_set.hpp>
+#include <stop_token>
 
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
@@ -53,10 +54,12 @@ namespace hft::server {
  */
 class ControlCenter {
 public:
-  ControlCenter()
-      : storage_{dbAdapter_}, sessionMgr_{bus_}, ipcServer_{bus_},
-        authenticator_{bus_.systemBus, dbAdapter_}, coordinator_{bus_, storage_.marketData()},
-        gateway_{bus_}, consoleReader_{bus_.systemBus}, priceFeed_{bus_, dbAdapter_},
+  explicit ControlCenter(ServerConfig &&config)
+      : config_{std::move(config)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
+        dbAdapter_{config_.data}, storage_{config_, dbAdapter_}, sessionMgr_{ctx_},
+        ipcServer_{ctx_}, authenticator_{ctx_, dbAdapter_},
+        coordinator_{ctx_, storage_.marketData()}, gateway_{ctx_},
+        consoleReader_{ctx_.bus.systemBus}, priceFeed_{ctx_, dbAdapter_},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
     using T = ControlCenter;
@@ -90,26 +93,27 @@ public:
       throw std::runtime_error("No ticker data loaded from db");
     }
     greetings();
-
     try {
       gateway_.start();
       coordinator_.start();
       bus_.run();
     } catch (const std::exception &e) {
-      LOG_ERROR_SYSTEM("Exception in CC::run {}", e.what());
+      LOG_ERROR_SYSTEM("Exception in CC::start {}", e.what());
       stop();
     }
   }
 
   void stop() {
-    LOG_INFO_SYSTEM("stonk");
-
     try {
+      stopSrc_.request_stop();
+
       ipcServer_.stop();
       coordinator_.stop();
       gateway_.stop();
       sessionMgr_.close();
       bus_.stop();
+
+      LOG_INFO_SYSTEM("stonk");
     } catch (const std::exception &e) {
       LOG_ERROR_SYSTEM("Exception in CC::stop {}", e.what());
     }
@@ -138,13 +142,16 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ServerConfig::cfg().log();
     consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
 
 private:
+  const ServerConfig config_;
+  std::stop_source stopSrc_;
+
   ServerBus bus_;
+  Context ctx_;
 
   DbAdapter dbAdapter_;
   Storage storage_;

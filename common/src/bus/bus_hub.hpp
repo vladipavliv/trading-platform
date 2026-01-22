@@ -25,6 +25,8 @@ namespace hft {
 template <typename MarketBus>
 struct BusHub {
 public:
+  explicit BusHub(const Config &config) : systemBus{config} {}
+
   SystemBus systemBus;
   MarketBus marketBus;
 
