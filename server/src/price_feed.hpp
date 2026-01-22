@@ -94,10 +94,9 @@ public:
     for (auto &value : tickerData) {
       fluctuations_.push_back(Fluctuation(value));
     }
-    ctx_.bus.subscribe<Command>(Command::PriceFeed_Start,
-                                Callback::template bind<PriceFeed, &PriceFeed::start>(this));
-    ctx_.bus.subscribe<Command>(Command::PriceFeed_Stop,
-                                Callback::template bind<PriceFeed, &PriceFeed::stop>(this));
+    ctx_.bus.subscribe(Command::PriceFeed_Start,
+                       Callback::bind<PriceFeed, &PriceFeed::start>(this));
+    ctx_.bus.subscribe(Command::PriceFeed_Stop, Callback::bind<PriceFeed, &PriceFeed::stop>(this));
   }
 
   void start() {

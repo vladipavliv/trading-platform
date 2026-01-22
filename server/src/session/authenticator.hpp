@@ -15,10 +15,11 @@
 namespace hft::server {
 
 class Authenticator {
+  using SelfT = Authenticator;
+
 public:
   Authenticator(Context &ctx, DbAdapter &dbAdapter) : ctx_{ctx}, dbAdapter_{dbAdapter} {
-    ctx_.bus.subscribe<ServerLoginRequest>(
-        CRefHandler<ServerLoginRequest>::template bind<Authenticator, &Authenticator::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerLoginRequest>::bind<SelfT, &SelfT::post>(this));
   }
 
 private:

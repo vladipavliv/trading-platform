@@ -20,8 +20,13 @@ template <typename T>
 using Optional = std::optional<T>;
 
 template <typename T, typename Event, void (T::*func)(const Event &)>
-static void handlerBridge(void *ctx, const Event &event) {
+static void crefHandlerBridge(void *ctx, const Event &event) {
   (static_cast<T *>(ctx)->*func)(event);
+}
+
+template <typename T, typename Event, void (T::*func)(Event &&)>
+static void moveHandlerBridge(void *ctx, Event &&event) {
+  (static_cast<T *>(ctx)->*func)(std::move(event));
 }
 
 template <typename T, void (T::*func)()>
@@ -38,11 +43,26 @@ struct CRefHandler {
 
   template <typename T, void (T::*func)(const Event &)>
   static constexpr CRefHandler bind(T *ctx) {
-    return {ctx, &handlerBridge<T, Event, func>};
+    return {ctx, &crefHandlerBridge<T, Event, func>};
   }
 
   inline void operator()(const Event &ev) const { clb(ctx, ev); }
+  explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
+};
 
+template <typename Event>
+struct MoveHandler {
+  using FnPtr = void (*)(void *, Event &&);
+
+  void *ctx{nullptr};
+  FnPtr clb{nullptr};
+
+  template <typename T, void (T::*func)(Event &&)>
+  static constexpr MoveHandler bind(T *ctx) {
+    return {ctx, &moveHandlerBridge<T, Event, func>};
+  }
+
+  inline void operator()(Event &&ev) const { clb(ctx, std::move(ev)); }
   explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
 };
 
@@ -58,7 +78,6 @@ struct Callback {
   }
 
   inline void operator()() const { clb(ctx); }
-
   explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
 };
 

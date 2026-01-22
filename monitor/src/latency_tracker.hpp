@@ -19,6 +19,7 @@ namespace hft::monitor {
  * @brief
  */
 class LatencyTracker {
+  using SelfT = LatencyTracker;
   using Tracker = RttTracker<RTT_RANGES>;
 
 public:
@@ -26,8 +27,7 @@ public:
       : ctx_{ctx}, statsTimer_{ctx_.bus.systemIoCtx()},
         monitorRate_{Milliseconds(
             ctx.config.data.get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    ctx_.bus.subscribe<TelemetryMsg>(
-        CRefHandler<TelemetryMsg>::template bind<LatencyTracker, &LatencyTracker::post>(this));
+    ctx_.bus.subscribe(CRefHandler<TelemetryMsg>::bind<SelfT, &SelfT::post>(this));
 
     scheduleStatsTimer();
   }

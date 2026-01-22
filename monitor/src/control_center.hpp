@@ -22,14 +22,14 @@ namespace hft::monitor {
  * @brief CC
  */
 class MonitorControlCenter {
+  using SelfT = MonitorControlCenter;
+
 public:
   explicit MonitorControlCenter(MonitorConfig &&cfg)
       : config_{std::move(cfg)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
         reactor_{config_.data, ctx_.stopToken, ErrorBus{bus_.systemBus}},
         consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, false}, tracker_{ctx_} {
-    bus_.subscribe(
-        Command::Shutdown,
-        Callback::template bind<MonitorControlCenter, &MonitorControlCenter::stop>(this));
+    bus_.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
   }
 
   void start() {

@@ -81,6 +81,9 @@ void ShmReactor::loop() {
   while (!stopToken_.stop_requested()) {
     bool busy = false;
     for (size_t i = 0; i < readers_.size(); ++i) {
+      if (stopToken_.stop_requested()) {
+        break;
+      }
       auto res = readers_[i]->poll();
       if (res == ShmReader::PollResult::Vanished) {
         LOG_DEBUG_SYSTEM("Reader vanished");

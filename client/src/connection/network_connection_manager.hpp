@@ -22,6 +22,11 @@
 namespace hft::client {
 
 class NetworkConnectionManager {
+  using SelfT = NetworkConnectionManager;
+
+  using StreamTHandler = MoveHandler<StreamTransport>;
+  using DatagramTHandler = MoveHandler<DatagramTransport>;
+
   using UpStreamChannel = Channel<StreamTransport, UpstreamBus>;
   using DownStreamChannel = Channel<StreamTransport, DownstreamBus>;
   using DatagramChannel = Channel<DatagramTransport, DatagramBus>;
@@ -29,25 +34,19 @@ class NetworkConnectionManager {
 public:
   NetworkConnectionManager(Context &ctx, IpcClient &ipcClient) : ctx_{ctx}, ipcClient_{ipcClient} {
     LOG_INFO_SYSTEM("NetworkConnectionManager initialized");
-    ipcClient_.setUpstreamClb(
-        [this](StreamTransport &&transport) { onUpstreamConnected(std::move(transport)); });
-    ipcClient_.setDownstreamClb(
-        [this](StreamTransport &&transport) { onDownstreamConnected(std::move(transport)); });
-    ipcClient_.setDatagramClb(
-        [this](DatagramTransport &&transport) { onDatagramConnected(std::move(transport)); });
+    ipcClient_.setUpstreamClb(StreamTHandler::bind<SelfT, &SelfT::onUpstream>(this));
+    ipcClient_.setDownstreamClb(StreamTHandler::bind<SelfT, &SelfT::onDownstream>(this));
+    ipcClient_.setDatagramClb(DatagramTHandler::bind<SelfT, &SelfT::onDatagram>(this));
 
-    using SelfT = NetworkConnectionManager;
-    ctx_.bus.subscribe<Order>(CRefHandler<Order>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<LoginResponse>(
-        CRefHandler<LoginResponse>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ConnectionStatusEvent>(
-        CRefHandler<ConnectionStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<Order>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<LoginResponse>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ConnectionStatusEvent>::bind<SelfT, &SelfT::post>(this));
   }
 
   void close() { reset(); }
 
 private:
-  void onUpstreamConnected(StreamTransport &&transport) {
+  void onUpstream(StreamTransport &&transport) {
     if (upstreamChannel_) {
       LOG_ERROR_SYSTEM("Already connected upstream");
       return;
@@ -60,7 +59,7 @@ private:
     tryAuthenticate();
   }
 
-  void onDownstreamConnected(StreamTransport &&transport) {
+  void onDownstream(StreamTransport &&transport) {
     if (downstreamChannel_) {
       LOG_ERROR_SYSTEM("Already connected downstream");
       return;
@@ -73,7 +72,7 @@ private:
     tryAuthenticate();
   }
 
-  void onDatagramConnected(DatagramTransport &&transport) {
+  void onDatagram(DatagramTransport &&transport) {
     const auto id = utils::genConnectionId();
     pricesChannel_ =
         std::make_shared<DatagramChannel>(std::move(transport), id, DatagramBus{ctx_.bus});

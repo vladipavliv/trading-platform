@@ -9,17 +9,18 @@
 #include "bus/bus_hub.hpp"
 #include "constants.hpp"
 #include "events.hpp"
+#include "ipc/session_channel.hpp"
 #include "logging.hpp"
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
-#include "transport/session_channel.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::server {
 
 /**
- * @brief
+ * @brief Session manager for shared memory communciation
+ * Maintains single up/downstream channels, no auth needed, no channel, transport is used directly
  */
 class TrustedSessionManager {
   using UpstreamChan = StreamTransport;
@@ -31,10 +32,8 @@ public:
   explicit TrustedSessionManager(Context &ctx) : ctx_{ctx} {
     LOG_INFO_SYSTEM("TrustedSessionManager initialized");
 
-    ctx_.bus.subscribe<ServerOrderStatus>(
-        CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe<ChannelStatusEvent>(
-        CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ServerOrderStatus>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<ChannelStatusEvent>::bind<SelfT, &SelfT::post>(this));
   }
 
   ~TrustedSessionManager() { LOG_DEBUG_SYSTEM("~TrustedSessionManager"); }
@@ -43,7 +42,7 @@ public:
     LOG_DEBUG_SYSTEM("acceptUpstream");
     upChannel_ = std::make_unique<UpstreamChan>(std::move(t));
     ByteSpan span(reinterpret_cast<uint8_t *>(&order_), sizeof(Order));
-    upChannel_->asyncRx(span, CRefHandler<IoResult>::template bind<SelfT, &SelfT::post>(this));
+    upChannel_->asyncRx(span, CRefHandler<IoResult>::bind<SelfT, &SelfT::post>(this));
   }
 
   void acceptDownstream(StreamTransport &&t) {
@@ -64,7 +63,6 @@ public:
 private:
   void post(CRef<ChannelStatusEvent> event) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
     LOG_DEBUG("{}", toString(event));
@@ -83,7 +81,6 @@ private:
 
   void post(CRef<IoResult> res) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
     if (!res) {
@@ -96,7 +93,6 @@ private:
 
   void post(CRef<ServerOrderStatus> status) {
     if (ctx_.stopToken.stop_requested()) {
-      LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
     LOG_DEBUG("{}", toString(status.orderStatus));
