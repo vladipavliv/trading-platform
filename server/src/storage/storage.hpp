@@ -19,7 +19,8 @@ namespace hft::server {
 
 class Storage {
 public:
-  explicit Storage(DbAdapter &dbAdapter) : dbAdapter_{dbAdapter}, marketData_{loadMarketData()} {}
+  explicit Storage(const ServerConfig &cfg, DbAdapter &dbAdapter)
+      : config_{cfg}, dbAdapter_{dbAdapter}, marketData_{loadMarketData()} {}
 
   auto marketData() const -> CRef<MarketData> { return marketData_; }
 
@@ -35,8 +36,7 @@ private:
     }
 
     const auto &prices = result.value();
-    const ThreadId workerCount =
-        ServerConfig::cfg().coresApp.size() == 0 ? 1 : ServerConfig::cfg().coresApp.size();
+    const ThreadId workerCount = config_.coresApp.size() == 0 ? 1 : config_.coresApp.size();
 
     MarketData data;
     data.reserve(prices.size());
@@ -57,6 +57,7 @@ private:
   }
 
 private:
+  const ServerConfig &config_;
   DbAdapter &dbAdapter_;
 
   const MarketData marketData_;

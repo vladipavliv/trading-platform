@@ -46,27 +46,28 @@ class TradeEngine {
   };
 
 public:
-  explicit TradeEngine(ClientBus &bus)
-      : bus_{bus}, marketData_{loadMarketData()}, timer_{bus_.systemIoCtx()} {
-    bus_.subscribe<OrderStatus>(
+  explicit TradeEngine(Context &ctx)
+      : ctx_{ctx}, dbAdapter_{ctx_.config.data}, marketData_{loadMarketData()},
+        timer_{ctx_.bus.systemIoCtx()} {
+    ctx_.bus.subscribe<OrderStatus>(
         CRefHandler<OrderStatus>::template bind<TradeEngine, &TradeEngine::post>(this));
-    bus_.subscribe<TickerPrice>(
+    ctx_.bus.subscribe<TickerPrice>(
         CRefHandler<TickerPrice>::template bind<TradeEngine, &TradeEngine::post>(this));
   }
 
   void start() {
-    if (running_) {
+    if (started_) {
+      LOG_ERROR_SYSTEM("Already started");
       return;
     }
     LOG_DEBUG("Starting trade engine");
-    running_ = true;
+    started_ = true;
     startWorkers();
     scheduleStats();
   }
 
   void stop() {
     LOG_INFO_SYSTEM("Stopping trade engine");
-    running_.store(false, std::memory_order_release);
     utils::join(worker_);
   }
 
@@ -92,13 +93,13 @@ private:
     worker_ = std::jthread{[this]() {
       try {
         utils::setThreadRealTime();
-        if (!ClientConfig::cfg().coresApp.empty()) {
-          utils::pinThreadToCore(ClientConfig::cfg().coresApp[0]);
+        if (!ctx_.config.coresApp.empty()) {
+          utils::pinThreadToCore(ctx_.config.coresApp[0]);
         }
         tradeLoop();
       } catch (const std::exception &ex) {
         LOG_ERROR_SYSTEM("Exception in trade engine loop {}", ex.what());
-        bus_.post(InternalError{StatusCode::Error, ex.what()});
+        ctx_.bus.post(InternalError{StatusCode::Error, ex.what()});
       }
     }};
   }
@@ -122,11 +123,11 @@ private:
 
   void tradeLoop() {
     using namespace utils;
-    uint32_t warmupCount = Config::get<uint64_t>("rates.warmup");
+    uint32_t warmupCount = ctx_.config.data.get<uint64_t>("rates.warmup");
     uint32_t counter = 0;
-    while (running_.load(std::memory_order_acquire)) {
+    while (!ctx_.stopToken.stop_requested()) {
       if (!trading_) {
-        asm volatile("pause" ::: "memory");
+        std::this_thread::yield();
         continue;
       }
 
@@ -134,9 +135,9 @@ private:
         break;
       }
 
-      for (int i = 0; i < ClientConfig::cfg().tradeRate; ++i) {
+      for (int i = 0; i < ctx_.config.tradeRate; ++i) {
         asm volatile("pause" ::: "memory");
-        if (!running_.load(std::memory_order_acquire)) {
+        if (ctx_.stopToken.stop_requested()) {
           return;
         }
       }
@@ -167,7 +168,7 @@ private:
 
     placed_.fetch_add(1, std::memory_order_relaxed);
     LOG_DEBUG("Placing order {}", toString(order));
-    bus_.marketBus.post(order);
+    ctx_.bus.marketBus.post(order);
     return true;
   }
 
@@ -179,7 +180,7 @@ private:
       r.created = utils::getCycles();
       Order toCancelO{r.sysOId.raw(), o.ticker, o.quantity, o.price, OrderAction::Cancel};
       LOG_DEBUG("Posting cancel {}", toString(toCancelO));
-      bus_.marketBus.post(toCancelO);
+      ctx_.bus.marketBus.post(toCancelO);
       return true;
     }
     return false;
@@ -188,7 +189,7 @@ private:
   void post(CRef<OrderStatus> s) {
     LOG_DEBUG("{}", toString(s));
     using namespace utils;
-    if (!running_.load(std::memory_order_acquire)) {
+    if (ctx_.stopToken.stop_requested()) {
       return;
     }
     LOG_DEBUG("{}", toString(s));
@@ -210,7 +211,8 @@ private:
     const auto cycl = getCycles();
     const auto plcd = placed_.load(std::memory_order_relaxed);
     const auto fulf = fulfilled_.load(std::memory_order_relaxed);
-    bus_.post(createOrderLatencyMsg(Source::Client, 0, s.orderId, r.created, 0, cycl, plcd, fulf));
+    ctx_.bus.post(
+        createOrderLatencyMsg(Source::Client, 0, s.orderId, r.created, 0, cycl, plcd, fulf));
 
     switch (s.state) {
     case OrderState::Accepted: {
@@ -253,7 +255,7 @@ private:
     using namespace utils;
     timer_.expires_after(Seconds(1));
     timer_.async_wait([this](BoostErrorCode code) {
-      if (code || !running_.load()) {
+      if (code || ctx_.stopToken.stop_requested()) {
         return;
       }
       static size_t lastCounter = 0;
@@ -271,10 +273,10 @@ private:
   }
 
 private:
+  Context &ctx_;
+
   DbAdapter dbAdapter_;
   const MarketData marketData_;
-
-  ALIGN_CL ClientBus &bus_;
 
   ALIGN_CL SlotIdPool<> idPool_;
   ALIGN_CL HugeArray<ClientOrder, MAX_SYSTEM_ORDERS> orders_;
@@ -283,7 +285,7 @@ private:
   ALIGN_CL AtomicUInt64 fulfilled_{0};
   ALIGN_CL AtomicUInt64 cancelled_{0};
 
-  ALIGN_CL AtomicBool running_{false};
+  ALIGN_CL AtomicBool started_{false};
   ALIGN_CL AtomicBool trading_{false};
 
   ALIGN_CL SequencedSPSC<1024> toCancel_;

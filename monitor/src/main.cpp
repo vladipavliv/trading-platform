@@ -45,10 +45,10 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    MonitorConfig::cfg().load(configPath);
-    LOG_INIT(MonitorConfig::cfg().logOutput);
+    MonitorConfig cfg(configPath);
+    LOG_INIT(cfg.logOutput);
 
-    MonitorControlCenter monitorCc;
+    MonitorControlCenter monitorCc{std::move(cfg)};
     monitorCc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main {}" << e.what() << std::endl;

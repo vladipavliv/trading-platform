@@ -32,9 +32,10 @@ class LfqRunner {
   using Queue = SequencedSPSC<Capacity>;
 
 public:
-  LfqRunner(ConsumerT &consumer, BusT &bus, String name, Optional<CoreId> coreId = std::nullopt,
-            bool feedFromBus = false)
-      : consumer_{consumer}, bus_{bus}, name_{std::move(name)}, coreId_{coreId} {
+  LfqRunner(ConsumerT &consumer, BusT &bus, std::stop_token stopToken, String name,
+            Optional<CoreId> coreId = std::nullopt, bool feedFromBus = false)
+      : consumer_{consumer}, bus_{bus}, stopToken_{std::move(stopToken)}, name_{std::move(name)},
+        coreId_{coreId} {
     if (feedFromBus) {
       using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
       bus_.template subscribe<MessageT>(
@@ -48,8 +49,8 @@ public:
     LOG_DEBUG("LfqRunner run {}", name_);
     thread_ = std::jthread([this]() {
       try {
-        running_.store(true);
-        running_.notify_all();
+        started_.store(true);
+        started_.notify_all();
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
@@ -71,16 +72,15 @@ public:
       }
       LOG_DEBUG("LfqRunner finished {}", name_);
     });
-    running_.wait(false);
+    started_.wait(false);
   }
 
   void stop() {
     LOG_DEBUG("Stopping LfqRunner {}", name_);
-    if (!running_.load(std::memory_order_acquire)) {
-      LOG_ERROR("Already stopped");
+    if (!started_.load(std::memory_order_acquire)) {
       return;
     }
-    running_.store(false, std::memory_order_release);
+    started_.store(false, std::memory_order_release);
     auto val = ftx_.fetch_add(1, std::memory_order_release);
     LOG_DEBUG("futex wake {} {}", name_, val);
     utils::futexWake(ftx_);
@@ -90,8 +90,7 @@ public:
 
   inline void post(CRef<MessageT> message) {
     LOG_DEBUG("{}", toString(message));
-    if (!running_.load(std::memory_order_acquire)) {
-      LOG_ERROR("Already stopped");
+    if (!started_.load(std::memory_order_acquire) || stopToken_.stop_requested()) {
       return;
     }
     auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
@@ -119,15 +118,15 @@ private:
     auto msgSize = sizeof(MessageT);
 
     SpinWait waiter;
-    while (running_.load(std::memory_order_acquire)) {
+    while (!stopToken_.stop_requested()) {
       if (queue_.read(msgPtr, msgSize)) {
         waiter.reset();
         do {
           consumer_.post(message);
-        } while (queue_.read(msgPtr, msgSize) && running_.load(std::memory_order_acquire));
+        } while (queue_.read(msgPtr, msgSize) && stopToken_.stop_requested());
         continue;
       }
-      if (++waiter || !running_.load(std::memory_order_acquire)) {
+      if (++waiter || stopToken_.stop_requested()) {
         continue;
       }
       const auto ftxVal = ftx_.load(std::memory_order_acquire);
@@ -140,7 +139,7 @@ private:
         continue;
       }
 
-      if (!running_.load(std::memory_order_acquire)) {
+      if (stopToken_.stop_requested()) {
         break;
       }
 
@@ -156,11 +155,12 @@ private:
 private:
   ALIGN_CL ConsumerT &consumer_;
   ALIGN_CL BusT &bus_;
+  ALIGN_CL std::stop_token stopToken_;
   ALIGN_CL const String name_;
   ALIGN_CL const Optional<CoreId> coreId_;
 
   ALIGN_CL Queue queue_;
-  ALIGN_CL AtomicBool running_{false};
+  ALIGN_CL AtomicBool started_{false};
   ALIGN_CL AtomicBool sleeping_{false};
   ALIGN_CL AtomicUInt32 ftx_{0};
 

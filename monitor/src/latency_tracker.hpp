@@ -22,11 +22,11 @@ class LatencyTracker {
   using Tracker = RttTracker<RTT_RANGES>;
 
 public:
-  explicit LatencyTracker(MonitorBus &bus)
-      : bus_{bus}, statsTimer_{bus_.systemIoCtx()},
-        monitorRate_{
-            Milliseconds(Config::get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
-    bus_.subscribe<TelemetryMsg>(
+  explicit LatencyTracker(Context &ctx)
+      : ctx_{ctx}, statsTimer_{ctx_.bus.systemIoCtx()},
+        monitorRate_{Milliseconds(
+            ctx.config.data.get_optional<size_t>("rates.monitor_rate_ms").value_or(1000))} {
+    ctx_.bus.subscribe<TelemetryMsg>(
         CRefHandler<TelemetryMsg>::template bind<LatencyTracker, &LatencyTracker::post>(this));
 
     scheduleStatsTimer();
@@ -38,8 +38,7 @@ private:
     case TelemetryType::Startup:
       break;
     case TelemetryType::OrderLatency: {
-      auto rtt =
-          (msg.data.order.notified - msg.data.order.created) * MonitorConfig::cfg().nsPerCycle;
+      auto rtt = (msg.data.order.notified - msg.data.order.created) * ctx_.config.nsPerCycle;
       Tracker::logRtt(rtt);
     } break;
     case TelemetryType::Runtime:
@@ -75,7 +74,7 @@ private:
   }
 
 private:
-  MonitorBus &bus_;
+  Context &ctx_;
 
   const Milliseconds monitorRate_;
   SteadyTimer statsTimer_;

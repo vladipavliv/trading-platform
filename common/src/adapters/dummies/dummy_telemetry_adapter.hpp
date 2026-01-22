@@ -6,12 +6,14 @@
 #ifndef HFT_COMMON_DUMMYTELEMETRYADAPTER_HPP
 #define HFT_COMMON_DUMMYTELEMETRYADAPTER_HPP
 
+#include "config/config.hpp"
+
 namespace hft {
 
 template <typename BusT>
 class DummyTelemetryAdapter {
 public:
-  DummyTelemetryAdapter(BusT &bus, bool producer) {}
+  DummyTelemetryAdapter(BusT &bus, const Config &cfg, bool producer) {}
 
   void start() {}
 

@@ -43,19 +43,19 @@ class NetworkSessionManager {
   };
 
 public:
-  explicit NetworkSessionManager(ServerBus &bus)
-      : bus_{bus}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
+  explicit NetworkSessionManager(Context &ctx)
+      : ctx_{ctx}, unauthorizedUpstreamMap_{MAX_CONNECTIONS},
         unauthorizedDownstreamMap_{MAX_CONNECTIONS}, sessionsMap_{MAX_CONNECTIONS} {
     LOG_INFO_SYSTEM("NetworkSessionManager initialized");
 
     using SelfT = NetworkSessionManager;
-    bus_.subscribe<ServerOrderStatus>(
+    ctx_.bus.subscribe<ServerOrderStatus>(
         CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ServerLoginResponse>(
+    ctx_.bus.subscribe<ServerLoginResponse>(
         CRefHandler<ServerLoginResponse>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ServerTokenBindRequest>(
+    ctx_.bus.subscribe<ServerTokenBindRequest>(
         CRefHandler<ServerTokenBindRequest>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ChannelStatusEvent>(
+    ctx_.bus.subscribe<ChannelStatusEvent>(
         CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
@@ -65,25 +65,33 @@ public:
   }
 
   void acceptUpstream(StreamTransport &&transport) {
+    if (ctx_.stopToken.stop_requested()) {
+      LOG_ERROR_SYSTEM("Stop is already requested");
+      return;
+    }
     const auto id = utils::genConnectionId();
     LOG_INFO_SYSTEM("New upstream connection id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<UpstreamChan>(std::move(transport), id, UpstreamBus{bus_});
+    auto chan = std::make_shared<UpstreamChan>(std::move(transport), id, UpstreamBus{ctx_.bus});
     chan->read();
     unauthorizedUpstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
 
   void acceptDownstream(StreamTransport &&transport) {
+    if (ctx_.stopToken.stop_requested()) {
+      LOG_ERROR_SYSTEM("Stop is already requested");
+      return;
+    }
     const auto id = utils::genConnectionId();
     LOG_INFO_SYSTEM("New downstream connection Id: {}", id);
     if (sessionsMap_.size() >= MAX_CONNECTIONS) {
       LOG_ERROR("Connection limit reached");
       return;
     }
-    auto chan = std::make_shared<DownstreamChan>(std::move(transport), id, DownstreamBus{bus_});
+    auto chan = std::make_shared<DownstreamChan>(std::move(transport), id, DownstreamBus{ctx_.bus});
     chan->read();
     unauthorizedDownstreamMap_.insert(std::make_pair(id, std::move(chan)));
   }
@@ -117,6 +125,10 @@ public:
 
 private:
   void post(CRef<ServerOrderStatus> status) {
+    if (ctx_.stopToken.stop_requested()) {
+      LOG_ERROR_SYSTEM("Stop is already requested");
+      return;
+    }
     LOG_DEBUG("{}", toString(status));
     const auto sessionIter = sessionsMap_.find(status.clientId);
     if (sessionIter == sessionsMap_.end()) [[unlikely]] {
@@ -132,6 +144,10 @@ private:
   }
 
   void post(CRef<ServerLoginResponse> loginResult) {
+    if (ctx_.stopToken.stop_requested()) {
+      LOG_ERROR_SYSTEM("Stop is already requested");
+      return;
+    }
     LOG_DEBUG("onLoginResponse {} {}", loginResult.ok, loginResult.clientId);
     const auto channelIter = unauthorizedUpstreamMap_.find(loginResult.connectionId);
     if (channelIter == unauthorizedUpstreamMap_.end()) [[unlikely]] {
@@ -168,6 +184,10 @@ private:
   }
 
   void post(CRef<ServerTokenBindRequest> request) {
+    if (ctx_.stopToken.stop_requested()) {
+      LOG_ERROR_SYSTEM("Stop is already requested");
+      return;
+    }
     LOG_INFO_SYSTEM("Token bind request {} {}", request.connectionId, request.request.token);
     const auto channelIter = unauthorizedDownstreamMap_.find(request.connectionId);
     if (channelIter == unauthorizedDownstreamMap_.end()) {
@@ -236,7 +256,7 @@ private:
   inline void printStats() const { LOG_INFO_SYSTEM("Active sessions: {}", sessionsMap_.size()); }
 
 private:
-  ServerBus &bus_;
+  Context &ctx_;
 
   folly::AtomicHashMap<ConnectionId, SPtr<UpstreamChan>> unauthorizedUpstreamMap_;
   folly::AtomicHashMap<ConnectionId, SPtr<DownstreamChan>> unauthorizedDownstreamMap_;

@@ -28,7 +28,8 @@ public:
   using StreamClb = std::function<void(ShmTransport &&transport)>;
   using DatagramClb = std::function<void(ShmTransport &&transport)>;
 
-  explicit ShmServer(ServerBus &bus) : bus_{bus}, reactor_{ErrorBus{bus_.systemBus}} {}
+  explicit ShmServer(Context &ctx)
+      : ctx_{ctx}, reactor_{ctx_.config.data, ctx_.stopToken, ErrorBus{ctx_.bus.systemBus}} {}
 
   ~ShmServer() { LOG_DEBUG_SYSTEM("~ShmServer"); }
 
@@ -49,18 +50,18 @@ private:
   void initialize() {
     LOG_DEBUG("ShmServer::initialize");
     if (upstreamClb_) {
-      const auto name = Config::get<String>("shm.shm_upstream");
+      const auto name = ctx_.config.data.get<String>("shm.shm_upstream");
       upstreamClb_(ShmTransport::makeReader(name));
     }
     if (downstreamClb_) {
-      const auto name = Config::get<String>("shm.shm_downstream");
+      const auto name = ctx_.config.data.get<String>("shm.shm_downstream");
       downstreamClb_(ShmTransport::makeWriter(name));
     }
     reactor_.run();
   }
 
 private:
-  ServerBus &bus_;
+  Context &ctx_;
 
   ShmReactor reactor_;
 

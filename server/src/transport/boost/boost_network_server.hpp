@@ -30,8 +30,8 @@ public:
   using StreamClb = std::function<void(BoostTcpTransport &&transport)>;
   using DatagramClb = std::function<void(BoostUdpTransport &&transport)>;
 
-  explicit BoostIpcServer(ServerBus &bus)
-      : guard_{MakeGuard(ioCtx_.get_executor())}, bus_{bus}, upstreamAcceptor_{ioCtx_},
+  explicit BoostIpcServer(Context &ctx)
+      : ctx_{ctx}, guard_{MakeGuard(ioCtx_.get_executor())}, upstreamAcceptor_{ioCtx_},
         downstreamAcceptor_{ioCtx_} {}
 
   ~BoostIpcServer() { stop(); }
@@ -51,8 +51,8 @@ public:
       try {
         running_ = true;
         utils::setThreadRealTime();
-        if (ServerConfig::cfg().coreNetwork.has_value()) {
-          const CoreId id = ServerConfig::cfg().coreNetwork.value();
+        if (ctx_.config.coreNetwork.has_value()) {
+          const CoreId id = ctx_.config.coreNetwork.value();
           utils::pinThreadToCore(id);
           LOG_DEBUG("Network thread started on the core {}", id);
         } else {
@@ -67,11 +67,11 @@ public:
       } catch (const std::exception &e) {
         LOG_ERROR_SYSTEM("Exception in network thread {}", e.what());
         ioCtx_.stop();
-        bus_.post(InternalError(StatusCode::Error, e.what()));
+        ctx_.bus.post(InternalError(StatusCode::Error, e.what()));
       } catch (...) {
         LOG_ERROR_SYSTEM("Unknown exception in ShmReader");
         ioCtx_.stop();
-        bus_.post(InternalError(StatusCode::Error, "Unknown"));
+        ctx_.bus.post(InternalError(StatusCode::Error, "Unknown"));
       }
     });
   }
@@ -90,7 +90,7 @@ public:
 
 private:
   void startUpstream() {
-    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg().portTcpUp);
+    const TcpEndpoint endpoint(Tcp::v4(), ctx_.config.portTcpUp);
     upstreamAcceptor_.open(endpoint.protocol());
     upstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     upstreamAcceptor_.bind(endpoint);
@@ -111,7 +111,7 @@ private:
   }
 
   void startDownstream() {
-    const TcpEndpoint endpoint(Tcp::v4(), ServerConfig::cfg().portTcpDown);
+    const TcpEndpoint endpoint(Tcp::v4(), ctx_.config.portTcpDown);
     downstreamAcceptor_.open(endpoint.protocol());
     downstreamAcceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     downstreamAcceptor_.bind(endpoint);
@@ -157,7 +157,7 @@ private:
       socket.set_option(socket_base::broadcast{true});
       configureUdpSocket(socket);
 
-      UdpEndpoint endpoint(ip::address_v4::broadcast(), ServerConfig::cfg().portUdp);
+      UdpEndpoint endpoint(ip::address_v4::broadcast(), ctx_.config.portUdp);
       socket.connect(endpoint);
 
       LOG_INFO_SYSTEM("UDP initialized {}:{}", endpoint.address().to_string(), endpoint.port());
@@ -169,10 +169,10 @@ private:
   }
 
 private:
+  Context &ctx_;
+
   IoCtx ioCtx_;
   IoCtxGuard guard_;
-
-  ServerBus &bus_;
 
   StreamClb upstreamClb_;
   StreamClb downstreamClb_;

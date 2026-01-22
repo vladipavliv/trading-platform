@@ -7,6 +7,7 @@
 #define HFT_SERVER_CONTROLCENTER_HPP
 
 #include <boost/asio/signal_set.hpp>
+#include <stop_token>
 
 #include "adapters/telemetry_adapter.hpp"
 #include "commands/command.hpp"
@@ -27,9 +28,10 @@ namespace hft::client {
  */
 class ControlCenter {
 public:
-  ControlCenter()
-      : ipcClient_{bus_}, connectionManager_{bus_, ipcClient_}, engine_{bus_},
-        consoleReader_{bus_.systemBus}, telemetry_{bus_, true},
+  explicit ControlCenter(ClientConfig &&cfg)
+      : config_{std::move(cfg)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
+        ipcClient_{ctx_}, connectionManager_{ctx_, ipcClient_}, engine_{ctx_},
+        consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, true},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
     using SelfT = ControlCenter;
@@ -54,29 +56,37 @@ public:
 
   void start() {
     greetings();
+    try {
+      ipcClient_.start();
+      engine_.start();
+      telemetry_.start();
 
-    ipcClient_.start();
-    engine_.start();
-    telemetry_.start();
-
-    bus_.run();
+      bus_.run();
+    } catch (const std::exception &e) {
+      LOG_ERROR_SYSTEM("Exception in CC::start {}", e.what());
+    }
   }
 
   void stop() {
-    LOG_INFO_SYSTEM("stonk");
+    try {
+      stopSrc_.request_stop();
 
-    ipcClient_.stop();
-    engine_.stop();
-    telemetry_.close();
-    connectionManager_.close();
-    bus_.stop();
+      ipcClient_.stop();
+      engine_.stop();
+      telemetry_.close();
+      connectionManager_.close();
+      bus_.stop();
+
+      LOG_INFO_SYSTEM("stonk");
+    } catch (const std::exception &e) {
+      LOG_ERROR_SYSTEM("Exception in CC::stop {}", e.what());
+    }
   }
 
 private:
   void greetings() {
     LOG_INFO_SYSTEM("Client go stonks");
     LOG_INFO_SYSTEM("Configuration:");
-    ClientConfig::cfg().log();
     consoleReader_.printCommands();
   }
 
@@ -113,7 +123,11 @@ private:
   void tradeStop() { engine_.tradeStop(); }
 
 private:
+  const ClientConfig config_;
+  std::stop_source stopSrc_;
+
   ClientBus bus_;
+  Context ctx_;
 
   IpcClient ipcClient_;
   ConnectionManager connectionManager_;

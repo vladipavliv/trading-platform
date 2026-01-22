@@ -19,7 +19,8 @@ class TelemetryAdapter {
   using SelfT = TelemetryAdapter<BusT>;
 
 public:
-  TelemetryAdapter(BusT &bus, bool producer) : bus_{bus}, producer_{producer}, transport_{init()} {}
+  TelemetryAdapter(BusT &bus, const Config &cfg, bool producer)
+      : bus_{bus}, config_{cfg}, producer_{producer}, transport_{init()} {}
 
   void start() {
     LOG_DEBUG_SYSTEM("TelemetryAdapter start");
@@ -36,7 +37,7 @@ public:
 
 private:
   ShmTransport init() {
-    const auto name = Config::get<String>("shm.shm_telemetry");
+    const auto name = config_.get<String>("shm.shm_telemetry");
     if (producer_) {
       return ShmTransport::makeWriter(name);
     } else {
@@ -62,6 +63,7 @@ private:
 
 private:
   BusT &bus_;
+  const Config &config_;
 
   const bool producer_;
   TelemetryMsg msg_;

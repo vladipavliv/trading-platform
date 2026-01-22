@@ -28,12 +28,12 @@ class TrustedSessionManager {
   using SelfT = TrustedSessionManager;
 
 public:
-  explicit TrustedSessionManager(ServerBus &bus) : bus_{bus} {
+  explicit TrustedSessionManager(Context &ctx) : ctx_{ctx} {
     LOG_INFO_SYSTEM("TrustedSessionManager initialized");
 
-    bus_.subscribe<ServerOrderStatus>(
+    ctx_.bus.subscribe<ServerOrderStatus>(
         CRefHandler<ServerOrderStatus>::template bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe<ChannelStatusEvent>(
+    ctx_.bus.subscribe<ChannelStatusEvent>(
         CRefHandler<ChannelStatusEvent>::template bind<SelfT, &SelfT::post>(this));
   }
 
@@ -53,22 +53,17 @@ public:
 
   void close() {
     LOG_DEBUG_SYSTEM("TrustedSessionManager close");
-    if (closed_.load(std::memory_order_acquire)) {
-      LOG_WARN("TrustedSessionManager is already closed");
-      return;
-    }
     if (upChannel_) {
       upChannel_->close();
     }
     if (downChannel_) {
       downChannel_->close();
     }
-    closed_.store(true, std::memory_order_release);
   }
 
 private:
   void post(CRef<ChannelStatusEvent> event) {
-    if (closed_.load(std::memory_order_acquire)) {
+    if (ctx_.stopToken.stop_requested()) {
       LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
@@ -87,20 +82,20 @@ private:
   }
 
   void post(CRef<IoResult> res) {
-    if (closed_.load(std::memory_order_acquire)) {
+    if (ctx_.stopToken.stop_requested()) {
       LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
     if (!res) {
       LOG_ERROR("Failed to read from shm");
-      bus_.post(InternalError{StatusCode::Error, "Failed to read from shm"});
+      ctx_.bus.post(InternalError{StatusCode::Error, "Failed to read from shm"});
     } else {
-      bus_.post(ServerOrder{0, order_});
+      ctx_.bus.post(ServerOrder{0, order_});
     }
   }
 
   void post(CRef<ServerOrderStatus> status) {
-    if (closed_.load(std::memory_order_acquire)) {
+    if (ctx_.stopToken.stop_requested()) {
       LOG_WARN("TrustedSessionManager is already closed");
       return;
     }
@@ -110,19 +105,17 @@ private:
     auto res = downChannel_->syncTx(span);
     if (!res) {
       LOG_ERROR("Failed to write ServerOrderStatus to shm");
-      bus_.post(InternalError{StatusCode::Error, "Failed to write ServerOrderStatus to shm"});
+      ctx_.bus.post(InternalError{StatusCode::Error, "Failed to write ServerOrderStatus to shm"});
     }
   }
 
 private:
-  ServerBus &bus_;
+  Context &ctx_;
 
   Order order_;
 
   UPtr<UpstreamChan> upChannel_;
   UPtr<DownstreamChan> downChannel_;
-
-  AtomicBool closed_{false};
 };
 
 } // namespace hft::server

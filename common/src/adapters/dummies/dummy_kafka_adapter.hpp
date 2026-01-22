@@ -15,7 +15,7 @@ namespace hft::adapters {
 template <typename BusT>
 class DummyKafkaAdapter {
 public:
-  DummyKafkaAdapter(BusT &bus) { LOG_DEBUG("Kafka dummy adapter"); }
+  explicit DummyKafkaAdapter(BusT &bus, const Config &cfg) { LOG_DEBUG("Kafka dummy adapter"); }
 
   void start() {}
   void stop() {}

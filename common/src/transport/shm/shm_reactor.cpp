@@ -11,7 +11,8 @@
 
 namespace hft {
 
-ShmReactor::ShmReactor(ErrorBus &&bus) : bus_{std::move(bus)} {
+ShmReactor::ShmReactor(const Config &cfg, std::stop_token token, ErrorBus &&bus)
+    : config_{cfg}, stopToken_{std::move(token)}, bus_{std::move(bus)} {
   LOG_INFO_SYSTEM("ShmReactor ctor");
   ShmReactor *expected = nullptr;
   if (!instance.compare_exchange_strong(expected, this, std::memory_order_release)) {
@@ -22,7 +23,7 @@ ShmReactor::ShmReactor(ErrorBus &&bus) : bus_{std::move(bus)} {
 ShmReactor::~ShmReactor() { LOG_DEBUG_SYSTEM("~ShmReactor"); }
 
 void ShmReactor::add(ShmReader *reader) {
-  if (running_.load(std::memory_order_acquire)) {
+  if (started_.load(std::memory_order_acquire)) {
     LOG_ERROR("ShmReactor is already running");
     return;
   }
@@ -31,16 +32,16 @@ void ShmReactor::add(ShmReader *reader) {
 }
 
 void ShmReactor::run() {
-  if (running_.load()) {
+  if (started_.load()) {
     LOG_ERROR_SYSTEM("ShmReactor is already running");
     return;
   }
-  running_.store(true, std::memory_order_release);
+  started_.store(true, std::memory_order_release);
   LOG_DEBUG("ShmReactor run");
   thread_ = std::jthread([this]() {
     try {
       utils::setThreadRealTime();
-      const auto coreId = Config::get_optional<CoreId>("cpu.core_network");
+      const auto coreId = config_.get_optional<CoreId>("cpu.core_network");
       if (coreId.has_value()) {
         LOG_DEBUG("Pin ShmReader thread to core {}", *coreId);
         utils::pinThreadToCore(*coreId);
@@ -52,17 +53,14 @@ void ShmReactor::run() {
     } catch (...) {
       bus_.post(InternalError{StatusCode::Error, "Unknown exception in ShmReader"});
     }
-    running_.store(false, std::memory_order_release);
   });
 }
 
 void ShmReactor::stop() {
   LOG_DEBUG_SYSTEM("ShmReactor stop");
-  if (!running_.load(std::memory_order_acquire)) {
-    LOG_WARN_SYSTEM("already stopped");
+  if (!started_.load(std::memory_order_acquire)) {
     return;
   }
-  running_.store(false, std::memory_order_release);
   for (auto *rdr : readers_) {
     rdr->notify();
   }
@@ -80,7 +78,7 @@ void ShmReactor::loop() {
     return;
   }
   SpinWait waiter{SPIN_RETRIES_WARM};
-  while (running_.load(std::memory_order_acquire)) {
+  while (!stopToken_.stop_requested()) {
     bool busy = false;
     for (size_t i = 0; i < readers_.size(); ++i) {
       auto res = readers_[i]->poll();
@@ -106,7 +104,5 @@ void ShmReactor::loop() {
     }
   }
 }
-
-bool ShmReactor::running() const { return running_.load(std::memory_order_acquire); }
 
 } // namespace hft

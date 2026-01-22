@@ -14,10 +14,7 @@
 namespace hft::server {
 
 struct ServerConfig {
-  static ServerConfig &cfg() {
-    static ServerConfig config;
-    return config;
-  }
+  explicit ServerConfig(const String &fileName);
 
   // Network
   String url;
@@ -40,8 +37,7 @@ struct ServerConfig {
   // Logging
   String logOutput;
 
-  void load(const String &fileName);
-  void log();
+  Config data;
 };
 
 } // namespace hft::server

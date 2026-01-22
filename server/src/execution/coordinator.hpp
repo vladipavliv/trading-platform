@@ -56,8 +56,8 @@ class Coordinator {
   using Worker = LfqRunner<InternalOrderEvent, Matcher, SystemBus>;
 
 public:
-  Coordinator(ServerBus &bus, CRef<MarketData> data) : bus_{bus}, data_{data}, matcher_{bus_} {
-    bus_.subscribe<InternalOrderEvent>(
+  Coordinator(Context &ctx, CRef<MarketData> data) : ctx_{ctx}, data_{data}, matcher_{ctx_.bus} {
+    ctx_.bus.subscribe<InternalOrderEvent>(
         CRefHandler<InternalOrderEvent>::template bind<Coordinator, &Coordinator::post>(this));
   }
 
@@ -70,11 +70,6 @@ public:
 
   void stop() {
     LOG_DEBUG("Coordinator stop");
-    if (stopped_.load(std::memory_order_acquire)) {
-      LOG_DEBUG("Coordinator already stopped");
-      return;
-    }
-    stopped_.store(true, std::memory_order_release);
     for (auto &worker : workers_) {
       worker->stop();
     }
@@ -82,26 +77,33 @@ public:
 
 private:
   void startWorkers() {
-    const auto appCores =
-        ServerConfig::cfg().coresApp.empty() ? 1 : ServerConfig::cfg().coresApp.size();
+    LOG_DEBUG("Coordinator::startWorkers");
+    if (started_.load()) {
+      LOG_ERROR_SYSTEM("Already started");
+      return;
+    }
+    const auto appCores = ctx_.config.coresApp.empty() ? 1 : ctx_.config.coresApp.size();
 
+    started_.store(true);
     workers_.reserve(appCores);
-    if (ServerConfig::cfg().coresApp.empty()) {
-      workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, "worker zero"));
+    if (ctx_.config.coresApp.empty()) {
+      workers_.emplace_back(
+          std::make_unique<Worker>(matcher_, ctx_.bus.systemBus, ctx_.stopToken, "worker zero"));
       workers_[0]->run();
     } else {
-      for (size_t i = 0; i < ServerConfig::cfg().coresApp.size(); ++i) {
+      for (size_t i = 0; i < ctx_.config.coresApp.size(); ++i) {
         const auto name = std::format("worker {}", i);
-        const auto coreId = ServerConfig::cfg().coresApp[i];
-        workers_.emplace_back(std::make_unique<Worker>(matcher_, bus_.systemBus, name, coreId));
+        const auto coreId = ctx_.config.coresApp[i];
+        workers_.emplace_back(
+            std::make_unique<Worker>(matcher_, ctx_.bus.systemBus, ctx_.stopToken, name, coreId));
         workers_[i]->run();
       }
     }
-    bus_.systemBus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
+    ctx_.bus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
   void post(CRef<InternalOrderEvent> ioe) {
-    if (stopped_.load(std::memory_order_acquire)) {
+    if (ctx_.stopToken.stop_requested()) {
       LOG_WARN_SYSTEM("Coordinator already stopped");
       return;
     }
@@ -114,10 +116,11 @@ private:
   }
 
 private:
-  ServerBus &bus_;
-  const MarketData &data_;
-  AtomicBool stopped_{false};
+  Context &ctx_;
 
+  const MarketData &data_;
+
+  AtomicBool started_{false};
   Matcher matcher_;
   Vector<UPtr<Worker>> workers_;
 };

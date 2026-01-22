@@ -6,6 +6,8 @@
 #ifndef HFT_CLIENT_TRAITS_HPP
 #define HFT_CLIENT_TRAITS_HPP
 
+#include "app_context.hpp"
+#include "config/client_config.hpp"
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "types/telemetry_types.hpp"
@@ -119,6 +121,8 @@ using ClientTelemetry = TelemetryAdapter<ClientBus>;
 #else
 using ClientTelemetry = DummyTelemetryAdapter<ClientBus>;
 #endif
+
+using Context = AppContext<ClientBus, ClientConfig>;
 
 } // namespace hft::client
 

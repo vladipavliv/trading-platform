@@ -13,10 +13,7 @@
 namespace hft::client {
 
 struct ClientConfig {
-  static ClientConfig &cfg() {
-    static ClientConfig config;
-    return config;
-  }
+  ClientConfig(const String &fileName);
 
   // Network
   String url;
@@ -42,8 +39,7 @@ struct ClientConfig {
   // Logging
   String logOutput;
 
-  void load(const String &fileName);
-  void log();
+  Config data;
 };
 
 } // namespace hft::client

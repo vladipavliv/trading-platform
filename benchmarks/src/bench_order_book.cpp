@@ -26,11 +26,12 @@ using namespace tests;
 
 class BM_OrderBookFix : public benchmark::Fixture {
 public:
+  ServerConfig cfg;
   uint64_t counter;
 
   inline static Vector<InternalOrderEvent> orders;
 
-  BM_OrderBookFix() { ServerConfig::cfg().load("bench_server_config.ini"); }
+  BM_OrderBookFix() : cfg{"bench_server_config.ini"} {}
 
   template <typename EventType>
   void post(CRef<EventType>) {}

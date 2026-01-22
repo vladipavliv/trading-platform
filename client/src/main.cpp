@@ -49,16 +49,16 @@ int main(int argc, char *argv[]) {
   }
 
   try {
-    ClientConfig::cfg().load(configPath);
-    LOG_INIT(ClientConfig::cfg().logOutput);
+    ClientConfig cfg(configPath);
+    LOG_INIT(cfg.logOutput);
 
 #ifdef COMM_SHM
-    if (ClientConfig::cfg().coresApp.size() > 1) {
+    if (cfg.coresApp.size() > 1) {
       throw std::logic_error("Multi-worker currently not supported for shm");
     }
 #endif
 
-    ControlCenter cc;
+    ControlCenter cc{std::move(cfg)};
     cc.start();
   } catch (const std::exception &e) {
     std::cerr << "Exception caught in main " << e.what() << std::endl;

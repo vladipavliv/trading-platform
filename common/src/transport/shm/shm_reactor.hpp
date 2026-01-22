@@ -28,7 +28,7 @@ public:
    */
   inline static Atomic<ShmReactor *> instance = nullptr;
 
-  explicit ShmReactor(ErrorBus &&bus);
+  explicit ShmReactor(const Config &cfg, std::stop_token token, ErrorBus &&bus);
   ~ShmReactor();
 
   ShmReactor(const ShmReactor &) = delete;
@@ -39,7 +39,6 @@ public:
   void run();
   void stop();
   void add(ShmReader *reader);
-  bool running() const;
 
 private:
   ShmReactor() = default;
@@ -47,10 +46,13 @@ private:
   void loop();
 
 private:
-  std::vector<ShmReader *> readers_;
-  AtomicBool running_{false};
-
+  const Config &config_;
+  std::stop_token stopToken_;
   ErrorBus bus_;
+
+  std::vector<ShmReader *> readers_;
+  AtomicBool started_{false};
+
   std::jthread thread_;
 };
 } // namespace hft

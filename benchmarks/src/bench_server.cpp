@@ -18,24 +18,23 @@ using namespace server;
 using namespace tests;
 using namespace utils;
 
-BM_ServerFix::BM_ServerFix() : orders{tickers}, marketData{tickers} {
-  ServerConfig::cfg().load("bench_server_config.ini");
-  LOG_INIT(ServerConfig::cfg().logOutput);
+BM_ServerFix::BM_ServerFix()
+    : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()},
+      orders{tickers}, marketData{tickers} {
+  LOG_INIT(cfg.logOutput);
 
-  tickerCount = Config::get<size_t>("bench.ticker_count");
+  tickerCount = cfg.data.get<size_t>("bench.ticker_count");
 
   tickers.gen(tickerCount);
   orders.gen(MAX_BOOK_ORDERS);
   marketData.gen(workerCount);
 
-  setupBus();
+  startBus();
 }
 
 BM_ServerFix::~BM_ServerFix() {
-  if (bus) {
-    bus->stop();
-    bus.reset();
-  }
+  stopSrc.request_stop();
+  bus.stop();
 }
 
 void BM_ServerFix::SetUp(const ::benchmark::State &state) {
@@ -44,11 +43,11 @@ void BM_ServerFix::SetUp(const ::benchmark::State &state) {
     throw std::runtime_error("Too many workers");
   }
 
-  ServerConfig::cfg().coresApp.clear();
-  ServerConfig::cfg().coreNetwork = getCore(0);
+  cfg.coresApp.clear();
+  cfg.coreNetwork = getCore(cfg.data, 0);
 
   for (size_t i = 1; i <= workerCount; ++i) {
-    ServerConfig::cfg().coresApp.push_back(getCore(i));
+    cfg.coresApp.push_back(getCore(cfg.data, i));
   }
 
   setupCoordinator();
@@ -61,12 +60,12 @@ void BM_ServerFix::TearDown(const ::benchmark::State &state) {
   }
 }
 
-void BM_ServerFix::setupBus() {
+void BM_ServerFix::startBus() {
   using namespace server;
-  bus = std::make_unique<ServerBus>();
-  bus->systemBus.subscribe<ServerEvent>(
+
+  bus.systemBus.subscribe<ServerEvent>(
       CRefHandler<ServerEvent>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
-  systemThread = std::jthread([this]() { bus->run(); });
+  systemThread = std::jthread([this]() { bus.run(); });
 }
 
 void BM_ServerFix::setupCoordinator() {
@@ -81,7 +80,7 @@ void BM_ServerFix::setupCoordinator() {
   }
 
   flag.clear();
-  coordinator = std::make_unique<Coordinator>(*bus, marketData.marketData);
+  coordinator = std::make_unique<Coordinator>(ctx, marketData.marketData);
   coordinator->start();
   flag.wait(false);
 }
@@ -108,7 +107,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
   const uint64_t ordersCount = orders.orders.size();
 
-  bus->subscribe<InternalOrderStatus>(
+  bus.subscribe<InternalOrderStatus>(
       CRefHandler<InternalOrderStatus>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter{SPIN_RETRIES_YIELD};
@@ -121,7 +120,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
 
     for (const auto &order : orders.orders) {
       benchmark::DoNotOptimize(&order);
-      bus->post(order);
+      bus.post(order);
     }
     benchmark::ClobberMemory();
 
@@ -157,7 +156,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
 
   const uint64_t ordersCount = orders.orders.size();
 
-  bus->subscribe<InternalOrderStatus>(
+  bus.subscribe<InternalOrderStatus>(
       CRefHandler<InternalOrderStatus>::template bind<BM_ServerFix, &BM_ServerFix::post>(this));
 
   SpinWait waiter;
@@ -173,7 +172,7 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
     }
 
     benchmark::DoNotOptimize(&*iter);
-    bus->post(*iter++);
+    bus.post(*iter++);
     benchmark::ClobberMemory();
 
     uint32_t cycles = 0;
