@@ -9,6 +9,7 @@
 #include <format>
 #include <memory>
 
+#include "bus/bus_hub.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"
 #include "events.hpp"
@@ -27,8 +28,8 @@ namespace hft::server {
  */
 class BoostIpcServer {
 public:
-  using StreamClb = std::function<void(BoostTcpTransport &&transport)>;
-  using DatagramClb = std::function<void(BoostUdpTransport &&transport)>;
+  using StreamTHandler = MoveHandler<BoostTcpTransport>;
+  using DatagramTHandler = MoveHandler<BoostUdpTransport>;
 
   explicit BoostIpcServer(Context &ctx)
       : ctx_{ctx}, guard_{MakeGuard(ioCtx_.get_executor())}, upstreamAcceptor_{ioCtx_},
@@ -36,11 +37,11 @@ public:
 
   ~BoostIpcServer() { stop(); }
 
-  void setUpstreamClb(StreamClb &&streamClb) { upstreamClb_ = std::move(streamClb); }
+  void setUpstreamClb(StreamTHandler &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
-  void setDownstreamClb(StreamClb &&streamClb) { downstreamClb_ = std::move(streamClb); }
+  void setDownstreamClb(StreamTHandler &&streamClb) { downstreamClb_ = std::move(streamClb); }
 
-  void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
+  void setDatagramClb(DatagramTHandler &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() {
     if (running_) {
@@ -174,9 +175,9 @@ private:
   IoCtx ioCtx_;
   IoCtxGuard guard_;
 
-  StreamClb upstreamClb_;
-  StreamClb downstreamClb_;
-  DatagramClb datagramClb_;
+  StreamTHandler upstreamClb_;
+  StreamTHandler downstreamClb_;
+  DatagramTHandler datagramClb_;
 
   TcpAcceptor upstreamAcceptor_;
   TcpAcceptor downstreamAcceptor_;

@@ -55,6 +55,9 @@ namespace hft::server {
 class ControlCenter {
   using SelfT = ControlCenter;
 
+  using StreamTHandler = MoveHandler<StreamTransport>;
+  using DatagramTHandler = MoveHandler<DatagramTransport>;
+
 public:
   explicit ControlCenter(ServerConfig &&config)
       : config_{std::move(config)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
@@ -71,13 +74,10 @@ public:
 
     // network callbacks
     ipcServer_.setUpstreamClb(
-        [this](StreamTransport &&transport) { sessionMgr_.acceptUpstream(std::move(transport)); });
-    ipcServer_.setDownstreamClb([this](StreamTransport &&transport) {
-      sessionMgr_.acceptDownstream(std::move(transport));
-    });
-    ipcServer_.setDatagramClb([this](DatagramTransport &&transport) {
-
-    });
+        StreamTHandler::bind<SessionManager, &SessionManager::acceptUpstream>(&sessionMgr_));
+    ipcServer_.setDownstreamClb(
+        StreamTHandler::bind<SessionManager, &SessionManager::acceptDownstream>(&sessionMgr_));
+    ipcServer_.setDatagramClb(DatagramTHandler::bind<SelfT, &SelfT::onDatagram>(this));
 
     bus_.systemBus.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
 
@@ -146,6 +146,8 @@ private:
     consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
+
+  void onDatagram(DatagramTransport &&t) {}
 
 private:
   const ServerConfig config_;

@@ -25,19 +25,18 @@ namespace hft::server {
  */
 class ShmServer {
 public:
-  using StreamClb = std::function<void(ShmTransport &&transport)>;
-  using DatagramClb = std::function<void(ShmTransport &&transport)>;
+  using ShmHandler = MoveHandler<ShmTransport>;
 
   explicit ShmServer(Context &ctx)
       : ctx_{ctx}, reactor_{ctx_.config.data, ctx_.stopToken, ErrorBus{ctx_.bus.systemBus}} {}
 
   ~ShmServer() { LOG_DEBUG_SYSTEM("~ShmServer"); }
 
-  void setUpstreamClb(StreamClb &&streamClb) { upstreamClb_ = std::move(streamClb); }
+  void setUpstreamClb(ShmHandler &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
-  void setDownstreamClb(StreamClb &&streamClb) { downstreamClb_ = std::move(streamClb); }
+  void setDownstreamClb(ShmHandler &&streamClb) { downstreamClb_ = std::move(streamClb); }
 
-  void setDatagramClb(DatagramClb &&datagramClb) { datagramClb_ = std::move(datagramClb); }
+  void setDatagramClb(ShmHandler &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
   void start() { initialize(); }
 
@@ -65,9 +64,9 @@ private:
 
   ShmReactor reactor_;
 
-  StreamClb upstreamClb_;
-  StreamClb downstreamClb_;
-  DatagramClb datagramClb_;
+  ShmHandler upstreamClb_;
+  ShmHandler downstreamClb_;
+  ShmHandler datagramClb_;
 };
 } // namespace hft::server
 

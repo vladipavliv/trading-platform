@@ -21,10 +21,14 @@
 namespace hft::client {
 
 /**
- * @brief Connects to the server via shm, not auth procedures
+ * @brief Connects to the server via shm bypassing auth procedures
  */
 class TrustedConnectionManager {
   using SelfT = TrustedConnectionManager;
+
+  using StreamTHandler = MoveHandler<StreamTransport>;
+  using DatagramTHandler = MoveHandler<StreamTransport>;
+
   using UpStreamChannel = StreamTransport;
   using DownStreamChannel = StreamTransport;
   using DatagramChannel = DatagramTransport;
@@ -33,12 +37,9 @@ public:
   TrustedConnectionManager(Context &ctx, ShmClient &networkClient)
       : ctx_{ctx}, networkClient_{networkClient} {
     LOG_INFO_SYSTEM("TrustedConnectionManager initialized");
-    networkClient_.setUpstreamClb(
-        [this](ShmTransport &&transport) { onUpstreamConnected(std::move(transport)); });
-    networkClient_.setDownstreamClb(
-        [this](ShmTransport &&transport) { onDownstreamConnected(std::move(transport)); });
-    networkClient_.setDatagramClb(
-        [this](ShmTransport &&transport) { onDatagramConnected(std::move(transport)); });
+    networkClient_.setUpstreamClb(StreamTHandler::bind<SelfT, &SelfT::onUpstream>(this));
+    networkClient_.setDownstreamClb(StreamTHandler::bind<SelfT, &SelfT::onDownstream>(this));
+    networkClient_.setDatagramClb(StreamTHandler::bind<SelfT, &SelfT::onDatagram>(this));
 
     ctx_.bus.subscribe(CRefHandler<Order>::bind<SelfT, &SelfT::post>(this));
     ctx_.bus.subscribe(CRefHandler<ConnectionStatusEvent>::bind<SelfT, &SelfT::post>(this));
@@ -47,7 +48,7 @@ public:
   void close() { reset(); }
 
 private:
-  void onUpstreamConnected(StreamTransport &&transport) {
+  void onUpstream(StreamTransport &&transport) {
     if (upstreamChannel_) {
       LOG_ERROR_SYSTEM("Already connected upstream");
       return;
@@ -57,7 +58,7 @@ private:
     notify();
   }
 
-  void onDownstreamConnected(StreamTransport &&transport) {
+  void onDownstream(StreamTransport &&transport) {
     if (downstreamChannel_) {
       LOG_ERROR_SYSTEM("Already connected downstream");
       return;
@@ -70,7 +71,7 @@ private:
     notify();
   }
 
-  void onDatagramConnected(DatagramTransport &&transport) {
+  void onDatagram(DatagramTransport &&transport) {
     if (pricesChannel_) {
       LOG_ERROR_SYSTEM("Already connected datagram");
       return;

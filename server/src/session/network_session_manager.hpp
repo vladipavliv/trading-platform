@@ -14,10 +14,10 @@
 #include "constants.hpp"
 #include "containers/vyukov_mpmc.hpp"
 #include "events.hpp"
+#include "ipc/session_channel.hpp"
 #include "logging.hpp"
 #include "traits.hpp"
 #include "transport/connection_status.hpp"
-#include "transport/session_channel.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 
