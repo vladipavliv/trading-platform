@@ -20,6 +20,7 @@
 #include "primitive_types.hpp"
 #include "traits.hpp"
 #include "utils/console_reader.hpp"
+#include "utils/handler.hpp"
 
 namespace hft::client {
 

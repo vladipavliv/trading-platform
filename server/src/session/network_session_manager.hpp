@@ -18,6 +18,7 @@
 #include "logging.hpp"
 #include "traits.hpp"
 #include "transport/connection_status.hpp"
+#include "utils/handler.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 

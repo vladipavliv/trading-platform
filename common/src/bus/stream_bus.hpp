@@ -13,6 +13,7 @@
 #include "execution.hpp"
 #include "primitive_types.hpp"
 #include "runner/ctx_runner.hpp"
+#include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 

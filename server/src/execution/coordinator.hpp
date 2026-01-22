@@ -18,6 +18,7 @@
 #include "runner/ctx_runner.hpp"
 #include "runner/lfq_runner.hpp"
 #include "traits.hpp"
+#include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/time_utils.hpp"

@@ -12,6 +12,7 @@
 #include "shm_reactor.hpp"
 #include "shm_reader.hpp"
 #include "shm_writer.hpp"
+#include "utils/handler.hpp"
 
 namespace hft {
 

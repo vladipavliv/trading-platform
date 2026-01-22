@@ -10,6 +10,7 @@
 #include "functional_types.hpp"
 #include "io_result.hpp"
 #include "primitive_types.hpp"
+#include "utils/handler.hpp"
 
 namespace hft {
 

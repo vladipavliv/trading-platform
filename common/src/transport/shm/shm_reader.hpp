@@ -15,6 +15,7 @@
 #include "primitive_types.hpp"
 #include "shm_ptr.hpp"
 #include "shm_queue.hpp"
+#include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/thread_utils.hpp"
 

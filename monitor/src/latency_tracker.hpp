@@ -12,6 +12,7 @@
 #include "execution.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
+#include "utils/handler.hpp"
 #include "utils/rtt_tracker.hpp"
 
 namespace hft::monitor {

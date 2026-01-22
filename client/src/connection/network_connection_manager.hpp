@@ -16,6 +16,7 @@
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
 #include "types/functional_types.hpp"
+#include "utils/handler.hpp"
 #include "utils/id_utils.hpp"
 #include "utils/string_utils.hpp"
 

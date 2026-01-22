@@ -16,6 +16,7 @@
 #include "serialization/sbe/sbe_domain_serializer.hpp"
 #include "traits.hpp"
 #include "utils/data_generator.hpp"
+#include "utils/handler.hpp"
 #include "utils/rng.hpp"
 
 namespace hft::benchmarks {
@@ -46,7 +47,7 @@ static void DISABLED_BM_FbsDeserialize(benchmark::State &state) {
   using BusType = BusHub<MessageBus<Order>>;
 
   BusType bus{cfg.data};
-  bus.subscribe(CRefHandler<Order>{});
+  bus.subscribe(Handler<void(CRef<Order>)>{});
 
   ByteBuffer buffer(128);
   auto size = fbs::FbsDomainSerializer::serialize(genOrder(), buffer.data());

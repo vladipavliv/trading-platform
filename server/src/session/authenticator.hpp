@@ -11,6 +11,7 @@
 #include "domain/server_order_messages.hpp"
 #include "logging.hpp"
 #include "traits.hpp"
+#include "utils/handler.hpp"
 
 namespace hft::server {
 

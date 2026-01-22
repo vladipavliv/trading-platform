@@ -5,6 +5,7 @@
 
 #include "shm_reader.hpp"
 #include "shm_reactor.hpp"
+#include "utils/handler.hpp"
 
 namespace hft {
 

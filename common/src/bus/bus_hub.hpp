@@ -15,6 +15,7 @@
 #include "primitive_types.hpp"
 #include "stream_bus.hpp"
 #include "system_bus.hpp"
+#include "utils/handler.hpp"
 #include "utils/trait_utils.hpp"
 
 namespace hft {

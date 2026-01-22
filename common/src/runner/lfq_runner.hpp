@@ -18,6 +18,7 @@
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "types/functional_types.hpp"
+#include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/sync_utils.hpp"
 #include "utils/thread_utils.hpp"

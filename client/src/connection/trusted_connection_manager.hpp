@@ -16,6 +16,7 @@
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "transport/connection_status.hpp"
+#include "utils/handler.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft::client {

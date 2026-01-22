@@ -15,6 +15,7 @@
 #include "internal_error.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "utils/handler.hpp"
 #include "utils/thread_utils.hpp"
 #include "utils/trait_utils.hpp"
 

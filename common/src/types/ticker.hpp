@@ -1,6 +1,6 @@
 /**
  * @author Vladimir Pavliv
- * @date 2025-04-016
+ * @date 2025-04-16
  */
 
 #ifndef HFT_COMMON_TICKER_HPP

@@ -9,6 +9,7 @@
 #include "internal_error.hpp"
 #include "logging.hpp"
 #include "schema.hpp"
+#include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
 #include "utils/test_utils.hpp"
 

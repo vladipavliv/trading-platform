@@ -23,6 +23,7 @@
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "utils/console_reader.hpp"
+#include "utils/handler.hpp"
 #include "utils/id_utils.hpp"
 
 namespace hft::server {

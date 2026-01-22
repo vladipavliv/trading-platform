@@ -19,6 +19,7 @@
 #include "ptr_types.hpp"
 #include "runner/lfq_runner.hpp"
 #include "traits.hpp"
+#include "utils/handler.hpp"
 
 namespace hft::server {
 

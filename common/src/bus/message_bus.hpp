@@ -14,6 +14,7 @@
 #include "logging.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
+#include "utils/handler.hpp"
 
 namespace hft {
 

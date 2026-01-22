@@ -11,6 +11,7 @@
 #include "transport/shm/shm_transport.hpp"
 #include "types/container_types.hpp"
 #include "types/telemetry_types.hpp"
+#include "utils/handler.hpp"
 
 namespace hft {
 

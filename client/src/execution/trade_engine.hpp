@@ -17,6 +17,7 @@
 #include "primitive_types.hpp"
 #include "runner/ctx_runner.hpp"
 #include "traits.hpp"
+#include "utils/handler.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
 #include "utils/rtt_tracker.hpp"
