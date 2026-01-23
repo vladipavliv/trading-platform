@@ -13,6 +13,10 @@ namespace hft {
 template <typename Signature>
 struct Handler;
 
+/**
+ * @brief Allows fully decoupled pub/sub for the same price as object reference method call, but
+ * slightly larger binary size. benchmarks 3x better then std::function
+ */
 template <typename... Args>
 struct Handler<void(Args...)> {
   using FnPtr = void (*)(void *, Args...);
@@ -30,11 +34,7 @@ struct Handler<void(Args...)> {
     return {ctx, &bridge<T, func>};
   }
 
-  inline void operator()(Args... args) const {
-    if (clb) {
-      clb(ctx, std::forward<Args>(args)...);
-    }
-  }
+  inline void operator()(Args... args) const { clb(ctx, std::forward<Args>(args)...); }
 
   explicit operator bool() const { return ctx != nullptr && clb != nullptr; }
 };
