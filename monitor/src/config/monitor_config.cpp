@@ -22,8 +22,8 @@ MonitorConfig::MonitorConfig(CRef<String> fileName) : data{fileName} {
 
   // Logging
   logOutput = data.get<String>("log.output");
-
-  LOG_INFO_SYSTEM("LogOutput: {}", logOutput);
 }
+
+void MonitorConfig::print() const { LOG_INFO_SYSTEM("LogOutput: {}", logOutput); }
 
 } // namespace hft::monitor

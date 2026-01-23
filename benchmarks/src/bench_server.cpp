@@ -64,7 +64,8 @@ void BM_ServerFix::TearDown(const ::benchmark::State &state) {
 void BM_ServerFix::startBus() {
   using namespace server;
 
-  bus.systemBus.subscribe(CRefHandler<ServerEvent>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+  bus.systemBus.subscribe(
+      CRefHandler<ComponentReady>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
   systemThread = std::jthread([this]() { bus.run(); });
 }
 
@@ -85,11 +86,9 @@ void BM_ServerFix::setupCoordinator() {
   flag.wait(false);
 }
 
-void BM_ServerFix::post(const ServerEvent &ev) {
-  if (ev.state == ServerState::Operational) {
-    flag.test_and_set();
-    flag.notify_all();
-  }
+void BM_ServerFix::post(const ComponentReady &ev) {
+  flag.test_and_set();
+  flag.notify_all();
 }
 
 void BM_ServerFix::post(CRef<InternalOrderStatus> s) {

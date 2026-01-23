@@ -8,6 +8,7 @@
 
 #include "bus/bus_hub.hpp"
 #include "config/client_config.hpp"
+#include "events.hpp"
 #include "primitive_types.hpp"
 #include "traits.hpp"
 #include "transport/shm/shm_reactor.hpp"
@@ -34,7 +35,10 @@ public:
 
   void setDatagramClb(ShmHandler &&datagramClb) {}
 
-  void start() { initialize(); }
+  void start() {
+    initialize();
+    reactor_.run([this]() { ctx_.bus.post(ComponentReady{Component::Ipc}); });
+  }
 
   void stop() {
     LOG_INFO("ShmClient stop");
@@ -52,7 +56,6 @@ private:
       const auto name = ctx_.config.data.get<String>("shm.shm_downstream");
       downstreamClb_(ShmTransport::makeReader(name));
     }
-    reactor_.run();
   }
 
 private:

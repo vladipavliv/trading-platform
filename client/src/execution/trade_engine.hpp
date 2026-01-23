@@ -12,6 +12,7 @@
 #include "config/config.hpp"
 #include "containers/huge_array.hpp"
 #include "containers/sequenced_spsc.hpp"
+#include "events.hpp"
 #include "id/slot_id_pool.hpp"
 #include "market_data.hpp"
 #include "primitive_types.hpp"
@@ -20,7 +21,6 @@
 #include "utils/handler.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
-#include "utils/rtt_tracker.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/telemetry_utils.hpp"
 #include "utils/thread_utils.hpp"
@@ -96,6 +96,7 @@ private:
         if (!ctx_.config.coresApp.empty()) {
           utils::pinThreadToCore(ctx_.config.coresApp[0]);
         }
+        ctx_.bus.post(ComponentReady{Component::Engine});
         tradeLoop();
       } catch (const std::exception &ex) {
         LOG_ERROR_SYSTEM("Exception in trade engine loop {}", ex.what());

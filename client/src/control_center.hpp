@@ -37,16 +37,22 @@ public:
         consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, true},
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
-    bus_.systemBus.subscribe(Command::Start, Callback::bind<SelfT, &SelfT::tradeStart>(this));
-    bus_.systemBus.subscribe(Command::Stop, Callback::bind<SelfT, &SelfT::tradeStop>(this));
-    bus_.systemBus.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
+    bus_.subscribe(CRefHandler<ComponentReady>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<ServerConnectionState>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
 
-    bus_.systemBus.subscribe(CRefHandler<ClientState>::bind<SelfT, &SelfT::post>(this));
-    bus_.systemBus.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(Command::Start, Callback::bind<SelfT, &SelfT::tradeStart>(this));
+    bus_.subscribe(Command::Stop, Callback::bind<SelfT, &SelfT::tradeStop>(this));
+    bus_.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
 
     signals_.async_wait([&](BoostErrorCode code, int) {
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
       stop();
+    });
+
+    bus_.post([this]() {
+      config_.nsPerCycle = utils::getNsPerCycle();
+      bus_.post(ComponentReady(Component::Time));
     });
   }
 
@@ -55,7 +61,6 @@ public:
   void start() {
     greetings();
     try {
-      ipcClient_.start();
       engine_.start();
       telemetry_.start();
 
@@ -85,19 +90,31 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Client go stonks");
     LOG_INFO_SYSTEM("Configuration:");
+    config_.print();
     consoleReader_.printCommands();
   }
 
-  void post(CRef<ClientState> event) {
+  void post(CRef<ComponentReady> event) {
+    LOG_INFO_SYSTEM("ComponentReady {}", toString(event.id));
+    readyMask_.fetch_or((uint8_t)event.id, std::memory_order_relaxed);
+    const auto mask = readyMask_.load(std::memory_order_relaxed);
+    if (mask == INTERNAL_READY) {
+      ipcClient_.start();
+    } else if (mask == ALL_READY) {
+      LOG_INFO_SYSTEM("Client started");
+    }
+  }
+
+  void post(CRef<ServerConnectionState> event) {
     LOG_INFO_SYSTEM("{}", toString(event));
     state_ = event;
     switch (event) {
-    case ClientState::Connected:
-      break;
-    case ClientState::Disconnected:
+    case ServerConnectionState::Disconnected:
       stop();
       break;
-    case ClientState::InternalError:
+    case ServerConnectionState::Connected:
+      break;
+    case ServerConnectionState::Failed:
       stop();
       break;
     default:
@@ -111,7 +128,7 @@ private:
   }
 
   void tradeStart() {
-    if (state_ != ClientState::Connected) {
+    if (state_ != ServerConnectionState::Connected) {
       LOG_ERROR_SYSTEM("Not connected to the server");
       return;
     }
@@ -121,7 +138,7 @@ private:
   void tradeStop() { engine_.tradeStop(); }
 
 private:
-  const ClientConfig config_;
+  ClientConfig config_;
   std::stop_source stopSrc_;
 
   ClientBus bus_;
@@ -133,7 +150,8 @@ private:
   ClientConsoleReader consoleReader_;
   ClientTelemetry telemetry_;
 
-  ClientState state_{ClientState::Disconnected};
+  Atomic<uint8_t> readyMask_;
+  ServerConnectionState state_{ServerConnectionState::Disconnected};
 
   boost::asio::signal_set signals_;
 };

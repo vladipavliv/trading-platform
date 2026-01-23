@@ -84,23 +84,28 @@ private:
       return;
     }
     const auto appCores = ctx_.config.coresApp.empty() ? 1 : ctx_.config.coresApp.size();
+    auto startCounter = std::make_shared<AtomicUInt32>();
+    auto readyClb = [this, startCounter, appCores]() {
+      if (startCounter->fetch_add(1) + 1 == appCores) {
+        ctx_.bus.post(ComponentReady{Component::Coordinator});
+      }
+    };
 
     started_.store(true);
     workers_.reserve(appCores);
     if (ctx_.config.coresApp.empty()) {
       workers_.emplace_back(
           std::make_unique<Worker>(matcher_, ctx_.bus.systemBus, ctx_.stopToken, "worker zero"));
-      workers_[0]->run();
+      workers_[0]->run(readyClb);
     } else {
       for (size_t i = 0; i < ctx_.config.coresApp.size(); ++i) {
         const auto name = std::format("worker {}", i);
         const auto coreId = ctx_.config.coresApp[i];
         workers_.emplace_back(
             std::make_unique<Worker>(matcher_, ctx_.bus.systemBus, ctx_.stopToken, name, coreId));
-        workers_[i]->run();
+        workers_[i]->run(readyClb);
       }
     }
-    ctx_.bus.post(ServerEvent{ServerState::Operational, StatusCode::Ok});
   }
 
   void post(CRef<InternalOrderEvent> ioe) {

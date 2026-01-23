@@ -2,47 +2,24 @@
 
 set -e
 
+HUGE_PAGES=4096
 HUGE_MOUNT=/mnt/huge
-USER_ID=$(id -u)
-GROUP_ID=$(id -g)
+USER_NAME=$(whoami)
 
-sudo fuser -k -m /mnt/huge
+echo "[*] Creating mount point $HUGE_MOUNT if missing..."
+sudo mkdir -p $HUGE_MOUNT
 
-pkill -f hft_server
-pkill -f hft_client
-pkill -f hft_monitor
-
-sudo rm -rf /mnt/huge/*
-
-sync
-echo 3 | sudo tee /proc/sys/vm/drop_caches
-echo 1 | sudo tee /proc/sys/vm/compact_memory
-
-echo "[I] Setting up hugetlbfs at $HUGE_MOUNT"
-
-# Unmount if already mounted
-if mountpoint -q "$HUGE_MOUNT"; then
-    echo "[I] Unmounting existing $HUGE_MOUNT"
-    sudo umount "$HUGE_MOUNT"
+echo "[*] Mounting hugetlbfs at $HUGE_MOUNT..."
+if ! mount | grep -q "$HUGE_MOUNT"; then
+    sudo mount -t hugetlbfs none $HUGE_MOUNT
 fi
 
-# Make sure directory exists
-sudo mkdir -p "$HUGE_MOUNT"
+echo "[*] Setting huge page count..."
 
-# Mount hugetlbfs with user ownership
-sudo mount -t hugetlbfs -o uid=$USER_ID,gid=$GROUP_ID nodev "$HUGE_MOUNT"
+echo $HUGE_PAGES | sudo tee /proc/sys/vm/nr_hugepages
 
-echo "[I] Mounted hugetlbfs with uid=$USER_ID, gid=$GROUP_ID"
+echo "[*] Fixing ownership and permissions..."
+sudo chown $USER_NAME:$USER_NAME $HUGE_MOUNT
+sudo chmod 700 $HUGE_MOUNT
 
-# Remove old files
-for f in hft_upstream hft_downstream hft_telemetry; do
-    FILE="$HUGE_MOUNT/$f"
-    if [ -e "$FILE" ]; then
-        echo "[I] Removing old huge page file $FILE"
-        rm -f "$FILE"
-    fi
-done
-
-echo "[I] Huge pages setup complete"
-
-grep Huge /proc/meminfo
+echo "[*] Huge page FS ready at $HUGE_MOUNT"

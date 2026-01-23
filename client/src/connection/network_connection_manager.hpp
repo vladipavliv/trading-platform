@@ -115,7 +115,7 @@ private:
     case ConnectionState::TokenReceived: {
       LOG_INFO_SYSTEM("Authenticated");
       state_ = ConnectionState::Authenticated;
-      ctx_.bus.post(ClientState::Connected);
+      ctx_.bus.post(ServerConnectionState::Connected);
       break;
     }
     default:
@@ -129,7 +129,7 @@ private:
     downstreamChannel_.reset();
     pricesChannel_.reset();
     state_ = ConnectionState::Disconnected;
-    ctx_.bus.post(ClientState::Disconnected);
+    ctx_.bus.post(ServerConnectionState::Disconnected);
   }
 
   void post(CRef<Order> order) {

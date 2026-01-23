@@ -60,8 +60,6 @@ ServerConfig::ServerConfig(CRef<String> fileName) : data{fileName} {
     }
   }
 
-  nsPerCycle = utils::getNsPerCycle();
-
   // Rates
   priceFeedRate = data.get<uint32_t>("rates.price_feed_rate_us");
   monitorRate = data.get<uint32_t>("rates.monitor_rate_ms");
@@ -69,7 +67,9 @@ ServerConfig::ServerConfig(CRef<String> fileName) : data{fileName} {
 
   // Logging
   logOutput = data.get<String>("log.output");
+}
 
+void ServerConfig::print() const {
   LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", url, portTcpUp, portTcpDown, portUdp);
   LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} GatewayCore:{} AppCores:{} PriceFeedRate:{}µs",
                   coreSystem.value_or(0), coreNetwork.value_or(0), coreGateway.value_or(0),

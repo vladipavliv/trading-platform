@@ -15,6 +15,8 @@ namespace hft::client {
 struct ClientConfig {
   ClientConfig(const String &fileName);
 
+  void print() const;
+
   // Network
   String url;
   Port portTcpUp;

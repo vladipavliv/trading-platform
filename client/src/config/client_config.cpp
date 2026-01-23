@@ -47,8 +47,6 @@ ClientConfig::ClientConfig(CRef<String> fileName) : data{fileName} {
     }
   }
 
-  nsPerCycle = utils::getNsPerCycle();
-
   // Rates
   tradeRate = data.get<size_t>("rates.trade_rate_us");
   monitorRate = data.get<size_t>("rates.monitor_rate_ms");
@@ -60,7 +58,9 @@ ClientConfig::ClientConfig(CRef<String> fileName) : data{fileName} {
 
   // Logging
   logOutput = data.get<String>("log.output");
+}
 
+void ClientConfig::print() const {
   LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", url, portTcpUp, portTcpDown, portUdp);
   LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} TradeRate:{}us", coreSystem.value_or(0),
                   coreNetwork.value_or(0), toString(coresApp), tradeRate);

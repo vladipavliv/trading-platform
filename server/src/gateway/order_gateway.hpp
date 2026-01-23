@@ -44,7 +44,7 @@ public:
 
   void start() {
     LOG_DEBUG_SYSTEM("OrderGateway start");
-    worker_.run();
+    worker_.run([this]() { ctx_.bus.post(ComponentReady{Component::Gateway}); });
   }
 
   void stop() {

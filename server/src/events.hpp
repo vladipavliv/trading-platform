@@ -14,15 +14,22 @@
 
 namespace hft {
 namespace server {
-/**
- * @brief Server event
- */
-enum class ServerState : uint8_t { Operational, InternalError };
 
-struct ServerEvent {
-  ServerState state;
-  StatusCode code;
+enum class Component : uint8_t {
+  Coordinator = 1 << 0,
+  Gateway = 1 << 1,
+  Ipc = 1 << 2,
+  Time = 1 << 3,
 };
+
+struct ComponentReady {
+  Component id;
+};
+
+constexpr uint8_t INTERNAL_READY =
+    (uint8_t)Component::Coordinator | (uint8_t)Component::Gateway | (uint8_t)Component::Time;
+
+constexpr uint8_t ALL_READY = INTERNAL_READY | (uint8_t)Component::Ipc;
 
 // TODO
 struct ChannelStatusEvent {
@@ -31,21 +38,22 @@ struct ChannelStatusEvent {
 };
 } // namespace server
 
-inline String toString(const server::ServerState &event) {
+inline String toString(const server::Component &cmp) {
   using namespace server;
-  switch (event) {
-  case server::ServerState::Operational:
-    return "server is fully operational";
-  case server::ServerState::InternalError:
-    return "internal error";
+  switch (cmp) {
+  case Component::Coordinator:
+    return "Coordinator";
+  case Component::Gateway:
+    return "Gateway";
+  case Component::Ipc:
+    return "Ipc";
+  case Component::Time:
+    return "Time";
   default:
-    return std::format("unknown server event {}", static_cast<uint8_t>(event));
+    return "Unknown";
   }
 }
-inline String toString(const server::ServerEvent &event) {
-  using namespace server;
-  return std::format("ServerEvent {} {}", toString(event.state), toString(event.code));
-}
+
 inline String toString(const server::ChannelStatusEvent &event) {
   using namespace server;
   return std::format("ChannelStatusEvent {} {}", event.clientId.value_or(0), toString(event.event));

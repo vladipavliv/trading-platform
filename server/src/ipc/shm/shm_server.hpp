@@ -12,6 +12,7 @@
 
 #include "bus/bus_hub.hpp"
 #include "config/server_config.hpp"
+#include "events.hpp"
 #include "traits.hpp"
 #include "transport/shm/shm_reactor.hpp"
 #include "transport/shm/shm_transport.hpp"
@@ -38,7 +39,14 @@ public:
 
   void setDatagramClb(ShmHandler &&datagramClb) { datagramClb_ = std::move(datagramClb); }
 
-  void start() { initialize(); }
+  void start() {
+    if (reactor_.running()) {
+      LOG_ERROR_SYSTEM("ShmServer is already running");
+      return;
+    }
+    initialize();
+    reactor_.run([this]() { ctx_.bus.post(ComponentReady{Component::Ipc}); });
+  }
 
   void stop() {
     LOG_DEBUG_SYSTEM("Stopping ShmServer");
@@ -56,7 +64,6 @@ private:
       const auto name = ctx_.config.data.get<String>("shm.shm_downstream");
       downstreamClb_(ShmTransport::makeWriter(name));
     }
-    reactor_.run();
   }
 
 private:

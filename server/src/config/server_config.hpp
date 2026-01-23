@@ -16,6 +16,8 @@ namespace hft::server {
 struct ServerConfig {
   explicit ServerConfig(const String &fileName);
 
+  void print() const;
+
   // Network
   String url;
   Port portTcpUp;
