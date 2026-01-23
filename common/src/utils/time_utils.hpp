@@ -41,13 +41,13 @@ inline __attribute__((always_inline)) auto getCycles() -> uint64_t {
     __asm__ volatile("" : : : "memory");
   }
 
-  auto t1 = std::chrono::high_resolution_clock::now();
+  auto t1 = std::chrono::steady_clock::now();
   uint64_t c1 = getCycles();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   uint64_t c2 = getCycles();
-  auto t2 = std::chrono::high_resolution_clock::now();
+  auto t2 = std::chrono::steady_clock::now();
 
   auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 

@@ -6,12 +6,16 @@
 #ifndef HFT_MONITOR_CONTROLCENTER_HPP
 #define HFT_MONITOR_CONTROLCENTER_HPP
 
+#include <boost/asio/signal_set.hpp>
+#include <stop_token>
+
 #include "bus/bus_hub.hpp"
 #include "bus/system_bus.hpp"
 #include "commands/command.hpp"
 #include "commands/command_parser.hpp"
 #include "config/monitor_config.hpp"
 #include "domain_types.hpp"
+#include "events.hpp"
 #include "latency_tracker.hpp"
 #include "server/src/commands/command.hpp"
 #include "traits.hpp"
@@ -28,15 +32,22 @@ public:
   explicit MonitorControlCenter(MonitorConfig &&cfg)
       : config_{std::move(cfg)}, bus_{config_.data}, ctx_{bus_, config_, stopSrc_.get_token()},
         reactor_{config_.data, ctx_.stopToken, ErrorBus{bus_.systemBus}},
-        consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, false}, tracker_{ctx_} {
+        consoleReader_{bus_.systemBus}, telemetry_{bus_, config_.data, false}, tracker_{ctx_},
+        signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
+
+    bus_.subscribe(CRefHandler<ComponentReady>::bind<SelfT, &SelfT::post>(this));
     bus_.subscribe(Command::Shutdown, Callback::bind<SelfT, &SelfT::stop>(this));
+
+    bus_.post([this]() {
+      config_.nsPerCycle = utils::getNsPerCycle();
+      bus_.post(ComponentReady(Component::Time));
+    });
   }
 
   void start() {
     greetings();
     try {
       telemetry_.start();
-      reactor_.run();
       bus_.run();
     } catch (const std::exception &e) {
       LOG_ERROR_SYSTEM("Exception in CC::run {}", e.what());
@@ -62,11 +73,23 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Monitor go stonks");
     LOG_INFO_SYSTEM("Configuration:");
+    config_.print();
     consoleReader_.printCommands();
   }
 
+  void post(CRef<ComponentReady> event) {
+    LOG_INFO_SYSTEM("ComponentReady {}", toString(event.id));
+    readyMask_.fetch_or((uint8_t)event.id, std::memory_order_relaxed);
+    const auto mask = readyMask_.load(std::memory_order_relaxed);
+    if (mask == INTERNAL_READY) {
+      reactor_.run([this]() { ctx_.bus.post(ComponentReady{Component::Ipc}); });
+    } else if (mask == ALL_READY) {
+      LOG_INFO_SYSTEM("Monitor started");
+    }
+  }
+
 private:
-  const MonitorConfig config_;
+  MonitorConfig config_;
   std::stop_source stopSrc_;
 
   MonitorBus bus_;
@@ -77,6 +100,9 @@ private:
   MonitorConsoleReader consoleReader_;
   MonitorTelemetry telemetry_;
   LatencyTracker tracker_;
+
+  Atomic<uint8_t> readyMask_;
+  boost::asio::signal_set signals_;
 };
 } // namespace hft::monitor
 

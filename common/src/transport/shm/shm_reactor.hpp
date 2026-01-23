@@ -36,7 +36,8 @@ public:
   ShmReactor &operator=(const ShmReactor &) = delete;
   ShmReactor &operator=(ShmReactor &&) = delete;
 
-  void run();
+  void run(StdCallback onReadyClb = nullptr);
+  bool running() const;
   void stop();
   void add(ShmReader *reader);
 

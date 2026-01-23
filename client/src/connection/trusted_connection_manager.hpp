@@ -110,7 +110,7 @@ private:
 
   void notify() {
     if (upstreamChannel_ != nullptr && downstreamChannel_ != nullptr) {
-      ctx_.bus.post(ClientState::Connected);
+      ctx_.bus.post(ServerConnectionState::Connected);
     }
   }
 
@@ -125,7 +125,7 @@ private:
     if (pricesChannel_) {
       pricesChannel_->close();
     }
-    ctx_.bus.post(ClientState::Disconnected);
+    ctx_.bus.post(ServerConnectionState::Disconnected);
   }
 
 private:

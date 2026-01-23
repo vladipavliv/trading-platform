@@ -69,7 +69,7 @@ public:
         signals_{bus_.systemIoCtx(), SIGINT, SIGTERM} {
 
     // System bus subscriptions
-    bus_.subscribe(CRefHandler<ServerEvent>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<ComponentReady>::bind<SelfT, &SelfT::post>(this));
     bus_.subscribe(CRefHandler<TickerPrice>::bind<SelfT, &SelfT::post>(this));
     bus_.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
 
@@ -86,11 +86,16 @@ public:
       LOG_INFO_SYSTEM("Signal received {}, stopping...", code.message());
       stop();
     });
+    bus_.post([this]() {
+      config_.nsPerCycle = utils::getNsPerCycle();
+      bus_.post(ComponentReady(Component::Time));
+    });
   }
 
   ~ControlCenter() { LOG_DEBUG_SYSTEM("~ControlCenter"); }
 
   void start() {
+    LOG_INFO_SYSTEM("Starging ControlCenter");
     if (storage_.marketData().empty()) {
       throw std::runtime_error("No ticker data loaded from db");
     }
@@ -122,15 +127,14 @@ public:
   }
 
 private:
-  void post(CRef<ServerEvent> event) {
-    switch (event.state) {
-    case ServerState::Operational:
-      // start the network server only after internal components are fully operational
+  void post(CRef<ComponentReady> event) {
+    LOG_INFO_SYSTEM("ComponentReady {}", toString(event.id));
+    readyMask_.fetch_or((uint8_t)event.id, std::memory_order_relaxed);
+    const auto mask = readyMask_.load(std::memory_order_relaxed);
+    if (mask == INTERNAL_READY) {
       ipcServer_.start();
-      LOG_INFO_SYSTEM("Server is ready");
-      break;
-    default:
-      break;
+    } else if (mask == ALL_READY) {
+      LOG_INFO_SYSTEM("Server started");
     }
   }
 
@@ -144,6 +148,7 @@ private:
   void greetings() {
     LOG_INFO_SYSTEM("Server go stonks");
     LOG_INFO_SYSTEM("Configuration:");
+    config_.print();
     consoleReader_.printCommands();
     LOG_INFO_SYSTEM("Tickers loaded: {}", storage_.marketData().size());
   }
@@ -151,7 +156,7 @@ private:
   void onDatagram(DatagramTransport &&t) {}
 
 private:
-  const ServerConfig config_;
+  ServerConfig config_;
   std::stop_source stopSrc_;
 
   ServerBus bus_;
@@ -168,6 +173,7 @@ private:
   ServerConsoleReader consoleReader_;
   PriceFeed priceFeed_;
 
+  Atomic<uint8_t> readyMask_;
   boost::asio::signal_set signals_;
 };
 

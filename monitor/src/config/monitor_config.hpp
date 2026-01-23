@@ -16,6 +16,8 @@ namespace hft::monitor {
 struct MonitorConfig {
   explicit MonitorConfig(const String &fileName);
 
+  void print() const;
+
   // cores
   Optional<CoreId> coreSystem;
   double nsPerCycle;

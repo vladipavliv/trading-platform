@@ -31,20 +31,23 @@ void ShmReactor::add(ShmReader *reader) {
   readers_.push_back(reader);
 }
 
-void ShmReactor::run() {
+void ShmReactor::run(StdCallback onReadyClb) {
   if (started_.load()) {
     LOG_ERROR_SYSTEM("ShmReactor is already running");
     return;
   }
   started_.store(true, std::memory_order_release);
   LOG_DEBUG("ShmReactor run");
-  thread_ = std::jthread([this]() {
+  thread_ = std::jthread([this, clb = std::move(onReadyClb)]() {
     try {
       utils::setThreadRealTime();
       const auto coreId = config_.get_optional<CoreId>("cpu.core_network");
       if (coreId.has_value()) {
         LOG_DEBUG("Pin ShmReader thread to core {}", *coreId);
         utils::pinThreadToCore(*coreId);
+      }
+      if (clb) {
+        clb();
       }
       loop();
       LOG_DEBUG("ShmReactor::loop end");
@@ -107,5 +110,7 @@ void ShmReactor::loop() {
     }
   }
 }
+
+bool ShmReactor::running() const { return started_.load(std::memory_order_acquire); }
 
 } // namespace hft

@@ -47,7 +47,6 @@ public:
   inline void post(CRef<Message> message) {
     marketBus.template post<Message>(message);
   }
-
   template <typename Message>
     requires(MarketBus::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
@@ -55,17 +54,19 @@ public:
   }
 
   template <typename Message>
-    requires(!MarketBus::template Routed<Message>)
+    requires(!MarketBus::template Routed<Message> && !std::invocable<Message>)
   inline void post(CRef<Message> message) {
     systemBus.template post<Message>(message);
   }
-
+  template <std::invocable F>
+  inline void post(F &&f) {
+    systemBus.post(std::forward<F>(f));
+  }
   template <typename Message>
     requires(!MarketBus::template Routed<Message>)
   inline void subscribe(CRefHandler<Message> &&handler) {
     systemBus.template subscribe<Message>(std::move(handler));
   }
-
   template <utils::UnorderedMapKey EventType>
   void subscribe(EventType event, Callback &&callback) {
     systemBus.subscribe(event, std::move(callback));

@@ -53,7 +53,7 @@ public:
   void startBus();
   void setupCoordinator();
 
-  void post(const server::ServerEvent &s);
+  void post(const server::ComponentReady &s);
   void post(const server::InternalOrderStatus &s);
 };
 

@@ -52,10 +52,17 @@ public:
     ioCtx_.post([event]() { onEvent(event); });
   }
 
+  template <typename F>
+    requires std::invocable<F>
+  inline void post(F &&f) {
+    ioCtx_.post(std::forward<F>(f));
+  }
+
   void run() {
     utils::setThreadRealTime();
     const auto coreId = config_.get_optional<size_t>("cpu.core_system");
     if (coreId.has_value()) {
+      LOG_INFO_SYSTEM("Pinning system thread to core {}", coreId.value());
       utils::pinThreadToCore(coreId.value());
     }
     ioCtx_.run();

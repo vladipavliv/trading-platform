@@ -24,7 +24,8 @@ void SpdLogger::initialize(const std::string &fileName) {
   auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
   consoleLogger = std::make_shared<spdlog::logger>("console", consoleSink);
   consoleLogger->set_pattern("%H:%M:%S.%f [%^%L%$] %v");
-  consoleLogger->set_level(logLvl);
+  // consoleLogger->set_level(logLvl);
+  consoleLogger->set_level(spdlog::level::level_enum::debug);
 
   if (fileName.empty()) {
     spdlog::set_default_logger(consoleLogger);

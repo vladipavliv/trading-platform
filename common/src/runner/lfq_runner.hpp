@@ -45,12 +45,11 @@ public:
 
   ~LfqRunner() { LOG_DEBUG_SYSTEM("~LfqRunner {}", name_); }
 
-  void run() {
+  void run(StdCallback onReadyClb = nullptr) {
     LOG_DEBUG("LfqRunner run {}", name_);
-    thread_ = std::jthread([this]() {
+    thread_ = std::jthread([this, clb = std::move(onReadyClb)]() {
       try {
-        started_.store(true);
-        started_.notify_all();
+        started_.store(true, std::memory_order_release);
 
         utils::setThreadRealTime();
         if (coreId_.has_value()) {
@@ -59,7 +58,9 @@ public:
         } else {
           LOG_INFO("LfqRunner {} started", name_);
         }
-
+        if (clb) {
+          clb();
+        }
         lfqLoop();
       } catch (const std::exception &ex) {
         const auto error = std::format("std exception in LfqRunner {}: {}", name_, ex.what());
@@ -72,7 +73,6 @@ public:
       }
       LOG_DEBUG("LfqRunner finished {}", name_);
     });
-    started_.wait(false);
   }
 
   void stop() {

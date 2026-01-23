@@ -3,8 +3,8 @@
  * @date 2025-03-06
  */
 
-#ifndef HFT_SERVER_CLIENTEVENTS_HPP
-#define HFT_SERVER_CLIENTEVENTS_HPP
+#ifndef HFT_CLIENT_EVENTS_HPP
+#define HFT_CLIENT_EVENTS_HPP
 
 #include <stdint.h>
 
@@ -12,24 +12,50 @@
 
 namespace hft {
 namespace client {
-/**
- * @brief System events
- */
-enum class ClientState : uint8_t { Connected, Disconnected, InternalError };
+
+enum class Component : uint8_t {
+  Engine = 1 << 0,
+  Ipc = 1 << 1,
+  Time = 1 << 2,
+};
+
+struct ComponentReady {
+  Component id;
+};
+
+constexpr uint8_t INTERNAL_READY = (uint8_t)Component::Engine | (uint8_t)Component::Time;
+constexpr uint8_t ALL_READY = INTERNAL_READY | (uint8_t)Component::Ipc;
+
+enum class ServerConnectionState : uint8_t { Disconnected, Connected, Failed };
 } // namespace client
-inline String toString(const client::ClientState &event) {
+
+inline String toString(const client::Component &cmp) {
+  using namespace client;
+  switch (cmp) {
+  case Component::Engine:
+    return "Engine";
+  case Component::Ipc:
+    return "Ipc";
+  case Component::Time:
+    return "Time";
+  default:
+    return "Unknown";
+  }
+}
+
+inline String toString(const client::ServerConnectionState &event) {
   using namespace client;
   switch (event) {
-  case ClientState::Connected:
-    return "Connected to the server";
-  case ClientState::Disconnected:
+  case ServerConnectionState::Disconnected:
     return "Disconnected from the server";
-  case ClientState::InternalError:
-    return "Internal error";
+  case ServerConnectionState::Connected:
+    return "Connected to the server";
+  case ServerConnectionState::Failed:
+    return "Failed to connect";
   default:
     return std::format("unknown event {}", static_cast<uint8_t>(event));
   }
 }
 } // namespace hft
 
-#endif // HFT_SERVER_CLIENTEVENTS_HPP
+#endif // HFT_CLIENT_EVENTS_HPP
