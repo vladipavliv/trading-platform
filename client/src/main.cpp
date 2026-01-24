@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
   try {
     ClientConfig cfg(configPath);
-    LOG_INIT(cfg.logOutput);
+    LOG_INIT(cfg.data);
 
 #ifdef COMM_SHM
     if (cfg.coresApp.size() > 1) {

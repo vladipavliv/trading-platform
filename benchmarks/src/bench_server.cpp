@@ -22,7 +22,7 @@ using namespace utils;
 BM_ServerFix::BM_ServerFix()
     : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()},
       orders{tickers}, marketData{tickers} {
-  LOG_INIT(cfg.logOutput);
+  LOG_INIT(cfg.data);
 
   tickerCount = cfg.data.get<size_t>("bench.ticker_count");
 
@@ -39,6 +39,9 @@ BM_ServerFix::~BM_ServerFix() {
 }
 
 void BM_ServerFix::SetUp(const ::benchmark::State &state) {
+  stopSrc = std::stop_source();
+  ctx.stopToken = stopSrc.get_token();
+
   workerCount = state.range(0);
   if (workerCount > 4) {
     throw std::runtime_error("Too many workers");
@@ -55,6 +58,7 @@ void BM_ServerFix::SetUp(const ::benchmark::State &state) {
 }
 
 void BM_ServerFix::TearDown(const ::benchmark::State &state) {
+  stopSrc.request_stop();
   if (coordinator) {
     coordinator->stop();
     coordinator.reset();
@@ -62,16 +66,12 @@ void BM_ServerFix::TearDown(const ::benchmark::State &state) {
 }
 
 void BM_ServerFix::startBus() {
-  using namespace server;
-
   bus.systemBus.subscribe(
       CRefHandler<ComponentReady>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
   systemThread = std::jthread([this]() { bus.run(); });
 }
 
 void BM_ServerFix::setupCoordinator() {
-  using namespace server;
-
   ThreadId id = 0;
   for (auto &tkrData : marketData.marketData) {
     tkrData.second.workerId = id;
@@ -101,8 +101,6 @@ void BM_ServerFix::post(CRef<InternalOrderStatus> s) {
 }
 
 BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
-  using namespace server;
-
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
   const uint64_t ordersCount = orders.orders.size();
 
@@ -133,7 +131,8 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
     }
 
     if (processed.load(std::memory_order_relaxed) < ordersCount) {
-      state.SkipWithError(std::format("Processed {} out if {}", processed.load(), ordersCount));
+      state.SkipWithError(
+          std::format("Processed {} out if {} orders", processed.load(), ordersCount));
       break;
     }
 
@@ -143,13 +142,9 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
 
     waiter.reset();
   }
-
-  coordinator->stop();
-  coordinator.reset();
 }
 
 BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
-  using namespace server;
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   const uint64_t ordersCount = orders.orders.size();
@@ -186,9 +181,6 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
   }
 
   benchmark::DoNotOptimize(processed);
-
-  coordinator->stop();
-  coordinator.reset();
 }
 
 BENCHMARK_REGISTER_F(BM_ServerFix, InternalThroughput)

@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
   try {
     MonitorConfig cfg(configPath);
-    LOG_INIT(cfg.logOutput);
+    LOG_INIT(cfg.data);
 
     MonitorControlCenter monitorCc{std::move(cfg)};
     monitorCc.start();

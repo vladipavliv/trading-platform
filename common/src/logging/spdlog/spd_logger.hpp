@@ -10,6 +10,8 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
+#include "config/config.hpp"
+
 namespace hft {
 
 /**
@@ -26,7 +28,7 @@ public:
   static SPtrSpdLogger consoleLogger;
   static SPtrSpdLogger fileLogger;
 
-  static void initialize(const std::string &fileName = "");
+  static void initialize(const Config &cfg);
 
   static constexpr const char *simpleFileName(const char *path) {
     const char *file = path;
@@ -39,7 +41,7 @@ public:
   }
 };
 
-#define LOG_INIT(filename) SpdLogger::initialize(filename);
+#define LOG_INIT(cfg) SpdLogger::initialize(cfg);
 
 #define LOG_BASE(level, msg, ...)                                                                  \
   do {                                                                                             \

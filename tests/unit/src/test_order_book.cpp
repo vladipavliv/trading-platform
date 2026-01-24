@@ -48,7 +48,7 @@ public:
   OrderBookFixture() : cfg{"utest_server_config.ini"} {}
 
   void SetUp() override {
-    LOG_INIT(cfg.logOutput);
+    LOG_INIT(cfg.data);
     book = std::make_unique<OrderBook>();
   }
 
