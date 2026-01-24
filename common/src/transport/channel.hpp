@@ -14,7 +14,7 @@
 #include "network_traits.hpp"
 #include "primitive_types.hpp"
 #include "transport/connection_status.hpp"
-#include "transport/transport.hpp"
+#include "transport/transportable.hpp"
 #include "utils/string_utils.hpp"
 
 namespace hft {
@@ -22,13 +22,9 @@ namespace hft {
 /**
  * @brief performs framing, serializing, and routing messages network <-> system
  */
-template <typename TransportT, typename BusT>
+template <Transportable TransportT, Busable BusT>
 class Channel : public std::enable_shared_from_this<Channel<TransportT, BusT>> {
 public:
-  static_assert(Transport<TransportT, std::function<void(IoResult)>>,
-                "TransportT must satisfy the Transport concept");
-  static_assert(Busable<BusT>, "BusT must satisfy the Busable concept");
-
   Channel(TransportT &&transport, ConnectionId id, BusT &&bus)
       : transport_{std::move(transport)}, id_{id}, bus_{std::move(bus)} {
     LOG_DEBUG("Channel ctor");
