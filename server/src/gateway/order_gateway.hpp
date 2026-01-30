@@ -27,8 +27,19 @@ namespace hft::server {
  * @brief Maintains order storage
  * strips down metadata of incoming orders producing internal events, supplies needed metadata to
  * outgoing order status messages, uses a separate thread with LfqRunner to manage outgoing traffic
- * network thread meets here with gateway thread, sync is managed by lock-free handing over of order
- * entry ids via spsc id queue
+ *
+ * Two threads meet here and work with order record storage: network and gateway threads
+ * On normal order flow, network thread picks up id from atomic pool, creates record,
+ * and never touches it untill id is released by the gateway on order close
+ * On cancel/modify flow however, network thread needs to access the record while its active
+ * thread safety is managed by only creating records in the network thread, and never cleaning them
+ * up explicitly, instead setting atomic state to Closed, and releasing record id
+ * So network thread either sees the closed record and rejects cancel/modify order,
+ * or picks up its released id, and reuses it, so cancel order for previous record would fail due to
+ * incorrect generation.
+ * This only needs atomic record state, other variables are never changed after creation, except for
+ * BookOrderId, which is published once by the gateway thread,
+ * and not accessed by the network thread untill state becomes Accepted
  */
 class OrderGateway {
   using SelfT = OrderGateway;
@@ -67,12 +78,13 @@ public:
     case OrderState::Cancelled:
     case OrderState::Rejected:
     case OrderState::Full:
-      cleanupOrder(s);
+      closeRecord(r);
       break;
     default:
-      // update book id for easier access
+      // update book id for fast modify access
       LOG_DEBUG("Link systemOId {} with bookOId {}", s.id.raw(), s.bookOId.raw());
       r.bookOId = s.bookOId;
+      r.setState(RecordState::Accepted);
       break;
     }
   }
@@ -114,7 +126,8 @@ private:
 
     auto &o = so.order;
     auto &r = recordMap_[sysOId.index()];
-    if (so.clientId != r.clientId || o.id != r.systemOId.raw()) {
+    if (r.getState() != RecordState::Accepted || so.clientId != r.clientId ||
+        o.id != r.systemOId.raw()) {
       LOG_ERROR_SYSTEM("Failed to cancel order: {}", toString(so));
       return;
     }
@@ -132,16 +145,21 @@ private:
           ServerOrderStatus{so.clientId, {o.id, 0, o.quantity, o.price, OrderState::Rejected}});
       return;
     }
-    recordMap_[systemOId.index()] = {o.id, systemOId, BookOrderId{}, so.clientId, o.ticker};
+    OrderRecord &r = recordMap_[systemOId.index()];
+    r.externalOId = o.id;
+    r.systemOId = systemOId;
+    r.bookOId = BookOrderId{};
+    r.clientId = so.clientId;
+    r.ticker = o.ticker;
+    r.setState(RecordState::New);
+
     ctx_.bus.post(InternalOrderEvent{
         {systemOId, BookOrderId{}, o.quantity, o.price}, nullptr, o.ticker, o.action});
   }
 
-  void cleanupOrder(CRef<InternalOrderStatus> ios) {
-    LOG_DEBUG("{}", toString(ios));
-    auto &r = recordMap_[ios.id.index()];
-    r = {};
-    idPool_.release(ios.id);
+  void closeRecord(OrderRecord &r) {
+    r.setState(RecordState::Closed);
+    idPool_.release(r.systemOId);
   }
 
   inline bool isValid(CRef<ServerOrder> o) const noexcept { return o.order.price > 0; }

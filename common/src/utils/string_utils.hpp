@@ -86,7 +86,7 @@ inline String formatCompact(uint64_t num) {
 
 /**
  * @brief Number thousandifier
- * @return Thousandified number. A number, that has gone through thousandification procedures
+ * @return A number, that has gone through thousandification procedures
  */
 template <std::integral T>
 std::string thousandify(T value) {

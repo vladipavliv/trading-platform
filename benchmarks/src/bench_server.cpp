@@ -92,10 +92,15 @@ void BM_ServerFix::post(const ComponentReady &ev) {
 }
 
 void BM_ServerFix::post(CRef<InternalOrderStatus> s) {
+  // In the current flow only one status event is sent per order
+  // if order triggers fulfills with resting orders, single partial/full event is sent
+  // If order rests - accepted state event is sent
+  // resting orders never generate state events
   if (s.state == OrderState::Rejected) {
     error.store(true, std::memory_order_release);
     LOG_ERROR_SYSTEM("Increase OrderBook limit");
   } else {
+    // so all non-rejected events would give us overall processed orders count
     processed.fetch_add(1, std::memory_order_relaxed);
   }
 }
