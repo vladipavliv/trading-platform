@@ -10,63 +10,62 @@
 
 namespace hft {
 
-template <typename T, size_t Capacity>
+template <size_t Capacity = 65536>
 class BatchSPSC {
-  static_assert(std::is_trivially_copyable_v<T>);
   static_assert((Capacity & (Capacity - 1)) == 0);
 
 public:
-  static constexpr size_t MSG_SIZE = sizeof(T);
-  static constexpr size_t BUFFER_SIZE = Capacity * MSG_SIZE;
+  static constexpr size_t BUFFER_SIZE = Capacity * 64;
+  static constexpr size_t MAX_BATCH_SIZE = 64;
 
   BatchSPSC() = default;
 
-  bool write(const T &msg) noexcept {
+  template <typename T>
+  [[nodiscard]] bool write(const T &msg) noexcept {
     const size_t currentTail = tail_.load(std::memory_order_relaxed);
+    const size_t size = sizeof(T);
 
-    if (currentTail + MSG_SIZE > headCache_ + BUFFER_SIZE) {
+    if (currentTail + size > headCache_ + BUFFER_SIZE) {
       headCache_ = head_.load(std::memory_order_acquire);
-      if (currentTail + MSG_SIZE > headCache_ + BUFFER_SIZE)
+      if (currentTail + size > headCache_ + BUFFER_SIZE)
         return false;
     }
 
     const size_t writePos = currentTail & (BUFFER_SIZE - 1);
-    std::memcpy(buffer_ + writePos, &msg, MSG_SIZE);
+    std::memcpy(buffer_ + writePos, &msg, size);
 
-    tail_.store(currentTail + MSG_SIZE, std::memory_order_release);
+    tail_.store(currentTail + size, std::memory_order_release);
     return true;
   }
 
-  std::span<T> readBatch(size_t maxBatch = 64) noexcept {
-    const size_t currentHead = head_.load(std::memory_order_relaxed);
-    const size_t currentTail = tail_.load(std::memory_order_acquire);
+  template <typename T>
+  [[nodiscard]] bool read(T &msg) noexcept {
+    const size_t size = sizeof(T);
 
-    if (currentHead == currentTail)
-      return {};
+    if (readCursor_ == tailCache_) {
+      head_.store(readCursor_, std::memory_order_release);
 
-    size_t headPos = currentHead & (BUFFER_SIZE - 1);
+      tailCache_ = tail_.load(std::memory_order_acquire);
 
-    size_t bytesToEnd = BUFFER_SIZE - headPos;
-    size_t availableBytes = std::min(currentTail - currentHead, bytesToEnd);
-
-    size_t count = std::min(availableBytes / MSG_SIZE, maxBatch);
-    return {reinterpret_cast<T *>(buffer_ + headPos), count};
-  }
-
-  void commitRead(size_t count) noexcept {
-    if (count == 0) {
-      return;
+      if (readCursor_ == tailCache_) {
+        return false;
+      }
     }
-    size_t currentHead = head_.load(std::memory_order_relaxed);
-    head_.store(currentHead + (count * MSG_SIZE), std::memory_order_release);
+
+    const size_t readPos = readCursor_ & (BUFFER_SIZE - 1);
+    std::memcpy(&msg, buffer_ + readPos, size);
+
+    readCursor_ += size;
+    return true;
   }
 
 private:
   ALIGN_CL AtomicSizeT head_{0};
-  size_t headCache_{0};
+  size_t tailCache_{0};
+  size_t readCursor_{0};
 
   ALIGN_CL AtomicSizeT tail_{0};
-  size_t tailCache_{0};
+  size_t headCache_{0};
 
   ALIGN_CL uint8_t buffer_[BUFFER_SIZE];
 };

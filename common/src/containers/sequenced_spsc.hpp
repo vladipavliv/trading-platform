@@ -24,17 +24,16 @@ namespace hft {
  */
 template <size_t SlotCount = 65536>
 class SequencedSPSC {
-  static constexpr uint32_t DataCapacity = 52;
-
   static_assert((SlotCount & (SlotCount - 1)) == 0);
+
+  static constexpr uint32_t MAX_DATA_SIZE = 52;
+  static constexpr uint32_t MASK = SlotCount - 1;
 
   struct alignas(64) Sloth {
     AtomicUInt64 seq{};
-    uint32_t length{};
-    uint8_t data[DataCapacity] = {};
+    uint32_t size{};
+    uint8_t data[MAX_DATA_SIZE] = {};
   };
-
-  static constexpr uint32_t MASK = SlotCount - 1;
 
 public:
   SequencedSPSC() {
@@ -48,17 +47,17 @@ public:
     return write(reinterpret_cast<const uint8_t *>(&msg), sizeof(T));
   }
 
-  inline bool write(const uint8_t *__restrict__ src, uint32_t length) noexcept {
-    if (length > DataCapacity) {
+  inline bool write(const uint8_t *__restrict__ src, uint32_t size) noexcept {
+    if (size > MAX_DATA_SIZE) {
       return false;
     }
     Sloth &sloth = slots_[writeIdx_ & MASK];
     if (sloth.seq.load(std::memory_order_acquire) != writeIdx_) {
       return false;
     }
-    std::memcpy(sloth.data, src, length);
+    std::memcpy(sloth.data, src, size);
 
-    sloth.length = length;
+    sloth.size = size;
     sloth.seq.store(writeIdx_ + 1, std::memory_order_release);
     ++writeIdx_;
     return true;
@@ -69,22 +68,22 @@ public:
     return read(reinterpret_cast<uint8_t *>(&msg), sizeof(T));
   }
 
-  inline uint32_t read(uint8_t *__restrict__ dst, uint32_t maxLen) noexcept {
+  inline uint32_t read(uint8_t *__restrict__ dst, uint32_t maxSize) noexcept {
     Sloth &sloth = slots_[readIdx_ & MASK];
 
-    while (sloth.seq.load(std::memory_order_acquire) != readIdx_ + 1) {
+    if (sloth.seq.load(std::memory_order_acquire) != readIdx_ + 1) {
       return 0;
     }
-    if (sloth.length > maxLen) {
-      LOG_ERROR("Buffer is too small, data {} buffer {}", sloth.length, maxLen);
+    if (sloth.size > maxSize) {
+      LOG_ERROR("Buffer is too small, data {} buffer {}", sloth.size, maxSize);
       return false;
     }
 
-    std::memcpy(dst, sloth.data, sloth.length);
+    std::memcpy(dst, sloth.data, sloth.size);
 
     sloth.seq.store(readIdx_ + SlotCount, std::memory_order_release);
     readIdx_++;
-    return sloth.length;
+    return sloth.size;
   }
 
 private:
