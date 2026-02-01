@@ -3,22 +3,22 @@
  * @date 2026-01-24
  */
 
-#ifndef HFT_COMMON_BATCHSPSC_HPP
-#define HFT_COMMON_BATCHSPSC_HPP
+#ifndef HFT_COMMON_TURBOSPSC_HPP
+#define HFT_COMMON_TURBOSPSC_HPP
 
 #include "primitive_types.hpp"
 
 namespace hft {
 
 template <size_t Capacity = 65536>
-class BatchSPSC {
+class TurboSPSC {
   static_assert((Capacity & (Capacity - 1)) == 0);
 
 public:
   static constexpr size_t BUFFER_SIZE = Capacity * 64;
   static constexpr size_t MAX_BATCH_SIZE = 64;
 
-  BatchSPSC() = default;
+  TurboSPSC() = default;
 
   template <typename T>
   [[nodiscard]] bool write(const T &msg) noexcept {
@@ -72,4 +72,4 @@ private:
 
 } // namespace hft
 
-#endif // HFT_COMMON_BATCHSPSC_HPP
+#endif // HFT_COMMON_TURBOSPSC_HPP

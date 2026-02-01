@@ -10,8 +10,8 @@
 #include <folly/MPMCQueue.h>
 
 #include "config/server_config.hpp"
-#include "containers/batch_spsc.hpp"
 #include "containers/sequenced_spsc.hpp"
+#include "containers/turbo_spsc.hpp"
 #include "containers/vyukov_mpmc.hpp"
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
@@ -56,8 +56,8 @@ struct QueueAdapter<VyukovMPMC<T, N>> {
 };
 
 template <>
-struct QueueAdapter<BatchSPSC<N>> {
-  using Queue = BatchSPSC<N>;
+struct QueueAdapter<TurboSPSC<N>> {
+  using Queue = TurboSPSC<N>;
 
   static UPtr<Queue> create() { return std::make_unique<Queue>(); }
   static bool push(Queue &q, T val) { return q.write(val); }
@@ -134,7 +134,7 @@ static void BM_GenericQueue(benchmark::State &state) {
 
 BENCHMARK_TEMPLATE(BM_GenericQueue, SequencedSPSC<N>);
 BENCHMARK_TEMPLATE(BM_GenericQueue, VyukovMPMC<T, N>);
-BENCHMARK_TEMPLATE(BM_GenericQueue, BatchSPSC<N>);
+BENCHMARK_TEMPLATE(BM_GenericQueue, TurboSPSC<N>);
 BENCHMARK_TEMPLATE(BM_GenericQueue, boost::lockfree::queue<T>);
 
 } // namespace hft::benchmarks
