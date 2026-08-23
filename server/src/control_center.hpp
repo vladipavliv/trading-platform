@@ -70,7 +70,7 @@ public:
 
     // System bus subscriptions
     bus_.subscribe(CRefHandler<ComponentReady>::bind<SelfT, &SelfT::post>(this));
-    bus_.subscribe(CRefHandler<TickerPrice>::bind<SelfT, &SelfT::post>(this));
+    bus_.subscribe(CRefHandler<MarkPrice>::bind<SelfT, &SelfT::post>(this));
     bus_.subscribe(CRefHandler<InternalError>::bind<SelfT, &SelfT::post>(this));
 
     // network callbacks
@@ -138,7 +138,7 @@ private:
     }
   }
 
-  void post(CRef<TickerPrice>) {}
+  void post(CRef<MarkPrice>) {}
 
   void post(CRef<InternalError> event) {
     LOG_ERROR_SYSTEM("Internal error: {} {}", event.what, toString(event.code));

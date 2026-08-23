@@ -47,7 +47,7 @@ table OrderStatus {
     state: OrderState;
 }
 
-table TickerPrice {
+table MarkPrice {
     ticker: string;
     price: uint;
 }
@@ -58,7 +58,7 @@ union MessageUnion {
     TokenBindRequest,
     Order,
     OrderStatus,
-    TickerPrice
+    MarkPrice
 }
 
 table Message {

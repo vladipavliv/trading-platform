@@ -62,10 +62,10 @@ struct OrderStatus {
   auto operator<=>(const OrderStatus &) const = default;
 };
 
-struct TickerPrice {
+struct MarkPrice {
   Ticker ticker;
   Price price;
-  auto operator<=>(const TickerPrice &) const = default;
+  auto operator<=>(const MarkPrice &) const = default;
 };
 
 inline String toString(const LoginRequest &msg) {
@@ -126,7 +126,7 @@ inline String toString(const OrderStatus &status) {
                      toString(status.state));
 }
 
-inline String toString(const TickerPrice &price) {
+inline String toString(const MarkPrice &price) {
   return std::format("{}: ${}", StringView(price.ticker.data(), TICKER_SIZE), price.price);
 }
 

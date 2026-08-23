@@ -8,7 +8,7 @@ from hft.serialization.gen.fbs.domain import (
     Message,
     Order,
     OrderStatus,
-    TickerPrice,
+    MarkPrice,
     MessageUnion,
 )
 
@@ -104,8 +104,8 @@ def parse_message(buf: bytes):
         order_status.Init(msg.Message().Bytes, msg.Message().Pos)
         return order_status
 
-    elif msg_type == MessageUnion.MessageUnion.TickerPrice:
-        ticker_price = TickerPrice.TickerPrice()
+    elif msg_type == MessageUnion.MessageUnion.MarkPrice:
+        ticker_price = MarkPrice.MarkPrice()
         ticker_price.Init(msg.Message().Bytes, msg.Message().Pos)
         return ticker_price
 

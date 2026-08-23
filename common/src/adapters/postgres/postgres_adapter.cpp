@@ -28,13 +28,13 @@ PostgresAdapter::PostgresAdapter(const Config &cfg)
   }
 }
 
-auto PostgresAdapter::readTickers(bool cache) -> Expected<Span<const TickerPrice>> {
+auto PostgresAdapter::readTickers(bool cache) -> Expected<Span<const MarkPrice>> {
   try {
-    static std::vector<TickerPrice> tickers;
+    static std::vector<MarkPrice> tickers;
     if (!cache) {
       tickers.clear();
     } else if (!tickers.empty()) {
-      return Span<const TickerPrice>{tickers};
+      return Span<const MarkPrice>{tickers};
     }
     pqxx::work transaction(conn_);
     transaction.exec("SET statement_timeout = 50");
@@ -42,7 +42,7 @@ auto PostgresAdapter::readTickers(bool cache) -> Expected<Span<const TickerPrice
 
     if (countResult.empty() || countResult[0][0].as<size_t>() == 0) {
       LOG_WARN("Empty tickers table");
-      return Span<const TickerPrice>{tickers};
+      return Span<const MarkPrice>{tickers};
     }
     const size_t count = countResult[0][0].as<size_t>();
 
@@ -52,10 +52,10 @@ auto PostgresAdapter::readTickers(bool cache) -> Expected<Span<const TickerPrice
     for (auto row : tickersResult) {
       const String ticker = row["ticker"].as<String>();
       const Price price = row["price"].as<size_t>();
-      tickers.emplace_back(TickerPrice{utils::toTicker(ticker), price});
+      tickers.emplace_back(MarkPrice{utils::toTicker(ticker), price});
     }
     transaction.commit();
-    return Span<const TickerPrice>{tickers};
+    return Span<const MarkPrice>{tickers};
   } catch (const std::exception &e) {
     LOG_ERROR_SYSTEM("Exception during tickers read {}", e.what());
     return std::unexpected(StatusCode::DbError);

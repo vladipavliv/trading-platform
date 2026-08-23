@@ -100,7 +100,7 @@ using SessionManager = NetworkSessionManager;
 
 using ServerMessageBus = MessageBus<
     // directly routed messages
-    ServerOrder, ServerOrderStatus, TickerPrice, InternalOrderEvent, InternalOrderStatus>;
+    ServerOrder, ServerOrderStatus, MarkPrice, InternalOrderEvent, InternalOrderStatus>;
 
 using ServerBus = BusHub<ServerMessageBus>;
 using UpstreamBus = BusRestrictor<
@@ -117,7 +117,7 @@ using DatagramBus = BusRestrictor<
     // bus
     ServerBus,
     // events
-    TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
+    MarkPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ServerConsoleReader = ConsoleReader<CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;
