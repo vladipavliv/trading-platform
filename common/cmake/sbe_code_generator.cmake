@@ -22,7 +22,7 @@ set(SBE_GENERATED_FILES
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/Order.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/OrderState.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/OrderStatus.h
-  ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/TickerPrice.h
+  ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/MarkPrice.h
   ${GEN_DIR_SBE_CPP}/hft_serialization_gen_sbe_domain/TokenBindRequest.h
 )
 

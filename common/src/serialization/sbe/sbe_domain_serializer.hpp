@@ -10,13 +10,13 @@
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/Char4.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/LoginRequest.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/LoginResponse.h"
+#include "sbe/cpp/hft_serialization_gen_sbe_domain/MarkPrice.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/Message.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/MessageHeader.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/Order.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderAction.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderState.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/OrderStatus.h"
-#include "sbe/cpp/hft_serialization_gen_sbe_domain/TickerPrice.h"
 #include "sbe/cpp/hft_serialization_gen_sbe_domain/TokenBindRequest.h"
 
 #include "bus/busable.hpp"
@@ -33,7 +33,7 @@ namespace hft::serialization::sbe {
 class SbeDomainSerializer {
 public:
   using SupportedTypes =
-      std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
+      std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, MarkPrice>;
 
   template <typename EventType>
   static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
@@ -102,14 +102,14 @@ public:
                                 msg.fill_price(), convert(msg.state())});
       return domain::OrderStatus::sbeBlockAndHeaderLength();
     }
-    case domain::TickerPrice::sbeTemplateId(): {
-      if (size < domain::TickerPrice::sbeBlockAndHeaderLength()) {
-        LOG_ERROR("Not enough TickerPrice data");
+    case domain::MarkPrice::sbeTemplateId(): {
+      if (size < domain::MarkPrice::sbeBlockAndHeaderLength()) {
+        LOG_ERROR("Not enough MarkPrice data");
         return std::unexpected(StatusCode::Error);
       }
-      domain::TickerPrice msg(data + headerSize, messageSize);
-      consumer.post(TickerPrice{makeTicker(msg.ticker().getChar4AsString()), msg.price()});
-      return domain::TickerPrice::sbeBlockAndHeaderLength();
+      domain::MarkPrice msg(data + headerSize, messageSize);
+      consumer.post(MarkPrice{makeTicker(msg.ticker().getChar4AsString()), msg.price()});
+      return domain::MarkPrice::sbeBlockAndHeaderLength();
     }
     default:
       LOG_ERROR("Unknown sbe message type {}", header.templateId());
@@ -170,11 +170,11 @@ public:
     return msgSize;
   }
 
-  static size_t serialize(CRef<TickerPrice> r, uint8_t *buffer) {
+  static size_t serialize(CRef<MarkPrice> r, uint8_t *buffer) {
     using namespace hft::serialization::gen::sbe;
-    const size_t msgSize = domain::TickerPrice::sbeBlockAndHeaderLength();
+    const size_t msgSize = domain::MarkPrice::sbeBlockAndHeaderLength();
 
-    domain::TickerPrice msg;
+    domain::MarkPrice msg;
     msg.wrapAndApplyHeader(reinterpret_cast<char *>(buffer), 0, msgSize);
     msg.ticker().putChar4(r.ticker.data());
     msg.price(r.price);

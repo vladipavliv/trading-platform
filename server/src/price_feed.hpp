@@ -32,7 +32,7 @@ class PriceFeed {
     static constexpr double MAX_RATE_US = // 10000% per day in us
         100 / 86400.0 / 1000.0 / 1000.0;
 
-    Fluctuation(TickerPrice base)
+    Fluctuation(MarkPrice base)
         : base{base}, price{static_cast<double>(base.price)},
           drift{utils::RNG::generate<double>(-MAX_RATE_US / 365, MAX_RATE_US / 365)} {
       randomize(utils::getTimestampNs());
@@ -71,7 +71,7 @@ class PriceFeed {
 
     Price getPrice() const { return static_cast<Price>(std::round(price)); }
 
-    const TickerPrice base;
+    const MarkPrice base;
 
     double price{0};
     double rate{0};
@@ -133,7 +133,7 @@ private:
       if (item.update(timeStamp)) {
         LOG_TRACE("Price change {}: {}=>{}", toString(item.base), item.base.price, item.getPrice());
         const auto newPrice = item.getPrice();
-        ctx_.bus.marketBus.post(TickerPrice{item.base.ticker, newPrice});
+        ctx_.bus.marketBus.post(MarkPrice{item.base.ticker, newPrice});
       }
     }
   }

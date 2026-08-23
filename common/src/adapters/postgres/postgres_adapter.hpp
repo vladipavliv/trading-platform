@@ -36,7 +36,7 @@ class PostgresAdapter {
 public:
   explicit PostgresAdapter(const Config &cfg);
 
-  auto readTickers(bool cache = true) -> Expected<Span<const TickerPrice>>;
+  auto readTickers(bool cache = true) -> Expected<Span<const MarkPrice>>;
   auto checkCredentials(CRef<String> name, CRef<String> password) -> Expected<ClientId>;
   void clean(CRef<String> table);
 

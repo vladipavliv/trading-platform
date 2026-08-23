@@ -95,7 +95,7 @@ using ConnectionManager = NetworkConnectionManager;
 
 using ClientMessageBus = MessageBus<
     // directly routed events
-    Order, OrderStatus, TickerPrice, TelemetryMsg>;
+    Order, OrderStatus, MarkPrice, TelemetryMsg>;
 
 using ClientBus = BusHub<ClientMessageBus>;
 using UpstreamBus = BusRestrictor<
@@ -112,7 +112,7 @@ using DatagramBus = BusRestrictor<
     // bus
     ClientBus,
     // events
-    TickerPrice, ChannelStatusEvent, ConnectionStatusEvent>;
+    MarkPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
 using DbAdapter = adapters::PostgresAdapter;

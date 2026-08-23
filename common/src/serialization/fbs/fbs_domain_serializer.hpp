@@ -29,7 +29,7 @@ public:
   using BufferType = flatbuffers::DetachedBuffer;
 
   using SupportedTypes =
-      std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, TickerPrice>;
+      std::tuple<LoginRequest, TokenBindRequest, LoginResponse, Order, OrderStatus, MarkPrice>;
 
   template <typename EventType>
   static constexpr bool Serializable = utils::IsTypeInTuple<EventType, SupportedTypes>;
@@ -100,13 +100,13 @@ public:
       consumer.post(status);
       break;
     }
-    case MessageType::MessageUnion_TickerPrice: {
-      const auto priceMsg = message->message_as_TickerPrice();
+    case MessageType::MessageUnion_MarkPrice: {
+      const auto priceMsg = message->message_as_MarkPrice();
       if (priceMsg == nullptr) {
-        LOG_ERROR("Failed to extract TickerPrice");
+        LOG_ERROR("Failed to extract MarkPrice");
         return std::unexpected(StatusCode::Error);
       }
-      const TickerPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
+      const MarkPrice price{fbStringToTicker(priceMsg->ticker()), priceMsg->price()};
       consumer.post(price);
       break;
     }
@@ -179,12 +179,12 @@ public:
     return serializedMsg.size();
   }
 
-  static size_t serialize(CRef<TickerPrice> price, uint8_t *buffer) {
+  static size_t serialize(CRef<MarkPrice> price, uint8_t *buffer) {
     using namespace gen::fbs::domain;
     flatbuffers::FlatBufferBuilder builder;
-    const auto msg = CreateTickerPrice(
+    const auto msg = CreateMarkPrice(
         builder, builder.CreateString(price.ticker.data(), TICKER_SIZE), price.price);
-    builder.Finish(CreateMessage(builder, MessageUnion_TickerPrice, msg.Union()));
+    builder.Finish(CreateMessage(builder, MessageUnion_MarkPrice, msg.Union()));
     const auto serializedMsg = builder.Release();
 
     std::memcpy(buffer, serializedMsg.data(), serializedMsg.size());

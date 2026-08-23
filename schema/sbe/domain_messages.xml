@@ -74,7 +74,7 @@
     <field name="state" id="5" type="OrderState" />
   </message>
 
-  <message name="TickerPrice" id="6" description="Ticker price">
+  <message name="MarkPrice" id="6" description="Ticker price">
     <field name="ticker" id="1" type="Char4" />
     <field name="price" id="2" type="uint32" />
   </message>
@@ -89,7 +89,7 @@
       <case id="3" ref="TokenBindRequest" />
       <case id="4" ref="Order" />
       <case id="5" ref="OrderStatus" />
-      <case id="6" ref="TickerPrice" />
+      <case id="6" ref="MarkPrice" />
     </choice>
   </message>
 

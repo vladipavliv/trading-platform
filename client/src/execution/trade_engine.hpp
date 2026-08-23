@@ -52,7 +52,7 @@ public:
       : ctx_{ctx}, dbAdapter_{ctx_.config.data}, marketData_{loadMarketData()},
         timer_{ctx_.bus.systemIoCtx()} {
     ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::post>(this));
-    ctx_.bus.subscribe(CRefHandler<TickerPrice>::bind<SelfT, &SelfT::post>(this));
+    ctx_.bus.subscribe(CRefHandler<MarkPrice>::bind<SelfT, &SelfT::post>(this));
   }
 
   void start() {
@@ -241,7 +241,7 @@ private:
     }
   }
 
-  void post(CRef<TickerPrice> price) {
+  void post(CRef<MarkPrice> price) {
     const auto dataIt = marketData_.find(price.ticker);
     if (dataIt == marketData_.end()) {
       LOG_ERROR("Ticker {} not found", toString(price.ticker));
