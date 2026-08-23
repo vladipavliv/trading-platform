@@ -52,6 +52,9 @@ public:
 
     bus_.post([this]() {
       config_.nsPerCycle = utils::getNsPerCycle();
+      config_.orderTtlCycles = utils::msToCycles(config_.orderTtlMs, config_.nsPerCycle);
+      LOG_INFO_SYSTEM("Time calibrated nsPerCycle:{} orderTtlCycles:{}", config_.nsPerCycle,
+                      config_.orderTtlCycles);
       bus_.post(ComponentReady(Component::Time));
     });
   }
@@ -72,6 +75,7 @@ public:
 
   void stop() {
     try {
+      LOG_INFO_SYSTEM("Stopping client");
       stopSrc_.request_stop();
 
       ipcClient_.stop();

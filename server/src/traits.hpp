@@ -77,14 +77,12 @@ class TrustedSessionManager;
 struct InternalOrderEvent;
 struct InternalOrder;
 struct InternalOrderStatus;
-class PriceLevelOrderBook;
 
 class FlatOrderBook;
 class PriceLevelOrderBook;
 
 template <typename BusT>
 using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
-using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
 
 #ifdef COMM_SHM
 using StreamTransport = ShmTransport;

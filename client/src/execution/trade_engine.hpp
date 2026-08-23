@@ -10,13 +10,12 @@
 #include "commands/command.hpp"
 #include "config/client_config.hpp"
 #include "config/config.hpp"
-#include "containers/huge_array.hpp"
-#include "containers/sequenced_spsc.hpp"
 #include "events.hpp"
-#include "id/slot_id_pool.hpp"
 #include "market_data.hpp"
+#include "order_registry.hpp"
 #include "primitive_types.hpp"
 #include "runner/ctx_runner.hpp"
+#include "strategy/strategies.hpp"
 #include "traits.hpp"
 #include "utils/handler.hpp"
 #include "utils/market_utils.hpp"
@@ -29,27 +28,16 @@
 namespace hft::client {
 
 /**
- * @brief Generates random orders for each ticker, tracks the statuses
- * randomly cancels some of the orders after they have been accepted by the server
- * streams telemetry to the monitor
+ * @brief Runs the strategies
  */
 class TradeEngine {
   using SelfT = TradeEngine;
-  using SystemOId = SlotIdPool<>::IdType;
-  /**
-   * @brief Tracks the generated order, and the server-side id for modifications
-   */
-  struct ClientOrder {
-    Order order;
-    Timestamp created;
-    SystemOId sysOId;
-
-    bool isValid() const noexcept { return created != 0 && sysOId.isValid(); }
-  };
 
 public:
   explicit TradeEngine(Context &ctx)
       : ctx_{ctx}, dbAdapter_{ctx_.config.data}, marketData_{loadMarketData()},
+        strategies_{RandomStrategy{ctx_, registry_, marketData_},
+                    TtlCancelStrategy{ctx_, registry_}},
         timer_{ctx_.bus.systemIoCtx()} {
     ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::post>(this));
     ctx_.bus.subscribe(CRefHandler<MarkPrice>::bind<SelfT, &SelfT::post>(this));
@@ -118,73 +106,30 @@ private:
     for (auto &price : prices) {
       data.emplace(price.ticker, price.price);
     }
-    LOG_DEBUG("Data loaded for {} tickers", data.size());
+    LOG_DEBUG_SYSTEM("Data loaded for {} tickers", data.size());
     return data;
   }
 
   void tradeLoop() {
     using namespace utils;
-    uint32_t warmupCount = ctx_.config.data.get<uint64_t>("rates.warmup");
-    uint32_t counter = 0;
     while (!ctx_.stopToken.stop_requested()) {
       if (!trading_) {
         std::this_thread::yield();
         continue;
       }
 
-      if (!sendCancel() && !sendNew()) {
-        break;
-      }
-
-      for (int i = 0; i < ctx_.config.tradeRate; ++i) {
-        asm volatile("pause" ::: "memory");
-        if (ctx_.stopToken.stop_requested()) {
-          return;
-        }
-      }
+      std::apply([this](auto &...s) { (s.execute(), ...); }, strategies_);
+      speedBump();
     }
   }
 
-  bool sendNew() {
-    using namespace utils;
-    static auto cursor = marketData_.begin();
-    if (cursor == marketData_.end()) {
-      cursor = marketData_.begin();
+  void speedBump() {
+    for (int i = 0; i < ctx_.config.tradeRate; ++i) {
+      asm volatile("pause" ::: "memory");
+      if (ctx_.stopToken.stop_requested()) {
+        return;
+      }
     }
-    auto &p = *cursor++;
-    const auto newPrice = fluctuateThePrice(p.second.getPrice());
-    const auto action = RNG::generate<uint8_t>(0, 1) == 0 ? OrderAction::Buy : OrderAction::Sell;
-    const auto quantity = RNG::generate<Quantity>(1, 100);
-
-    auto id = idPool_.acquire();
-    if (!id) {
-      LOG_ERROR_SYSTEM("Failed to acquire fresh id, stopping");
-      stop();
-      return false;
-    }
-    const auto now = getCycles();
-    Order order{id.raw(), p.first, quantity, newPrice, action};
-
-    orders_[id.index()] = {order, now, id};
-
-    placed_.fetch_add(1, std::memory_order_relaxed);
-    LOG_DEBUG("Placing order {}", toString(order));
-    ctx_.bus.marketBus.post(order);
-    return true;
-  }
-
-  bool sendCancel() {
-    uint32_t idx;
-    if (toCancel_.read(idx)) {
-      auto &r = orders_[idx];
-      auto &o = r.order;
-      r.created = utils::getCycles();
-      Order toCancelO{r.sysOId.raw(), o.ticker, o.quantity, o.price, OrderAction::Cancel};
-      LOG_DEBUG("Posting cancel {}", toString(toCancelO));
-      ctx_.bus.marketBus.post(toCancelO);
-      return true;
-    }
-    return false;
   }
 
   void post(CRef<OrderStatus> s) {
@@ -194,47 +139,62 @@ private:
       return;
     }
     LOG_DEBUG("{}", toString(s));
-    auto soid = SystemOId{s.orderId};
-    if (!soid.isValid()) {
+    const auto id = LocalOId{s.orderId};
+    if (!id.isValid()) {
       LOG_ERROR_SYSTEM("Invalid external order id {} {}", s.orderId, toString(s));
       stop();
       return;
     }
-    auto &r = orders_[soid.index()];
+    auto &r = registry_.records[id.index()];
     if (!r.isValid()) {
-      LOG_ERROR_SYSTEM("Invalid record at {}", soid.index());
+      LOG_ERROR_SYSTEM("Invalid record at {}", id.index());
+      stop();
+      return;
+    }
+    if (r.order.id != s.orderId) {
+      LOG_ERROR_SYSTEM("Record order id mismatch at index {}", id.index());
       stop();
       return;
     }
 
     auto &o = r.order;
-    r.sysOId = SystemOId{s.systemOrderId};
-    const auto cycl = getCycles();
-    const auto plcd = placed_.load(std::memory_order_relaxed);
-    const auto fulf = fulfilled_.load(std::memory_order_relaxed);
+
+    const auto now = getCycles();
+    const auto plcd = registry_.accepted.load(std::memory_order_relaxed);
+    const auto fulf = registry_.fulfilled.load(std::memory_order_relaxed);
     ctx_.bus.post(
-        createOrderLatencyMsg(Source::Client, 0, s.orderId, r.created, 0, cycl, plcd, fulf));
+        createOrderLatencyMsg(Source::Client, 0, s.orderId, r.created, 0, now, plcd, fulf));
 
     switch (s.state) {
     case OrderState::Accepted: {
-      if (RNG::generate<uint32_t>(0, 1) == 1) {
-        toCancel_.write(soid.index());
-      }
+      r.sysOId = SystemOId{s.systemOrderId};
+      r.setState(RecordState::Active);
+      registry_.accepted.fetch_add(1, std::memory_order_relaxed);
+      break;
+    }
+    case OrderState::Partial: {
+      r.sysOId = SystemOId{s.systemOrderId};
+      r.setState(RecordState::Active);
+      registry_.accepted.fetch_add(1, std::memory_order_relaxed);
       break;
     }
     case OrderState::Full: {
-      fulfilled_.fetch_add(1, std::memory_order_relaxed);
-      idPool_.release(soid);
+      r.setState(RecordState::Closed);
+      registry_.fulfilled.fetch_add(1, std::memory_order_relaxed);
+      registry_.deallocate(id);
       break;
     }
     case OrderState::Cancelled: {
-      cancelled_.fetch_add(1, std::memory_order_relaxed);
-      idPool_.release(soid);
+      r.setState(RecordState::Closed);
+      registry_.cancelled.fetch_add(1, std::memory_order_relaxed);
+      registry_.deallocate(id);
       break;
     }
     case OrderState::Rejected:
       LOG_WARN("Order rejected {}", toString(s));
-      idPool_.release(soid);
+      r.setState(RecordState::Closed);
+      registry_.rejected.fetch_add(1, std::memory_order_relaxed);
+      registry_.deallocate(id);
       break;
     default:
       break;
@@ -260,13 +220,15 @@ private:
         return;
       }
       static size_t lastCounter = 0;
-      auto placed = placed_.load(std::memory_order_relaxed);
-      auto fulfil = fulfilled_.load(std::memory_order_relaxed);
-      auto cancel = cancelled_.load(std::memory_order_relaxed);
-      size_t counter = placed + fulfil + cancel;
+      const auto accepted = registry_.accepted.load(std::memory_order_relaxed);
+      const auto fulfilled = registry_.fulfilled.load(std::memory_order_relaxed);
+      const auto cancelled = registry_.cancelled.load(std::memory_order_relaxed);
+      const auto rejected = registry_.rejected.load(std::memory_order_relaxed);
+      size_t counter = accepted + fulfilled + cancelled + rejected;
       if (lastCounter != counter) {
-        LOG_INFO_SYSTEM("Placed:{} Closed:{} Cancelled:{}", formatCompact(placed),
-                        formatCompact(fulfil), formatCompact(cancel));
+        LOG_INFO_SYSTEM("Accepted:{} Fulfilled:{} Cancelled:{} Rejected:{}",
+                        formatCompact(accepted), formatCompact(fulfilled), formatCompact(cancelled),
+                        formatCompact(rejected));
       }
       lastCounter = counter;
       scheduleStats();
@@ -279,18 +241,13 @@ private:
   DbAdapter dbAdapter_;
   const MarketData marketData_;
 
-  ALIGN_CL SlotIdPool<> idPool_;
-  ALIGN_CL HugeArray<ClientOrder, MAX_SYSTEM_ORDERS> orders_;
+  OrderRegistry registry_;
+  Strategies strategies_;
 
-  ALIGN_CL AtomicUInt64 placed_{0};
-  ALIGN_CL AtomicUInt64 fulfilled_{0};
-  ALIGN_CL AtomicUInt64 cancelled_{0};
+  AtomicBool started_{false};
+  AtomicBool trading_{false};
 
-  ALIGN_CL AtomicBool started_{false};
-  ALIGN_CL AtomicBool trading_{false};
-
-  ALIGN_CL SequencedSPSC<1024> toCancel_;
-  ALIGN_CL SteadyTimer timer_;
+  SteadyTimer timer_;
 
   std::jthread worker_;
 };

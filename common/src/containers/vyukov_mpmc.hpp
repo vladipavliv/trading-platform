@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "constants.hpp"
 #include "logging.hpp"
 
 namespace hft {
@@ -20,7 +21,7 @@ namespace hft {
  * @brief Dmitry Vyukov's mpmc queue
  * @details https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
  */
-template <typename Value, size_t Capacity = 65536>
+template <typename Value, size_t Capacity = LFQ_CAPACITY>
 class VyukovMPMC {
   static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
   static_assert(Capacity <= (1ULL << 20), "Capacity is too large");

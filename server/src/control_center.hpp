@@ -142,6 +142,11 @@ private:
 
   void post(CRef<InternalError> event) {
     LOG_ERROR_SYSTEM("Internal error: {} {}", event.what, toString(event.code));
+    LOG_ERROR("Data snapshot:");
+    auto &data = storage_.marketData();
+    for (const auto &[ticker, data] : data) {
+      data.orderBook.logState(ticker);
+    }
     stop();
   }
 

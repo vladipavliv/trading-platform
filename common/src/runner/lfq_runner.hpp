@@ -28,7 +28,7 @@ namespace hft {
 /**
  * @brief
  */
-template <typename MessageT, typename ConsumerT, typename BusT, size_t Capacity = 65536>
+template <typename MessageT, typename ConsumerT, typename BusT, size_t Capacity = LFQ_CAPACITY>
 class LfqRunner {
   using SelfT = LfqRunner<MessageT, ConsumerT, BusT, Capacity>;
   using Queue = SequencedSPSC<Capacity>;

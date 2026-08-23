@@ -54,6 +54,10 @@ inline __attribute__((always_inline)) auto getCycles() -> uint64_t {
   return static_cast<double>(ns) / static_cast<double>(c2 - c1);
 }
 
+[[nodiscard]] inline auto msToCycles(uint32_t ms, double nsPerCycle) -> double {
+  return static_cast<double>(ms * 1'000'000.0 / nsPerCycle);
+}
+
 } // namespace hft::utils
 
 #endif // HFT_COMMON_TIMEUTILS_HPP

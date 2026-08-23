@@ -86,7 +86,7 @@ private:
       ctx_.bus.post(status_);
     } else {
       LOG_ERROR_SYSTEM("Failed to read from shm, stopping");
-      reset();
+      ctx_.bus.post(InternalError{StatusCode::Error, "Failed to read from shm"});
     }
   }
 
@@ -97,7 +97,7 @@ private:
     auto res = upstreamChannel_->syncTx(span);
     if (!res) {
       LOG_ERROR_SYSTEM("Failed to write to shm, stopping");
-      reset();
+      ctx_.bus.post(InternalError{StatusCode::Error, "Failed to write to shm"});
     }
   }
 

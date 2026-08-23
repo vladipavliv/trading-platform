@@ -22,7 +22,7 @@ namespace hft {
 /**
  * @brief Slot based spsc queue for small messages
  */
-template <size_t SlotCount = 65536>
+template <size_t SlotCount = LFQ_CAPACITY>
 class SequencedSPSC {
   static_assert((SlotCount & (SlotCount - 1)) == 0);
 

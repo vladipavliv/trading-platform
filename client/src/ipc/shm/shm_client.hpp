@@ -27,7 +27,7 @@ public:
   explicit ShmClient(Context &ctx)
       : ctx_{ctx}, reactor_{ctx.config.data, ctx.stopToken, ErrorBus{ctx.bus.systemBus}} {}
 
-  ~ShmClient() { stop(); }
+  ~ShmClient() { LOG_DEBUG_SYSTEM("~ShmClient"); }
 
   void setUpstreamClb(ShmHandler &&streamClb) { upstreamClb_ = std::move(streamClb); }
 
@@ -41,7 +41,7 @@ public:
   }
 
   void stop() {
-    LOG_INFO("ShmClient stop");
+    LOG_INFO_SYSTEM("ShmClient stop");
     reactor_.stop();
   }
 
