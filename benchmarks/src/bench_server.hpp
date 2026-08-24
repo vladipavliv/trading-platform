@@ -9,6 +9,7 @@
 #include <benchmark/benchmark.h>
 #include <stop_token>
 
+#include "adapters/json/json_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "commands/command.hpp"
 #include "config/server_config.hpp"

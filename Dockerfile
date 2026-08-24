@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     libgoogle-glog-dev libpq-dev libbenchmark-dev \
     flatbuffers-compiler libflatbuffers-dev \
     openjdk-17-jdk \
+    nlohmann-json3-dev \
     python3 python3-venv python3-pip \
     libevent-dev libgflags-dev libssl-dev zlib1g-dev libunwind-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -70,6 +71,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/build /app/build
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app/build/gen/fbs/python/hft /app/hft
+COPY --from=builder /app/build/data.json /app/data.json
 
 COPY scripts /app/scripts
 COPY tests /app/tests
@@ -91,6 +93,7 @@ RUN apt-get update && apt-get install -y \
     libboost-thread1.83.0 \
     && rm -rf /var/lib/apt/lists/* && ldconfig
 
+ENV TICKERS_FILE=/app/data.json
 ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 CMD ["./build/server/hft_server"]

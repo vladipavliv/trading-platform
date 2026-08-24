@@ -20,6 +20,8 @@ namespace hft::tests {
 using namespace server;
 using namespace utils;
 
+using TestMarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
+
 inline auto genId() -> uint32_t {
   static uint64_t counter{0};
   return counter++;
@@ -119,7 +121,7 @@ struct GenMarketData {
   }
 
   GenTickerData &tickers;
-  MarketData marketData;
+  TestMarketData marketData;
 };
 
 } // namespace hft::tests

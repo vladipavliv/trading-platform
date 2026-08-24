@@ -19,6 +19,7 @@
 #endif
 
 #include "adapters/dummies/dummy_kafka_adapter.hpp"
+#include "adapters/json/json_adapter.hpp"
 #include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"

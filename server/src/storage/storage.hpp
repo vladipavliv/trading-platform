@@ -13,6 +13,7 @@
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "ticker.hpp"
+#include "ticker/ticker_map.hpp"
 #include "traits.hpp"
 
 namespace hft::server {
@@ -36,10 +37,13 @@ private:
     }
 
     const auto &prices = result.value();
+    if (prices.size() != TICKER_COUNT) {
+      throw std::runtime_error(std::format("Invalid ticker map expected:{} tickers read:{}",
+                                           TICKER_COUNT, prices.size()));
+    }
     const ThreadId workerCount = config_.coresApp.size() == 0 ? 1 : config_.coresApp.size();
 
     MarketData data;
-    data.reserve(prices.size());
 
     const size_t perWorker = prices.size() / workerCount;
     const size_t leftOver = prices.size() % workerCount;
@@ -49,7 +53,7 @@ private:
       const size_t currWorkerTickers = perWorker + (idx < leftOver ? 1 : 0);
       for (size_t i = 0; i < currWorkerTickers && iter != prices.end(); ++i, ++iter) {
         LOG_TRACE("{}: ${}", toString(iter->ticker), iter->price);
-        data.emplace(iter->ticker, idx);
+        data[getTickerIndex(iter->ticker)].workerId = idx;
       }
     }
     LOG_INFO("Data loaded for {} tickers", prices.size());

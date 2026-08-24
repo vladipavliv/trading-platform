@@ -8,6 +8,7 @@
 
 #include "execution/market_data.hpp"
 #include "execution/order_registry.hpp"
+#include "ticker/ticker_map.hpp"
 #include "traits.hpp"
 #include "utils/market_utils.hpp"
 #include "utils/rng.hpp"
@@ -19,25 +20,26 @@ namespace hft::client {
 class RandomStrategy {
 public:
   RandomStrategy(Context &ctx, OrderRegistry &registry, const MarketData &marketData)
-      : ctx_{ctx}, registry_{registry}, marketData_{marketData}, cursor_{marketData_.begin()} {}
+      : ctx_{ctx}, registry_{registry}, marketData_{marketData} {}
 
   void execute() {
     using namespace utils;
-    if (cursor_ == marketData_.end()) {
-      cursor_ = marketData_.begin();
+    if (tickerCursor_ == TICKER_COUNT) {
+      tickerCursor_ = 0;
       if (currentSide_ == OrderAction::Buy) {
         currentSide_ = OrderAction::Sell;
       } else {
         currentSide_ = OrderAction::Buy;
       }
     }
-    auto &p = *cursor_++;
-    const auto newPrice = fluctuateThePrice(p.second.getPrice());
+    auto &p = marketData_[tickerCursor_];
+
+    const auto newPrice = fluctuateThePrice(p.getPrice());
     const auto action = currentSide_;
     const auto quantity = RNG::generate<Quantity>(1, 100);
 
     const auto now = getCycles();
-    Order order{0, p.first, quantity, newPrice, action};
+    Order order{0, getTicker(tickerCursor_), quantity, newPrice, action};
     if (!registry_.allocate(order, now)) {
       LOG_DEBUG("Failed to generate new order");
       ctx_.bus.post(InternalError{StatusCode::Error, "Failed to generate new order"});
@@ -46,6 +48,7 @@ public:
 
     LOG_DEBUG("Placing order {}", toString(order));
     ctx_.bus.marketBus.post(order);
+    ++tickerCursor_;
   }
 
 private:
@@ -54,7 +57,7 @@ private:
   OrderRegistry &registry_;
   const MarketData &marketData_;
 
-  MarketData::const_iterator cursor_;
+  uint32_t tickerCursor_{0};
   OrderAction currentSide_{OrderAction::Buy};
 };
 } // namespace hft::client

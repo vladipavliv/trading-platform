@@ -101,8 +101,8 @@ public:
     return static_cast<size_t>(std::max<int64_t>(0, fresh - free));
   }
 
-  void logState(CRef<Ticker> ticker) const {
-    LOG_INFO_SYSTEM("Book:{} Opened orders:{}", toString(ticker), openedOrders());
+  void logState(std::string_view ticker) const {
+    LOG_INFO_SYSTEM("Book:{} Opened orders:{}", ticker, openedOrders());
   }
 
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
