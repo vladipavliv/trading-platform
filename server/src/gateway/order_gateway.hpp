@@ -40,6 +40,9 @@ namespace hft::server {
  * This only needs atomic record state, other variables are never changed after creation, except for
  * BookOrderId, which is published once by the gateway thread,
  * and not accessed by the network thread untill state becomes Accepted
+ *
+ * TODO(self): refactor, make two separate gateways fopr up and down stream,
+ * so several threads dont meet here. Registry is already relatively thread safe,
  */
 class OrderGateway {
   using SelfT = OrderGateway;
@@ -128,7 +131,7 @@ private:
     auto &r = recordMap_[sysOId.index()];
     if (r.getState() != RecordState::Accepted || so.clientId != r.clientId ||
         o.id != r.systemOId.raw()) {
-      LOG_ERROR_SYSTEM("Failed to cancel order: {}", toString(so));
+      LOG_WARN("Failed to cancel order: {}", toString(so));
       return;
     }
     ctx_.bus.post(

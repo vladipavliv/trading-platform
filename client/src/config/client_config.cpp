@@ -51,6 +51,7 @@ ClientConfig::ClientConfig(CRef<String> fileName) : data{fileName} {
   tradeRate = data.get<size_t>("rates.trade_rate_us");
   monitorRate = data.get<size_t>("rates.monitor_rate_ms");
   telemetryTate = data.get<size_t>("rates.telemetry_ms");
+  orderTtlMs = data.get<size_t>("rates.ttl_ms");
 
   // Credentials
   name = data.get<String>("credentials.name");
@@ -62,8 +63,9 @@ ClientConfig::ClientConfig(CRef<String> fileName) : data{fileName} {
 
 void ClientConfig::print() const {
   LOG_INFO_SYSTEM("Url:{} TcpUp:{} TcpDown:{} Udp:{}", url, portTcpUp, portTcpDown, portUdp);
-  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} TradeRate:{}us", coreSystem.value_or(0),
-                  coreNetwork.value_or(0), toString(coresApp), tradeRate);
+  LOG_INFO_SYSTEM("SystemCore:{} NetworkCore:{} AppCores:{} TradeRate:{}us Ttl:{}ms",
+                  coreSystem.value_or(0), coreNetwork.value_or(0), toString(coresApp), tradeRate,
+                  orderTtlMs);
   LOG_INFO_SYSTEM("LogOutput: {}", logOutput);
   LOG_INFO_SYSTEM("Name: {} Password: {}", name, password);
 }

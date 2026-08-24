@@ -62,6 +62,7 @@ void ShmReactor::run(StdCallback onReadyClb) {
 void ShmReactor::stop() {
   LOG_DEBUG_SYSTEM("ShmReactor stop");
   if (!started_.load(std::memory_order_acquire)) {
+    LOG_DEBUG_SYSTEM("ShmReactor not started");
     return;
   }
   for (auto *rdr : readers_) {
@@ -69,9 +70,9 @@ void ShmReactor::stop() {
   }
   readers_.clear();
   instance.store(nullptr, std::memory_order_release);
-  LOG_DEBUG("Joining ShmReactor thread");
+  LOG_DEBUG_SYSTEM("Joining ShmReactor thread");
   utils::join(thread_);
-  LOG_DEBUG("ShmReactor stopped");
+  LOG_DEBUG_SYSTEM("ShmReactor stopped");
 }
 
 void ShmReactor::loop() {

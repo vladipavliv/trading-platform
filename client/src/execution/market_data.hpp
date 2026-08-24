@@ -17,8 +17,7 @@
 namespace hft::client {
 
 /**
- * @brief Holds only the price for now
- * @todo Later on would track all the opened orders
+ * @brief Holds only the mark price for now
  */
 struct TickerData {
   explicit TickerData(Price price) : price_{price} {}

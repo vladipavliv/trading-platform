@@ -6,6 +6,7 @@
 #ifndef HFT_COMMON_SHMQUEUE_HPP
 #define HFT_COMMON_SHMQUEUE_HPP
 
+#include "constants.hpp"
 #include "containers/sequenced_spsc.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
@@ -20,7 +21,7 @@ namespace hft {
  */
 struct alignas(utils::HUGE_PAGE_SIZE) ShmQueue {
   // 8mb + control block, place at the start so data fills up 4 full huge pages
-  ALIGN_CL SequencedSPSC<128 * 1024> queue;
+  ALIGN_CL SequencedSPSC<LFQ_CAPACITY> queue;
 
   ALIGN_CL AtomicUInt32 futex{0};      // futex
   ALIGN_CL uint32_t futexCounter{0};   // optimization to avoid fetch_add

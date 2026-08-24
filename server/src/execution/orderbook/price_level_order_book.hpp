@@ -16,6 +16,7 @@
 #include "primitive_types.hpp"
 #include "ptr_types.hpp"
 #include "schema.hpp"
+#include "utils/string_utils.hpp"
 
 namespace hft::server {
 
@@ -94,6 +95,16 @@ public:
     return true;
   }
 
+  size_t openedOrders() const {
+    int64_t fresh = static_cast<int64_t>(nextAvailableIdx_) - 1;
+    int64_t free = static_cast<int64_t>(freeTop_);
+    return static_cast<size_t>(std::max<int64_t>(0, fresh - free));
+  }
+
+  void logState(CRef<Ticker> ticker) const {
+    LOG_INFO_SYSTEM("Book:{} Opened orders:{}", toString(ticker), openedOrders());
+  }
+
 #if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
   void sendAck(CRef<InternalOrderEvent> ioe, BusableFor<InternalOrderStatus> auto &consumer) {
     consumer.post(InternalOrderStatus(ioe.order.id, BookOrderId{}, 0, 0, OrderState::Accepted));
@@ -141,6 +152,12 @@ private:
       while (level.head != 0 && remainingQty > 0) {
         Node &restingNode = nodePool_[level.head];
         uint32_t fillQty = std::min(remainingQty, restingNode.qty);
+        if (fillQty == 0) {
+          LOG_ERROR_SYSTEM("fillQty == 0");
+        }
+        if (level.head == restingNode.next) {
+          LOG_ERROR_SYSTEM("same node!!!");
+        }
 
         remainingQty -= fillQty;
         restingNode.qty -= fillQty;
@@ -155,6 +172,7 @@ private:
             updateOccupancy(restingNode.side, bestPrice.price, false);
           }
           releaseId(restingNode.localId);
+          restingNode = Node{};
         }
       }
     }
@@ -178,6 +196,7 @@ private:
     node.qty = qty;
     node.side = side;
     node.next = 0;
+    node.prev = 0;
 
     auto &pricePoint = levels_[node.price];
     PriceLevelSide &level = (side == Side::Buy) ? pricePoint.bid : pricePoint.ask;
@@ -205,7 +224,7 @@ private:
     Node &node = nodePool_[idx];
 
     if (UNLIKELY(node.localId != o.bookOId)) {
-      LOG_ERROR("Failed to cancel order {}, already closed", toString(ioe));
+      LOG_WARN("Failed to cancel order {}, already closed", toString(ioe));
       consumer.post(InternalOrderStatus{o.id, o.bookOId, 0, 0, OrderState::Rejected});
       return;
     }
@@ -233,6 +252,7 @@ private:
 
     consumer.post(InternalOrderStatus{o.id, o.bookOId, 0, 0, OrderState::Cancelled});
     releaseId(node.localId);
+    node = Node{};
   }
 
   inline void updateOccupancy(Side side, uint32_t priceIdx, bool active) {
@@ -324,6 +344,10 @@ private:
 
   inline void releaseId(BookOrderId idx) {
     idx.nextGen();
+    if (UNLIKELY(freeTop_ >= MAX_BOOK_ORDERS)) {
+      LOG_ERROR_SYSTEM("PriceLevelOrderBook free stack overflow");
+      return;
+    }
     freeStack_[freeTop_++] = idx;
   }
 

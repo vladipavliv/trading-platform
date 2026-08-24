@@ -6,11 +6,12 @@
 #ifndef HFT_COMMON_TURBOSPSC_HPP
 #define HFT_COMMON_TURBOSPSC_HPP
 
+#include "constants.hpp"
 #include "primitive_types.hpp"
 
 namespace hft {
 
-template <size_t Capacity = 65536>
+template <size_t Capacity = LFQ_CAPACITY>
 class TurboSPSC {
   static_assert((Capacity & (Capacity - 1)) == 0);
 
