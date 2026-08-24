@@ -13,6 +13,7 @@
 #include "constants.hpp"
 #include "domain_types.hpp"
 #include "primitive_types.hpp"
+#include "ticker/ticker_map.hpp"
 
 namespace hft::client {
 
@@ -20,6 +21,8 @@ namespace hft::client {
  * @brief Holds only the mark price for now
  */
 struct TickerData {
+  TickerData() = default;
+
   explicit TickerData(Price price) : price_{price} {}
 
   TickerData(TickerData &&other) noexcept : price_{other.price_.load(std::memory_order_acquire)} {};
@@ -35,12 +38,12 @@ struct TickerData {
 private:
   alignas(CACHE_LINE_SIZE) mutable std::atomic<Price> price_;
 
-  TickerData() = delete;
   TickerData(const TickerData &) = delete;
   TickerData &operator=(const TickerData &other) = delete;
 };
 
-using MarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
+// using MarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
+using MarketData = std::array<TickerData, TICKER_COUNT>;
 
 } // namespace hft::client
 

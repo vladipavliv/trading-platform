@@ -1,6 +1,8 @@
 # Common static library 
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
+include(cmake/ticker_code_generator.cmake)
+
 if(SERIALIZATION STREQUAL "SBE" OR BUILD_TESTS OR BUILD_BENCHMARKS)
     include(cmake/sbe_code_generator.cmake)
 endif()
@@ -28,17 +30,21 @@ target_link_libraries(hft_common PUBLIC
     ${LIBPQXX_LIBRARIES}
     ${Boost_LIBRARIES}
     ${RDKAFKAXX_LIB}
+    nlohmann_json::nlohmann_json
     spdlog::spdlog 
     pthread
-    pq 
     atomic
-    iberty 
+    frozen
+    iberty
     folly
     glog
-    dl 
     bfd
+    dl 
+    pq 
 )
 target_compile_definitions(hft_common PUBLIC SPDLOG_ACTIVE_LEVEL=${SPDLOG_ACTIVE_LEVEL})
+
+add_dependencies(hft_common ticker_code_gen)
 
 if (BUILD_TESTS OR BUILD_BENCHMARKS)
     add_dependencies(hft_common sbe_cpp_domain_code_gen)

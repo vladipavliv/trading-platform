@@ -46,7 +46,7 @@ def stress_iterations(config):
 
 @pytest.fixture(scope="session")
 def tickers():
-    tickers_list = db_utils.read_tickers()
+    tickers_list = db_utils.read_tickers_json()
     assert tickers_list, "Tickers list is empty or None"
     print(f"Loaded {len(tickers_list)} tickers from db")
     return tickers_list

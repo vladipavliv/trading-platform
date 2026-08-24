@@ -20,6 +20,7 @@
 #include "price_feed.hpp"
 #include "session/authenticator.hpp"
 #include "storage/storage.hpp"
+#include "ticker/ticker_map.hpp"
 #include "traits.hpp"
 #include "transport/channel.hpp"
 #include "utils/console_reader.hpp"
@@ -144,8 +145,9 @@ private:
     LOG_ERROR_SYSTEM("Internal error: {} {}", event.what, toString(event.code));
     LOG_ERROR("Data snapshot:");
     auto &data = storage_.marketData();
-    for (const auto &[ticker, data] : data) {
-      data.orderBook.logState(ticker);
+    uint8_t tIdx = 0;
+    for (const auto &tickerData : data) {
+      tickerData.orderBook.logState(getTickerName(tIdx++));
     }
     stop();
   }

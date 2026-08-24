@@ -76,6 +76,7 @@ find_package(libpqxx REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(folly REQUIRED)
 find_package(Glog REQUIRED)
+find_package(nlohmann_json 3.11.0 REQUIRED)
 
 pkg_check_modules(LIBPQXX REQUIRED libpqxx)
 
@@ -89,6 +90,13 @@ add_subdirectory(common)
 add_subdirectory(server)
 add_subdirectory(client)
 add_subdirectory(monitor)
+
+FetchContent_Declare(
+    frozen
+    GIT_REPOSITORY https://github.com/serge-sans-paille/frozen.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(frozen)
 
 if(BUILD_TESTS)
   enable_testing()

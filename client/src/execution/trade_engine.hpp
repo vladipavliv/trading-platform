@@ -102,9 +102,14 @@ private:
     }
     MarketData data;
     const auto &prices = result.value();
-    data.reserve(prices.size());
+
+    if (prices.size() != TICKER_COUNT) {
+      throw std::runtime_error(
+          std::format("Invalid ticker count expected:{} got:{}", TICKER_COUNT, prices.size()));
+    }
+    uint32_t idx = 0;
     for (auto &price : prices) {
-      data.emplace(price.ticker, price.price);
+      data[getTickerIndex(price.ticker)].setPrice(price.price);
     }
     LOG_DEBUG_SYSTEM("Data loaded for {} tickers", data.size());
     return data;
@@ -138,7 +143,7 @@ private:
     if (ctx_.stopToken.stop_requested()) {
       return;
     }
-    LOG_DEBUG("{}", toString(s));
+    const auto now = getCycles();
     const auto id = LocalOId{s.orderId};
     if (!id.isValid()) {
       LOG_ERROR_SYSTEM("Invalid external order id {} {}", s.orderId, toString(s));
@@ -158,8 +163,6 @@ private:
     }
 
     auto &o = r.order;
-
-    const auto now = getCycles();
     const auto plcd = registry_.accepted.load(std::memory_order_relaxed);
     const auto fulf = registry_.fulfilled.load(std::memory_order_relaxed);
     ctx_.bus.post(
@@ -202,14 +205,15 @@ private:
   }
 
   void post(CRef<MarkPrice> price) {
-    const auto dataIt = marketData_.find(price.ticker);
-    if (dataIt == marketData_.end()) {
+    const auto idx = getTickerIndex(price.ticker);
+    if (idx == -1) {
       LOG_ERROR("Ticker {} not found", toString(price.ticker));
       return;
     }
-    const Price oldPrice = dataIt->second.getPrice();
+    auto &data = marketData_[idx];
+    const Price oldPrice = data.getPrice();
     LOG_DEBUG("Price change {}: {} => {}", toString(price.ticker), oldPrice, price.price);
-    dataIt->second.setPrice(price.price);
+    data.setPrice(price.price);
   }
 
   void scheduleStats() {

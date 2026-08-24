@@ -39,10 +39,7 @@ Manual tests (16m opened orders limit, 8k price levels, 100 tickers)
 
 Shared memory:
 ```bash
-(3 pause speed bumps per order)
-00:41:46.749143 [I] Rps: 10,652,334 Rtt: [<1µs|>1µs] 98.88% avg:363ns | 1.12% avg:3µs | Max:19µs
-(10 pause speed bumps per order)
-00:54:53.240807 [I] Rps: 5,524,216 Rtt: [<1µs|>1µs] 99.73% avg:329ns | 0.27% avg:3µs | Max:27µs
+21:15:29.585650 [I] Rps: 7,371,150 Rtt: [<1µs|>1µs] 99.18% avg:341ns | 0.82% avg:7µs | Max:32µs
 ```
 Boost sockets:
 ```bash

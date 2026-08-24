@@ -64,6 +64,7 @@ namespace adapters {
 template <typename BusType>
 class DummyKafkaAdapter;
 class PostgresAdapter;
+class JsonAdapter;
 } // namespace adapters
 
 struct ChannelStatusEvent;
@@ -115,7 +116,9 @@ using DatagramBus = BusRestrictor<
     MarkPrice, ChannelStatusEvent, ConnectionStatusEvent>;
 
 using ClientConsoleReader = ConsoleReader<CommandParser>;
-using DbAdapter = adapters::PostgresAdapter;
+
+using DbAdapter = adapters::JsonAdapter;
+
 #ifndef CICD
 using ClientTelemetry = TelemetryAdapter<ClientBus>;
 #else

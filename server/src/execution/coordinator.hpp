@@ -17,6 +17,7 @@
 #include "market_data.hpp"
 #include "runner/ctx_runner.hpp"
 #include "runner/lfq_runner.hpp"
+#include "ticker/ticker_map.hpp"
 #include "traits.hpp"
 #include "utils/handler.hpp"
 #include "utils/spin_wait.hpp"
@@ -29,7 +30,6 @@ namespace hft::server {
  * @brief Manages order-matching workers, routes order to a proper worker by the ticker
  * for optimization tickerdata is supplied with InternalOrderEvent so the worker doesnt have to look
  * it up again in the MarketData
- * for further optimizations all tickers could be indexed at a startup to avoid 'ticker->' hashmap
  * @note ticker rerouting could be done by managing WorkerId uint32 atomic,
  * using highest bit to indicate that book is locked
  * 1. on ticker reroute sys thread does spin CAS in the OrderBook
@@ -112,11 +112,12 @@ private:
     if (ctx_.stopToken.stop_requested()) {
       return;
     }
-    if (data_.count(ioe.ticker) == 0) {
+    const auto idx = getTickerIndex(ioe.ticker);
+    if (idx == -1) {
       LOG_ERROR_SYSTEM("Ticker not found {}", toString(ioe.ticker));
       return;
     }
-    ioe.data = &data_.at(ioe.ticker);
+    ioe.data = &(data_[idx]);
     workers_[ioe.data->workerId]->post(ioe);
   }
 
