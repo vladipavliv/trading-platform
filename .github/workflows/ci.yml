@@ -21,18 +21,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Create Docker network
-      run: docker network create hft-network
-
-    - name: Start PostgreSQL
-      run: |
-        docker run -d --name hft-postgres --network hft-network \
-          -e POSTGRES_USER=postgres \
-          -e POSTGRES_PASSWORD=password \
-          -e POSTGRES_DB=hft_db \
-          -p 5432:5432 \
-          postgres:15
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -61,24 +49,11 @@ jobs:
       run: |
           docker run --rm hft-platform:latest ctest --test-dir build --output-on-failure
 
-    - name: Wait for Postgres
-      run: |
-          until docker exec hft-postgres pg_isready -U postgres; do
-            sleep 1
-          done
-
     - name: Run Integration Tests
       run: |
-        docker run --rm --network hft-network \
-          -e POSTGRES_HOST=hft-postgres \
-          -e POSTGRES_PORT=5432 \
-          -e POSTGRES_USER=postgres \
-          -e POSTGRES_PASSWORD=password \
-          -e POSTGRES_DB=hft_db \
-          hft-platform:latest /bin/bash -c "source /opt/venv/bin/activate && python3 scripts/setup_postgres.py && ./tests/integration/it_run.sh"
+        docker run --rm hft-platform:latest /bin/bash -c "source /opt/venv/bin/activate && ./tests/integration/it_run.sh"
 
     - name: Cleanup
       if: always()
       run: |
-        docker rm -f hft-postgres || true
-        docker network rm hft-network || true
+        docker system prune -f || true
