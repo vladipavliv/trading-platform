@@ -24,6 +24,7 @@
 #include "utils/telemetry_utils.hpp"
 #include "utils/thread_utils.hpp"
 #include "utils/time_utils.hpp"
+#include "warmup_stats.hpp"
 
 namespace hft::client {
 
@@ -38,8 +39,8 @@ public:
       : ctx_{ctx}, dbAdapter_{ctx_.config.data}, marketData_{loadMarketData()},
         strategies_{RandomStrategy{ctx_, registry_, marketData_},
                     TtlCancelStrategy{ctx_, registry_}},
-        timer_{ctx_.bus.systemIoCtx()} {
-    ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::post>(this));
+        timer_{ctx_.bus.systemIoCtx()}, warmup_{ctx_.config} {
+    ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::postWarmup>(this));
     ctx_.bus.subscribe(CRefHandler<MarkPrice>::bind<SelfT, &SelfT::post>(this));
   }
 
@@ -60,10 +61,14 @@ public:
   }
 
   void tradeStart() {
-    if (trading_) {
+    if (trading_ || warmup_.state == WarmupStats::State::InProgress) {
       return;
     }
     LOG_INFO_SYSTEM("Trade start");
+    if (warmup_.state == WarmupStats::State::NotStarted) {
+      warmup();
+      return;
+    }
     trading_ = true;
   }
 
@@ -119,7 +124,7 @@ private:
     using namespace utils;
     while (!ctx_.stopToken.stop_requested()) {
       if (!trading_) {
-        std::this_thread::yield();
+        speedBump();
         continue;
       }
 
@@ -221,6 +226,7 @@ private:
     timer_.expires_after(Seconds(1));
     timer_.async_wait([this](BoostErrorCode code) {
       if (code || ctx_.stopToken.stop_requested()) {
+        LOG_INFO_SYSTEM("Engine timer stop");
         return;
       }
       static size_t lastCounter = 0;
@@ -239,6 +245,32 @@ private:
     });
   }
 
+  void warmup() {
+    using namespace utils;
+    LOG_INFO_SYSTEM("Performing warmup");
+    warmup_.state = WarmupStats::State::InProgress;
+
+    const size_t warmupCounter = ctx_.config.data.get<size_t>("rates.warmup");
+    for (uint32_t i = 0; i < warmupCounter; ++i) {
+      Order order{i, Ticker{'A', 'B', 'C', 'D'}, 42, 42, OrderAction::Dummy};
+      warmup_.startTimestamps[i] = getCycles();
+      ctx_.bus.marketBus.post(order);
+      speedBump();
+    }
+  }
+
+  void postWarmup(CRef<OrderStatus> s) {
+    using namespace utils;
+
+    warmup_.count++;
+    warmup_.endTimestamps[s.orderId] = getCycles();
+
+    if (warmup_.count == warmup_.countTotal) {
+      warmup_.finalize();
+      ctx_.bus.subscribe(CRefHandler<OrderStatus>::bind<SelfT, &SelfT::post>(this));
+    }
+  }
+
 private:
   Context &ctx_;
 
@@ -252,6 +284,7 @@ private:
   AtomicBool trading_{false};
 
   SteadyTimer timer_;
+  WarmupStats warmup_;
 
   std::jthread worker_;
 };

@@ -19,8 +19,6 @@ namespace hft::server {
 
 /**
  * @brief Maps strings to a server command and postst it to a consumer
- * For now incoming from kafka messages are simple strings so there is no need
- * of a full blown serializer.
  */
 class CommandParser {
 public:

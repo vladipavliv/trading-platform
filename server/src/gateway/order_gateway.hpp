@@ -108,7 +108,7 @@ private:
     }
     switch (o.action) {
     case OrderAction::Dummy:
-      LOG_DEBUG("Dummy order received");
+      ctx_.bus.post(ServerOrderStatus{so.clientId, {o.id, 0, 0, 0, OrderState::Rejected}});
       break;
     case OrderAction::Cancel:
       cancelOrder(so);

@@ -61,8 +61,6 @@ using Framer = FixedSizeFramer<DomainSerializer>;
 } // namespace serialization
 
 namespace adapters {
-template <typename BusType>
-class DummyKafkaAdapter;
 class PostgresAdapter;
 class JsonAdapter;
 } // namespace adapters
@@ -78,8 +76,6 @@ class BoostIpcClient;
 class NetworkConnectionManager;
 class TrustedConnectionManager;
 
-template <typename BusT>
-using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 using ClientStreamBus = StreamBus<LFQ_CAPACITY>;
 
 #ifdef COMM_SHM

@@ -37,24 +37,6 @@ if [[ " ${args[@]} " =~ " it " ]]; then
     exit 0
 fi
 
-if [[ " ${args[@]} " =~ " k " ]]; then
-    if ! pgrep -f 'kafka.Kafka' > /dev/null; then
-        echo "Starting Kafka"
-        KAFKA_HOME="$HOME/src/kafka_2.13-4.0.0"
-        KAFKA_LOG="$HOME/kafka.log"
-        if [[ -x "$KAFKA_HOME/bin/kafka-server-start.sh" ]]; then
-            nohup "$KAFKA_HOME/bin/kafka-server-start.sh" \
-                "$KAFKA_HOME/config/server.properties" > "$KAFKA_LOG" 2>&1 &
-            until nc -z localhost 9092; do echo -n "."; sleep 1; done
-            echo "Kafka started"
-        else
-            echo "Kafka script not found"; exit 1
-        fi
-    else
-        echo "Kafka is already running."
-    fi
-fi
-
 if [[ " ${args[@]} " =~ " s " ]]; then
     cd build/server
     rm -f server_log*.txt

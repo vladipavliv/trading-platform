@@ -42,8 +42,6 @@ class SbeDomainSerializer;
 } // namespace serialization
 
 namespace adapters {
-template <typename BusType>
-class DummyKafkaAdapter;
 class PostgresAdapter;
 } // namespace adapters
 
