@@ -17,7 +17,7 @@ constexpr size_t LFQ_CAPACITY = 1 << 14;
 constexpr size_t CACHE_LINE_SIZE = 64;
 constexpr size_t LOG_FILE_SIZE = 100 * 1024 * 1024;
 constexpr size_t MAX_CONNECTIONS = 10;
-constexpr size_t PRICE_FLUCTUATION_RATE = 5;
+constexpr size_t PRICE_FLUCTUATION_RATE = 10;
 
 #ifdef CICD
 static constexpr uint32_t MAX_SYSTEM_ORDERS = 1 << 17;

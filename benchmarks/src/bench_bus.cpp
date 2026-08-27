@@ -31,7 +31,7 @@ inline ServerConfig cfg{"bench_server_config.ini"};
 static void DISABLED_BM_LfqRunnerThroughput(benchmark::State &state) {
   using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
-  GenOrderData orData{ORDER_COUNT};
+  GenOrderData orData{cfg.data};
 
   pinThreadToCore(getCore(cfg.data, 0));
 
@@ -66,7 +66,7 @@ BENCHMARK(DISABLED_BM_LfqRunnerThroughput);
 static void DISABLED_BM_LfqRunnerTailSpy(benchmark::State &state) {
   using Runner = LfqRunner<InternalOrderEvent, PostTracker, SystemBus>;
 
-  GenOrderData orData{ORDER_COUNT};
+  GenOrderData orData{cfg.data};
   pinThreadToCore(getCore(cfg.data, 0));
 
   PostTracker consumer{ORDER_COUNT - 1};

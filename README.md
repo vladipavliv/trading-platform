@@ -71,7 +71,7 @@ BM_CoordinatorFix/Latency/1           128 ns          128 ns      5505496 1 work
 BM_CoordinatorFix/Latency/2           126 ns          126 ns      5570699 2 worker(s)
 BM_CoordinatorFix/Latency/3           125 ns          125 ns      5417808 3 worker(s)
 BM_CoordinatorFix/Latency/4           122 ns          122 ns      5719689 4 worker(s)
-BM_OrderBookFix/AddOrder             17.6 ns         17.6 ns     39141376
+BM_OrderBookFix/Latency              22.8 ns         22.7 ns     31356997 acc=8.27k cancl=0 full=5.332k part=803 rej=0 total=14.405k
 ```
 
 ### End-to-End Round-Trip Tests
