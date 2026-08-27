@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "bench_server.hpp"
+#include "bench_coordinator.hpp"
 
 int main(int argc, char **argv) {
   ::benchmark::Initialize(&argc, argv);

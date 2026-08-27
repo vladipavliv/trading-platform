@@ -10,7 +10,7 @@ The goal was to build an end-to-end trading stack - from lock-free matching core
 - **Huge pages & cache-line alignment** - all hot-path arrays live in 2MB pages
 - **CPU pinning & real-time priorities** - worker threads are pinned to dedicated cores
 
-## Core Performance
+### Core Performance
 - **Order matching**: ~18ns per order (bitmap + huge pages)
 - **IPC round-trip (SHM)**: 360ns avg / <1μs @ 99th percentile
 - **IPC throughput**: 7.37M messages/second
@@ -42,6 +42,11 @@ The goal was to build an end-to-end trading stack - from lock-free matching core
 
 ## Performance
 
+### Test Environment 
+OS: Linux 7.0.0-30-generic  
+CPU: AMD Ryzen 7 9800X3D 8-Core Processor (16 threads)  
+RAM: No Module Installed None @ 5200 MT/s  
+
 ### Micro-benchmarks (Google Benchmark)
 Benchmarks:
 ```bash
@@ -72,11 +77,11 @@ BM_OrderBookFix/AddOrder             17.6 ns         17.6 ns     39141376
 ### End-to-End Round-Trip Tests
 Test conditions: 16M open orders limit, 8K price levels, 100 tickers.
 
-Shared Memory (colocated IPC):
+**Shared Memory (colocated IPC):**
 ```bash
 21:15:29.585650 [I] Rps: 7,371,150 Rtt: [<1µs|>1µs] 99.18% avg:341ns | 0.82% avg:7µs | Max:32µs
 ```
-Boost.Asio TCP (loopback):
+**Boost.Asio TCP (loopback):**
 ```bash
 04:35:06.070989 [I] Rps: 441,436 Rtt: [<10µs|<100µs|>100µs] 95.95% avg:7µs | 4.05% avg:10µs | 0% | Max:44µs
 ```

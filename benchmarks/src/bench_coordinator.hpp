@@ -23,10 +23,10 @@
 
 namespace hft::benchmarks {
 
-class BM_ServerFix : public benchmark::Fixture {
+class BM_CoordinatorFix : public benchmark::Fixture {
 public:
-  BM_ServerFix();
-  ~BM_ServerFix();
+  BM_CoordinatorFix();
+  ~BM_CoordinatorFix();
 
   server::ServerConfig cfg;
   server::ServerBus bus;
@@ -34,10 +34,8 @@ public:
 
   server::Context ctx;
 
-  size_t tickerCount{10};
   size_t workerCount{1};
 
-  tests::GenTickerData tickers;
   tests::GenOrderData orders;
   tests::GenMarketData marketData;
 

@@ -19,7 +19,7 @@ grant_perms() {
 if [[ " ${args[@]} " =~ " b " ]]; then
     cd build/benchmarks
     grant_perms "./run_benchmarks"
-    ./run_benchmarks --benchmark_color=yes --benchmark_filter=BM_GenericQueue
+    ./run_benchmarks --benchmark_color=yes --benchmark_filter=
     exit 0
 fi
 

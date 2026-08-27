@@ -3,7 +3,7 @@
  * @date 2025-08-02
  */
 
-#include "bench_server.hpp"
+#include "bench_coordinator.hpp"
 #include "config/config.hpp"
 #include "config/server_config.hpp"
 #include "internal_error.hpp"
@@ -19,26 +19,22 @@ using namespace server;
 using namespace tests;
 using namespace utils;
 
-BM_ServerFix::BM_ServerFix()
-    : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()},
-      orders{tickers}, marketData{tickers} {
+BM_CoordinatorFix::BM_CoordinatorFix()
+    : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()} {
   LOG_INIT(cfg.data);
 
-  tickerCount = cfg.data.get<size_t>("bench.ticker_count");
-
-  tickers.gen(tickerCount);
   orders.gen(MAX_BOOK_ORDERS);
   marketData.gen(workerCount);
 
   startBus();
 }
 
-BM_ServerFix::~BM_ServerFix() {
+BM_CoordinatorFix::~BM_CoordinatorFix() {
   stopSrc.request_stop();
   bus.stop();
 }
 
-void BM_ServerFix::SetUp(const ::benchmark::State &state) {
+void BM_CoordinatorFix::SetUp(const ::benchmark::State &state) {
   stopSrc = std::stop_source();
   ctx.stopToken = stopSrc.get_token();
 
@@ -57,7 +53,7 @@ void BM_ServerFix::SetUp(const ::benchmark::State &state) {
   setupCoordinator();
 }
 
-void BM_ServerFix::TearDown(const ::benchmark::State &state) {
+void BM_CoordinatorFix::TearDown(const ::benchmark::State &state) {
   stopSrc.request_stop();
   if (coordinator) {
     coordinator->stop();
@@ -65,16 +61,16 @@ void BM_ServerFix::TearDown(const ::benchmark::State &state) {
   }
 }
 
-void BM_ServerFix::startBus() {
+void BM_CoordinatorFix::startBus() {
   bus.systemBus.subscribe(
-      CRefHandler<ComponentReady>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+      CRefHandler<ComponentReady>::bind<BM_CoordinatorFix, &BM_CoordinatorFix::post>(this));
   systemThread = std::jthread([this]() { bus.run(); });
 }
 
-void BM_ServerFix::setupCoordinator() {
+void BM_CoordinatorFix::setupCoordinator() {
   ThreadId id = 0;
   for (auto &tkrData : marketData.marketData) {
-    tkrData.second.workerId = id;
+    tkrData.workerId = id;
     if (++id == workerCount) {
       id = 0;
     }
@@ -86,12 +82,12 @@ void BM_ServerFix::setupCoordinator() {
   flag.wait(false);
 }
 
-void BM_ServerFix::post(const ComponentReady &ev) {
+void BM_CoordinatorFix::post(const ComponentReady &ev) {
   flag.test_and_set();
   flag.notify_all();
 }
 
-void BM_ServerFix::post(CRef<InternalOrderStatus> s) {
+void BM_CoordinatorFix::post(CRef<InternalOrderStatus> s) {
   // In the current flow only one status event is sent per order
   // if order triggers fulfills with resting orders, single partial/full event is sent
   // If order rests - accepted state event is sent
@@ -105,11 +101,12 @@ void BM_ServerFix::post(CRef<InternalOrderStatus> s) {
   }
 }
 
-BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_CoordinatorFix, Throughput)(benchmark::State &state) {
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
   const uint64_t ordersCount = orders.orders.size();
 
-  bus.subscribe(CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+  bus.subscribe(
+      CRefHandler<InternalOrderStatus>::bind<BM_CoordinatorFix, &BM_CoordinatorFix::post>(this));
 
   SpinWait waiter{SPIN_RETRIES_YIELD};
   while (state.KeepRunningBatch(ordersCount)) {
@@ -149,12 +146,13 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalThroughput)(benchmark::State &state) {
   }
 }
 
-BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(BM_CoordinatorFix, Latency)(benchmark::State &state) {
   state.SetLabel(std::to_string(state.range(0)) + " worker(s)");
 
   const uint64_t ordersCount = orders.orders.size();
 
-  bus.subscribe(CRefHandler<InternalOrderStatus>::bind<BM_ServerFix, &BM_ServerFix::post>(this));
+  bus.subscribe(
+      CRefHandler<InternalOrderStatus>::bind<BM_CoordinatorFix, &BM_CoordinatorFix::post>(this));
 
   SpinWait waiter;
   auto iter = orders.orders.begin();
@@ -188,14 +186,14 @@ BENCHMARK_DEFINE_F(BM_ServerFix, InternalLatency)(benchmark::State &state) {
   benchmark::DoNotOptimize(processed);
 }
 
-BENCHMARK_REGISTER_F(BM_ServerFix, InternalThroughput)
+BENCHMARK_REGISTER_F(BM_CoordinatorFix, Throughput)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)
     ->Arg(4)
     ->Unit(benchmark::kNanosecond);
 
-BENCHMARK_REGISTER_F(BM_ServerFix, InternalLatency)
+BENCHMARK_REGISTER_F(BM_CoordinatorFix, Latency)
     ->Arg(1)
     ->Arg(2)
     ->Arg(3)
