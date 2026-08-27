@@ -20,7 +20,8 @@ using namespace tests;
 using namespace utils;
 
 BM_CoordinatorFix::BM_CoordinatorFix()
-    : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()} {
+    : cfg{"bench_server_config.ini"}, bus{cfg.data}, ctx{bus, cfg, stopSrc.get_token()},
+      orders{ctx.config.data} {
   LOG_INIT(cfg.data);
 
   orders.gen(MAX_BOOK_ORDERS);
