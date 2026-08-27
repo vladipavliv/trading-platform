@@ -132,9 +132,9 @@ static void BM_GenericQueue(benchmark::State &state) {
   benchmark::DoNotOptimize(produced);
 }
 
-BENCHMARK_TEMPLATE(BM_GenericQueue, SequencedSPSC<N>);
-BENCHMARK_TEMPLATE(BM_GenericQueue, VyukovMPMC<T, N>);
-BENCHMARK_TEMPLATE(BM_GenericQueue, TurboSPSC<N>);
-BENCHMARK_TEMPLATE(BM_GenericQueue, boost::lockfree::queue<T>);
+// BENCHMARK_TEMPLATE(BM_GenericQueue, SequencedSPSC<N>);
+// BENCHMARK_TEMPLATE(BM_GenericQueue, VyukovMPMC<T, N>);
+// BENCHMARK_TEMPLATE(BM_GenericQueue, TurboSPSC<N>);
+// BENCHMARK_TEMPLATE(BM_GenericQueue, boost::lockfree::queue<T>);
 
 } // namespace hft::benchmarks

@@ -12,6 +12,7 @@
 #include "gateway/internal_order.hpp"
 #include "primitive_types.hpp"
 #include "ticker.hpp"
+#include "ticker/ticker_map.hpp"
 #include "utils/rng.hpp"
 #include "utils/time_utils.hpp"
 
@@ -19,8 +20,6 @@ namespace hft::tests {
 
 using namespace server;
 using namespace utils;
-
-using TestMarketData = boost::unordered_flat_map<Ticker, TickerData, TickerHash>;
 
 inline auto genId() -> uint32_t {
   static uint64_t counter{0};
@@ -54,21 +53,8 @@ inline InternalOrderEvent genInternalOrder() {
       {SystemOrderId{o.id}, genBookOId(), o.quantity, o.price}, nullptr, o.ticker, o.action};
 }
 
-struct GenTickerData {
-  explicit GenTickerData(size_t count = 0) { gen(count); }
-
-  void gen(size_t count) {
-    tickers.clear();
-    tickers.reserve(count);
-    for (size_t i = 0; i < count; ++i) {
-      tickers.emplace_back(genTicker());
-    }
-  }
-  Vector<Ticker> tickers;
-};
-
 struct GenOrderData {
-  explicit GenOrderData(GenTickerData &tickersData, size_t orderCount = 0) : tickers{tickersData} {
+  explicit GenOrderData(size_t orderCount = 0) {
     if (orderCount != 0) {
       gen(orderCount);
     }
@@ -78,36 +64,31 @@ struct GenOrderData {
     orders.clear();
     orders.reserve(orderCount);
 
-    auto dataIt = tickers.tickers.begin();
+    auto tickerIdx = 0;
     for (size_t i = 0; i < orderCount; ++i) {
-      if (dataIt == tickers.tickers.end()) {
-        dataIt = tickers.tickers.begin();
+      if (tickerIdx == TICKER_COUNT) {
+        tickerIdx = 0;
       }
-      auto o = genOrder(*dataIt++);
+      auto o = genOrder(getTicker(tickerIdx));
       InternalOrder io{SlotId<>(i), genBookOId(), o.quantity, o.price};
       orders.push_back(InternalOrderEvent{io, nullptr, o.ticker, o.action});
     }
   }
 
-  GenTickerData &tickers;
   Vector<InternalOrderEvent> orders;
 };
 
 struct GenMarketData {
-  explicit GenMarketData(GenTickerData &tickersData, size_t workerCount = 0)
-      : tickers{tickersData} {
+  explicit GenMarketData(size_t workerCount = 0) {
     if (workerCount != 0) {
       gen(workerCount);
     }
   }
 
   void gen(size_t workerCount) {
-    marketData.clear();
-    marketData.reserve(tickers.tickers.size());
-
     ThreadId workerId{0};
-    for (auto &ticker : tickers.tickers) {
-      marketData.emplace(ticker, workerId);
+    for (size_t i = 0; i < TICKER_COUNT; ++i) {
+      marketData[i].workerId = workerId;
       if (++workerId == workerCount) {
         workerId = 0;
       }
@@ -116,12 +97,11 @@ struct GenMarketData {
 
   void cleanup() {
     for (auto &td : marketData) {
-      td.second.orderBook.clear();
+      td.orderBook.clear();
     }
   }
 
-  GenTickerData &tickers;
-  TestMarketData marketData;
+  MarketData marketData;
 };
 
 } // namespace hft::tests
