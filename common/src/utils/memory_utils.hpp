@@ -33,16 +33,19 @@ constexpr size_t alignHuge(size_t size) {
 
 inline void lockMemory(void *addr, size_t size) {
   if (mlock(addr, size) != 0) {
+#ifndef CICD
     throw std::system_error(errno, std::generic_category(), "mlock failed");
+#else
+    LOG_ERROR_SYSTEM("mlock failed");
+#endif
   }
 }
 
 inline void warmMemory(void *addr, size_t size, bool write = false) {
   volatile uint64_t *p = static_cast<volatile uint64_t *>(addr);
-  size_t iterations = size / sizeof(uint64_t);
-
-  for (size_t i = 0; i < iterations; i += 8) {
-    p[i] = p[i];
+  size_t n = size / sizeof(uint64_t);
+  for (size_t i = 0; i < n; i += 8) {
+    (void)p[i];
   }
   if (write) {
     std::memset(addr, 0, size);
@@ -74,7 +77,7 @@ inline ShmRes mapFileHuge(const std::string &path, size_t size) {
   if (fd == -1) {
     throw std::system_error(errno, std::generic_category(), String("open file failed") + path);
   }
-  if (!existed && ftruncate(fd, size) == -1) {
+  if (ftruncate(fd, size) == -1) {
     close(fd);
     throw std::system_error(errno, std::generic_category(), String("ftruncate file failed") + path);
   }
@@ -114,11 +117,17 @@ inline T *allocHuge(size_t size, bool lock = true) {
     throw std::system_error(errno, std::generic_category(), "mmap failed");
   }
 
-  if (lock && mlock(ptr, size) != 0) {
-    LOG_WARN("mlock failed (likely CI limit), continuing without memory lock");
+  if (lock) {
+    if (mlock(ptr, size) != 0) {
+#ifndef CICD
+      throw std::system_error(errno, std::generic_category(), "mlock failed");
+#else
+      LOG_WARN_SYSTEM("mlock failed (likely CI limit), continuing without memory lock");
+#endif
+    }
   }
 
-  warmMemory(ptr, size, true);
+  warmMemory(ptr, size);
   return static_cast<T *>(ptr);
 }
 

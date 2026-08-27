@@ -59,8 +59,6 @@ using Framer = FixedSizeFramer<DomainSerializer>;
 } // namespace serialization
 
 namespace adapters {
-template <typename BusType>
-class DummyKafkaAdapter;
 class PostgresAdapter;
 class JsonAdapter;
 } // namespace adapters
@@ -81,9 +79,6 @@ struct InternalOrderStatus;
 
 class FlatOrderBook;
 class PriceLevelOrderBook;
-
-template <typename BusT>
-using MessageQueueAdapter = adapters::DummyKafkaAdapter<BusT>;
 
 #ifdef COMM_SHM
 using StreamTransport = ShmTransport;

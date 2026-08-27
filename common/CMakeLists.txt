@@ -22,14 +22,12 @@ target_include_directories(hft_common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gen 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types 
     ${LIBPQXX_INCLUDE_DIRS}
-    ${RDKAFKA_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/gen
 )
 
 target_link_libraries(hft_common PUBLIC 
     ${LIBPQXX_LIBRARIES}
     ${Boost_LIBRARIES}
-    ${RDKAFKAXX_LIB}
     nlohmann_json::nlohmann_json
     spdlog::spdlog 
     pthread

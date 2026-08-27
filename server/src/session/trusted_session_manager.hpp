@@ -21,7 +21,7 @@ namespace hft::server {
 
 /**
  * @brief Session manager for shared memory communciation
- * Maintains single up/downstream channels, no auth needed, no channel, transport is used directly
+ * simple and minimalistic communication with no auth
  */
 class TrustedSessionManager {
   using UpstreamChan = StreamTransport;

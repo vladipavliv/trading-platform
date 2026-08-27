@@ -58,6 +58,7 @@ public:
     std::memcpy(sloth.data, src, size);
 
     sloth.size = size;
+    std::atomic_thread_fence(std::memory_order_release);
     sloth.seq.store(writeIdx_ + 1, std::memory_order_release);
     ++writeIdx_;
     return true;
@@ -74,6 +75,7 @@ public:
     if (sloth.seq.load(std::memory_order_acquire) != readIdx_ + 1) {
       return 0;
     }
+    std::atomic_thread_fence(std::memory_order_acquire);
     if (sloth.size > maxSize) {
       LOG_ERROR("Buffer is too small, data {} buffer {}", sloth.size, maxSize);
       return false;

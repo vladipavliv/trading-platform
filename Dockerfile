@@ -10,7 +10,7 @@ ARG CXX=/usr/bin/g++-13
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config \
     g++-13 \
-    libboost-all-dev libspdlog-dev librdkafka-dev \
+    libboost-all-dev libspdlog-dev \
     libdouble-conversion-dev libiberty-dev binutils-dev \
     libgoogle-glog-dev libpq-dev libbenchmark-dev \
     flatbuffers-compiler libflatbuffers-dev \
@@ -81,7 +81,6 @@ RUN apt-get update && apt-get install -y \
     libgoogle-glog0v6 \
     libdouble-conversion3 \
     libspdlog1.12 \
-    librdkafka1 \
     libpq5 \
     openjdk-17-jre-headless \
     libevent-2.1-7 \

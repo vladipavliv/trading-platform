@@ -12,8 +12,6 @@
 #include "client/src/commands/command.hpp"
 #include "server/src/commands/command.hpp"
 
-#include "adapters/dummies/dummy_kafka_adapter.hpp"
-#include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
 

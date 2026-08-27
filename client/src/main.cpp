@@ -18,9 +18,7 @@
 #include "connection/network_connection_manager.hpp"
 #endif
 
-#include "adapters/dummies/dummy_kafka_adapter.hpp"
 #include "adapters/json/json_adapter.hpp"
-#include "adapters/kafka/kafka_adapter.hpp"
 #include "adapters/postgres/postgres_adapter.hpp"
 #include "bus/bus_hub.hpp"
 
@@ -32,6 +30,13 @@ int main(int argc, char *argv[]) {
   using namespace hft;
   using namespace client;
   using namespace boost;
+
+#ifndef CICD
+  if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {
+    perror("mlockall");
+    return 1;
+  }
+#endif
 
   std::string configPath;
 

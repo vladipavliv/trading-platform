@@ -22,7 +22,6 @@ namespace hft::monitor {
 
 /**
  * @brief Parser/Serializer for MonitorCommand as well as Server/Client commands
- * MonitorCommand for native control, Server/Client commands to send them over the kafka
  */
 class CommandParser {
 public:

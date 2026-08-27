@@ -31,22 +31,23 @@ inline void pinThreadToCore(int coreId) {
 }
 
 inline void setThreadRealTime(int priority = 99) {
-  struct sched_param param;
-  param.sched_priority = priority;
-  const int result = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+  struct sched_param param = {.sched_priority = priority};
+  int result = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
   if (result != 0) {
-    if (result == EPERM) {
-      LOG_ERROR_SYSTEM("Insufficient permissions for Real-Time priority (99)");
-      return;
-    }
-    LOG_ERROR_SYSTEM("Failed to set real-time priority: {}, error: {}", priority, result);
+#ifndef CICD
+    throw std::system_error(result, std::generic_category(),
+                            std::format("SCHED_FIFO failed, run as root or check rlimits"));
+#else
+    LOG_ERROR_SYSTEM("SCHED_FIFO failed");
+#endif
   }
 }
 
 [[nodiscard]] inline __attribute__((always_inline)) auto getCoreId() -> uint32_t {
-  unsigned aux;
-  uint64_t tsc = __rdtscp(&aux);
-  return aux & CORE_ID_MASK;
+  unsigned cpu, node;
+  if (getcpu(&cpu, &node) == 0)
+    return cpu;
+  return -1;
 }
 
 inline void join(std::jthread &th) {
