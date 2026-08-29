@@ -1,65 +1,26 @@
-## Introduction
-Ultra-low latency trading system prototype. Learning project exploring how modern exchanges work under the hood.
+# Ultra-Low Latency Trading System
 
-## Overview
-The goal was to build an end-to-end trading stack - from lock-free matching core to network IPC - while staying as close to the metal as possible. The system uses wait-free SPSC queues between threads, bitmap-based price discovery, and huge pages for all hot-path data structures.
+Ultra-low latency trading system prototype built in C++23. A learning project focused on exchange-style architecture, lock-free concurrency, shared-memory IPC, and low-latency order matching.
 
-### Architecture Highlights
-- **Wait-free inter-thread communication** - SPSC ring buffers with atomic operations only
+## Architecture
+
+- **Wait-free hot path** - bounded execution with atomic-only synchronization
 - **Per-ticker sharding** - each worker thread owns its order book
-- **Huge pages & cache-line alignment** - all hot-path arrays live in 2MB pages
+- **Bitmap price discovery** - fast best bid/ask lookup
+- **Huge pages & cache-line alignment** - optimized hot-path memory layout
 - **CPU pinning & real-time priorities** - worker threads are pinned to dedicated cores
-
-### Core Performance
-- **Order matching**: ~18ns per order (bitmap + huge pages)
-- **IPC round-trip (SHM)**: 360ns avg / <1μs @ 99th percentile
-- **IPC throughput**: 7.37M messages/second
-- **Network round-trip (Boost.Asio)**: 7μs avg / <10μs @ 95th percentile
-
-## Tech Stack
-
-### Core (hot path, zero external dependencies)
-- **C++23** - `std::jthread`, `std::format`, concepts
-- **Lock-free primitives** - custom SPSC/MPMC queues, atomic state machines
-- **Memory** - huge pages (hugetlb), cache-line alignment, pool allocators with generation IDs
-
-### IPC & Serialization
-- **Shared Memory** - primary colocated IPC (futex-based synchronization)
-- **Boost.Asio** - TCP/UDP fallback for remote clients
-- **SBE** - zero-copy, fixed-size binary encoding (production path)
-- **FlatBuffers** - schematized messages for tests and Python tooling
-
-### Infrastructure (cold path, async only)
-- **PostgreSQL** - reference data (tickers, users) loaded at startup
-- **Apache Kafka** - post-trade telemetry and audit streaming (non-blocking)
-- **Folly** - auxiliary utilities (string formatting, containers)
-- **spdlog** - structured logging with compile-time level filtering
-
-### Dev & Testing
-- **CMake** - modular build with LTO (`-flto=8`)
-- **Google Benchmark** - micro-benchmarks for matching engine components
-- **Google Test** - unit and integration tests
+- **Shared memory IPC** - primary colocated transport
+- **Boost.Asio** - TCP/UDP transport for remote clients
 
 ## Performance
 
 ### Test Environment 
-OS: Linux 7.0.0-30-generic  
-CPU: AMD Ryzen 7 9800X3D 8-Core Processor (16 threads)  
-RAM: No Module Installed None @ 5200 MT/s  
+OS: Ubuntu 24.04.3 LTS  
+CPU: AMD Ryzen 7 9800X3D 8-Core Processor  
+RAM: 64 GB @ 5200 MT/s  
 
 ### Micro-benchmarks (Google Benchmark)
-Benchmarks:
-```bash
-2026-01-17T20:39:28+01:00
-Running ./run_benchmarks
-Run on (16 X 5271 MHz CPU s)
-CPU Caches:
-  L1 Data 48 KiB (x8)
-  L1 Instruction 32 KiB (x8)
-  L2 Unified 1024 KiB (x8)
-  L3 Unified 98304 KiB (x1)
-Load Average: 2.13, 1.00, 0.54
-***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.
+```text
 ----------------------------------------------------------------------------
 Benchmark                                  Time             CPU   Iterations
 ----------------------------------------------------------------------------
