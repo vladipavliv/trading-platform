@@ -250,6 +250,7 @@ private:
     LOG_INFO_SYSTEM("Performing warmup");
     warmup_.state = WarmupStats::State::InProgress;
 
+    warmup_.start = getCycles();
     const size_t warmupCounter = ctx_.config.data.get<size_t>("rates.warmup");
     for (uint32_t i = 0; i < warmupCounter; ++i) {
       Order order{i, Ticker{'A', 'B', 'C', 'D'}, 42, 42, OrderAction::Dummy};

@@ -76,6 +76,10 @@ public:
     }
   }
 
+#if defined(BENCHMARK_BUILD) || defined(UNIT_TESTS_BUILD)
+  auto getStats() const -> const Vector<size_t> & { return ordersProcessedByWorker_; }
+#endif
+
 private:
   void startWorkers() {
     LOG_DEBUG("Coordinator::startWorkers");
@@ -93,6 +97,7 @@ private:
 
     started_.store(true);
     workers_.reserve(appCores);
+    ordersProcessedByWorker_.resize(appCores);
     if (ctx_.config.coresApp.empty()) {
       workers_.emplace_back(
           std::make_unique<Worker>(matcher_, ctx_.bus.systemBus, ctx_.stopToken, "worker zero"));
@@ -119,6 +124,7 @@ private:
     }
     ioe.data = &(data_[idx]);
     workers_[ioe.data->workerId]->post(ioe);
+    // ordersProcessedByWorker_[ioe.data->workerId]++;
   }
 
 private:
@@ -129,6 +135,7 @@ private:
   AtomicBool started_{false};
   Matcher matcher_;
   Vector<UPtr<Worker>> workers_;
+  Vector<size_t> ordersProcessedByWorker_;
 };
 
 } // namespace hft::server

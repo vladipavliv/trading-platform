@@ -9,6 +9,8 @@
 #include "config/client_config.hpp"
 #include "logging.hpp"
 #include "primitive_types.hpp"
+#include "utils/string_utils.hpp"
+#include "utils/time_utils.hpp"
 
 namespace hft::client {
 
@@ -20,6 +22,8 @@ struct WarmupStats {
   size_t count{0};
   State state{State::NotStarted};
 
+  Timestamp start;
+  Timestamp finish;
   std::vector<Timestamp> startTimestamps;
   std::vector<Timestamp> endTimestamps;
 
@@ -27,13 +31,22 @@ struct WarmupStats {
       : config{cfg}, countTotal{config.data.get<size_t>("rates.warmup")} {
     startTimestamps.resize(countTotal);
     endTimestamps.resize(countTotal);
+
+    for (int i = 0; i < countTotal; ++i) {
+      startTimestamps[i] = i;
+      endTimestamps[i] = i;
+    }
   }
 
   void finalize() {
+    using namespace utils;
+    finish = getCycles();
+
     const size_t numSections = 10;
     size_t sectionSize = (count + numSections - 1) / numSections;
+    const size_t took = (finish - start) * config.nsPerCycle;
 
-    LOG_INFO_SYSTEM("Warmup results: {} samples, {} sections", count, numSections);
+    LOG_INFO_SYSTEM("Warmup took{}, {} samples, {} sections", formatNs(took), count, numSections);
 
     for (size_t section = 0; section < numSections; ++section) {
       size_t startIdx = section * sectionSize;

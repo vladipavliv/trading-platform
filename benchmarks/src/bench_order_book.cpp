@@ -28,6 +28,7 @@ using namespace tests;
 class BM_OrderBookFix : public benchmark::Fixture {
 public:
   ServerConfig cfg;
+  const bool fullLogs{false};
 
   uint64_t acceptedCounter{0};
   uint64_t partialCounter{0};
@@ -66,6 +67,25 @@ public:
     restingCounter = 0;
     totalProcessed = 0;
     activeOrderIds.clear();
+  }
+
+  void doNotOptimize() {
+    benchmark::DoNotOptimize(acceptedCounter);
+    benchmark::DoNotOptimize(partialCounter);
+    benchmark::DoNotOptimize(fullCounter);
+    benchmark::DoNotOptimize(cancelledCounter);
+    benchmark::DoNotOptimize(rejectedCounter);
+    benchmark::DoNotOptimize(totalProcessed);
+  }
+
+  void logCounters(benchmark::State &state) {
+    state.counters["acc"] = acceptedCounter;
+    state.counters["part"] = partialCounter;
+    state.counters["full"] = fullCounter;
+    state.counters["cancl"] = cancelledCounter;
+    state.counters["rej"] = rejectedCounter;
+    state.counters["rest"] = restingCounter;
+    state.counters["total"] = totalProcessed;
   }
 };
 
@@ -126,33 +146,12 @@ BENCHMARK_F(BM_OrderBookFix, Latency)(benchmark::State &state) {
     book.add(*iter++, *this);
     benchmark::ClobberMemory();
   }
-
-  state.counters["acc"] = acceptedCounter;
-  state.counters["part"] = partialCounter;
-  state.counters["full"] = fullCounter;
-  state.counters["cancl"] = cancelledCounter;
-  state.counters["rej"] = rejectedCounter;
-  state.counters["total"] = totalProcessed;
-
-  benchmark::DoNotOptimize(acceptedCounter);
-  benchmark::DoNotOptimize(partialCounter);
-  benchmark::DoNotOptimize(fullCounter);
-  benchmark::DoNotOptimize(cancelledCounter);
-  benchmark::DoNotOptimize(rejectedCounter);
-  benchmark::DoNotOptimize(totalProcessed);
+  doNotOptimize();
 }
 
-/*
 BENCHMARK_F(BM_OrderBookFix, Throughput)(benchmark::State &state) {
   OrderBook book;
   const uint64_t ordersCount = orders.size();
-
-  uint64_t totalAccepted = 0;
-  uint64_t totalPartial = 0;
-  uint64_t totalFull = 0;
-  uint64_t totalCancelled = 0;
-  uint64_t totalRejected = 0;
-  uint64_t totalAll = 0;
 
   while (state.KeepRunningBatch(ordersCount)) {
     resetCounters();
@@ -163,31 +162,11 @@ BENCHMARK_F(BM_OrderBookFix, Throughput)(benchmark::State &state) {
     }
     benchmark::ClobberMemory();
 
-    totalAccepted += acceptedCounter;
-    totalPartial += partialCounter;
-    totalFull += fullCounter;
-    totalCancelled += cancelledCounter;
-    totalRejected += rejectedCounter;
-    totalAll += totalProcessed;
-
     state.PauseTiming();
     book.clear();
     state.ResumeTiming();
   }
-
-  state.counters["acc"] = totalAccepted;
-  state.counters["part"] = totalPartial;
-  state.counters["full"] = totalFull;
-  state.counters["cancl"] = totalCancelled;
-  state.counters["rej"] = totalRejected;
-  state.counters["total"] = totalAll;
-
-  benchmark::DoNotOptimize(acceptedCounter);
-  benchmark::DoNotOptimize(partialCounter);
-  benchmark::DoNotOptimize(fullCounter);
-  benchmark::DoNotOptimize(cancelledCounter);
-  benchmark::DoNotOptimize(rejectedCounter);
-  benchmark::DoNotOptimize(totalProcessed);
+  doNotOptimize();
 }
 
 BENCHMARK_F(BM_OrderBookFix, LatencyCancel)(benchmark::State &state) {
@@ -230,21 +209,10 @@ BENCHMARK_F(BM_OrderBookFix, LatencyCancel)(benchmark::State &state) {
     }
   }
 
-  state.counters["acc"] = acceptedCounter;
-  state.counters["part"] = partialCounter;
-  state.counters["full"] = fullCounter;
-  state.counters["cancl"] = cancelledCounter;
-  state.counters["rej"] = rejectedCounter;
-  state.counters["rest"] = restingCounter;
-  state.counters["total"] = totalProcessed;
-
-  benchmark::DoNotOptimize(acceptedCounter);
-  benchmark::DoNotOptimize(partialCounter);
-  benchmark::DoNotOptimize(fullCounter);
-  benchmark::DoNotOptimize(cancelledCounter);
-  benchmark::DoNotOptimize(rejectedCounter);
-  benchmark::DoNotOptimize(restingCounter);
-  benchmark::DoNotOptimize(totalProcessed);
+  if (fullLogs) {
+    logCounters(state);
+  }
+  doNotOptimize();
 }
 
 BENCHMARK_F(BM_OrderBookFix, ThroughputCancel)(benchmark::State &state) {
@@ -295,22 +263,11 @@ BENCHMARK_F(BM_OrderBookFix, ThroughputCancel)(benchmark::State &state) {
     state.ResumeTiming();
   }
 
-  state.counters["acc"] = totalAccepted;
-  state.counters["part"] = totalPartial;
-  state.counters["full"] = totalFull;
-  state.counters["cancl"] = totalCancelled;
-  state.counters["rej"] = totalRejected;
-  state.counters["rest"] = totalResting;
-  state.counters["total"] = totalAll;
+  if (fullLogs) {
+    logCounters(state);
+  }
 
-  benchmark::DoNotOptimize(acceptedCounter);
-  benchmark::DoNotOptimize(partialCounter);
-  benchmark::DoNotOptimize(fullCounter);
-  benchmark::DoNotOptimize(cancelledCounter);
-  benchmark::DoNotOptimize(rejectedCounter);
-  benchmark::DoNotOptimize(restingCounter);
-  benchmark::DoNotOptimize(totalProcessed);
+  doNotOptimize();
 }
-*/
 
 } // namespace hft::benchmarks

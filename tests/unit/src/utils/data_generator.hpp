@@ -81,12 +81,13 @@ struct GenOrderData {
 
     auto tickerIdx = 0;
     for (size_t i = 0; i < orderCount; ++i) {
-      if (tickerIdx == TICKER_COUNT) {
-        tickerIdx = 0;
-      }
       auto o = genOrder(getTicker(tickerIdx), prices[i]);
       InternalOrder io{SlotId<>(i), genBookOId(), o.quantity, o.price};
       orders.push_back(InternalOrderEvent{io, nullptr, o.ticker, o.action});
+
+      if (++tickerIdx == TICKER_COUNT) {
+        tickerIdx = 0;
+      }
     }
   }
 

@@ -2,12 +2,13 @@
 
 message(STATUS "--- [TICKER] Configuring generator ---")
 
-# Пути
-set(DATA_JSON_SOURCE ${CMAKE_SOURCE_DIR}/data/data.json)  # Исходный/генерируемый файл
+set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
+set(DATA_JSON_SOURCE ${GEN_DIR}/data.json)
 set(TICKER_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/generate_ticker_map.py)
 set(DATA_GENERATOR_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/generate_tickers_json.py)
+set(GEN_DIR_TICKER ${GEN_DIR}/ticker)
+file(MAKE_DIRECTORY ${GEN_DIR_TICKER})
 
-# --- Генерируем data.json в исходниках (если его нет) ---
 set(TICKER_COUNT 10 CACHE STRING "Number of tickers to generate")
 
 add_custom_command(
@@ -19,11 +20,6 @@ add_custom_command(
     COMMENT "Generating data.json with ${TICKER_COUNT} tickers"
     VERBATIM
 )
-
-# --- Генерация ticker_map.hpp (зависит от data.json) ---
-set(GEN_DIR ${CMAKE_BINARY_DIR}/gen)
-set(GEN_DIR_TICKER ${GEN_DIR}/ticker)
-file(MAKE_DIRECTORY ${GEN_DIR_TICKER})
 
 set(TICKER_GENERATED_HPP ${GEN_DIR_TICKER}/ticker_map.hpp)
 set(TICKER_GENERATED_FILES ${TICKER_GENERATED_HPP})
@@ -38,7 +34,6 @@ add_custom_command(
     VERBATIM
 )
 
-# --- Копируем data.json в билд-директорию для рантайма ---
 set(RUNTIME_DATA_JSON ${CMAKE_BINARY_DIR}/data.json)
 
 add_custom_command(
@@ -51,12 +46,10 @@ add_custom_command(
     VERBATIM
 )
 
-# --- Общая цель ---
 add_custom_target(ticker_code_gen ALL 
     DEPENDS ${TICKER_GENERATED_FILES} ${RUNTIME_DATA_JSON}
 )
 
-# Экспортируем пути
 set(TICKER_GENERATED_HPP ${TICKER_GENERATED_HPP} PARENT_SCOPE)
 set(TICKER_GENERATED_FILES ${TICKER_GENERATED_FILES} PARENT_SCOPE)
 set(TICKER_GEN_DIR ${GEN_DIR_TICKER} PARENT_SCOPE)
