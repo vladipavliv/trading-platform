@@ -21,18 +21,21 @@ RAM: 64 GB @ 5200 MT/s
 
 ### Micro-benchmarks (Google Benchmark)
 ```text
-----------------------------------------------------------------------------
-Benchmark                                  Time             CPU   Iterations
-----------------------------------------------------------------------------
-BM_CoordinatorFix/Throughput/1       29.1 ns         29.1 ns     24117248 1 worker(s)
-BM_CoordinatorFix/Throughput/2       17.0 ns         17.0 ns     41025536 2 worker(s)
-BM_CoordinatorFix/Throughput/3       14.2 ns         14.2 ns     49283072 3 worker(s)
-BM_CoordinatorFix/Throughput/4       13.7 ns         13.7 ns     51380224 4 worker(s)
-BM_CoordinatorFix/Latency/1           128 ns          128 ns      5505496 1 worker(s)
-BM_CoordinatorFix/Latency/2           126 ns          126 ns      5570699 2 worker(s)
-BM_CoordinatorFix/Latency/3           125 ns          125 ns      5417808 3 worker(s)
-BM_CoordinatorFix/Latency/4           122 ns          122 ns      5719689 4 worker(s)
-BM_OrderBookFix/Latency              22.8 ns         22.7 ns     31356997 acc=8.27k cancl=0 full=5.332k part=803 rej=0 total=14.405k
+---------------------------------------------------------------------------
+Benchmark                                 Time             CPU   Iterations
+---------------------------------------------------------------------------
+BM_OrderBookFix/Latency                23.3 ns         23.2 ns     29899149
+BM_OrderBookFix/Throughput             20.6 ns         20.6 ns     33882112
+BM_OrderBookFix/LatencyCancel          29.7 ns         29.7 ns     23704671
+BM_OrderBookFix/ThroughputCancel       25.2 ns         25.2 ns     27869184
+BM_CoordinatorFix/Throughput/1         40.6 ns         40.5 ns     17301504 1 worker(s)
+BM_CoordinatorFix/Throughput/2         22.7 ns         22.7 ns     30801920 2 worker(s)
+BM_CoordinatorFix/Throughput/3         19.9 ns         19.9 ns     35651584 3 worker(s)
+BM_CoordinatorFix/Throughput/4         19.2 ns         19.2 ns     36569088 4 worker(s)
+BM_CoordinatorFix/Latency/1             143 ns          143 ns      4621049 1 worker(s)
+BM_CoordinatorFix/Latency/2             147 ns          147 ns      4824078 2 worker(s)
+BM_CoordinatorFix/Latency/3             133 ns          133 ns      5261641 3 worker(s)
+BM_CoordinatorFix/Latency/4             136 ns          136 ns      5109264 4 worker(s)
 ```
 
 ### End-to-End Round-Trip Tests
