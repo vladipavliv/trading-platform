@@ -93,8 +93,8 @@ public:
     if (stopToken_.stop_requested()) {
       return;
     }
-    auto msgPtr = reinterpret_cast<const uint8_t *>(&message);
-    auto msgSize = sizeof(MessageT);
+    const auto *msgPtr = reinterpret_cast<const uint8_t *>(&message);
+    const auto msgSize = sizeof(MessageT);
 
     SpinWait waiter;
     while (!queue_.write(msgPtr, msgSize)) {

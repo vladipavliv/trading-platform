@@ -17,6 +17,15 @@
 
 namespace hft {
 
+/**
+ * @brief Byte stream SPSC queue
+ * @details Cached head/tail indices keep the hot path off the shared atomics
+ * common case is a relaxed load, a memcpy, and one release store — the atomic
+ * exchange only happens when the cached view goes stale (empty/full boundary)
+ * Batch write/read amortize the boundary check across up to MAX_BATCH_SIZE
+ * elements, and a single flat byte buffer means no per-message overhead or
+ * allocation.
+ */
 template <size_t Capacity = LFQ_CAPACITY>
 class TurboSPSC {
   static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two");
@@ -33,123 +42,39 @@ public:
   template <typename T>
   [[nodiscard]] bool write(const T &msg) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for memcpy");
-    constexpr size_t size = sizeof(T);
-
-    const size_t currentTail = tail_.load(std::memory_order_relaxed);
-
-    if (currentTail + size > headCache_ + BUFFER_SIZE) {
-      headCache_ = head_.load(std::memory_order_acquire);
-      if (currentTail + size > headCache_ + BUFFER_SIZE) {
-        return false;
-      }
-    }
-
-    const size_t writePos = currentTail & MASK;
-    const auto *src = reinterpret_cast<const uint8_t *>(&msg);
-
-    if (writePos + size <= BUFFER_SIZE) {
-      std::memcpy(buffer_ + writePos, src, size);
-    } else {
-      const size_t first = BUFFER_SIZE - writePos;
-      std::memcpy(buffer_ + writePos, src, first);
-      std::memcpy(buffer_, src + first, size - first);
-    }
-
-    tail_.store(currentTail + size, std::memory_order_release);
-    return true;
+    return writeImpl(reinterpret_cast<const uint8_t *>(&msg), sizeof(T));
   }
 
   template <typename T>
   [[nodiscard]] bool read(T &msg) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for memcpy");
-    constexpr size_t size = sizeof(T);
-
-    if (readCursor_ + size > tailCache_) {
-      head_.store(readCursor_, std::memory_order_release);
-      tailCache_ = tail_.load(std::memory_order_acquire);
-      if (readCursor_ + size > tailCache_) {
-        return false;
-      }
-    }
-
-    const size_t readPos = readCursor_ & MASK;
-    auto *dst = reinterpret_cast<uint8_t *>(&msg);
-
-    if (readPos + size <= BUFFER_SIZE) {
-      std::memcpy(dst, buffer_ + readPos, size);
-    } else {
-      const size_t first = BUFFER_SIZE - readPos;
-      std::memcpy(dst, buffer_ + readPos, first);
-      std::memcpy(dst + first, buffer_, size - first);
-    }
-
-    readCursor_ += size;
-    return true;
+    return readImpl(reinterpret_cast<uint8_t *>(&msg), sizeof(T));
   }
 
   template <typename T>
   [[nodiscard]] size_t writeBatch(const T *msgs, size_t count) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for memcpy");
-    if (count == 0) {
-      return 0;
-    }
-    if (count > MAX_BATCH_SIZE) {
-      count = MAX_BATCH_SIZE;
-    }
-
-    constexpr size_t size = sizeof(T);
-    const size_t currentTail = tail_.load(std::memory_order_relaxed);
-
-    size_t available = headCache_ + BUFFER_SIZE - currentTail;
-    if (available < size) {
-      headCache_ = head_.load(std::memory_order_acquire);
-      available = headCache_ + BUFFER_SIZE - currentTail;
-      if (available < size) {
-        return 0;
-      }
-    }
-
-    size_t n = available / size;
-    if (n > count) {
-      n = count;
-    }
-
-    copyIntoRing(currentTail & MASK, msgs, n);
-
-    tail_.store(currentTail + n * size, std::memory_order_release);
-    return n;
+    return writeBatchImpl(reinterpret_cast<const uint8_t *>(msgs), count, sizeof(T));
   }
 
   template <typename T>
   [[nodiscard]] size_t readBatch(T *msgs, size_t count) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for memcpy");
-    if (count == 0) {
-      return 0;
-    }
-    if (count > MAX_BATCH_SIZE) {
-      count = MAX_BATCH_SIZE;
-    }
+    return readBatchImpl(reinterpret_cast<uint8_t *>(msgs), count, sizeof(T));
+  }
 
-    constexpr size_t size = sizeof(T);
+  [[nodiscard]] bool write(const uint8_t *data, size_t size) noexcept {
+    return writeImpl(data, size);
+  }
 
-    if (readCursor_ + size > tailCache_) {
-      head_.store(readCursor_, std::memory_order_release);
-      tailCache_ = tail_.load(std::memory_order_acquire);
-      if (readCursor_ + size > tailCache_) {
-        return 0;
-      }
-    }
+  [[nodiscard]] bool read(uint8_t *data, size_t size) noexcept { return readImpl(data, size); }
 
-    size_t available = tailCache_ - readCursor_;
-    size_t n = available / size;
-    if (n > count) {
-      n = count;
-    }
+  [[nodiscard]] size_t writeBatch(const uint8_t *data, size_t count, size_t elemSize) noexcept {
+    return writeBatchImpl(data, count, elemSize);
+  }
 
-    copyFromRing(readCursor_ & MASK, msgs, n);
-
-    readCursor_ += n * size;
-    return n;
+  [[nodiscard]] size_t readBatch(uint8_t *data, size_t count, size_t elemSize) noexcept {
+    return readBatchImpl(data, count, elemSize);
   }
 
   [[nodiscard]] bool empty() const noexcept {
@@ -165,29 +90,114 @@ public:
   static constexpr size_t capacity() noexcept { return BUFFER_SIZE; }
 
 private:
-  template <typename T>
-  void copyIntoRing(size_t writePos, const T *src, size_t n) noexcept {
-    const size_t bytes = n * sizeof(T);
+  [[nodiscard]] bool writeImpl(const uint8_t *src, size_t size) noexcept {
+    const size_t currentTail = tail_.load(std::memory_order_relaxed);
+
+    if (currentTail + size > headCache_ + BUFFER_SIZE) {
+      headCache_ = head_.load(std::memory_order_acquire);
+      if (currentTail + size > headCache_ + BUFFER_SIZE) {
+        return false;
+      }
+    }
+
+    const size_t writePos = currentTail & MASK;
+    copyIntoRingBytes(writePos, src, size);
+
+    tail_.store(currentTail + size, std::memory_order_release);
+    return true;
+  }
+
+  [[nodiscard]] bool readImpl(uint8_t *dst, size_t size) noexcept {
+    if (readCursor_ + size > tailCache_) {
+      head_.store(readCursor_, std::memory_order_release);
+      tailCache_ = tail_.load(std::memory_order_acquire);
+      if (readCursor_ + size > tailCache_) {
+        return false;
+      }
+    }
+
+    const size_t readPos = readCursor_ & MASK;
+    copyFromRingBytes(readPos, dst, size);
+
+    readCursor_ += size;
+    return true;
+  }
+
+  [[nodiscard]] size_t writeBatchImpl(const uint8_t *src, size_t count, size_t elemSize) noexcept {
+    if (count == 0 || elemSize == 0) {
+      return 0;
+    }
+    if (count > MAX_BATCH_SIZE) {
+      count = MAX_BATCH_SIZE;
+    }
+
+    const size_t currentTail = tail_.load(std::memory_order_relaxed);
+
+    size_t available = headCache_ + BUFFER_SIZE - currentTail;
+    if (available < elemSize) {
+      headCache_ = head_.load(std::memory_order_acquire);
+      available = headCache_ + BUFFER_SIZE - currentTail;
+      if (available < elemSize) {
+        return 0;
+      }
+    }
+
+    size_t n = available / elemSize;
+    if (n > count) {
+      n = count;
+    }
+
+    copyIntoRingBytes(currentTail & MASK, src, n * elemSize);
+
+    tail_.store(currentTail + n * elemSize, std::memory_order_release);
+    return n;
+  }
+
+  [[nodiscard]] size_t readBatchImpl(uint8_t *dst, size_t count, size_t elemSize) noexcept {
+    if (count == 0 || elemSize == 0) {
+      return 0;
+    }
+    if (count > MAX_BATCH_SIZE) {
+      count = MAX_BATCH_SIZE;
+    }
+
+    if (readCursor_ + elemSize > tailCache_) {
+      head_.store(readCursor_, std::memory_order_release);
+      tailCache_ = tail_.load(std::memory_order_acquire);
+      if (readCursor_ + elemSize > tailCache_) {
+        return 0;
+      }
+    }
+
+    const size_t available = tailCache_ - readCursor_;
+    size_t n = available / elemSize;
+    if (n > count) {
+      n = count;
+    }
+
+    copyFromRingBytes(readCursor_ & MASK, dst, n * elemSize);
+
+    readCursor_ += n * elemSize;
+    return n;
+  }
+
+  void copyIntoRingBytes(size_t writePos, const uint8_t *src, size_t bytes) noexcept {
     if (writePos + bytes <= BUFFER_SIZE) {
       std::memcpy(buffer_ + writePos, src, bytes);
     } else {
-      const size_t firstBytes = BUFFER_SIZE - writePos;
-      const size_t firstCount = firstBytes / sizeof(T);
-      std::memcpy(buffer_ + writePos, src, firstCount * sizeof(T));
-      std::memcpy(buffer_, src + firstCount, (n - firstCount) * sizeof(T));
+      const size_t first = BUFFER_SIZE - writePos;
+      std::memcpy(buffer_ + writePos, src, first);
+      std::memcpy(buffer_, src + first, bytes - first);
     }
   }
 
-  template <typename T>
-  void copyFromRing(size_t readPos, T *dst, size_t n) noexcept {
-    const size_t bytes = n * sizeof(T);
+  void copyFromRingBytes(size_t readPos, uint8_t *dst, size_t bytes) noexcept {
     if (readPos + bytes <= BUFFER_SIZE) {
       std::memcpy(dst, buffer_ + readPos, bytes);
     } else {
-      const size_t firstBytes = BUFFER_SIZE - readPos;
-      const size_t firstCount = firstBytes / sizeof(T);
-      std::memcpy(dst, buffer_ + readPos, firstCount * sizeof(T));
-      std::memcpy(dst + firstCount, buffer_, (n - firstCount) * sizeof(T));
+      const size_t first = BUFFER_SIZE - readPos;
+      std::memcpy(dst, buffer_ + readPos, first);
+      std::memcpy(dst + first, buffer_, bytes - first);
     }
   }
 

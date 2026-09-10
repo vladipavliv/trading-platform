@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "constants.hpp"
 #include "logging.hpp"
@@ -20,7 +21,11 @@
 namespace hft {
 
 /**
- * @brief Slot based spsc queue for small messages
+ * @brief Slot based spsc queue
+ * @details Per-slot sequencing keeps producer and consumer off each other's cache
+ * lines, so the common case costs one acquire load and one release store.
+ * Cache-line aligned slots avoid false sharing, and fixed-size in-place
+ * payloads mean no allocation and no pointer chasing.
  */
 template <size_t SlotCount = LFQ_CAPACITY>
 class SequencedSPSC {
@@ -77,8 +82,7 @@ public:
     }
     std::atomic_thread_fence(std::memory_order_acquire);
     if (sloth.size > maxSize) {
-      LOG_ERROR("Buffer is too small, data {} buffer {}", sloth.size, maxSize);
-      return false;
+      return 0;
     }
 
     std::memcpy(dst, sloth.data, sloth.size);
@@ -89,10 +93,8 @@ public:
   }
 
 private:
-  // data first so it fills up the huge pages nicely
   alignas(64) Sloth slots_[SlotCount];
 
-  // control block is separated to the next huge page
   alignas(64) uint64_t writeIdx_{0};
   alignas(64) uint64_t readIdx_{0};
 };
